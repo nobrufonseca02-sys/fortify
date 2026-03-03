@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, Target, CreditCard } from 'lucide-react';
+import { Shield, Target, CreditCard, Settings2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { MOCK_ACCOUNTS, MOCK_EVALUATIONS } from '@/data/mockData';
 import { AccountSelector } from '@/components/AccountSelector';
 import { AccountStats } from '@/components/AccountStats';
@@ -38,6 +39,10 @@ const Dashboard = () => {
               <h1 className="text-lg font-bold text-foreground tracking-tight">FORTIFY</h1>
               <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Risk Control</p>
             </div>
+            <Link to="/rules" className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors border border-border">
+              <Settings2 className="w-4 h-4" />
+              Gerenciar Regras
+            </Link>
           </div>
 
           {/* Summary badges */}
