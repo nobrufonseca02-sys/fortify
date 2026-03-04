@@ -1,136 +1,128 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Shield, Target, CreditCard, Settings2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { MOCK_ACCOUNTS, MOCK_EVALUATIONS } from '@/data/mockData';
 import { AccountSelector } from '@/components/AccountSelector';
-import { AccountStats } from '@/components/AccountStats';
-import { RuleCard } from '@/components/RuleCard';
+import { AccountHealthBanner } from '@/components/AccountHealthBanner';
+import { RiskCard } from '@/components/RiskCard';
+import { ProgressCard } from '@/components/ProgressCard';
+import { AlertTriangle } from 'lucide-react';
 import { TradingAccount } from '@/types/fortify';
 
 const Dashboard = () => {
   const [selectedAccount, setSelectedAccount] = useState<TradingAccount>(MOCK_ACCOUNTS[0]);
+  const evals = MOCK_EVALUATIONS.filter(e => e.tradingAccountId === selectedAccount.id);
 
-  const accountEvals = MOCK_EVALUATIONS.filter(e => e.tradingAccountId === selectedAccount.id);
-  const riskRules = accountEvals.filter(e => 
-    ['MAX_DAILY_LOSS', 'MAX_TOTAL_LOSS', 'TRAILING_MAX_LOSS'].includes(e.rule.type)
-  );
-  const objectiveRules = accountEvals.filter(e => 
-    ['PROFIT_TARGET', 'MIN_TRADING_DAYS', 'CONSISTENCY_BEST_DAY_CAP', 'INACTIVITY_LIMIT'].includes(e.rule.type)
-  );
-  const otherRules = accountEvals.filter(e => 
-    ['NEWS_RESTRICTION_WINDOW', 'SCALPING_RULE', 'MAX_STACKING_TRADES', 'PROFIT_CAP_PAYOUT'].includes(e.rule.type)
-  );
+  // Risk evaluations
+  const dailyLoss = evals.find(e => e.rule.type === 'MAX_DAILY_LOSS');
+  const totalLoss = evals.find(e => e.rule.type === 'MAX_TOTAL_LOSS') || evals.find(e => e.rule.type === 'TRAILING_MAX_LOSS');
+  const floatingLoss = {
+    current: Math.max(0, selectedAccount.currentBalance - selectedAccount.currentEquity),
+    limit: selectedAccount.startBalance * 0.1,
+  };
 
-  const violatedCount = accountEvals.filter(e => e.status === 'VIOLATED').length;
-  const warningCount = accountEvals.filter(e => e.status === 'WARNING').length;
-  const approvingCount = accountEvals.filter(e => e.status === 'APPROVING').length;
+  // Progress evaluations
+  const profitTarget = evals.find(e => e.rule.type === 'PROFIT_TARGET');
+  const minDays = evals.find(e => e.rule.type === 'MIN_TRADING_DAYS');
+
+  // Account health
+  const hasViolation = evals.some(e => e.status === 'VIOLATED');
+  const hasWarning = evals.some(e => e.status === 'WARNING');
+  const healthStatus = hasViolation ? 'VIOLATED' as const : hasWarning ? 'WARNING' as const : 'SAFE' as const;
+
+  // Alerts
+  const alerts = evals.filter(e => e.status === 'WARNING' || e.status === 'VIOLATED');
+
+  const dailyRemaining = dailyLoss ? Math.max(0, dailyLoss.limitValue - dailyLoss.currentValue) : 0;
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center">
-              <Shield className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-foreground tracking-tight">FORTIFY</h1>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Risk Control</p>
-            </div>
-            <Link to="/rules" className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors border border-border">
-              <Settings2 className="w-4 h-4" />
-              Gerenciar Regras
-            </Link>
-          </div>
+    <div className="p-6 max-w-5xl mx-auto space-y-6">
+      {/* Account Selector */}
+      <AccountSelector accounts={MOCK_ACCOUNTS} selected={selectedAccount} onSelect={setSelectedAccount} />
 
-          {/* Summary badges */}
-          <div className="flex items-center gap-2">
-            {violatedCount > 0 && (
-              <span className="text-xs font-mono px-2.5 py-1 rounded-full bg-destructive/15 text-destructive">
-                {violatedCount} violado
-              </span>
-            )}
-            {warningCount > 0 && (
-              <span className="text-xs font-mono px-2.5 py-1 rounded-full bg-warning/15 text-warning">
-                {warningCount} atenção
-              </span>
-            )}
-            <span className="text-xs font-mono px-2.5 py-1 rounded-full bg-success/15 text-success">
-              {approvingCount} ok
-            </span>
-          </div>
+      {/* Account Health */}
+      <AccountHealthBanner status={healthStatus} />
+
+      {/* RISCO DA CONTA */}
+      <section>
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Risco da Conta</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {totalLoss && (
+            <RiskCard
+              title="Max Loss"
+              limit={totalLoss.limitValue}
+              current={totalLoss.currentValue}
+              status={totalLoss.status}
+            />
+          )}
+          {dailyLoss && (
+            <RiskCard
+              title="Daily Loss"
+              limit={dailyLoss.limitValue}
+              current={dailyLoss.currentValue}
+              status={dailyLoss.status}
+              highlight={`Você ainda pode perder hoje: $${dailyRemaining.toLocaleString()}`}
+            />
+          )}
+          <RiskCard
+            title="Floating Loss"
+            limit={floatingLoss.limit}
+            current={floatingLoss.current}
+            status={floatingLoss.current / floatingLoss.limit > 0.7 ? 'WARNING' : 'APPROVING'}
+          />
         </div>
-      </header>
+      </section>
 
-      <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-        {/* Account Selector */}
-        <AccountSelector
-          accounts={MOCK_ACCOUNTS}
-          selected={selectedAccount}
-          onSelect={setSelectedAccount}
-        />
+      {/* PROGRESSO DA CONTA */}
+      <section>
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Progresso da Conta</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {profitTarget && (
+            <ProgressCard
+              title="Profit Target"
+              current={`$${profitTarget.currentValue.toLocaleString()}`}
+              target={`$${profitTarget.limitValue.toLocaleString()}`}
+              pct={profitTarget.progressPct}
+              status={profitTarget.status}
+            />
+          )}
+          {minDays && (
+            <ProgressCard
+              title="Dias Lucrativos"
+              current={minDays.currentValue}
+              target={minDays.limitValue}
+              pct={minDays.progressPct}
+              status={minDays.status}
+            />
+          )}
+        </div>
+      </section>
 
-        {/* Stats */}
-        <AccountStats account={selectedAccount} />
-
-        {/* Risk Rules */}
-        {riskRules.length > 0 && (
-          <section>
-            <div className="flex items-center gap-2 mb-4">
-              <Shield className="w-4 h-4 text-destructive" />
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-foreground">Limites de Risco</h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {riskRules.map((evaluation, i) => (
-                <RuleCard key={evaluation.id} evaluation={evaluation} index={i} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Objective Rules */}
-        {objectiveRules.length > 0 && (
-          <section>
-            <div className="flex items-center gap-2 mb-4">
-              <Target className="w-4 h-4 text-primary" />
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-foreground">Objetivos</h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {objectiveRules.map((evaluation, i) => (
-                <RuleCard key={evaluation.id} evaluation={evaluation} index={i} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Compliance / Other Rules */}
-        {otherRules.length > 0 && (
-          <section>
-            <div className="flex items-center gap-2 mb-4">
-              <CreditCard className="w-4 h-4 text-info" />
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-foreground">Compliance & Payout</h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {otherRules.map((evaluation, i) => (
-                <RuleCard key={evaluation.id} evaluation={evaluation} index={i} />
-              ))}
-            </div>
-          </section>
-        )}
-      </main>
+      {/* ALERTAS */}
+      {alerts.length > 0 && (
+        <section>
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Alertas</h2>
+          <div className="space-y-2">
+            {alerts.map(a => (
+              <div
+                key={a.id}
+                className={`rounded-lg border p-4 flex items-center gap-3 ${
+                  a.status === 'VIOLATED'
+                    ? 'border-destructive/30 bg-destructive/5'
+                    : 'border-warning/30 bg-warning/5'
+                }`}
+              >
+                <AlertTriangle className={`w-4 h-4 flex-shrink-0 ${a.status === 'VIOLATED' ? 'text-destructive' : 'text-warning'}`} />
+                <p className="text-sm text-foreground">{a.message}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Footer */}
-      <footer className="border-t border-border mt-12">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <p className="text-xs text-muted-foreground font-mono">
-            FORTIFY v1.0 — Risk Control Engine
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Última atualização: {new Date().toLocaleString('pt-BR')}
-          </p>
-        </div>
+      <footer className="pt-6 border-t border-border">
+        <p className="text-xs text-muted-foreground font-mono">
+          Última atualização: {new Date().toLocaleString('pt-BR')}
+        </p>
       </footer>
     </div>
   );
