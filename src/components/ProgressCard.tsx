@@ -26,7 +26,7 @@ export function ProgressCard({ title, current, target, pct, status }: ProgressCa
         <div className={`h-full rounded-full transition-all duration-500 ${barColor}`} style={{ width: `${Math.min(100, pct)}%` }} />
       </div>
 
-      <p className="text-xs font-mono text-muted-foreground">{pct}% completo</p>
+      <p className="text-xs font-mono text-muted-foreground">{pct}% concluído</p>
     </div>
   );
 }

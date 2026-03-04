@@ -1,5 +1,3 @@
-import { Progress } from '@/components/ui/progress';
-
 interface RiskCardProps {
   title: string;
   limit: number;
@@ -22,7 +20,7 @@ export function RiskCard({ title, limit, current, status, highlight }: RiskCardP
     status === 'WARNING' ? 'text-warning' :
     'text-success';
 
-  const fmt = (v: number) => `$${v.toLocaleString('en-US', { minimumFractionDigits: 0 })}`;
+  const fmt = (v: number) => `$${v.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`;
 
   return (
     <div className="rounded-xl border border-border bg-card p-5 space-y-4">

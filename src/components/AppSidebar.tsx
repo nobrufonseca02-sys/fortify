@@ -1,6 +1,5 @@
-import { LayoutDashboard, BarChart3, ScrollText, Clock, Settings } from "lucide-react";
+import { LayoutDashboard, ScrollText, PlusCircle, Settings } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { useLocation } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
@@ -13,22 +12,19 @@ import {
 } from "@/components/ui/sidebar";
 
 const items = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Performance", url: "/performance", icon: BarChart3 },
+  { title: "Painel", url: "/", icon: LayoutDashboard },
+  { title: "Minhas Contas", url: "/accounts", icon: PlusCircle },
   { title: "Regras da Conta", url: "/rules", icon: ScrollText },
-  { title: "Histórico", url: "/history", icon: Clock },
   { title: "Configuração", url: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const location = useLocation();
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border bg-card">
       <SidebarContent className="pt-4">
-        {/* Logo */}
         <div className={`px-4 mb-6 ${collapsed ? 'px-2' : ''}`}>
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center flex-shrink-0">
@@ -37,7 +33,7 @@ export function AppSidebar() {
             {!collapsed && (
               <div>
                 <h1 className="text-sm font-bold text-foreground tracking-tight">FORTIFY</h1>
-                <p className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Risk Control</p>
+                <p className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Controle de Risco</p>
               </div>
             )}
           </div>
