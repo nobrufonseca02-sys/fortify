@@ -11,7 +11,7 @@ const Dashboard = () => {
   const [selectedAccount, setSelectedAccount] = useState<TradingAccount>(MOCK_ACCOUNTS[0]);
   const evals = MOCK_EVALUATIONS.filter(e => e.tradingAccountId === selectedAccount.id);
 
-  // Risk evaluations
+  // Risco
   const dailyLoss = evals.find(e => e.rule.type === 'MAX_DAILY_LOSS');
   const totalLoss = evals.find(e => e.rule.type === 'MAX_TOTAL_LOSS') || evals.find(e => e.rule.type === 'TRAILING_MAX_LOSS');
   const floatingLoss = {
@@ -19,26 +19,24 @@ const Dashboard = () => {
     limit: selectedAccount.startBalance * 0.1,
   };
 
-  // Progress evaluations
+  // Progresso
   const profitTarget = evals.find(e => e.rule.type === 'PROFIT_TARGET');
   const minDays = evals.find(e => e.rule.type === 'MIN_TRADING_DAYS');
 
-  // Account health
+  // Saúde
   const hasViolation = evals.some(e => e.status === 'VIOLATED');
   const hasWarning = evals.some(e => e.status === 'WARNING');
   const healthStatus = hasViolation ? 'VIOLATED' as const : hasWarning ? 'WARNING' as const : 'SAFE' as const;
 
-  // Alerts
+  // Alertas
   const alerts = evals.filter(e => e.status === 'WARNING' || e.status === 'VIOLATED');
 
   const dailyRemaining = dailyLoss ? Math.max(0, dailyLoss.limitValue - dailyLoss.currentValue) : 0;
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
-      {/* Account Selector */}
       <AccountSelector accounts={MOCK_ACCOUNTS} selected={selectedAccount} onSelect={setSelectedAccount} />
 
-      {/* Account Health */}
       <AccountHealthBanner status={healthStatus} />
 
       {/* RISCO DA CONTA */}
@@ -47,7 +45,7 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {totalLoss && (
             <RiskCard
-              title="Max Loss"
+              title="Perda Máxima"
               limit={totalLoss.limitValue}
               current={totalLoss.currentValue}
               status={totalLoss.status}
@@ -55,15 +53,15 @@ const Dashboard = () => {
           )}
           {dailyLoss && (
             <RiskCard
-              title="Daily Loss"
+              title="Perda Diária"
               limit={dailyLoss.limitValue}
               current={dailyLoss.currentValue}
               status={dailyLoss.status}
-              highlight={`Você ainda pode perder hoje: $${dailyRemaining.toLocaleString()}`}
+              highlight={`Você ainda pode perder hoje: $${dailyRemaining.toLocaleString('pt-BR')}`}
             />
           )}
           <RiskCard
-            title="Floating Loss"
+            title="Perda Flutuante"
             limit={floatingLoss.limit}
             current={floatingLoss.current}
             status={floatingLoss.current / floatingLoss.limit > 0.7 ? 'WARNING' : 'APPROVING'}
@@ -77,9 +75,9 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {profitTarget && (
             <ProgressCard
-              title="Profit Target"
-              current={`$${profitTarget.currentValue.toLocaleString()}`}
-              target={`$${profitTarget.limitValue.toLocaleString()}`}
+              title="Meta de Lucro"
+              current={`$${profitTarget.currentValue.toLocaleString('pt-BR')}`}
+              target={`$${profitTarget.limitValue.toLocaleString('pt-BR')}`}
               pct={profitTarget.progressPct}
               status={profitTarget.status}
             />
@@ -118,7 +116,6 @@ const Dashboard = () => {
         </section>
       )}
 
-      {/* Footer */}
       <footer className="pt-6 border-t border-border">
         <p className="text-xs text-muted-foreground font-mono">
           Última atualização: {new Date().toLocaleString('pt-BR')}
