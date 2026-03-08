@@ -41,9 +41,9 @@ const SettingsPage = () => {
           <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
             <Settings className="w-4 h-4 text-primary" />
           </div>
-          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Preferencias</h2>
+          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Preferências</h2>
         </div>
-        <p className="text-sm text-muted-foreground">Notificacoes, idioma e integracoes em breve.</p>
+        <p className="text-sm text-muted-foreground">Notificações, idioma e integrações em breve.</p>
       </motion.div>
 
       {/* Logout */}
