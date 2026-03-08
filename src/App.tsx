@@ -11,6 +11,7 @@ import AccountDashboard from "./pages/AccountDashboard";
 import RuleManager from "./pages/RuleManager";
 import Performance from "./pages/Performance";
 import SettingsPage from "./pages/SettingsPage";
+import CreateAccount from "./pages/CreateAccount";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/accounts" element={<Accounts />} />
+            <Route path="/accounts/new" element={<CreateAccount />} />
             <Route path="/accounts/:id" element={<AccountDashboard />} />
             <Route path="/performance" element={<Performance />} />
             <Route path="/rules" element={<AccountRules />} />
