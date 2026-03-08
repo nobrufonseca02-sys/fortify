@@ -28,8 +28,9 @@ const statusConfig = {
 const AccountDashboard = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { accounts } = useAccountsStore();
 
-  const account = MOCK_ACCOUNTS.find(a => a.id === id);
+  const account = accounts.find(a => a.id === id);
   if (!account) {
     return (
       <div className="p-6 text-center">
