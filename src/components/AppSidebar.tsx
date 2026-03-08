@@ -1,4 +1,4 @@
-import { LayoutDashboard, ScrollText, PlusCircle, Settings, BarChart3, Shield, BookOpen } from "lucide-react";
+import { LayoutDashboard, ScrollText, PlusCircle, Settings, BarChart3, Shield, BookOpen, Archive } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -17,6 +17,7 @@ const items = [
   { title: "Performance", url: "/performance", icon: BarChart3 },
   { title: "Regras da Conta", url: "/rules", icon: ScrollText },
   { title: "Prop Firm Library", url: "/library", icon: BookOpen },
+  { title: "Histórico", url: "/history", icon: Archive },
   { title: "Configuração", url: "/settings", icon: Settings },
   { title: "Admin", url: "/admin", icon: Shield },
 ];
