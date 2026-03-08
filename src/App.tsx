@@ -30,7 +30,7 @@ function ProtectedRoutes() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
-          <img src={fortifyLogo} alt="Fortify" className="w-12 h-12 animate-pulse mix-blend-screen" />
+          <img src={fortifyLogo} alt="Fortify" className="w-12 h-12 animate-pulse invert" />
           <p className="text-xs text-muted-foreground uppercase tracking-wider">Carregando...</p>
         </div>
       </div>
