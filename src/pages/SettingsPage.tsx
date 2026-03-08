@@ -9,8 +9,8 @@ const SettingsPage = () => {
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-6">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-lg font-black text-foreground">Configuracoes</h1>
-        <p className="text-xs text-muted-foreground">Gerencie sua conta e preferencias.</p>
+        <h1 className="text-lg font-black text-foreground">Configurações</h1>
+        <p className="text-xs text-muted-foreground">Gerencie sua conta e preferências.</p>
       </motion.div>
 
       {/* Profile */}
