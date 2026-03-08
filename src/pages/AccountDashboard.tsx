@@ -93,9 +93,9 @@ const AccountDashboard = () => {
     const remaining = profitTarget.limitValue - Math.max(0, profitTarget.currentValue);
     recommendations.push(`Faltam ${fmt(remaining)} para atingir a meta de lucro de ${fmt(profitTarget.limitValue)}`);
   }
-  if (avgRisk > 65) recommendations.push('⛔ Considere parar de operar hoje');
-  else if (avgRisk > 45) recommendations.push('📉 Reduza o tamanho dos lotes nos próximos trades');
-  else recommendations.push('✅ Risco controlado, mantenha a estratégia');
+  if (avgRisk > 65) recommendations.push('Considere parar de operar hoje');
+  else if (avgRisk > 45) recommendations.push('Reduza o tamanho dos lotes nos próximos trades');
+  else recommendations.push('Risco controlado, mantenha a estratégia');
 
   // Alerts
   const alerts: { text: string; severity: 'warning' | 'danger' | 'info' }[] = [];

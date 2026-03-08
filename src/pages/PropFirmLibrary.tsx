@@ -65,7 +65,7 @@ const FIRM_LOGOS: Record<string, string> = {
   alphacapitalgroup: 'AC',
   thetradingpit: 'TP',
   fundingpips: 'FP',
-  custom: '⚙',
+  custom: 'C',
 };
 
 const PropFirmLibrary = () => {
