@@ -90,7 +90,7 @@ export default function AuthPage() {
           transition={{ duration: 0.8 }}
         >
           <div className="flex items-center gap-4 mb-2">
-            <img src={fortifyLogo} alt="Fortify" className="w-14 h-14 invert brightness-200 hue-rotate-[140deg] saturate-150" />
+            <img src={fortifyLogo} alt="Fortify" className="w-14 h-14" />
             <h1 className="text-3xl font-bold text-foreground tracking-[0.08em]">FORTIFY</h1>
           </div>
         </motion.div>
@@ -158,7 +158,7 @@ export default function AuthPage() {
         >
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-10">
-            <img src={fortifyLogo} alt="Fortify" className="w-10 h-10 invert brightness-200 hue-rotate-[140deg] saturate-150" />
+            <img src={fortifyLogo} alt="Fortify" className="w-10 h-10" />
             <h1 className="text-xl font-bold text-foreground tracking-[0.08em]">FORTIFY</h1>
           </div>
 
