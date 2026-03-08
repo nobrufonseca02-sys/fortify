@@ -15,8 +15,6 @@ import AdminPage from "./pages/AdminPage";
 import CreateAccount from "./pages/CreateAccount";
 import PropFirmLibrary from "./pages/PropFirmLibrary";
 import AccountHistory from "./pages/AccountHistory";
-import MT5Dashboard from "./pages/MT5Dashboard";
-import ConnectMT5 from "./pages/ConnectMT5";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
