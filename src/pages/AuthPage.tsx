@@ -107,8 +107,7 @@ export default function AuthPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
           >
-            Proteja sua conta antes que a regra te{" "}
-            <span className="text-gradient-primary">elimine.</span>
+            <span className="text-gradient-primary">Proteja</span> sua conta antes que a regra te elimine.
           </motion.h2>
 
           <motion.p
