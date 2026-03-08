@@ -41,16 +41,18 @@ function getAccountData(account: TradingAccount) {
   // Insight
   let insight = '';
   if (dailyLoss && dailyLoss.progressPct > 50) {
-    insight = `Você está usando ${Math.round(dailyLoss.progressPct)}% do limite diário`;
+    const used = dailyLoss.currentValue;
+    const remain = Math.max(0, dailyLoss.limitValue - used);
+    insight = `Você já usou ${fmt(used)} do limite diário. Restam ${fmt(remain)}`;
   } else if (profitTarget && profitTarget.currentValue < 0) {
-    const neededPct = ((profitTarget.limitValue - profitTarget.currentValue) / account.startBalance * 100).toFixed(1);
-    insight = `Esta conta precisa de +${neededPct}% para atingir a meta`;
+    const neededValue = profitTarget.limitValue - profitTarget.currentValue;
+    insight = `Esta conta precisa de ${fmt(neededValue)} para atingir a meta`;
   } else if (totalLoss && totalLoss.progressPct > 30) {
-    const sessionsNeeded = Math.ceil(totalLoss.currentValue / (account.startBalance * 0.01));
-    insight = `O risco atual exige recuperação em ~${sessionsNeeded} sessões médias`;
+    const remain = Math.max(0, totalLoss.limitValue - totalLoss.currentValue);
+    insight = `Margem de perda restante: ${fmt(remain)} de ${fmt(totalLoss.limitValue)}`;
   } else if (profitTarget) {
-    const remaining = ((profitTarget.limitValue - profitTarget.currentValue) / account.startBalance * 100).toFixed(1);
-    insight = `Faltam +${remaining}% para atingir a meta de lucro`;
+    const remaining = profitTarget.limitValue - Math.max(0, profitTarget.currentValue);
+    insight = `Faltam ${fmt(remaining)} para atingir a meta de lucro`;
   } else {
     insight = 'Conta dentro dos limites seguros';
   }
