@@ -1,15 +1,20 @@
-import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAccountsStore } from '@/pages/Accounts';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, ArrowRight, Check, Shield, AlertTriangle, Zap, TrendingUp,
   Calculator, Brain, BarChart3, Target, Clock, Newspaper, Layers, Activity,
-  ChevronDown, ChevronUp, Wallet, Flame, Award
+  ChevronDown, ChevronUp, Wallet, Flame, Award, Building2, Globe,
+  ChevronRight, ExternalLink, BookOpen
 } from 'lucide-react';
 import { RuleType, RULE_TYPE_LABELS, RULE_TYPE_DESCRIPTIONS } from '@/types/fortify';
-import { FIRM_TEMPLATES, type FirmTemplate, type TemplateRule } from '@/data/propFirmLibrary';
+import { type TemplateRule } from '@/data/propFirmLibrary';
 import { RuleExtractor } from '@/components/RuleExtractor';
+import {
+  usePropFirms, usePrograms, useProgramRules,
+  type PropFirm, type Program, type RuleInstance,
+} from '@/hooks/usePropFirmLibrary';
 
 const RISK_OPTIONS = [
   { label: '0.25%', value: 0.25, desc: 'Ultra conservador' },
@@ -30,6 +35,52 @@ const RULE_ICONS: Partial<Record<RuleType, React.ElementType>> = {
   MAX_STACKING_TRADES: Layers,
   INACTIVITY_LIMIT: Activity,
 };
+
+const FIRM_LOGOS: Record<string, string> = {
+  ftmo: 'F', hantec: 'H', topstep: 'T', fundednext: 'FN',
+  the5ers: '5', apex: 'AT', e8markets: 'E8', fxify: 'FX',
+  fundscap: 'FC', custom: '⚙',
+};
+
+// Map DB rule_definition key → local RuleType
+const DB_KEY_TO_RULE_TYPE: Record<string, RuleType> = {
+  max_daily_loss: 'MAX_DAILY_LOSS',
+  max_total_loss: 'MAX_TOTAL_LOSS',
+  trailing_drawdown: 'TRAILING_MAX_LOSS',
+  floating_loss_limit: 'MAX_TOTAL_LOSS',
+  profit_target: 'PROFIT_TARGET',
+  min_trading_days: 'MIN_TRADING_DAYS',
+  profitable_days: 'MIN_TRADING_DAYS',
+  consistency_best_day_cap: 'CONSISTENCY_BEST_DAY_CAP',
+  inactivity_limit: 'INACTIVITY_LIMIT',
+  news_restriction: 'NEWS_RESTRICTION_WINDOW',
+  scalping_restriction: 'SCALPING_RULE',
+  weekend_holding: 'SCALPING_RULE',
+  payout_eligibility: 'PROFIT_CAP_PAYOUT',
+  profit_split: 'PROFIT_CAP_PAYOUT',
+  payout_frequency: 'PROFIT_CAP_PAYOUT',
+  leverage_limit: 'MAX_STACKING_TRADES',
+};
+
+function mapDbRulesToTemplateRules(dbRules: RuleInstance[]): TemplateRule[] {
+  return dbRules.map(rule => {
+    const def = rule.rule_definition;
+    const key = def?.key || '';
+    const ruleType = DB_KEY_TO_RULE_TYPE[key] || 'MAX_DAILY_LOSS';
+    const unit: TemplateRule['unit'] = rule.mode === 'percent' ? '%'
+      : (key === 'min_trading_days' || key === 'profitable_days' || key === 'inactivity_limit' || key === 'payout_frequency') ? 'days'
+      : '$';
+    return {
+      type: ruleType,
+      name: def?.name || key,
+      severity: rule.severity === 'hard' ? 'hard' as const : 'soft' as const,
+      defaultValue: rule.limit_value,
+      unit,
+      editable: true,
+      enabled: rule.enabled,
+    };
+  });
+}
 
 const fmt = (v: number) => `$${v.toLocaleString('en-US', { minimumFractionDigits: 0 })}`;
 
@@ -54,35 +105,83 @@ const StepIndicator = ({ current, total }: { current: number; total: number }) =
 // ─── Main Page ───
 const CreateAccount = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { addAccount } = useAccountsStore();
   const [step, setStep] = useState(0);
 
-  // Step 1: Prop Firm
-  const [selectedFirm, setSelectedFirm] = useState<string | null>(null);
+  // Step 0: Prop Firm + Program from DB
+  const [selectedFirmId, setSelectedFirmId] = useState<string | null>(null);
+  const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
+  const [firmStep, setFirmStep] = useState<'firm' | 'program'>('firm');
 
-  // Step 2: Account Info
+  // DB queries
+  const { data: firms = [], isLoading: firmsLoading } = usePropFirms();
+  const { data: programs = [], isLoading: programsLoading } = usePrograms(selectedFirmId);
+  const { data: programData, isLoading: rulesLoading } = useProgramRules(selectedProgramId);
+
+  const selectedFirm = firms.find(f => f.id === selectedFirmId);
+  const selectedProgram = programs.find(p => p.id === selectedProgramId);
+
+  // Step 1: Account Info
   const [accountName, setAccountName] = useState('');
   const [startBalance, setStartBalance] = useState('100000');
   const [currency, setCurrency] = useState('USD');
   const [accountType, setAccountType] = useState('');
 
-  // Step 3: Rules
+  // Step 2: Rules
   const [rules, setRules] = useState<TemplateRule[]>([]);
 
-  // Step 4: Risk
+  // Step 3: Risk
   const [riskPerTrade, setRiskPerTrade] = useState<number | null>(null);
   const [customRisk, setCustomRisk] = useState('');
 
-  const firm = FIRM_TEMPLATES.find(f => f.id === selectedFirm);
   const balance = parseFloat(startBalance) || 0;
   const effectiveRisk = riskPerTrade ?? (customRisk ? parseFloat(customRisk) : 0);
 
-  // Select firm → load rules
-  const handleSelectFirm = (id: string) => {
-    setSelectedFirm(id);
-    const t = FIRM_TEMPLATES.find(f => f.id === id)!;
-    setRules(t.rules.map(r => ({ ...r })));
-    setAccountType(t.accountTypes[0]);
+  // Handle incoming state from Library page
+  useEffect(() => {
+    const state = location.state as { firmId?: string; programId?: string; firmName?: string; programName?: string } | null;
+    if (state?.firmId) {
+      setSelectedFirmId(state.firmId);
+      if (state.programId) {
+        setSelectedProgramId(state.programId);
+        setFirmStep('program');
+      }
+    }
+  }, [location.state]);
+
+  // Auto-load rules when program data arrives
+  useEffect(() => {
+    if (programData?.rules && programData.rules.length > 0) {
+      const mapped = mapDbRulesToTemplateRules(programData.rules);
+      setRules(mapped);
+      if (selectedProgram) {
+        setAccountType(selectedProgram.account_type);
+        if (!accountName) {
+          setAccountName(`${selectedFirm?.name || ''} ${selectedProgram.name}`);
+        }
+      }
+    }
+  }, [programData]);
+
+  const handleSelectFirm = (firm: PropFirm) => {
+    setSelectedFirmId(firm.id);
+    setSelectedProgramId(null);
+    setRules([]);
+    setFirmStep('program');
+  };
+
+  const handleSelectProgram = (program: Program) => {
+    setSelectedProgramId(program.id);
+  };
+
+  const goBackFirmStep = () => {
+    if (firmStep === 'program') {
+      setFirmStep('firm');
+      setSelectedFirmId(null);
+      setSelectedProgramId(null);
+      setRules([]);
+    }
   };
 
   const toggleRule = (idx: number) => {
@@ -163,7 +262,7 @@ const CreateAccount = () => {
   }, [balance]);
 
   const canNext = () => {
-    if (step === 0) return !!selectedFirm;
+    if (step === 0) return !!selectedProgramId && rules.length > 0;
     if (step === 1) return !!accountName && balance > 0;
     if (step === 2) return rules.some(r => r.enabled);
     if (step === 3) return effectiveRisk > 0;
@@ -174,22 +273,22 @@ const CreateAccount = () => {
     const newAccount = {
       id: `acc-${Date.now()}`,
       userId: 'u1',
-      nickname: accountName || `${firm?.name || 'Custom'} ${balance / 1000}k`,
-      broker: `${firm?.name || 'Custom'} - ${accountType}`,
+      nickname: accountName || `${selectedFirm?.name || 'Custom'} ${balance / 1000}k`,
+      broker: `${selectedFirm?.name || 'Custom'} - ${accountType}`,
       baseCurrency: currency,
       startBalance: balance,
       currentBalance: balance,
       currentEquity: balance,
       highestEquityAllTime: balance,
       status: 'active' as const,
-      ruleSetId: firm?.id || 'custom',
+      ruleSetId: selectedFirmId || 'custom',
       createdAt: new Date().toISOString().split('T')[0],
     };
     addAccount(newAccount);
     navigate('/accounts');
   };
 
-  const STEPS = ['Prop Firm', 'Conta', 'Regras', 'Risco', 'Revisão'];
+  const STEPS = ['Firma & Programa', 'Conta', 'Regras', 'Risco', 'Revisão'];
 
   return (
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
@@ -206,54 +305,171 @@ const CreateAccount = () => {
       </div>
 
       <AnimatePresence mode="wait">
-        {/* ─── STEP 0: Prop Firm Selection ─── */}
+        {/* ─── STEP 0: Prop Firm & Program Selection (from DB) ─── */}
         {step === 0 && (
           <motion.div key="s0" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
-            <div>
-              <h2 className="text-sm font-semibold text-foreground">Selecione sua Prop Firm</h2>
-              <p className="text-xs text-muted-foreground mt-1">As regras serão carregadas automaticamente</p>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {FIRM_TEMPLATES.map(f => (
-                <button
-                  key={f.id}
-                  onClick={() => handleSelectFirm(f.id)}
-                  className={`relative rounded-xl border p-4 text-left transition-all hover:border-primary/50 ${
-                    selectedFirm === f.id ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border bg-card'
-                  }`}
-                >
-                  {selectedFirm === f.id && (
-                    <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                      <Check className="w-3 h-3 text-primary-foreground" />
+            {firmStep === 'firm' ? (
+              <>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-primary" />
+                    <h2 className="text-sm font-semibold text-foreground">Selecione sua Prop Firm</h2>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Escolha a empresa e o programa — as regras serão carregadas automaticamente</p>
+                </div>
+
+                {firmsLoading ? (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <div key={i} className="rounded-xl border border-border bg-card p-4 animate-pulse">
+                        <div className="w-10 h-10 rounded-lg bg-muted mb-3" />
+                        <div className="h-4 w-20 bg-muted rounded mb-1" />
+                        <div className="h-3 w-28 bg-muted rounded" />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {firms.map(firm => {
+                      const logo = FIRM_LOGOS[firm.slug] || firm.name.charAt(0);
+                      const firmColor = firm.color ? `hsl(${firm.color})` : 'hsl(var(--primary))';
+                      return (
+                        <button
+                          key={firm.id}
+                          onClick={() => handleSelectFirm(firm)}
+                          className="group relative rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5"
+                        >
+                          <div className="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold mb-2" style={{ background: `${firmColor}20`, color: firmColor }}>
+                            {logo}
+                          </div>
+                          <h3 className="font-semibold text-foreground text-sm">{firm.name}</h3>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground capitalize mt-1 inline-block">{firm.category.replace('_', ' ')}</span>
+                          <ChevronRight className="absolute top-1/2 right-3 -translate-y-1/2 w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* AI Rule Extraction fallback */}
+                <div className="pt-4 border-t border-border">
+                  <RuleExtractor
+                    onRulesExtracted={(extractedRules, firmName, accountTypes) => {
+                      setRules(extractedRules);
+                      setAccountName(`${firmName} Account`);
+                      if (accountTypes.length > 0) setAccountType(accountTypes[0]);
+                      setFirmStep('program');
+                    }}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Selected firm header + program selection */}
+                <div>
+                  <button onClick={goBackFirmStep} className="flex items-center gap-1 text-xs text-primary hover:underline mb-3">
+                    <ArrowLeft className="w-3 h-3" /> Voltar às Prop Firms
+                  </button>
+
+                  {selectedFirm && (
+                    <div className="rounded-xl border border-border bg-card p-4 mb-4 flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0" style={{ background: `hsl(${selectedFirm.color || 'var(--primary)'})20`, color: `hsl(${selectedFirm.color || 'var(--primary)'})` }}>
+                        {FIRM_LOGOS[selectedFirm.slug] || selectedFirm.name.charAt(0)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-foreground text-sm">{selectedFirm.name}</h3>
+                        <p className="text-[10px] text-muted-foreground capitalize">{selectedFirm.category.replace('_', ' ')}</p>
+                      </div>
+                      {selectedFirm.website && (
+                        <a href={selectedFirm.website} target="_blank" rel="noopener noreferrer" className="text-xs text-primary flex items-center gap-1 hover:underline">
+                          <ExternalLink className="w-3 h-3" /> Site
+                        </a>
+                      )}
                     </div>
                   )}
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold mb-3" style={{ background: `${f.color}20`, color: f.color }}>
-                    {f.logo}
+
+                  <h2 className="text-sm font-semibold text-foreground">Escolha o Programa</h2>
+                  <p className="text-xs text-muted-foreground mt-1">As regras serão carregadas automaticamente ao selecionar</p>
+                </div>
+
+                {programsLoading ? (
+                  <div className="space-y-3">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="rounded-xl border border-border bg-card p-4 animate-pulse">
+                        <div className="h-4 w-40 bg-muted rounded mb-2" />
+                        <div className="h-3 w-60 bg-muted rounded" />
+                      </div>
+                    ))}
                   </div>
-                  <h3 className="font-semibold text-foreground text-sm">{f.name}</h3>
-                  <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2">{f.description}</p>
-                  <div className="flex gap-1 mt-2 flex-wrap">
-                    {f.rules.filter(r => r.enabled).length > 0 && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
-                        {f.rules.filter(r => r.enabled).length} regras
-                      </span>
+                ) : programs.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Building2 className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">Nenhum programa encontrado</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {programs.map(prog => (
+                      <button
+                        key={prog.id}
+                        onClick={() => handleSelectProgram(prog)}
+                        className={`group rounded-xl border p-4 text-left transition-all hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 ${
+                          selectedProgramId === prog.id ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border bg-card'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="font-semibold text-foreground text-sm">{prog.name}</h3>
+                            <div className="flex items-center gap-2 mt-1.5">
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{prog.account_type.replace('_', ' ')}</span>
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">{prog.market_type}</span>
+                            </div>
+                            {prog.notes && <p className="text-[11px] text-muted-foreground mt-2">{prog.notes}</p>}
+                          </div>
+                          {selectedProgramId === prog.id ? (
+                            <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                              <Check className="w-3 h-3 text-primary-foreground" />
+                            </div>
+                          ) : (
+                            <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Rules preview when program is selected */}
+                {selectedProgramId && (
+                  <div className="rounded-xl border border-border bg-card p-4 mt-4">
+                    {rulesLoading ? (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        Carregando regras...
+                      </div>
+                    ) : rules.length > 0 ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Shield className="w-4 h-4 text-primary" />
+                          <h3 className="text-sm font-semibold text-foreground">
+                            {rules.length} regra{rules.length !== 1 ? 's' : ''} carregada{rules.length !== 1 ? 's' : ''}
+                          </h3>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-success/15 text-success ml-auto">Pronto</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {rules.filter(r => r.enabled).map((rule, i) => (
+                            <span key={i} className="text-[10px] px-2 py-1 rounded-lg bg-muted text-foreground flex items-center gap-1">
+                              {rule.name}: <span className="font-mono text-primary">{rule.defaultValue}{rule.unit}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Nenhuma regra encontrada para este programa</p>
                     )}
                   </div>
-                </button>
-              ))}
-            </div>
-
-            {/* AI Rule Extraction */}
-            <div className="pt-4 border-t border-border">
-              <RuleExtractor
-                onRulesExtracted={(extractedRules, firmName, accountTypes) => {
-                  setSelectedFirm('custom');
-                  setRules(extractedRules);
-                  setAccountName(`${firmName} Account`);
-                  if (accountTypes.length > 0) setAccountType(accountTypes[0]);
-                }}
-              />
-            </div>
+                )}
+              </>
+            )}
           </motion.div>
         )}
 
@@ -264,7 +480,7 @@ const CreateAccount = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">Nome da Conta</label>
-                <input value={accountName} onChange={e => setAccountName(e.target.value)} placeholder={`${firm?.name || ''} 100k Challenge`} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                <input value={accountName} onChange={e => setAccountName(e.target.value)} placeholder={`${selectedFirm?.name || ''} 100k Challenge`} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">Saldo Inicial</label>
@@ -281,9 +497,7 @@ const CreateAccount = () => {
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">Tipo de Conta</label>
-                <select value={accountType} onChange={e => setAccountType(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
-                  {firm?.accountTypes.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
+                <input value={accountType} onChange={e => setAccountType(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex: Challenge Phase 1" />
               </div>
             </div>
           </motion.div>
@@ -466,7 +680,7 @@ const CreateAccount = () => {
                 </div>
                 <div>
                   <h3 className="font-semibold text-foreground">{accountName || 'Minha Conta'}</h3>
-                  <p className="text-[10px] text-muted-foreground">{firm?.name || 'Custom'} • {accountType} • {currency}</p>
+                  <p className="text-[10px] text-muted-foreground">{selectedFirm?.name || 'Custom'} • {accountType} • {currency}</p>
                 </div>
                 <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full bg-success/15 text-success">
                   <Shield className="w-3 h-3" /> ATIVA
@@ -545,11 +759,19 @@ const CreateAccount = () => {
       {/* Navigation buttons */}
       <div className="flex items-center justify-between pt-4 border-t border-border">
         <button
-          onClick={() => step > 0 ? setStep(step - 1) : navigate('/accounts')}
+          onClick={() => {
+            if (step === 0 && firmStep === 'program') {
+              goBackFirmStep();
+            } else if (step > 0) {
+              setStep(step - 1);
+            } else {
+              navigate('/accounts');
+            }
+          }}
           className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          {step === 0 ? 'Voltar' : 'Anterior'}
+          {step === 0 && firmStep === 'firm' ? 'Voltar' : 'Anterior'}
         </button>
 
         {step < STEPS.length - 1 ? (
