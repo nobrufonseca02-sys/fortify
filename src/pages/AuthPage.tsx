@@ -158,7 +158,7 @@ export default function AuthPage() {
         >
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-10">
-            <img src={fortifyLogo} alt="Fortify" className="w-10 h-10 mix-blend-screen" />
+            <img src={fortifyLogo} alt="Fortify" className="w-10 h-10 invert" />
             <h1 className="text-xl font-bold text-foreground tracking-[0.08em]">FORTIFY</h1>
           </div>
 
