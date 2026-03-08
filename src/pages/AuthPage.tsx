@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { AnimatedBackground } from "@/components/AnimatedBackground";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import fortifyLogo from "@/assets/fortify-logo.png";
 import { Shield, TrendingUp, BarChart3, Lock, Mail, User, ArrowRight, Eye, EyeOff, ChevronRight } from "lucide-react";
 
 type AuthMode = "login" | "signup" | "forgot";
@@ -89,12 +90,10 @@ export default function AuthPage() {
           transition={{ duration: 0.8 }}
         >
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 rounded-xl bg-primary/15 flex items-center justify-center glow-primary">
-              <span className="text-primary font-bold text-2xl">F</span>
-            </div>
+            <img src={fortifyLogo} alt="Fortify" className="w-14 h-14 invert" />
             <div>
               <h1 className="text-2xl font-bold text-foreground tracking-tight">FORTIFY</h1>
-              <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">Controle de Risco</p>
+              <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">Anti-Quebra MT5</p>
             </div>
           </div>
         </motion.div>
@@ -162,12 +161,10 @@ export default function AuthPage() {
         >
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-10">
-            <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center glow-primary">
-              <span className="text-primary font-bold text-xl">F</span>
-            </div>
+            <img src={fortifyLogo} alt="Fortify" className="w-12 h-12 invert" />
             <div>
               <h1 className="text-xl font-bold text-foreground tracking-tight">FORTIFY</h1>
-              <p className="text-[8px] uppercase tracking-[0.3em] text-muted-foreground">Controle de Risco</p>
+              <p className="text-[8px] uppercase tracking-[0.3em] text-muted-foreground">Anti-Quebra MT5</p>
             </div>
           </div>
 

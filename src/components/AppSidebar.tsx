@@ -1,4 +1,5 @@
 import { LayoutDashboard, ScrollText, PlusCircle, Settings, BarChart3, Shield, BookOpen, Archive } from "lucide-react";
+import fortifyLogo from "@/assets/fortify-logo.png";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -32,13 +33,11 @@ export function AppSidebar() {
       <SidebarContent className="pt-4">
         <div className={`px-4 mb-6 ${collapsed ? 'px-2' : ''}`}>
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center flex-shrink-0">
-              <span className="text-primary font-bold text-sm">F</span>
-            </div>
+            <img src={fortifyLogo} alt="Fortify" className="w-8 h-8 flex-shrink-0 invert" />
             {!collapsed && (
               <div>
                 <h1 className="text-sm font-bold text-foreground tracking-tight">FORTIFY</h1>
-                <p className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Controle de Risco</p>
+                <p className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Anti-Quebra MT5</p>
               </div>
             )}
           </div>
