@@ -56,12 +56,35 @@ const DEFAULT_GLOBAL_CONFIG = {
 };
 
 export default function AdminPage() {
+  const { isAdmin, loading: roleLoading } = useUserRole();
   const [activeTab, setActiveTab] = useState('users');
   const [users, setUsers] = useState(MOCK_USERS);
   const [searchUser, setSearchUser] = useState('');
   const [templateModal, setTemplateModal] = useState<{ open: boolean; mode: 'create' | 'edit'; templateId?: string }>({ open: false, mode: 'create' });
   const [templateForm, setTemplateForm] = useState({ name: '', firmName: '' });
   const [globalConfig, setGlobalConfig] = useState(DEFAULT_GLOBAL_CONFIG);
+
+  if (roleLoading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[60vh]">
+        <p className="text-sm text-muted-foreground">Verificando permissões...</p>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="p-6 flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center">
+          <ShieldOff className="h-8 w-8 text-destructive" />
+        </div>
+        <h2 className="text-lg font-bold text-foreground">Acesso Restrito</h2>
+        <p className="text-sm text-muted-foreground text-center max-w-sm">
+          Esta área é exclusiva para administradores. Você não tem permissão para acessar este painel.
+        </p>
+      </div>
+    );
+  }
 
   // ─── Users ───
   const filteredUsers = users.filter(u =>
