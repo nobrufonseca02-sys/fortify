@@ -269,6 +269,7 @@ function AccountCard({ account, index }: { account: TradingAccount; index: numbe
 
 // === Dashboard Page ===
 const Dashboard = () => {
+  const { accounts } = useAccountsStore();
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
       {/* Hero */}
@@ -278,7 +279,7 @@ const Dashboard = () => {
       <section>
         <h2 className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground mb-4">Suas Contas</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {MOCK_ACCOUNTS.map((account, i) => (
+          {accounts.map((account, i) => (
             <AccountCard key={account.id} account={account} index={i} />
           ))}
         </div>
