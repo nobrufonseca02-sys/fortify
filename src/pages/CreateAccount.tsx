@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { RuleType, RULE_TYPE_LABELS, RULE_TYPE_DESCRIPTIONS } from '@/types/fortify';
 import { FIRM_TEMPLATES, type FirmTemplate, type TemplateRule } from '@/data/propFirmLibrary';
+import { RuleExtractor } from '@/components/RuleExtractor';
 
 const RISK_OPTIONS = [
   { label: '0.25%', value: 0.25, desc: 'Ultra conservador' },
@@ -240,6 +241,18 @@ const CreateAccount = () => {
                   </div>
                 </button>
               ))}
+            </div>
+
+            {/* AI Rule Extraction */}
+            <div className="pt-4 border-t border-border">
+              <RuleExtractor
+                onRulesExtracted={(extractedRules, firmName, accountTypes) => {
+                  setSelectedFirm('custom');
+                  setRules(extractedRules);
+                  setAccountName(`${firmName} Account`);
+                  if (accountTypes.length > 0) setAccountType(accountTypes[0]);
+                }}
+              />
             </div>
           </motion.div>
         )}

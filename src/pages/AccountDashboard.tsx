@@ -1,12 +1,16 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MOCK_EVALUATIONS, RULE_SET_TEMPLATES } from '@/data/mockData';
 import { useAccountsStore } from '@/pages/Accounts';
 import { RuleEvaluation } from '@/types/fortify';
 import {
   Shield, ShieldAlert, ShieldX, AlertTriangle, ArrowLeft,
-  Lightbulb, Bell, TrendingDown, Target, Activity
+  Lightbulb, Bell, TrendingDown, Target, Activity, Sparkles
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { RuleExtractor } from '@/components/RuleExtractor';
+import type { TemplateRule } from '@/data/propFirmLibrary';
+import { toast } from 'sonner';
 
 const fmt = (v: number) => `$${Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`;
 
@@ -29,6 +33,8 @@ const AccountDashboard = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { accounts } = useAccountsStore();
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'ai-rules'>('dashboard');
+  const [appliedAiRules, setAppliedAiRules] = useState<TemplateRule[]>([]);
 
   const account = accounts.find(a => a.id === id);
   if (!account) {
@@ -110,11 +116,29 @@ const AccountDashboard = () => {
 
   return (
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
-      {/* Back */}
-      <button onClick={() => navigate('/')} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
-        <ArrowLeft className="w-3.5 h-3.5" /> Voltar ao Painel
-      </button>
+      {/* Back + Tabs */}
+      <div className="flex items-center justify-between">
+        <button onClick={() => navigate('/')} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft className="w-3.5 h-3.5" /> Voltar ao Painel
+        </button>
+        <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${activeTab === 'dashboard' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            Dashboard
+          </button>
+          <button
+            onClick={() => setActiveTab('ai-rules')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${activeTab === 'ai-rules' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            <Sparkles className="w-3 h-3" />
+            Extrair Regras
+          </button>
+        </div>
+      </div>
 
+      {activeTab === 'dashboard' && (<>
       {/* === STATUS DA CONTA === */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}
@@ -303,6 +327,34 @@ const AccountDashboard = () => {
             ))}
           </div>
         </section>
+      )}
+      </>)}
+
+      {/* === AI RULES TAB === */}
+      {activeTab === 'ai-rules' && (
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">Reconhecimento Automático de Regras</h2>
+            <p className="text-xs text-muted-foreground mt-1">
+              Envie o PDF ou link dos termos e condições da prop firm para extrair e aplicar regras automaticamente nesta conta.
+            </p>
+          </div>
+
+          <RuleExtractor
+            onRulesExtracted={(extractedRules, firmName, _accountTypes, summary) => {
+              setAppliedAiRules(extractedRules);
+              toast.success(`${extractedRules.length} regras de "${firmName}" aplicadas à conta ${account.nickname}`);
+            }}
+          />
+
+          {appliedAiRules.length > 0 && (
+            <div className="rounded-xl border border-success/30 bg-success/5 p-4">
+              <p className="text-xs text-success font-semibold">
+                ✅ {appliedAiRules.length} regras aplicadas a esta conta
+              </p>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Footer */}
