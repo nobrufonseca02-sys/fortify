@@ -19,6 +19,8 @@ import AdminPage from "./pages/AdminPage";
 import CreateAccount from "./pages/CreateAccount";
 import PropFirmLibrary from "./pages/PropFirmLibrary";
 import AccountHistory from "./pages/AccountHistory";
+import MT5Connections from "./pages/MT5Connections";
+import MT5Dashboard from "./pages/MT5Dashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -53,6 +55,8 @@ function ProtectedRoutes() {
         <Route path="/rules/manage" element={<RuleManager />} />
         <Route path="/library" element={<PropFirmLibrary />} />
         <Route path="/history" element={<AccountHistory />} />
+        <Route path="/mt5" element={<MT5Connections />} />
+        <Route path="/mt5/:connectionId" element={<MT5Dashboard />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="*" element={<NotFound />} />
