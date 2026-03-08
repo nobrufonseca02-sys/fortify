@@ -116,7 +116,7 @@ export default function AuthPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
           >
-            O FORTIFY monitora risco, drawdown e regras de prop firms em um painel claro, profissional e feito para decisao rapida.
+            O FORTIFY monitora risco, drawdown e regras de prop firms em um painel claro, profissional e feito para decisão rápida.
           </motion.p>
 
           <div className="space-y-4">
