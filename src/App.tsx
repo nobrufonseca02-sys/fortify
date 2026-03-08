@@ -7,6 +7,7 @@ import { AppLayout } from "@/components/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Accounts from "./pages/Accounts";
 import AccountRules from "./pages/AccountRules";
+import AccountDashboard from "./pages/AccountDashboard";
 import RuleManager from "./pages/RuleManager";
 import Performance from "./pages/Performance";
 import SettingsPage from "./pages/SettingsPage";
