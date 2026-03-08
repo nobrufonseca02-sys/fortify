@@ -16,6 +16,7 @@ const items = [
   { title: "Minhas Contas", url: "/accounts", icon: PlusCircle },
   { title: "Performance", url: "/performance", icon: BarChart3 },
   { title: "Regras da Conta", url: "/rules", icon: ScrollText },
+  { title: "Prop Firm Library", url: "/library", icon: BookOpen },
   { title: "Configuração", url: "/settings", icon: Settings },
   { title: "Admin", url: "/admin", icon: Shield },
 ];
