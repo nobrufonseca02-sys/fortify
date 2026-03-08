@@ -131,6 +131,53 @@ export function useRuleInstances(ruleSetVersionId: string | null) {
   });
 }
 
+export function useProgramRules(programId: string | null) {
+  return useQuery({
+    queryKey: ['program-rules', programId],
+    queryFn: async () => {
+      // 1. Find the active version for this program
+      const { data: versions, error: verError } = await supabase
+        .from('rule_set_versions')
+        .select('*')
+        .eq('program_id', programId!)
+        .eq('status', 'active')
+        .order('start_date', { ascending: false })
+        .limit(1);
+      if (verError) throw verError;
+      if (!versions || versions.length === 0) return { version: null, rules: [] };
+
+      const version = versions[0] as RuleSetVersion;
+
+      // 2. Fetch rule instances for this version
+      const { data: instances, error: instError } = await supabase
+        .from('rule_instances')
+        .select('*')
+        .eq('rule_set_version_id', version.id)
+        .order('severity', { ascending: true });
+      if (instError) throw instError;
+
+      // 3. Fetch rule definitions
+      const defIds = [...new Set((instances as RuleInstance[]).map(i => i.rule_definition_id))];
+      if (defIds.length === 0) return { version, rules: [] };
+
+      const { data: defs, error: defError } = await supabase
+        .from('rule_definitions')
+        .select('*')
+        .in('id', defIds);
+      if (defError) throw defError;
+
+      const defMap = new Map((defs as RuleDefinition[]).map(d => [d.id, d]));
+      const rules = (instances as RuleInstance[]).map(inst => ({
+        ...inst,
+        rule_definition: defMap.get(inst.rule_definition_id),
+      }));
+
+      return { version, rules };
+    },
+    enabled: !!programId,
+  });
+}
+
 export function useRuleDefinitions() {
   return useQuery({
     queryKey: ['rule-definitions'],
