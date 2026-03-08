@@ -287,7 +287,7 @@ export default function AuthPage() {
                 <div className="pt-4 text-center">
                   {mode === "login" && (
                     <p className="text-sm text-muted-foreground">
-                      Nao tem conta?{" "}
+                      Não tem conta?{" "}
                       <button onClick={() => setMode("signup")} className="text-primary font-semibold hover:text-primary/80 transition-colors">
                         Criar conta
                       </button>
