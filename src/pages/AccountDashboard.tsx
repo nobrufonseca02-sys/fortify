@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { MOCK_ACCOUNTS, MOCK_EVALUATIONS, RULE_SET_TEMPLATES } from '@/data/mockData';
+import { MOCK_EVALUATIONS, RULE_SET_TEMPLATES } from '@/data/mockData';
+import { useAccountsStore } from '@/pages/Accounts';
 import { RuleEvaluation } from '@/types/fortify';
 import {
   Shield, ShieldAlert, ShieldX, AlertTriangle, ArrowLeft,
