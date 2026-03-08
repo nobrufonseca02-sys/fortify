@@ -150,8 +150,8 @@ function HeroCard() {
           {[
             { label: 'Equity Total', value: fmt(totalEquity), sub: <span className={`flex items-center gap-1 mt-1 text-xs font-mono font-medium ${pnl >= 0 ? 'text-success' : 'text-destructive'}`}>{pnl >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}{pnl >= 0 ? '+' : ''}{pnlPct}%</span> },
             { label: 'Contas Ativas', value: String(activeAccounts), sub: <span className="text-xs text-muted-foreground mt-1">em monitoramento</span> },
-            { label: 'Alertas', value: String(warnings), valueClass: warnings > 0 ? 'text-warning' : 'text-success', sub: <span className="text-xs text-muted-foreground mt-1">{warnings === 0 ? 'tudo certo' : 'requer atencao'}</span> },
-            { label: 'Violacoes', value: String(violations), valueClass: violations > 0 ? 'text-destructive' : 'text-success', sub: <span className="text-xs text-muted-foreground mt-1">{violations === 0 ? 'nenhuma' : 'acao necessaria'}</span> },
+            { label: 'Alertas', value: String(warnings), valueClass: warnings > 0 ? 'text-warning' : 'text-success', sub: <span className="text-xs text-muted-foreground mt-1">{warnings === 0 ? 'tudo certo' : 'requer atenção'}</span> },
+            { label: 'Violações', value: String(violations), valueClass: violations > 0 ? 'text-destructive' : 'text-success', sub: <span className="text-xs text-muted-foreground mt-1">{violations === 0 ? 'nenhuma' : 'ação necessária'}</span> },
           ].map((stat, i) => (
             <motion.div key={stat.label} className="rounded-xl bg-muted/30 border border-border/50 p-4" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.1 }}>
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">{stat.label}</p>

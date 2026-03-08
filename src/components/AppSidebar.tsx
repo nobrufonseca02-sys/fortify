@@ -20,8 +20,8 @@ const items = [
   { title: "Performance", url: "/performance", icon: BarChart3 },
   { title: "Regras da Conta", url: "/rules", icon: ScrollText },
   { title: "Prop Firm Library", url: "/library", icon: BookOpen },
-  { title: "Historico", url: "/history", icon: Archive },
-  { title: "Configuracoes", url: "/settings", icon: Settings },
+  { title: "Histórico", url: "/history", icon: Archive },
+  { title: "Configurações", url: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {

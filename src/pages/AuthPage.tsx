@@ -295,7 +295,7 @@ export default function AuthPage() {
                   )}
                   {mode === "signup" && (
                     <p className="text-sm text-muted-foreground">
-                      Ja tem conta?{" "}
+                      Já tem conta?{" "}
                       <button onClick={() => setMode("login")} className="text-primary font-semibold hover:text-primary/80 transition-colors">
                         Entrar
                       </button>

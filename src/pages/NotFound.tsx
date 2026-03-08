@@ -24,8 +24,8 @@ const NotFound = () => {
           <Shield className="w-8 h-8 text-primary" />
         </div>
         <p className="text-6xl font-mono font-black text-foreground mb-3">404</p>
-        <h1 className="text-lg font-bold text-foreground mb-2">Pagina nao encontrada</h1>
-        <p className="text-sm text-muted-foreground mb-8">A rota solicitada nao existe.</p>
+        <h1 className="text-lg font-bold text-foreground mb-2">Página não encontrada</h1>
+        <p className="text-sm text-muted-foreground mb-8">A rota solicitada não existe.</p>
         <Button onClick={() => navigate("/")} variant="premium" className="gap-2">
           <ArrowLeft className="w-4 h-4" />
           Voltar ao Painel

@@ -51,7 +51,7 @@ const SettingsPage = () => {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-sm font-bold text-foreground">Sair da conta</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Encerrar sessao atual no Fortify.</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Encerrar sessão atual no Fortify.</p>
           </div>
           <Button
             variant="outline"
