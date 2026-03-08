@@ -273,7 +273,7 @@ function CriticalRuleCard({ evaluation, index }: { evaluation: RuleEvaluation; i
         {/* Severity + Action */}
         <div className="mt-4 flex items-center justify-between">
           {evaluation.rule.severity === 'hard' && (
-            <span className="text-[10px] font-mono uppercase tracking-wider text-destructive/70">⚠ Regra HARD — violação = reprovação</span>
+            <span className="text-[10px] font-mono uppercase tracking-wider text-destructive/70">HARD — violação = reprovação</span>
           )}
           {evaluation.rule.severity === 'soft' && (
             <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Regra SOFT</span>

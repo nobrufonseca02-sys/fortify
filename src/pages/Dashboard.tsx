@@ -35,10 +35,10 @@ function getAccountData(account: TradingAccount) {
   const healthScore = Math.max(0, Math.round(100 - avgRisk));
 
   let action = 'Manter risco atual';
-  if (avgRisk > 85) action = '⛔ Parar de operar';
-  else if (avgRisk > 65) action = '⚠️ Reduzir lote significativamente';
-  else if (avgRisk > 45) action = '📉 Reduzir lote';
-  else if (avgRisk > 30) action = '🔄 Recuperação gradual';
+  if (avgRisk > 85) action = 'Parar de operar imediatamente';
+  else if (avgRisk > 65) action = 'Reduzir lote significativamente';
+  else if (avgRisk > 45) action = 'Reduzir tamanho do lote';
+  else if (avgRisk > 30) action = 'Recuperação gradual';
 
   let insight = '';
   if (dailyLoss && dailyLoss.progressPct > 50) {
@@ -159,7 +159,7 @@ function HeroCard() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
             >
-              Olá, <span className="text-foreground font-medium">{firstName}</span> 👋
+              Bem-vindo, <span className="text-foreground font-medium">{firstName}</span>
             </motion.p>
             <motion.h1
               className="text-2xl md:text-3xl font-bold text-foreground"

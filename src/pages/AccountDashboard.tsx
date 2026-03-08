@@ -93,9 +93,9 @@ const AccountDashboard = () => {
     const remaining = profitTarget.limitValue - Math.max(0, profitTarget.currentValue);
     recommendations.push(`Faltam ${fmt(remaining)} para atingir a meta de lucro de ${fmt(profitTarget.limitValue)}`);
   }
-  if (avgRisk > 65) recommendations.push('⛔ Considere parar de operar hoje');
-  else if (avgRisk > 45) recommendations.push('📉 Reduza o tamanho dos lotes nos próximos trades');
-  else recommendations.push('✅ Risco controlado, mantenha a estratégia');
+  if (avgRisk > 65) recommendations.push('Considere parar de operar hoje');
+  else if (avgRisk > 45) recommendations.push('Reduza o tamanho dos lotes nos próximos trades');
+  else recommendations.push('Risco controlado, mantenha a estratégia');
 
   // Alerts
   const alerts: { text: string; severity: 'warning' | 'danger' | 'info' }[] = [];
@@ -350,7 +350,7 @@ const AccountDashboard = () => {
           {appliedAiRules.length > 0 && (
             <div className="rounded-xl border border-success/30 bg-success/5 p-4">
               <p className="text-xs text-success font-semibold">
-                ✅ {appliedAiRules.length} regras aplicadas a esta conta
+                {appliedAiRules.length} regras aplicadas a esta conta
               </p>
             </div>
           )}

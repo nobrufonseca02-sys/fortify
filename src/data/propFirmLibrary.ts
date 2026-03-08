@@ -168,7 +168,7 @@ export const FIRM_TEMPLATES: FirmTemplate[] = [
     ],
   },
   {
-    id: 'custom', name: 'Custom', logo: '⚙', color: 'hsl(var(--muted-foreground))',
+    id: 'custom', name: 'Custom', logo: 'C', color: 'hsl(var(--muted-foreground))',
     description: 'Configure suas próprias regras do zero para qualquer prop firm.',
     accountTypes: ['Challenge', 'Funded', 'Instant'],
     rules: [
