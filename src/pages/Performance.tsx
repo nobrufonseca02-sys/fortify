@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
-import { MOCK_ACCOUNTS, MOCK_EVALUATIONS } from '@/data/mockData';
+import { MOCK_EVALUATIONS } from '@/data/mockData';
 import { AccountSelector } from '@/components/AccountSelector';
 import { TradingAccount } from '@/types/fortify';
+import { useAccountsStore } from '@/hooks/useAccountsStore';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { MOCK_ACCOUNTS, MOCK_EVALUATIONS, RULE_SET_TEMPLATES } from '@/data/mockData';
+import { MOCK_EVALUATIONS, RULE_SET_TEMPLATES } from '@/data/mockData';
 import { AccountSelector } from '@/components/AccountSelector';
 import { TradingAccount, RuleEvaluation, STATUS_CONFIG, RULE_TYPE_DESCRIPTIONS, RuleType } from '@/types/fortify';
+import { useAccountsStore } from '@/hooks/useAccountsStore';
 import { Shield, ShieldAlert, ShieldX, AlertTriangle, CheckCircle2, XCircle, Info, Lightbulb, ChevronRight } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
