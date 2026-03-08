@@ -32,13 +32,10 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-border bg-card">
       <SidebarContent className="pt-4">
         <div className={`px-4 mb-6 ${collapsed ? 'px-2' : ''}`}>
-          <div className="flex items-center gap-2">
-            <img src={fortifyLogo} alt="Fortify" className="w-8 h-8 flex-shrink-0 invert" />
+          <div className="flex items-center gap-2.5">
+            <img src={fortifyLogo} alt="Fortify" className="w-7 h-7 flex-shrink-0 invert brightness-200 hue-rotate-[140deg] saturate-150" />
             {!collapsed && (
-              <div>
-                <h1 className="text-sm font-bold text-foreground tracking-tight">FORTIFY</h1>
-                <p className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Anti-Quebra MT5</p>
-              </div>
+              <h1 className="text-sm font-bold text-foreground tracking-[0.08em]">FORTIFY</h1>
             )}
           </div>
         </div>
