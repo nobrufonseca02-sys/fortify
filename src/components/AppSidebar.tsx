@@ -33,7 +33,7 @@ export function AppSidebar() {
       <SidebarContent className="pt-4">
         <div className={`px-4 mb-6 ${collapsed ? 'px-2' : ''}`}>
           <div className="flex items-center gap-2.5">
-            <img src={fortifyLogo} alt="Fortify" className="w-7 h-7 flex-shrink-0" />
+            <img src={fortifyLogo} alt="Fortify" className="w-7 h-7 flex-shrink-0 mix-blend-screen" />
             {!collapsed && (
               <h1 className="text-sm font-bold text-foreground tracking-[0.08em]">FORTIFY</h1>
             )}
