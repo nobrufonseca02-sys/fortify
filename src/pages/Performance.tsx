@@ -1,119 +1,442 @@
-import { useState } from 'react';
-import { MOCK_ACCOUNTS } from '@/data/mockData';
+import { useState, useMemo } from 'react';
+import { MOCK_ACCOUNTS, MOCK_EVALUATIONS } from '@/data/mockData';
 import { AccountSelector } from '@/components/AccountSelector';
 import { TradingAccount } from '@/types/fortify';
-import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from 'recharts';
+import {
+  TrendingUp, TrendingDown, Calendar, BarChart3, Shield, Activity, Target,
+  ArrowUpRight, ArrowDownRight, Minus,
+} from 'lucide-react';
 
-// Generate mock performance data
-function generateMockData(account: TradingAccount) {
-  const days = 20;
-  const data = [];
+/* ── helpers ─────────────────────────────────────────────── */
+const fmt = (v: number) =>
+  v.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+
+const fmtPct = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`;
+
+interface DayData {
+  day: string;
+  date: string;
+  balance: number;
+  equity: number;
+  drawdownLimit: number;
+  drawdown: number;
+  dailyPnl: number;
+}
+
+function generateMockData(account: TradingAccount): DayData[] {
+  const days = 25;
+  const data: DayData[] = [];
   let balance = account.startBalance;
   let equity = account.startBalance;
   let highWater = account.startBalance;
 
+  const evals = MOCK_EVALUATIONS.filter(e => e.tradingAccountId === account.id);
+  const maxLossEval = evals.find(e =>
+    e.rule.type === 'MAX_TOTAL_LOSS' || e.rule.type === 'TRAILING_MAX_LOSS'
+  );
+  const maxLossLimit = maxLossEval ? maxLossEval.limitValue : account.startBalance * 0.1;
+  const drawdownFloor = account.startBalance - maxLossLimit;
+
+  const now = new Date();
   for (let i = 0; i < days; i++) {
-    const dailyPnl = (Math.random() - 0.4) * account.startBalance * 0.015;
+    const dailyPnl = Math.round((Math.random() - 0.38) * account.startBalance * 0.012);
     balance += dailyPnl;
-    equity = balance + (Math.random() - 0.5) * account.startBalance * 0.005;
+    equity = balance + Math.round((Math.random() - 0.5) * account.startBalance * 0.004);
     highWater = Math.max(highWater, equity);
-    const drawdown = highWater - equity;
+
+    const date = new Date(now);
+    date.setDate(date.getDate() - (days - 1 - i));
+    const dateStr = date.toISOString().slice(0, 10);
+    const dayLabel = `${date.getDate()}/${date.getMonth() + 1}`;
 
     data.push({
-      day: `D${i + 1}`,
+      day: dayLabel,
+      date: dateStr,
       balance: Math.round(balance),
       equity: Math.round(equity),
-      drawdown: Math.round(drawdown),
-      dailyPnl: Math.round(dailyPnl),
+      drawdownLimit: Math.round(drawdownFloor),
+      drawdown: Math.round(highWater - equity),
+      dailyPnl,
     });
   }
   return data;
 }
 
+/* ── sub-components ──────────────────────────────────────── */
+function StatCard({ icon: Icon, label, value, sub, color }: {
+  icon: React.ElementType; label: string; value: string; sub?: string; color?: string;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-card p-4 flex flex-col gap-1">
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <Icon className="h-4 w-4" style={color ? { color } : undefined} />
+        <span className="text-xs uppercase tracking-wider font-medium">{label}</span>
+      </div>
+      <p className="text-xl font-bold font-mono text-foreground">{value}</p>
+      {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
+    </div>
+  );
+}
+
+function ProgressBar({ value, max, color }: { value: number; max: number; color: string }) {
+  const pct = Math.min(Math.max((value / max) * 100, 0), 100);
+  return (
+    <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: color }} />
+    </div>
+  );
+}
+
+function CalendarGrid({ data }: { data: DayData[] }) {
+  // Build a simple month-view calendar for current month
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDow = new Date(year, month, 1).getDay();
+
+  const pnlMap = new Map<number, number>();
+  data.forEach(d => {
+    const dt = new Date(d.date);
+    if (dt.getMonth() === month && dt.getFullYear() === year) {
+      pnlMap.set(dt.getDate(), d.dailyPnl);
+    }
+  });
+
+  const cells: React.ReactNode[] = [];
+  // Empty cells for offset
+  for (let i = 0; i < firstDow; i++) {
+    cells.push(<div key={`empty-${i}`} className="h-10" />);
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const pnl = pnlMap.get(d);
+    let bgClass = 'bg-muted/50';
+    let textColor = 'text-muted-foreground';
+    if (pnl !== undefined) {
+      if (pnl > 0) { bgClass = 'bg-success/20'; textColor = 'text-success'; }
+      else if (pnl < 0) { bgClass = 'bg-destructive/20'; textColor = 'text-destructive'; }
+    }
+    cells.push(
+      <div key={d} className={`h-10 rounded-lg ${bgClass} flex flex-col items-center justify-center gap-0.5`}>
+        <span className="text-[10px] text-muted-foreground">{d}</span>
+        {pnl !== undefined && (
+          <span className={`text-[10px] font-mono font-semibold ${textColor}`}>
+            {pnl >= 0 ? '+' : ''}{fmt(pnl)}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  const weekdays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+  return (
+    <div>
+      <p className="text-sm font-medium text-foreground mb-3">{monthNames[month]} {year}</p>
+      <div className="grid grid-cols-7 gap-1">
+        {weekdays.map(w => (
+          <div key={w} className="text-[10px] text-center text-muted-foreground uppercase font-medium pb-1">{w}</div>
+        ))}
+        {cells}
+      </div>
+    </div>
+  );
+}
+
+/* ── tooltip ─────────────────────────────────────────────── */
+const tooltipStyle = {
+  contentStyle: {
+    backgroundColor: 'hsl(220, 22%, 9%)',
+    border: '1px solid hsl(220, 16%, 16%)',
+    borderRadius: '8px',
+    fontSize: '12px',
+    fontFamily: 'JetBrains Mono, monospace',
+  },
+  labelStyle: { color: 'hsl(215, 15%, 50%)' },
+};
+
+/* ── main page ───────────────────────────────────────────── */
 const Performance = () => {
   const [selectedAccount, setSelectedAccount] = useState<TradingAccount>(MOCK_ACCOUNTS[0]);
-  const data = generateMockData(selectedAccount);
+  const data = useMemo(() => generateMockData(selectedAccount), [selectedAccount]);
 
-  const tooltipStyle = {
-    contentStyle: {
-      backgroundColor: 'hsl(220, 22%, 9%)',
-      border: '1px solid hsl(220, 16%, 16%)',
-      borderRadius: '8px',
-      fontSize: '12px',
-      fontFamily: 'JetBrains Mono, monospace',
-    },
-    labelStyle: { color: 'hsl(215, 15%, 50%)' },
-  };
+  const account = selectedAccount;
+  const totalPnl = account.currentEquity - account.startBalance;
+  const returnPct = (totalPnl / account.startBalance) * 100;
+  const maxDrawdownValue = Math.max(...data.map(d => d.drawdown));
+  const currentDrawdown = data[data.length - 1]?.drawdown ?? 0;
+  const tradingDays = data.filter(d => d.dailyPnl !== 0).length;
+  const totalTrades = tradingDays * Math.floor(Math.random() * 3 + 2); // mock
+
+  // Drawdown limits from evaluations
+  const evals = MOCK_EVALUATIONS.filter(e => e.tradingAccountId === account.id);
+  const maxLossEval = evals.find(e =>
+    e.rule.type === 'MAX_TOTAL_LOSS' || e.rule.type === 'TRAILING_MAX_LOSS'
+  );
+  const dailyLossEval = evals.find(e => e.rule.type === 'MAX_DAILY_LOSS');
+  const maxLossLimit = maxLossEval?.limitValue ?? account.startBalance * 0.1;
+  const dailyLossLimit = dailyLossEval?.limitValue ?? account.startBalance * 0.05;
+  const drawdownRemaining = maxLossLimit - currentDrawdown;
+
+  // Recovery
+  const isNegative = totalPnl < 0;
+  const recoveryNeeded = isNegative ? Math.abs(totalPnl) : 0;
+  const recoveryPct = isNegative ? (recoveryNeeded / account.currentEquity) * 100 : 0;
+
+  // Profit target
+  const profitEval = evals.find(e => e.rule.type === 'PROFIT_TARGET');
+  const profitTarget = profitEval?.limitValue ?? account.startBalance * 0.1;
+  const profitRemaining = Math.max(profitTarget - Math.max(totalPnl, 0), 0);
+
+  // Risk usage
+  const dailyPnls = data.map(d => d.dailyPnl);
+  const biggestLoss = Math.min(...dailyPnls);
+  const biggestWin = Math.max(...dailyPnls);
+  const avgDailyUsage = dailyPnls.reduce((a, b) => a + Math.abs(Math.min(b, 0)), 0) / dailyPnls.length;
+  const maxDailyUsage = Math.abs(biggestLoss);
+
+  // Survival
+  const avgDailyResult = dailyPnls.reduce((a, b) => a + b, 0) / dailyPnls.length;
+  const daysToTarget = avgDailyResult > 0 ? Math.ceil(profitRemaining / avgDailyResult) : Infinity;
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <div>
         <h1 className="text-lg font-bold text-foreground">Performance</h1>
-        <p className="text-xs text-muted-foreground">Acompanhe a evolução da sua conta.</p>
+        <p className="text-xs text-muted-foreground">Análise completa de desempenho e risco da conta.</p>
       </div>
 
       <AccountSelector accounts={MOCK_ACCOUNTS} selected={selectedAccount} onSelect={setSelectedAccount} />
 
-      {/* Equity Curve */}
+      {/* ── RESUMO ──────────────────────────────────────── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <StatCard
+          icon={totalPnl >= 0 ? TrendingUp : TrendingDown}
+          label="Lucro Total"
+          value={fmt(totalPnl)}
+          sub={fmtPct(returnPct)}
+          color={totalPnl >= 0 ? 'hsl(152, 69%, 46%)' : 'hsl(0, 72%, 51%)'}
+        />
+        <StatCard icon={TrendingDown} label="Drawdown Máx." value={fmt(maxDrawdownValue)} color="hsl(0, 72%, 51%)" />
+        <StatCard icon={BarChart3} label="Trades Totais" value={String(totalTrades)} />
+        <StatCard icon={Calendar} label="Dias Operados" value={String(tradingDays)} />
+        <StatCard icon={Target} label="Meta Restante" value={fmt(profitRemaining)} />
+      </div>
+
+      {/* ── EQUITY CURVE ───────────────────────────────── */}
       <section className="rounded-xl border border-border bg-card p-5">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Curva de Equity</h2>
-        <ResponsiveContainer width="100%" height={280}>
+        <ResponsiveContainer width="100%" height={300}>
           <AreaChart data={data}>
             <defs>
               <linearGradient id="eqGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="hsl(187, 85%, 53%)" stopOpacity={0.3} />
+                <stop offset="5%" stopColor="hsl(187, 85%, 53%)" stopOpacity={0.25} />
                 <stop offset="95%" stopColor="hsl(187, 85%, 53%)" stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 16%, 16%)" />
             <XAxis dataKey="day" tick={{ fontSize: 10, fill: 'hsl(215, 15%, 50%)' }} />
             <YAxis tick={{ fontSize: 10, fill: 'hsl(215, 15%, 50%)' }} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
-            <Tooltip {...tooltipStyle} formatter={(value: number) => [`$${value.toLocaleString('pt-BR')}`, '']} />
+            <Tooltip {...tooltipStyle} formatter={(value: number, name: string) => [fmt(value), name]} />
             <Area type="monotone" dataKey="equity" stroke="hsl(187, 85%, 53%)" fill="url(#eqGrad)" strokeWidth={2} name="Equity" />
-            <Area type="monotone" dataKey="balance" stroke="hsl(152, 69%, 46%)" fill="transparent" strokeWidth={1.5} strokeDasharray="4 4" name="Saldo" />
+            <Area type="monotone" dataKey="drawdownLimit" stroke="hsl(0, 72%, 51%)" fill="transparent" strokeWidth={1.5} strokeDasharray="6 3" name="Limite de Drawdown" />
           </AreaChart>
         </ResponsiveContainer>
+        <div className="flex gap-6 mt-3 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: 'hsl(187, 85%, 53%)' }} /> Equity
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-0.5 w-4 rounded" style={{ backgroundColor: 'hsl(0, 72%, 51%)' }} /> Limite de Drawdown
+          </span>
+        </div>
       </section>
 
-      {/* Drawdown */}
-      <section className="rounded-xl border border-border bg-card p-5">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Drawdown</h2>
-        <ResponsiveContainer width="100%" height={200}>
-          <AreaChart data={data}>
-            <defs>
-              <linearGradient id="ddGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="hsl(0, 72%, 51%)" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="hsl(0, 72%, 51%)" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 16%, 16%)" />
-            <XAxis dataKey="day" tick={{ fontSize: 10, fill: 'hsl(215, 15%, 50%)' }} />
-            <YAxis tick={{ fontSize: 10, fill: 'hsl(215, 15%, 50%)' }} tickFormatter={v => `$${v.toLocaleString()}`} />
-            <Tooltip {...tooltipStyle} formatter={(value: number) => [`$${value.toLocaleString('pt-BR')}`, 'Drawdown']} />
-            <Area type="monotone" dataKey="drawdown" stroke="hsl(0, 72%, 51%)" fill="url(#ddGrad)" strokeWidth={2} />
-          </AreaChart>
-        </ResponsiveContainer>
+      {/* ── DRAWDOWN ANALYSIS ──────────────────────────── */}
+      <section className="rounded-xl border border-border bg-card p-5 space-y-5">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Drawdown Analysis</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">Drawdown Atual</p>
+            <p className="text-2xl font-bold font-mono text-destructive">{fmt(currentDrawdown)}</p>
+            <ProgressBar value={currentDrawdown} max={maxLossLimit} color="hsl(0, 72%, 51%)" />
+            <p className="text-xs text-muted-foreground">de {fmt(maxLossLimit)} permitidos</p>
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">Drawdown Máximo Histórico</p>
+            <p className="text-2xl font-bold font-mono text-warning">{fmt(maxDrawdownValue)}</p>
+            <ProgressBar value={maxDrawdownValue} max={maxLossLimit} color="hsl(38, 92%, 50%)" />
+            <p className="text-xs text-muted-foreground">de {fmt(maxLossLimit)} permitidos</p>
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">Margem Restante</p>
+            <p className="text-2xl font-bold font-mono text-success">{fmt(drawdownRemaining)}</p>
+            <ProgressBar value={drawdownRemaining} max={maxLossLimit} color="hsl(152, 69%, 46%)" />
+            <p className="text-xs text-muted-foreground">disponível antes da violação</p>
+          </div>
+        </div>
       </section>
 
-      {/* Daily P&L */}
+      {/* ── RECOVERY ANALYSIS ──────────────────────────── */}
+      <section className="rounded-xl border border-border bg-card p-5 space-y-4">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Análise de Recuperação</h2>
+        {isNegative ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <ArrowDownRight className="h-4 w-4 text-destructive" />
+                <span className="text-xs text-muted-foreground uppercase">Perda Atual</span>
+              </div>
+              <p className="text-2xl font-bold font-mono text-destructive">{fmt(totalPnl)}</p>
+            </div>
+            <div className="rounded-lg border border-warning/30 bg-warning/5 p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <ArrowUpRight className="h-4 w-4 text-warning" />
+                <span className="text-xs text-muted-foreground uppercase">Precisa Recuperar</span>
+              </div>
+              <p className="text-2xl font-bold font-mono text-warning">{fmt(recoveryNeeded)}</p>
+              <p className="text-xs text-muted-foreground">
+                ({fmtPct(recoveryPct)} sobre o equity atual de {fmt(account.currentEquity)})
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="rounded-lg border border-success/30 bg-success/5 p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <ArrowUpRight className="h-4 w-4 text-success" />
+                <span className="text-xs text-muted-foreground uppercase">Lucro Atual</span>
+              </div>
+              <p className="text-2xl font-bold font-mono text-success">{fmt(totalPnl)}</p>
+            </div>
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <Target className="h-4 w-4 text-primary" />
+                <span className="text-xs text-muted-foreground uppercase">Faltam para a Meta</span>
+              </div>
+              <p className="text-2xl font-bold font-mono text-primary">{fmt(profitRemaining)}</p>
+              <p className="text-xs text-muted-foreground">
+                Meta total: {fmt(profitTarget)} — já alcançou {fmt(Math.max(totalPnl, 0))}
+              </p>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* ── RISCO UTILIZADO ────────────────────────────── */}
+      <section className="rounded-xl border border-border bg-card p-5 space-y-4">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Risco Utilizado</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">Maior Perda Diária</p>
+            <p className="text-lg font-bold font-mono text-destructive">{fmt(biggestLoss)}</p>
+            <ProgressBar value={Math.abs(biggestLoss)} max={dailyLossLimit} color="hsl(0, 72%, 51%)" />
+            <p className="text-[10px] text-muted-foreground">Limite: {fmt(dailyLossLimit)}</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">Maior Lucro Diário</p>
+            <p className="text-lg font-bold font-mono text-success">{fmt(biggestWin)}</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">Uso Médio do Limite</p>
+            <p className="text-lg font-bold font-mono text-foreground">{fmt(avgDailyUsage)}</p>
+            <ProgressBar value={avgDailyUsage} max={dailyLossLimit} color="hsl(38, 92%, 50%)" />
+            <p className="text-[10px] text-muted-foreground">de {fmt(dailyLossLimit)}/dia</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">Uso Máximo do Limite</p>
+            <p className="text-lg font-bold font-mono text-foreground">{fmt(maxDailyUsage)}</p>
+            <ProgressBar value={maxDailyUsage} max={dailyLossLimit} color="hsl(0, 72%, 51%)" />
+            <p className="text-[10px] text-muted-foreground">de {fmt(dailyLossLimit)}/dia</p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── CALENDÁRIO ─────────────────────────────────── */}
       <section className="rounded-xl border border-border bg-card p-5">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Lucro Diário</h2>
-        <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 16%, 16%)" />
-            <XAxis dataKey="day" tick={{ fontSize: 10, fill: 'hsl(215, 15%, 50%)' }} />
-            <YAxis tick={{ fontSize: 10, fill: 'hsl(215, 15%, 50%)' }} tickFormatter={v => `$${v.toLocaleString()}`} />
-            <Tooltip {...tooltipStyle} formatter={(value: number) => [`$${value.toLocaleString('pt-BR')}`, 'P&L']} />
-            <Bar
-              dataKey="dailyPnl"
-              radius={[4, 4, 0, 0]}
-              fill="hsl(187, 85%, 53%)"
-            />
-          </BarChart>
-        </ResponsiveContainer>
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Calendário de Performance</h2>
+        <CalendarGrid data={data} />
+        <div className="flex gap-4 mt-4 text-[10px] text-muted-foreground">
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded bg-success/40" /> Lucro</span>
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded bg-destructive/40" /> Perda</span>
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded bg-muted/60" /> Sem trade</span>
+        </div>
+      </section>
+
+      {/* ── ANÁLISE DE SOBREVIVÊNCIA ───────────────────── */}
+      <section className="rounded-xl border border-border bg-card p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <Shield className="h-4 w-4 text-primary" />
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Análise de Sobrevivência</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {/* Risk level */}
+          <InsightRow
+            icon={Activity}
+            label="Risco atual da conta"
+            value={currentDrawdown > maxLossLimit * 0.7
+              ? 'ALTO'
+              : currentDrawdown > maxLossLimit * 0.4
+                ? 'MODERADO'
+                : 'BAIXO'}
+            detail={`Usando ${fmt(currentDrawdown)} de ${fmt(maxLossLimit)} do limite de drawdown`}
+            color={currentDrawdown > maxLossLimit * 0.7
+              ? 'text-destructive'
+              : currentDrawdown > maxLossLimit * 0.4
+                ? 'text-warning'
+                : 'text-success'}
+          />
+          {/* Avg daily result */}
+          <InsightRow
+            icon={BarChart3}
+            label="Média diária de resultado"
+            value={fmt(Math.round(avgDailyResult))}
+            detail={avgDailyResult > 0
+              ? `Resultado positivo — lucro médio de ${fmt(Math.round(avgDailyResult))} por dia`
+              : `Resultado negativo — perda média de ${fmt(Math.abs(Math.round(avgDailyResult)))} por dia`}
+            color={avgDailyResult >= 0 ? 'text-success' : 'text-destructive'}
+          />
+          {/* Daily limit usage */}
+          <InsightRow
+            icon={TrendingDown}
+            label="Uso do limite diário"
+            value={fmt(Math.round(avgDailyUsage))}
+            detail={`Média de uso de ${fmt(Math.round(avgDailyUsage))} do limite de ${fmt(dailyLossLimit)} por dia`}
+            color="text-foreground"
+          />
+          {/* Days to target */}
+          <InsightRow
+            icon={Target}
+            label="Projeção para a meta"
+            value={daysToTarget === Infinity ? '—' : `${daysToTarget} dias`}
+            detail={daysToTarget === Infinity
+              ? 'Média negativa — não é possível projetar'
+              : `Mantendo ${fmt(Math.round(avgDailyResult))}/dia, faltam ${daysToTarget} dias para atingir a meta de ${fmt(profitTarget)}`}
+            color={daysToTarget <= 15 ? 'text-success' : daysToTarget <= 30 ? 'text-warning' : 'text-muted-foreground'}
+          />
+        </div>
       </section>
     </div>
   );
 };
+
+function InsightRow({ icon: Icon, label, value, detail, color }: {
+  icon: React.ElementType; label: string; value: string; detail: string; color: string;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-1">
+      <div className="flex items-center gap-2">
+        <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="text-xs text-muted-foreground uppercase tracking-wider">{label}</span>
+      </div>
+      <p className={`text-lg font-bold font-mono ${color}`}>{value}</p>
+      <p className="text-xs text-muted-foreground">{detail}</p>
+    </div>
+  );
+}
 
 export default Performance;
