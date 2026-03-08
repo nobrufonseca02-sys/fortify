@@ -1,4 +1,4 @@
-import { LayoutDashboard, ScrollText, PlusCircle, Settings } from "lucide-react";
+import { LayoutDashboard, ScrollText, PlusCircle, Settings, BarChart3 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -14,6 +14,7 @@ import {
 const items = [
   { title: "Painel", url: "/", icon: LayoutDashboard },
   { title: "Minhas Contas", url: "/accounts", icon: PlusCircle },
+  { title: "Performance", url: "/performance", icon: BarChart3 },
   { title: "Regras da Conta", url: "/rules", icon: ScrollText },
   { title: "Configuração", url: "/settings", icon: Settings },
 ];

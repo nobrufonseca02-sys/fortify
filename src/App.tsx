@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import Accounts from "./pages/Accounts";
 import AccountRules from "./pages/AccountRules";
 import RuleManager from "./pages/RuleManager";
+import Performance from "./pages/Performance";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 
@@ -23,6 +24,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/accounts" element={<Accounts />} />
+            <Route path="/performance" element={<Performance />} />
             <Route path="/rules" element={<AccountRules />} />
             <Route path="/rules/manage" element={<RuleManager />} />
             <Route path="/settings" element={<SettingsPage />} />

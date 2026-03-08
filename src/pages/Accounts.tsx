@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { RULE_SET_TEMPLATES, TEMPLATE_RULES } from '@/data/mockData';
-import { MOCK_ACCOUNTS } from '@/data/mockData';
-import { TradingAccount, RuleSet, Rule, RULE_TYPE_LABELS } from '@/types/fortify';
-import { Plus, Trash2, Wallet, ChevronRight } from 'lucide-react';
+import { RULE_SET_TEMPLATES, TEMPLATE_RULES, MOCK_ACCOUNTS, MOCK_EVALUATIONS } from '@/data/mockData';
+import { TradingAccount, RULE_TYPE_LABELS } from '@/types/fortify';
+import { Plus, Trash2, Wallet, ChevronRight, Shield, AlertTriangle, XCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 // Local state store (will be replaced by DB later)
 let accountsStore = [...MOCK_ACCOUNTS];
@@ -24,6 +24,22 @@ export function useAccountsStore() {
   return { accounts, addAccount, removeAccount };
 }
 
+const StatusBadge = ({ status }: { status: 'SAFE' | 'WARNING' | 'VIOLATED' }) => {
+  const config = {
+    SAFE: { label: 'SEGURO', icon: Shield, className: 'bg-success/15 text-success' },
+    WARNING: { label: 'ATENÇÃO', icon: AlertTriangle, className: 'bg-warning/15 text-warning' },
+    VIOLATED: { label: 'VIOLADO', icon: XCircle, className: 'bg-destructive/15 text-destructive' },
+  };
+  const c = config[status];
+  const Icon = c.icon;
+  return (
+    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full ${c.className}`}>
+      <Icon className="w-3 h-3" />
+      {c.label}
+    </span>
+  );
+};
+
 const Accounts = () => {
   const navigate = useNavigate();
   const { accounts, addAccount, removeAccount } = useAccountsStore();
@@ -37,7 +53,6 @@ const Accounts = () => {
   const [startBalance, setStartBalance] = useState('');
   const [selectedRuleSetId, setSelectedRuleSetId] = useState(RULE_SET_TEMPLATES[0].id);
 
-  const selectedRuleSet = RULE_SET_TEMPLATES.find(t => t.id === selectedRuleSetId);
   const selectedRules = TEMPLATE_RULES.filter(r => r.ruleSetId === selectedRuleSetId);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -68,8 +83,10 @@ const Accounts = () => {
     setStartBalance('');
   };
 
+  const fmt = (v: number) => `$${v.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`;
+
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-bold text-foreground">Minhas Contas</h1>
@@ -92,43 +109,19 @@ const Accounts = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Nome da Conta</label>
-              <input
-                type="text"
-                value={nickname}
-                onChange={e => setNickname(e.target.value)}
-                placeholder="Ex.: FTMO 100k Challenge"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                required
-              />
+              <input type="text" value={nickname} onChange={e => setNickname(e.target.value)} placeholder="Ex.: FTMO 100k Challenge" className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" required />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Corretora / Plataforma</label>
-              <input
-                type="text"
-                value={broker}
-                onChange={e => setBroker(e.target.value)}
-                placeholder="Ex.: MT5, cTrader, NinjaTrader"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                required
-              />
+              <input type="text" value={broker} onChange={e => setBroker(e.target.value)} placeholder="Ex.: MT5, cTrader" className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" required />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Origem / Mesa Proprietária</label>
-              <input
-                type="text"
-                value={origin}
-                onChange={e => setOrigin(e.target.value)}
-                placeholder="Ex.: FTMO, Topstep, Hantec, Outra"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              />
+              <input type="text" value={origin} onChange={e => setOrigin(e.target.value)} placeholder="Ex.: FTMO, Topstep, Hantec" className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Moeda Base</label>
-              <select
-                value={baseCurrency}
-                onChange={e => setBaseCurrency(e.target.value)}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              >
+              <select value={baseCurrency} onChange={e => setBaseCurrency(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
                 <option value="USD">USD</option>
                 <option value="EUR">EUR</option>
                 <option value="GBP">GBP</option>
@@ -137,24 +130,11 @@ const Accounts = () => {
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Saldo Inicial</label>
-              <input
-                type="number"
-                value={startBalance}
-                onChange={e => setStartBalance(e.target.value)}
-                placeholder="Ex.: 100000"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                required
-                min="0"
-                step="0.01"
-              />
+              <input type="number" value={startBalance} onChange={e => setStartBalance(e.target.value)} placeholder="Ex.: 100000" className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" required min="0" step="0.01" />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Conjunto de Regras</label>
-              <select
-                value={selectedRuleSetId}
-                onChange={e => setSelectedRuleSetId(e.target.value)}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              >
+              <select value={selectedRuleSetId} onChange={e => setSelectedRuleSetId(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
                 {RULE_SET_TEMPLATES.map(t => (
                   <option key={t.id} value={t.id}>{t.name} {t.firmName ? `(${t.firmName})` : ''}</option>
                 ))}
@@ -162,7 +142,6 @@ const Accounts = () => {
             </div>
           </div>
 
-          {/* Preview selected rules */}
           {selectedRules.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-medium text-muted-foreground">Regras que serão aplicadas:</p>
@@ -180,68 +159,131 @@ const Accounts = () => {
           )}
 
           <div className="flex items-center gap-3 pt-2">
-            <button type="submit" className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
-              Cadastrar Conta
-            </button>
-            <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Cancelar
-            </button>
+            <button type="submit" className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">Cadastrar Conta</button>
+            <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground transition-colors">Cancelar</button>
           </div>
         </form>
       )}
 
-      {/* Account list */}
-      <div className="space-y-3">
-        {accounts.map(account => {
+      {/* Account Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {accounts.map((account, i) => {
+          const evals = MOCK_EVALUATIONS.filter(e => e.tradingAccountId === account.id);
           const pnl = account.currentBalance - account.startBalance;
           const pnlPct = ((pnl / account.startBalance) * 100).toFixed(2);
           const isPositive = pnl >= 0;
           const ruleSet = RULE_SET_TEMPLATES.find(t => t.id === account.ruleSetId);
-          const ruleCount = TEMPLATE_RULES.filter(r => r.ruleSetId === account.ruleSetId).length;
+
+          // Compute account health
+          const hasViolation = evals.some(e => e.status === 'VIOLATED');
+          const hasWarning = evals.some(e => e.status === 'WARNING');
+          const healthStatus = hasViolation ? 'VIOLATED' as const : hasWarning ? 'WARNING' as const : 'SAFE' as const;
+
+          // Key metrics
+          const dailyLoss = evals.find(e => e.rule.type === 'MAX_DAILY_LOSS');
+          const totalLoss = evals.find(e => e.rule.type === 'MAX_TOTAL_LOSS') || evals.find(e => e.rule.type === 'TRAILING_MAX_LOSS');
+          const profitTarget = evals.find(e => e.rule.type === 'PROFIT_TARGET');
+
+          const dailyRemaining = dailyLoss ? Math.max(0, dailyLoss.limitValue - dailyLoss.currentValue) : null;
+          const maxLossRemaining = totalLoss ? Math.max(0, totalLoss.limitValue - totalLoss.currentValue) : null;
+
+          // Closest to violation
+          const closest = evals
+            .filter(e => e.status !== 'VIOLATED' && e.progressPct > 0)
+            .sort((a, b) => b.progressPct - a.progressPct)[0];
 
           return (
-            <div
+            <motion.div
               key={account.id}
-              className="rounded-xl border border-border bg-card p-5 flex items-center gap-4 hover:border-primary/30 transition-colors cursor-pointer"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.06, duration: 0.3 }}
+              className="rounded-xl border border-border bg-card p-5 space-y-4 hover:border-primary/30 transition-colors cursor-pointer group"
               onClick={() => navigate('/')}
             >
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <Wallet className="w-5 h-5 text-primary" />
+              {/* Header */}
+              <div className="flex items-start justify-between">
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-semibold text-foreground truncate">{account.nickname}</h3>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{account.broker} • {ruleSet?.name || 'Personalizado'}</p>
+                </div>
+                <StatusBadge status={healthStatus} />
               </div>
 
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-foreground truncate">{account.nickname}</h3>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                  <span>{account.broker}</span>
-                  <span>•</span>
-                  <span>{ruleSet?.name || 'Personalizado'}</span>
-                  <span>•</span>
-                  <span>{ruleCount} regras</span>
+              {/* Balance & P&L */}
+              <div className="flex items-end justify-between">
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Saldo Inicial</p>
+                  <p className="font-mono text-sm text-muted-foreground">{fmt(account.startBalance)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Equity Atual</p>
+                  <p className="font-mono font-bold text-foreground">{fmt(account.currentEquity)}</p>
+                  <p className={`text-xs font-mono font-semibold ${isPositive ? 'text-success' : 'text-destructive'}`}>
+                    {isPositive ? '+' : ''}{pnlPct}%
+                  </p>
                 </div>
               </div>
 
-              <div className="text-right flex-shrink-0">
-                <p className="font-mono font-bold text-foreground text-sm">
-                  ${account.currentBalance.toLocaleString('pt-BR')}
-                </p>
-                <p className={`text-xs font-mono font-semibold ${isPositive ? 'text-success' : 'text-destructive'}`}>
-                  {isPositive ? '+' : ''}{pnlPct}%
-                </p>
+              {/* Key Metrics */}
+              <div className="space-y-2 pt-2 border-t border-border/50">
+                {profitTarget && (
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[10px]">
+                      <span className="text-muted-foreground uppercase tracking-wider">Meta de Lucro</span>
+                      <span className="font-mono text-foreground">{profitTarget.progressPct}%</span>
+                    </div>
+                    <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                      <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${Math.min(100, profitTarget.progressPct)}%` }} />
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  {dailyRemaining !== null && (
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Perda Diária Restante</p>
+                      <p className="font-mono font-bold text-sm text-warning">{fmt(dailyRemaining)}</p>
+                    </div>
+                  )}
+                  {maxLossRemaining !== null && (
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Perda Máx. Restante</p>
+                      <p className="font-mono font-bold text-sm text-foreground">{fmt(maxLossRemaining)}</p>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            </div>
+              {/* Closest to violation */}
+              {closest && (
+                <div className="pt-2 border-t border-border/50">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Regra mais próxima da violação</p>
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-3 h-3 text-warning flex-shrink-0" />
+                    <span className="text-xs text-foreground truncate">{closest.rule.name}</span>
+                    <span className="text-xs font-mono text-warning ml-auto">{closest.progressPct}%</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end pt-1">
+                <span className="text-[10px] text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                  Abrir Painel <ChevronRight className="w-3 h-3" />
+                </span>
+              </div>
+            </motion.div>
           );
         })}
-
-        {accounts.length === 0 && (
-          <div className="rounded-xl border border-dashed border-border p-10 text-center">
-            <Wallet className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
-            <p className="text-sm text-muted-foreground">Nenhuma conta cadastrada.</p>
-            <p className="text-xs text-muted-foreground mt-1">Clique em "Nova Conta" para começar.</p>
-          </div>
-        )}
       </div>
+
+      {accounts.length === 0 && (
+        <div className="rounded-xl border border-dashed border-border p-10 text-center">
+          <Wallet className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">Nenhuma conta cadastrada.</p>
+          <p className="text-xs text-muted-foreground mt-1">Clique em "Nova Conta" para começar.</p>
+        </div>
+      )}
     </div>
   );
 };
