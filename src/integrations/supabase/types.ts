@@ -14,6 +14,216 @@ export type Database = {
   }
   public: {
     Tables: {
+      mt5_account_snapshots: {
+        Row: {
+          balance: number
+          connection_id: string
+          created_at: string
+          daily_pnl: number
+          date: string
+          drawdown: number
+          equity: number
+          floating_pnl: number
+          id: string
+          max_balance: number
+        }
+        Insert: {
+          balance?: number
+          connection_id: string
+          created_at?: string
+          daily_pnl?: number
+          date: string
+          drawdown?: number
+          equity?: number
+          floating_pnl?: number
+          id?: string
+          max_balance?: number
+        }
+        Update: {
+          balance?: number
+          connection_id?: string
+          created_at?: string
+          daily_pnl?: number
+          date?: string
+          drawdown?: number
+          equity?: number
+          floating_pnl?: number
+          id?: string
+          max_balance?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mt5_account_snapshots_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "mt5_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mt5_connections: {
+        Row: {
+          account_name: string
+          account_type: string
+          broker_name: string
+          connection_status: Database["public"]["Enums"]["mt5_connection_status"]
+          created_at: string
+          id: string
+          last_sync_at: string | null
+          mt5_login: string
+          mt5_server: string
+          prop_firm: string | null
+          sync_error: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_name: string
+          account_type?: string
+          broker_name: string
+          connection_status?: Database["public"]["Enums"]["mt5_connection_status"]
+          created_at?: string
+          id?: string
+          last_sync_at?: string | null
+          mt5_login: string
+          mt5_server: string
+          prop_firm?: string | null
+          sync_error?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_name?: string
+          account_type?: string
+          broker_name?: string
+          connection_status?: Database["public"]["Enums"]["mt5_connection_status"]
+          created_at?: string
+          id?: string
+          last_sync_at?: string | null
+          mt5_login?: string
+          mt5_server?: string
+          prop_firm?: string | null
+          sync_error?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      mt5_positions: {
+        Row: {
+          connection_id: string
+          current_price: number
+          floating_pnl: number
+          id: string
+          open_price: number
+          stop_loss: number | null
+          symbol: string
+          take_profit: number | null
+          ticket: number
+          updated_at: string
+          volume: number
+        }
+        Insert: {
+          connection_id: string
+          current_price?: number
+          floating_pnl?: number
+          id?: string
+          open_price?: number
+          stop_loss?: number | null
+          symbol: string
+          take_profit?: number | null
+          ticket: number
+          updated_at?: string
+          volume?: number
+        }
+        Update: {
+          connection_id?: string
+          current_price?: number
+          floating_pnl?: number
+          id?: string
+          open_price?: number
+          stop_loss?: number | null
+          symbol?: string
+          take_profit?: number | null
+          ticket?: number
+          updated_at?: string
+          volume?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mt5_positions_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "mt5_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mt5_trades: {
+        Row: {
+          close_price: number | null
+          close_time: string | null
+          commission: number
+          connection_id: string
+          created_at: string
+          id: string
+          open_price: number
+          open_time: string
+          profit: number
+          side: string
+          stop_loss: number | null
+          swap: number
+          symbol: string
+          take_profit: number | null
+          ticket: number
+          volume: number
+        }
+        Insert: {
+          close_price?: number | null
+          close_time?: string | null
+          commission?: number
+          connection_id: string
+          created_at?: string
+          id?: string
+          open_price?: number
+          open_time: string
+          profit?: number
+          side: string
+          stop_loss?: number | null
+          swap?: number
+          symbol: string
+          take_profit?: number | null
+          ticket: number
+          volume?: number
+        }
+        Update: {
+          close_price?: number | null
+          close_time?: string | null
+          commission?: number
+          connection_id?: string
+          created_at?: string
+          id?: string
+          open_price?: number
+          open_time?: string
+          profit?: number
+          side?: string
+          stop_loss?: number | null
+          swap?: number
+          symbol?: string
+          take_profit?: number | null
+          ticket?: number
+          volume?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mt5_trades_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "mt5_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       programs: {
         Row: {
           account_type: string
@@ -224,6 +434,12 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      mt5_connection_status:
+        | "disconnected"
+        | "connecting"
+        | "connected"
+        | "auth_error"
+        | "syncing"
       prop_firm_category: "forex" | "futures" | "multi_asset"
       prop_firm_status: "active" | "inactive" | "pending"
       rule_definition_key:
@@ -372,6 +588,13 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      mt5_connection_status: [
+        "disconnected",
+        "connecting",
+        "connected",
+        "auth_error",
+        "syncing",
+      ],
       prop_firm_category: ["forex", "futures", "multi_asset"],
       prop_firm_status: ["active", "inactive", "pending"],
       rule_definition_key: [
