@@ -93,7 +93,7 @@ const Accounts = () => {
           <p className="text-xs text-muted-foreground">Cadastre e gerencie suas contas de trading.</p>
         </div>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => navigate('/accounts/new')}
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
         >
           <Plus className="w-4 h-4" />
