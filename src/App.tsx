@@ -11,6 +11,7 @@ import AccountDashboard from "./pages/AccountDashboard";
 import RuleManager from "./pages/RuleManager";
 import Performance from "./pages/Performance";
 import SettingsPage from "./pages/SettingsPage";
+import AdminPage from "./pages/AdminPage";
 import CreateAccount from "./pages/CreateAccount";
 import NotFound from "./pages/NotFound";
 
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/rules" element={<AccountRules />} />
             <Route path="/rules/manage" element={<RuleManager />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/admin" element={<AdminPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AppLayout>
