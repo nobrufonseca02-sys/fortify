@@ -39,7 +39,7 @@ const RULE_ICONS: Partial<Record<RuleType, React.ElementType>> = {
 const FIRM_LOGOS: Record<string, string> = {
   ftmo: 'F', hantec: 'H', topstep: 'T', fundednext: 'FN',
   the5ers: '5', apex: 'AT', e8markets: 'E8', fxify: 'FX',
-  fundscap: 'FC', custom: '⚙',
+  fundscap: 'FC', custom: 'C',
 };
 
 // Map DB rule_definition key → local RuleType

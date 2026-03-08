@@ -350,7 +350,7 @@ const AccountDashboard = () => {
           {appliedAiRules.length > 0 && (
             <div className="rounded-xl border border-success/30 bg-success/5 p-4">
               <p className="text-xs text-success font-semibold">
-                ✅ {appliedAiRules.length} regras aplicadas a esta conta
+                {appliedAiRules.length} regras aplicadas a esta conta
               </p>
             </div>
           )}
