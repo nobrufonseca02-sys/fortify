@@ -38,6 +38,8 @@ const App = () => (
             <Route path="/rules/manage" element={<RuleManager />} />
             <Route path="/library" element={<PropFirmLibrary />} />
             <Route path="/history" element={<AccountHistory />} />
+            <Route path="/mt5" element={<MT5Dashboard />} />
+            <Route path="/mt5/connect" element={<ConnectMT5 />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="*" element={<NotFound />} />
