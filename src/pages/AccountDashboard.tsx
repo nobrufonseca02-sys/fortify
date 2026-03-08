@@ -69,11 +69,21 @@ const AccountDashboard = () => {
   // Recommendations
   const recommendations: string[] = [];
   recommendations.push(`Você ainda pode perder hoje: ${fmt(dailyRemaining)}`);
-  if (dailyLoss && dailyLoss.progressPct > 70) recommendations.push(`Risco diário alto (${Math.round(dailyLoss.progressPct)}%), considere reduzir lote`);
-  else if (dailyLoss && dailyLoss.progressPct > 40) recommendations.push(`Você está usando ${Math.round(dailyLoss.progressPct)}% do limite diário`);
+  if (dailyLoss && dailyLoss.progressPct > 70) {
+    const usedDaily = dailyLoss.currentValue;
+    const remainDaily = Math.max(0, dailyLoss.limitValue - usedDaily);
+    recommendations.push(`Risco diário alto, você já perdeu ${fmt(usedDaily)} e só pode perder mais ${fmt(remainDaily)}. Considere reduzir lote`);
+  } else if (dailyLoss && dailyLoss.progressPct > 40) {
+    const usedDaily = dailyLoss.currentValue;
+    const remainDaily = Math.max(0, dailyLoss.limitValue - usedDaily);
+    recommendations.push(`Você já usou ${fmt(usedDaily)} do limite diário de ${fmt(dailyLoss.limitValue)}. Restam ${fmt(remainDaily)}`);
+  }
   if (profitTarget && profitTarget.currentValue < 0) {
-    const neededPct = ((profitTarget.limitValue - profitTarget.currentValue) / account.startBalance * 100).toFixed(1);
-    recommendations.push(`Conta em recuperação, precisa de +${neededPct}% para voltar ao equilíbrio`);
+    const neededValue = profitTarget.limitValue - profitTarget.currentValue;
+    recommendations.push(`Conta em recuperação, precisa de ${fmt(neededValue)} para voltar ao equilíbrio e atingir a meta`);
+  } else if (profitTarget) {
+    const remaining = profitTarget.limitValue - Math.max(0, profitTarget.currentValue);
+    recommendations.push(`Faltam ${fmt(remaining)} para atingir a meta de lucro de ${fmt(profitTarget.limitValue)}`);
   }
   if (avgRisk > 65) recommendations.push('⛔ Considere parar de operar hoje');
   else if (avgRisk > 45) recommendations.push('📉 Reduza o tamanho dos lotes nos próximos trades');
