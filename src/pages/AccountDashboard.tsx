@@ -116,10 +116,27 @@ const AccountDashboard = () => {
 
   return (
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
-      {/* Back */}
-      <button onClick={() => navigate('/')} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
-        <ArrowLeft className="w-3.5 h-3.5" /> Voltar ao Painel
-      </button>
+      {/* Back + Tabs */}
+      <div className="flex items-center justify-between">
+        <button onClick={() => navigate('/')} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft className="w-3.5 h-3.5" /> Voltar ao Painel
+        </button>
+        <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${activeTab === 'dashboard' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            Dashboard
+          </button>
+          <button
+            onClick={() => setActiveTab('ai-rules')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${activeTab === 'ai-rules' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            <Sparkles className="w-3 h-3" />
+            Extrair Regras
+          </button>
+        </div>
+      </div>
 
       {/* === STATUS DA CONTA === */}
       <motion.div
