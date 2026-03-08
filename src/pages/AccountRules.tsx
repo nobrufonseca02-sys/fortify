@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { MOCK_ACCOUNTS, MOCK_EVALUATIONS, RULE_SET_TEMPLATES } from '@/data/mockData';
+import { MOCK_EVALUATIONS, RULE_SET_TEMPLATES } from '@/data/mockData';
 import { AccountSelector } from '@/components/AccountSelector';
 import { TradingAccount, RuleEvaluation, STATUS_CONFIG, RULE_TYPE_DESCRIPTIONS, RuleType } from '@/types/fortify';
+import { useAccountsStore } from '@/hooks/useAccountsStore';
 import { Shield, ShieldAlert, ShieldX, AlertTriangle, CheckCircle2, XCircle, Info, Lightbulb, ChevronRight } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
@@ -402,9 +403,9 @@ function OperationalRuleCard({ evaluation, index }: { evaluation: RuleEvaluation
   );
 }
 
-// === Main Page ===
 const AccountRules = () => {
-  const [selectedAccount, setSelectedAccount] = useState<TradingAccount>(MOCK_ACCOUNTS[0]);
+  const { accounts } = useAccountsStore();
+  const [selectedAccount, setSelectedAccount] = useState<TradingAccount>(accounts[0]);
 
   const evals = MOCK_EVALUATIONS.filter(e => e.tradingAccountId === selectedAccount.id);
   const ruleSet = RULE_SET_TEMPLATES.find(r => r.id === selectedAccount.ruleSetId);
@@ -424,7 +425,7 @@ const AccountRules = () => {
       </div>
 
       {/* Account Selector */}
-      <AccountSelector accounts={MOCK_ACCOUNTS} selected={selectedAccount} onSelect={setSelectedAccount} />
+      <AccountSelector accounts={accounts} selected={selectedAccount} onSelect={setSelectedAccount} />
 
       {/* Overview */}
       <motion.div

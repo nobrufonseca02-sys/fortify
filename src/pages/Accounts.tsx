@@ -1,28 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { RULE_SET_TEMPLATES, TEMPLATE_RULES, MOCK_ACCOUNTS, MOCK_EVALUATIONS } from '@/data/mockData';
+import { RULE_SET_TEMPLATES, TEMPLATE_RULES, MOCK_EVALUATIONS } from '@/data/mockData';
 import { TradingAccount, RULE_TYPE_LABELS } from '@/types/fortify';
 import { Plus, Trash2, Wallet, ChevronRight, Shield, AlertTriangle, XCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useAccountsStore } from '@/hooks/useAccountsStore';
 
-// Local state store (will be replaced by DB later)
-let accountsStore = [...MOCK_ACCOUNTS];
-
-export function useAccountsStore() {
-  const [accounts, setAccounts] = useState<TradingAccount[]>(accountsStore);
-
-  const addAccount = (account: TradingAccount) => {
-    accountsStore = [...accountsStore, account];
-    setAccounts([...accountsStore]);
-  };
-
-  const removeAccount = (id: string) => {
-    accountsStore = accountsStore.filter(a => a.id !== id);
-    setAccounts([...accountsStore]);
-  };
-
-  return { accounts, addAccount, removeAccount };
-}
+// Re-export for backward compatibility
+export { useAccountsStore } from '@/hooks/useAccountsStore';
 
 const StatusBadge = ({ status }: { status: 'SAFE' | 'WARNING' | 'VIOLATED' }) => {
   const config = {

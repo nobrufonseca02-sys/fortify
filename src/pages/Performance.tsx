@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
-import { MOCK_ACCOUNTS, MOCK_EVALUATIONS } from '@/data/mockData';
+import { MOCK_EVALUATIONS } from '@/data/mockData';
 import { AccountSelector } from '@/components/AccountSelector';
 import { TradingAccount } from '@/types/fortify';
+import { useAccountsStore } from '@/hooks/useAccountsStore';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -161,7 +162,8 @@ const tooltipStyle = {
 
 /* ── main page ───────────────────────────────────────────── */
 const Performance = () => {
-  const [selectedAccount, setSelectedAccount] = useState<TradingAccount>(MOCK_ACCOUNTS[0]);
+  const { accounts } = useAccountsStore();
+  const [selectedAccount, setSelectedAccount] = useState<TradingAccount>(accounts[0]);
   const data = useMemo(() => generateMockData(selectedAccount), [selectedAccount]);
 
   const account = selectedAccount;
@@ -210,7 +212,7 @@ const Performance = () => {
         <p className="text-xs text-muted-foreground">Análise completa de desempenho e risco da conta.</p>
       </div>
 
-      <AccountSelector accounts={MOCK_ACCOUNTS} selected={selectedAccount} onSelect={setSelectedAccount} />
+      <AccountSelector accounts={accounts} selected={selectedAccount} onSelect={setSelectedAccount} />
 
       {/* ── RESUMO ──────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
