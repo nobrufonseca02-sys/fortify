@@ -1,4 +1,4 @@
-import { LayoutDashboard, ScrollText, PlusCircle, Settings, BarChart3, Shield, BookOpen, Archive, Cable } from "lucide-react";
+import { LayoutDashboard, ScrollText, PlusCircle, Settings, BarChart3, Shield, BookOpen, Archive } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
