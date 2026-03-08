@@ -11,6 +11,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { useUserRole } from "@/hooks/useUserRole";
 
 const items = [
   { title: "Painel", url: "/", icon: LayoutDashboard },
@@ -18,10 +19,9 @@ const items = [
   { title: "Performance", url: "/performance", icon: BarChart3 },
   { title: "Regras da Conta", url: "/rules", icon: ScrollText },
   { title: "Prop Firm Library", url: "/library", icon: BookOpen },
-  
   { title: "Histórico", url: "/history", icon: Archive },
   { title: "Configuração", url: "/settings", icon: Settings },
-  { title: "Admin", url: "/admin", icon: Shield },
+];
 ];
 
 export function AppSidebar() {
