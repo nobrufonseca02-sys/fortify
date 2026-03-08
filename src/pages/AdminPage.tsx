@@ -12,11 +12,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
   Users, Shield, ScrollText, Activity, Settings2, AlertTriangle,
-  FileText, Plus, Pencil, Trash2, Search, Eye, Ban, CheckCircle2
+  FileText, Plus, Pencil, Trash2, Search, Eye, Ban, CheckCircle2, ShieldOff
 } from 'lucide-react';
 import { RULE_SET_TEMPLATES, TEMPLATE_RULES, MOCK_ACCOUNTS, MOCK_EVALUATIONS } from '@/data/mockData';
 import { RULE_TYPE_LABELS, type RuleType } from '@/types/fortify';
 import { toast } from '@/hooks/use-toast';
+import { useUserRole } from '@/hooks/useUserRole';
 
 // ─── Mock Admin Data ───
 const MOCK_USERS = [
@@ -55,12 +56,35 @@ const DEFAULT_GLOBAL_CONFIG = {
 };
 
 export default function AdminPage() {
+  const { isAdmin, loading: roleLoading } = useUserRole();
   const [activeTab, setActiveTab] = useState('users');
   const [users, setUsers] = useState(MOCK_USERS);
   const [searchUser, setSearchUser] = useState('');
   const [templateModal, setTemplateModal] = useState<{ open: boolean; mode: 'create' | 'edit'; templateId?: string }>({ open: false, mode: 'create' });
   const [templateForm, setTemplateForm] = useState({ name: '', firmName: '' });
   const [globalConfig, setGlobalConfig] = useState(DEFAULT_GLOBAL_CONFIG);
+
+  if (roleLoading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[60vh]">
+        <p className="text-sm text-muted-foreground">Verificando permissões...</p>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="p-6 flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center">
+          <ShieldOff className="h-8 w-8 text-destructive" />
+        </div>
+        <h2 className="text-lg font-bold text-foreground">Acesso Restrito</h2>
+        <p className="text-sm text-muted-foreground text-center max-w-sm">
+          Esta área é exclusiva para administradores. Você não tem permissão para acessar este painel.
+        </p>
+      </div>
+    );
+  }
 
   // ─── Users ───
   const filteredUsers = users.filter(u =>
