@@ -403,7 +403,7 @@ function OperationalRuleCard({ evaluation, index }: { evaluation: RuleEvaluation
   );
 }
 
-// === Main Page ===
+const AccountRules = () => {
   const { accounts } = useAccountsStore();
   const [selectedAccount, setSelectedAccount] = useState<TradingAccount>(accounts[0]);
 

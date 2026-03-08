@@ -95,6 +95,7 @@ function HeroDecisionCard() {
   const primary = accounts[0];
   if (!primary) return null;
   const data = getAccountData(primary);
+  const sc = statusConfig[data.status];
   const StatusIcon = sc.icon;
 
   return (
