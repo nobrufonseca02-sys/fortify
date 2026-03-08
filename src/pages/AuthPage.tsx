@@ -143,7 +143,7 @@ export default function AuthPage() {
           animate={{ opacity: 1 }}
           transition={{ delay: 1.2 }}
         >
-          &copy; 2026 Fortify. Controle total sobre suas operacoes.
+          &copy; 2026 Fortify. Controle total sobre suas operações.
         </motion.p>
       </div>
 
