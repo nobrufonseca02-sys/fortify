@@ -62,6 +62,9 @@ const FIRM_LOGOS: Record<string, string> = {
   e8markets: 'E8',
   fxify: 'FX',
   fundscap: 'FC',
+  alphacapitalgroup: 'AC',
+  thetradingpit: 'TP',
+  fundingpips: 'FP',
   custom: '⚙',
 };
 
