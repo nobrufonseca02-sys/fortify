@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { AnimatedBackground } from "@/components/AnimatedBackground";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import fortifyLogo from "@/assets/fortify-logo.png";
+import fortifyLogo from "@/assets/fortify-eagle.png";
 import { Shield, TrendingUp, BarChart3, Lock, Mail, User, ArrowRight, Eye, EyeOff, ChevronRight } from "lucide-react";
 
 type AuthMode = "login" | "signup" | "forgot";
