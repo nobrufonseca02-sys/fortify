@@ -25,7 +25,7 @@ const SettingsPage = () => {
           <div className="rounded-xl bg-muted/30 border border-border/50 p-4">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 font-medium">Nome</p>
             <p className="text-sm text-foreground font-semibold">
-              {user?.user_metadata?.full_name || "Nao definido"}
+              {user?.user_metadata?.full_name || "Não definido"}
             </p>
           </div>
           <div className="rounded-xl bg-muted/30 border border-border/50 p-4">
