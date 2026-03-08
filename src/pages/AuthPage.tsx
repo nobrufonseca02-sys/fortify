@@ -74,9 +74,9 @@ export default function AuthPage() {
 
   const bullets = [
     "Controle quanto ainda pode perder hoje",
-    "Veja a regra mais proxima de violacao",
-    "Monitore multiplas contas em um unico lugar",
-    "Tome decisoes com clareza antes do proximo trade",
+    "Veja a regra mais próxima de violação",
+    "Monitore múltiplas contas em um único lugar",
+    "Tome decisões com clareza antes do próximo trade",
   ];
 
   return (
@@ -107,8 +107,7 @@ export default function AuthPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
           >
-            Proteja sua conta antes que a regra te{" "}
-            <span className="text-gradient-primary">elimine.</span>
+            <span className="text-gradient-primary">Proteja</span> sua conta antes que a regra te elimine.
           </motion.h2>
 
           <motion.p
@@ -117,7 +116,7 @@ export default function AuthPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
           >
-            O FORTIFY monitora risco, drawdown e regras de prop firms em um painel claro, profissional e feito para decisao rapida.
+            O FORTIFY monitora risco, drawdown e regras de prop firms em um painel claro, profissional e feito para decisão rápida.
           </motion.p>
 
           <div className="space-y-4">
@@ -144,7 +143,7 @@ export default function AuthPage() {
           animate={{ opacity: 1 }}
           transition={{ delay: 1.2 }}
         >
-          &copy; 2026 Fortify. Controle total sobre suas operacoes.
+          &copy; 2026 Fortify. Controle total sobre suas operações.
         </motion.p>
       </div>
 
@@ -288,7 +287,7 @@ export default function AuthPage() {
                 <div className="pt-4 text-center">
                   {mode === "login" && (
                     <p className="text-sm text-muted-foreground">
-                      Nao tem conta?{" "}
+                      Não tem conta?{" "}
                       <button onClick={() => setMode("signup")} className="text-primary font-semibold hover:text-primary/80 transition-colors">
                         Criar conta
                       </button>
@@ -296,7 +295,7 @@ export default function AuthPage() {
                   )}
                   {mode === "signup" && (
                     <p className="text-sm text-muted-foreground">
-                      Ja tem conta?{" "}
+                      Já tem conta?{" "}
                       <button onClick={() => setMode("login")} className="text-primary font-semibold hover:text-primary/80 transition-colors">
                         Entrar
                       </button>
