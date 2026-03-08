@@ -158,11 +158,8 @@ export default function AuthPage() {
         >
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-10">
-            <img src={fortifyLogo} alt="Fortify" className="w-12 h-12 invert" />
-            <div>
-              <h1 className="text-xl font-bold text-foreground tracking-tight">FORTIFY</h1>
-              <p className="text-[8px] uppercase tracking-[0.3em] text-muted-foreground">Anti-Quebra MT5</p>
-            </div>
+            <img src={fortifyLogo} alt="Fortify" className="w-10 h-10 invert brightness-200 hue-rotate-[140deg] saturate-150" />
+            <h1 className="text-xl font-bold text-foreground tracking-[0.08em]">FORTIFY</h1>
           </div>
 
           {/* Glass card */}
