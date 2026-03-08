@@ -162,7 +162,8 @@ const tooltipStyle = {
 
 /* ── main page ───────────────────────────────────────────── */
 const Performance = () => {
-  const [selectedAccount, setSelectedAccount] = useState<TradingAccount>(MOCK_ACCOUNTS[0]);
+  const { accounts } = useAccountsStore();
+  const [selectedAccount, setSelectedAccount] = useState<TradingAccount>(accounts[0]);
   const data = useMemo(() => generateMockData(selectedAccount), [selectedAccount]);
 
   const account = selectedAccount;
