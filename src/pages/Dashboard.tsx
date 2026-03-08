@@ -1,6 +1,7 @@
 import { MOCK_ACCOUNTS, MOCK_EVALUATIONS, RULE_SET_TEMPLATES } from '@/data/mockData';
 import { TradingAccount, RuleEvaluation, STATUS_CONFIG } from '@/types/fortify';
-import { AlertTriangle, Shield, ShieldAlert, ShieldX, TrendingDown, Target, Lightbulb } from 'lucide-react';
+import { AlertTriangle, Shield, ShieldAlert, ShieldX, TrendingDown, Target, Lightbulb, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
 // === Helpers ===
@@ -154,6 +155,7 @@ function HeroDecisionCard() {
 
 // === Account Card ===
 function AccountCard({ account, index }: { account: TradingAccount; index: number }) {
+  const navigate = useNavigate();
   const data = getAccountData(account);
   const sc = statusConfig[data.status];
   const StatusIcon = sc.icon;
@@ -164,7 +166,8 @@ function AccountCard({ account, index }: { account: TradingAccount; index: numbe
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.06, duration: 0.35 }}
-      className="rounded-xl border border-border bg-card p-5 hover:border-primary/20 transition-colors"
+      className="rounded-xl border border-border bg-card p-5 hover:border-primary/20 transition-colors cursor-pointer"
+      onClick={() => navigate(`/accounts/${account.id}`)}
     >
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
