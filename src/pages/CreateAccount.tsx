@@ -242,6 +242,18 @@ const CreateAccount = () => {
                 </button>
               ))}
             </div>
+
+            {/* AI Rule Extraction */}
+            <div className="pt-4 border-t border-border">
+              <RuleExtractor
+                onRulesExtracted={(extractedRules, firmName, accountTypes) => {
+                  setSelectedFirm('custom');
+                  setRules(extractedRules);
+                  setAccountName(`${firmName} Account`);
+                  if (accountTypes.length > 0) setAccountType(accountTypes[0]);
+                }}
+              />
+            </div>
           </motion.div>
         )}
 
