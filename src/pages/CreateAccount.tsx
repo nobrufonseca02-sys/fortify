@@ -53,6 +53,7 @@ const StepIndicator = ({ current, total }: { current: number; total: number }) =
 // ─── Main Page ───
 const CreateAccount = () => {
   const navigate = useNavigate();
+  const { addAccount } = useAccountsStore();
   const [step, setStep] = useState(0);
 
   // Step 1: Prop Firm
