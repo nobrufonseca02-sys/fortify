@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { MOCK_ACCOUNTS, MOCK_EVALUATIONS, RULE_SET_TEMPLATES } from '@/data/mockData';
+import { MOCK_EVALUATIONS, RULE_SET_TEMPLATES } from '@/data/mockData';
+import { useAccountsStore } from '@/pages/Accounts';
 import { RuleEvaluation } from '@/types/fortify';
 import {
   Shield, ShieldAlert, ShieldX, AlertTriangle, ArrowLeft,
@@ -27,8 +28,9 @@ const statusConfig = {
 const AccountDashboard = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { accounts } = useAccountsStore();
 
-  const account = MOCK_ACCOUNTS.find(a => a.id === id);
+  const account = accounts.find(a => a.id === id);
   if (!account) {
     return (
       <div className="p-6 text-center">
