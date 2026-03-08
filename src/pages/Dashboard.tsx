@@ -187,7 +187,7 @@ function DecisionCard() {
             <Zap className={`w-4 h-4 ${sc.color}`} />
           </div>
           <div>
-            <p className="text-xs font-bold text-foreground">Proxima Decisao</p>
+            <p className="text-xs font-bold text-foreground">Próxima Decisão</p>
             <p className="text-[10px] text-muted-foreground">{primary.nickname}</p>
           </div>
         </div>
