@@ -33,6 +33,8 @@ const AccountDashboard = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { accounts } = useAccountsStore();
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'ai-rules'>('dashboard');
+  const [appliedAiRules, setAppliedAiRules] = useState<TemplateRule[]>([]);
 
   const account = accounts.find(a => a.id === id);
   if (!account) {
