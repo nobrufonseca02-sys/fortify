@@ -138,6 +138,7 @@ const AccountDashboard = () => {
         </div>
       </div>
 
+      {activeTab === 'dashboard' && (<>
       {/* === STATUS DA CONTA === */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}
