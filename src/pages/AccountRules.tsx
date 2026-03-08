@@ -404,8 +404,8 @@ function OperationalRuleCard({ evaluation, index }: { evaluation: RuleEvaluation
 }
 
 // === Main Page ===
-const AccountRules = () => {
-  const [selectedAccount, setSelectedAccount] = useState<TradingAccount>(MOCK_ACCOUNTS[0]);
+  const { accounts } = useAccountsStore();
+  const [selectedAccount, setSelectedAccount] = useState<TradingAccount>(accounts[0]);
 
   const evals = MOCK_EVALUATIONS.filter(e => e.tradingAccountId === selectedAccount.id);
   const ruleSet = RULE_SET_TEMPLATES.find(r => r.id === selectedAccount.ruleSetId);
