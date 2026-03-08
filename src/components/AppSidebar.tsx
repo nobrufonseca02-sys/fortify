@@ -17,7 +17,7 @@ const items = [
   { title: "Performance", url: "/performance", icon: BarChart3 },
   { title: "Regras da Conta", url: "/rules", icon: ScrollText },
   { title: "Prop Firm Library", url: "/library", icon: BookOpen },
-  { title: "Integração MT5", url: "/mt5", icon: Cable },
+  
   { title: "Histórico", url: "/history", icon: Archive },
   { title: "Configuração", url: "/settings", icon: Settings },
   { title: "Admin", url: "/admin", icon: Shield },
