@@ -170,7 +170,21 @@ const CreateAccount = () => {
   };
 
   const handleCreate = () => {
-    // For now navigate back — will integrate with DB later
+    const newAccount = {
+      id: `acc-${Date.now()}`,
+      userId: 'u1',
+      nickname: accountName || `${firm?.name || 'Custom'} ${balance / 1000}k`,
+      broker: `${firm?.name || 'Custom'} - ${accountType}`,
+      baseCurrency: currency,
+      startBalance: balance,
+      currentBalance: balance,
+      currentEquity: balance,
+      highestEquityAllTime: balance,
+      status: 'active' as const,
+      ruleSetId: firm?.id || 'custom',
+      createdAt: new Date().toISOString().split('T')[0],
+    };
+    addAccount(newAccount);
     navigate('/accounts');
   };
 
