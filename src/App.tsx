@@ -11,6 +11,7 @@ import AccountDashboard from "./pages/AccountDashboard";
 import RuleManager from "./pages/RuleManager";
 import Performance from "./pages/Performance";
 import SettingsPage from "./pages/SettingsPage";
+import AdminPage from "./pages/AdminPage";
 import CreateAccount from "./pages/CreateAccount";
 import NotFound from "./pages/NotFound";
 
