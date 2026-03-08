@@ -258,7 +258,39 @@ const Accounts = () => {
                 </div>
               )}
 
-              <div className="flex items-center justify-end pt-1">
+              <div className="flex items-center justify-between pt-1">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <button
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      Excluir
+                    </button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Excluir conta?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        A conta "{account.nickname}" será movida para o histórico. Você poderá restaurá-la depois.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeAccount(account.id);
+                          toast({ title: 'Conta excluída', description: `"${account.nickname}" foi movida para o histórico.` });
+                        }}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Excluir
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
                 <span className="text-[10px] text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
                   Abrir Painel <ChevronRight className="w-3 h-3" />
                 </span>
