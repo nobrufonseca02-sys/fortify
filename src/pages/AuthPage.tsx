@@ -74,9 +74,9 @@ export default function AuthPage() {
 
   const bullets = [
     "Controle quanto ainda pode perder hoje",
-    "Veja a regra mais proxima de violacao",
-    "Monitore multiplas contas em um unico lugar",
-    "Tome decisoes com clareza antes do proximo trade",
+    "Veja a regra mais próxima de violação",
+    "Monitore múltiplas contas em um único lugar",
+    "Tome decisões com clareza antes do próximo trade",
   ];
 
   return (
