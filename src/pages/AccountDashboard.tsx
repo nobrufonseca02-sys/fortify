@@ -1,12 +1,16 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MOCK_EVALUATIONS, RULE_SET_TEMPLATES } from '@/data/mockData';
 import { useAccountsStore } from '@/pages/Accounts';
 import { RuleEvaluation } from '@/types/fortify';
 import {
   Shield, ShieldAlert, ShieldX, AlertTriangle, ArrowLeft,
-  Lightbulb, Bell, TrendingDown, Target, Activity
+  Lightbulb, Bell, TrendingDown, Target, Activity, Sparkles
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { RuleExtractor } from '@/components/RuleExtractor';
+import type { TemplateRule } from '@/data/propFirmLibrary';
+import { toast } from 'sonner';
 
 const fmt = (v: number) => `$${Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`;
 
