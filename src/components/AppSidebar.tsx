@@ -1,5 +1,5 @@
 import { LayoutDashboard, ScrollText, PlusCircle, Settings, BarChart3, Shield, BookOpen, Archive } from "lucide-react";
-import fortifyLogo from "@/assets/fortify-logo.png";
+import fortifyLogo from "@/assets/fortify-eagle.png";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
