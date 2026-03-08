@@ -20,7 +20,8 @@ const items = [
   { title: "Performance", url: "/performance", icon: BarChart3 },
   { title: "Regras da Conta", url: "/rules", icon: ScrollText },
   { title: "Prop Firm Library", url: "/library", icon: BookOpen },
-  { title: "Histórico", url: "/history", icon: Archive },
+  { title: "Contas MT5", url: "/mt5", icon: Server },
+  { title: "Historico", url: "/history", icon: Archive },
   { title: "Configurações", url: "/settings", icon: Settings },
 ];
 
