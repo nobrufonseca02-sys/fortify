@@ -629,16 +629,16 @@ const CreateAccount = () => {
                   </div>
                   <div className="space-y-1 text-xs text-foreground/80">
                     {riskSimulation.tradesUntilDaily <= 2 && (
-                      <p>⚠️ Com {effectiveRisk}% de risco, você só aguenta <strong>{riskSimulation.tradesUntilDaily} trades perdedores</strong> antes de atingir o limite diário. Considere reduzir o risco.</p>
+                      <p>Com {effectiveRisk}% de risco, você só aguenta <strong>{riskSimulation.tradesUntilDaily} trades perdedores</strong> antes de atingir o limite diário. Considere reduzir o risco.</p>
                     )}
                     {riskSimulation.tradesUntilDaily > 2 && riskSimulation.tradesUntilDaily <= 5 && (
-                      <p>📊 Você tem margem para <strong>{riskSimulation.tradesUntilDaily} trades perdedores consecutivos</strong> antes de atingir o limite diário de {fmt(riskSimulation.dailyLimit)}.</p>
+                      <p>Você tem margem para <strong>{riskSimulation.tradesUntilDaily} trades perdedores consecutivos</strong> antes de atingir o limite diário de {fmt(riskSimulation.dailyLimit)}.</p>
                     )}
                     {riskSimulation.tradesUntilDaily > 5 && (
-                      <p>✅ Boa margem de segurança: <strong>{riskSimulation.tradesUntilDaily} trades perdedores</strong> antes do limite diário. Risco bem calibrado.</p>
+                      <p>Boa margem de segurança: <strong>{riskSimulation.tradesUntilDaily} trades perdedores</strong> antes do limite diário. Risco bem calibrado.</p>
                     )}
                     {riskSimulation.tradesUntilMax > 0 && (
-                      <p>🛡️ Para quebrar a conta, seria necessário perder <strong>{riskSimulation.tradesUntilMax} trades consecutivos</strong> ({fmt(riskSimulation.maxLimit)} de margem total).</p>
+                      <p>Para quebrar a conta, seria necessário perder <strong>{riskSimulation.tradesUntilMax} trades consecutivos</strong> ({fmt(riskSimulation.maxLimit)} de margem total).</p>
                     )}
                   </div>
                 </div>
