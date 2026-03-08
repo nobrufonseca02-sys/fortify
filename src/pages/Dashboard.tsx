@@ -1,6 +1,7 @@
 import { MOCK_ACCOUNTS, MOCK_EVALUATIONS, RULE_SET_TEMPLATES } from '@/data/mockData';
 import { TradingAccount, RuleEvaluation, STATUS_CONFIG } from '@/types/fortify';
-import { AlertTriangle, Shield, ShieldAlert, ShieldX, TrendingDown, Target, Lightbulb } from 'lucide-react';
+import { AlertTriangle, Shield, ShieldAlert, ShieldX, TrendingDown, Target, Lightbulb, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
 // === Helpers ===
