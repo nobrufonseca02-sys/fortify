@@ -425,7 +425,7 @@ function OperationalRuleCard({ evaluation, index }: { evaluation: RuleEvaluation
       </div>
 
       {/* Account Selector */}
-      <AccountSelector accounts={MOCK_ACCOUNTS} selected={selectedAccount} onSelect={setSelectedAccount} />
+      <AccountSelector accounts={accounts} selected={selectedAccount} onSelect={setSelectedAccount} />
 
       {/* Overview */}
       <motion.div

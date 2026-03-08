@@ -91,10 +91,10 @@ function MiniBar({ value, max, status }: { value: number; max: number; status: s
 
 // === Hero Card: Próxima Decisão ===
 function HeroDecisionCard() {
-  // Use first account as "primary" — could be selectable
-  const primary = MOCK_ACCOUNTS[0];
+  const { accounts } = useAccountsStore();
+  const primary = accounts[0];
+  if (!primary) return null;
   const data = getAccountData(primary);
-  const sc = statusConfig[data.status];
   const StatusIcon = sc.icon;
 
   return (

@@ -212,7 +212,7 @@ const Performance = () => {
         <p className="text-xs text-muted-foreground">Análise completa de desempenho e risco da conta.</p>
       </div>
 
-      <AccountSelector accounts={MOCK_ACCOUNTS} selected={selectedAccount} onSelect={setSelectedAccount} />
+      <AccountSelector accounts={accounts} selected={selectedAccount} onSelect={setSelectedAccount} />
 
       {/* ── RESUMO ──────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
