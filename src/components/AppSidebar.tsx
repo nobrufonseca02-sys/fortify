@@ -1,4 +1,4 @@
-import { LayoutDashboard, ScrollText, PlusCircle, Settings, BarChart3, Shield, BookOpen, Archive } from "lucide-react";
+import { LayoutDashboard, ScrollText, PlusCircle, Settings, BarChart3, Shield, BookOpen, Archive, LogOut } from "lucide-react";
 import fortifyLogo from "@/assets/fortify-eagle.png";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -12,6 +12,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useAuth } from "@/hooks/useAuth";
 
 const items = [
   { title: "Painel", url: "/", icon: LayoutDashboard },
@@ -20,17 +21,18 @@ const items = [
   { title: "Regras da Conta", url: "/rules", icon: ScrollText },
   { title: "Prop Firm Library", url: "/library", icon: BookOpen },
   { title: "Histórico", url: "/history", icon: Archive },
-  { title: "Configuração", url: "/settings", icon: Settings },
+  { title: "Configurações", url: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const { isAdmin } = useUserRole();
+  const { signOut } = useAuth();
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border bg-card">
-      <SidebarContent className="pt-4">
+      <SidebarContent className="pt-4 flex flex-col h-full">
         <div className={`px-4 mb-6 ${collapsed ? 'px-2' : ''}`}>
           <div className="flex items-center gap-2.5">
             <img src={fortifyLogo} alt="Fortify" className="w-7 h-7 flex-shrink-0 invert mix-blend-screen" />
@@ -40,7 +42,7 @@ export function AppSidebar() {
           </div>
         </div>
 
-        <SidebarGroup>
+        <SidebarGroup className="flex-1">
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
@@ -75,6 +77,17 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Logout */}
+        <div className={`px-3 pb-4 ${collapsed ? 'px-2' : ''}`}>
+          <button
+            onClick={() => signOut()}
+            className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+          >
+            <LogOut className="h-4 w-4" />
+            {!collapsed && <span>Sair</span>}
+          </button>
+        </div>
       </SidebarContent>
     </Sidebar>
   );

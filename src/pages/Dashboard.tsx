@@ -159,7 +159,7 @@ function HeroCard() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
             >
-              Olá, <span className="text-foreground font-medium">{firstName}</span> 👋
+              Bem-vindo, <span className="text-foreground font-medium">{firstName}</span>
             </motion.p>
             <motion.h1
               className="text-2xl md:text-3xl font-bold text-foreground"
