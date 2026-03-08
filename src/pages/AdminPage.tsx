@@ -12,11 +12,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
   Users, Shield, ScrollText, Activity, Settings2, AlertTriangle,
-  FileText, Plus, Pencil, Trash2, Search, Eye, Ban, CheckCircle2
+  FileText, Plus, Pencil, Trash2, Search, Eye, Ban, CheckCircle2, ShieldOff
 } from 'lucide-react';
 import { RULE_SET_TEMPLATES, TEMPLATE_RULES, MOCK_ACCOUNTS, MOCK_EVALUATIONS } from '@/data/mockData';
 import { RULE_TYPE_LABELS, type RuleType } from '@/types/fortify';
 import { toast } from '@/hooks/use-toast';
+import { useUserRole } from '@/hooks/useUserRole';
 
 // ─── Mock Admin Data ───
 const MOCK_USERS = [
