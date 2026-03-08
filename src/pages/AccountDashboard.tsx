@@ -328,6 +328,34 @@ const AccountDashboard = () => {
           </div>
         </section>
       )}
+      </>)}
+
+      {/* === AI RULES TAB === */}
+      {activeTab === 'ai-rules' && (
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">Reconhecimento Automático de Regras</h2>
+            <p className="text-xs text-muted-foreground mt-1">
+              Envie o PDF ou link dos termos e condições da prop firm para extrair e aplicar regras automaticamente nesta conta.
+            </p>
+          </div>
+
+          <RuleExtractor
+            onRulesExtracted={(extractedRules, firmName, _accountTypes, summary) => {
+              setAppliedAiRules(extractedRules);
+              toast.success(`${extractedRules.length} regras de "${firmName}" aplicadas à conta ${account.nickname}`);
+            }}
+          />
+
+          {appliedAiRules.length > 0 && (
+            <div className="rounded-xl border border-success/30 bg-success/5 p-4">
+              <p className="text-xs text-success font-semibold">
+                ✅ {appliedAiRules.length} regras aplicadas a esta conta
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="pt-4 border-t border-border">
