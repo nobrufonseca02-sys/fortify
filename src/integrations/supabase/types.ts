@@ -14,53 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      mt5_account_snapshots: {
-        Row: {
-          balance: number
-          connection_id: string
-          created_at: string
-          daily_pnl: number
-          date: string
-          drawdown: number
-          equity: number
-          floating_pnl: number
-          id: string
-          max_balance: number
-        }
-        Insert: {
-          balance?: number
-          connection_id: string
-          created_at?: string
-          daily_pnl?: number
-          date: string
-          drawdown?: number
-          equity?: number
-          floating_pnl?: number
-          id?: string
-          max_balance?: number
-        }
-        Update: {
-          balance?: number
-          connection_id?: string
-          created_at?: string
-          daily_pnl?: number
-          date?: string
-          drawdown?: number
-          equity?: number
-          floating_pnl?: number
-          id?: string
-          max_balance?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "mt5_account_snapshots_connection_id_fkey"
-            columns: ["connection_id"]
-            isOneToOne: false
-            referencedRelation: "mt5_connections"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       mt5_connections: {
         Row: {
           account_name: string
@@ -109,120 +62,194 @@ export type Database = {
         }
         Relationships: []
       }
-      mt5_positions: {
+      open_positions: {
         Row: {
+          id: string
           connection_id: string
+          ticket: number
+          symbol: string
+          side: string
+          volume: number
+          open_time: string
+          open_price: number
           current_price: number
           floating_pnl: number
-          id: string
-          open_price: number
           stop_loss: number | null
-          symbol: string
           take_profit: number | null
-          ticket: number
           updated_at: string
-          volume: number
         }
         Insert: {
+          id?: string
           connection_id: string
+          ticket: number
+          symbol: string
+          side: string
+          volume?: number
+          open_time: string
+          open_price?: number
           current_price?: number
           floating_pnl?: number
-          id?: string
-          open_price?: number
           stop_loss?: number | null
-          symbol: string
           take_profit?: number | null
-          ticket: number
           updated_at?: string
-          volume?: number
         }
         Update: {
+          id?: string
           connection_id?: string
+          ticket?: number
+          symbol?: string
+          side?: string
+          volume?: number
+          open_time?: string
+          open_price?: number
           current_price?: number
           floating_pnl?: number
-          id?: string
-          open_price?: number
           stop_loss?: number | null
-          symbol?: string
           take_profit?: number | null
-          ticket?: number
           updated_at?: string
-          volume?: number
         }
         Relationships: [
           {
-            foreignKeyName: "mt5_positions_connection_id_fkey"
+            foreignKeyName: "open_positions_connection_id_fkey"
             columns: ["connection_id"]
             isOneToOne: false
             referencedRelation: "mt5_connections"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
-      mt5_trades: {
+      trades: {
         Row: {
-          close_price: number | null
-          close_time: string | null
-          commission: number
-          connection_id: string
-          created_at: string
           id: string
-          open_price: number
-          open_time: string
-          profit: number
-          side: string
-          stop_loss: number | null
-          swap: number
-          symbol: string
-          take_profit: number | null
+          connection_id: string
           ticket: number
+          symbol: string
+          side: string
           volume: number
+          open_time: string
+          close_time: string | null
+          open_price: number
+          close_price: number | null
+          stop_loss: number | null
+          take_profit: number | null
+          profit: number
+          swap: number
+          commission: number
+          created_at: string
         }
         Insert: {
-          close_price?: number | null
-          close_time?: string | null
-          commission?: number
-          connection_id: string
-          created_at?: string
           id?: string
-          open_price?: number
-          open_time: string
-          profit?: number
-          side: string
-          stop_loss?: number | null
-          swap?: number
-          symbol: string
-          take_profit?: number | null
+          connection_id: string
           ticket: number
+          symbol: string
+          side: string
           volume?: number
+          open_time: string
+          close_time?: string | null
+          open_price?: number
+          close_price?: number | null
+          stop_loss?: number | null
+          take_profit?: number | null
+          profit?: number
+          swap?: number
+          commission?: number
+          created_at?: string
         }
         Update: {
-          close_price?: number | null
-          close_time?: string | null
-          commission?: number
-          connection_id?: string
-          created_at?: string
           id?: string
-          open_price?: number
-          open_time?: string
-          profit?: number
-          side?: string
-          stop_loss?: number | null
-          swap?: number
-          symbol?: string
-          take_profit?: number | null
+          connection_id?: string
           ticket?: number
+          symbol?: string
+          side?: string
           volume?: number
+          open_time?: string
+          close_time?: string | null
+          open_price?: number
+          close_price?: number | null
+          stop_loss?: number | null
+          take_profit?: number | null
+          profit?: number
+          swap?: number
+          commission?: number
+          created_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "mt5_trades_connection_id_fkey"
+            foreignKeyName: "trades_connection_id_fkey"
             columns: ["connection_id"]
             isOneToOne: false
             referencedRelation: "mt5_connections"
             referencedColumns: ["id"]
-          },
+          }
         ]
+      }
+      account_snapshots: {
+        Row: {
+          id: string
+          connection_id: string
+          date: string
+          balance: number
+          equity: number
+          daily_pnl: number
+          floating_pnl: number
+          drawdown: number
+          max_balance: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          connection_id: string
+          date: string
+          balance?: number
+          equity?: number
+          daily_pnl?: number
+          floating_pnl?: number
+          drawdown?: number
+          max_balance?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          connection_id?: string
+          date?: string
+          balance?: number
+          equity?: number
+          daily_pnl?: number
+          floating_pnl?: number
+          drawdown?: number
+          max_balance?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_snapshots_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "mt5_connections"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      trading_accounts: {
+        Row: {
+          id: string
+          user_id: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       programs: {
         Row: {
@@ -259,7 +286,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "prop_firms"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       prop_firms: {
@@ -382,7 +409,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "rule_set_versions"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       rule_set_versions: {
@@ -423,7 +450,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "programs"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       user_roles: {

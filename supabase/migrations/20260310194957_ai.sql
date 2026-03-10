@@ -1,0 +1,2 @@
+-- Sem alterações de schema nesta revisão.
+-- A camada de interface deve consumir exclusivamente as tabelas oficiais existentes.
