@@ -35,7 +35,7 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-border/50 bg-sidebar">
       <SidebarContent className="pt-5 flex flex-col h-full">
         {/* Logo */}
-        <div className={`px-4 mb-8 ${collapsed ? 'px-2' : ''}`}>
+        <div className={`px-4 mb-8 ${collapsed ? "px-2" : ""}`}>
           <div className="flex items-center gap-2.5">
             <div className="relative">
               <img src={fortifyLogo} alt="Fortify" className="w-7 h-7 flex-shrink-0 invert mix-blend-screen" />
@@ -57,8 +57,9 @@ export function AppSidebar() {
                     <NavLink
                       to={item.url}
                       end={item.url === "/"}
-                      className="hover:bg-primary/5 transition-all duration-200 rounded-lg"
-                      activeClassName="bg-primary/10 text-primary font-medium border-l-2 border-primary"
+                      // Mantém mínimo: agora o visual futurista/glow vem do NavLink
+                      className=""
+                      activeClassName="border-l-2 border-primary"
                     >
                       <item.icon className="mr-2 h-4 w-4" />
                       {!collapsed && <span className="text-[13px]">{item.title}</span>}
@@ -71,8 +72,8 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild>
                     <NavLink
                       to="/admin"
-                      className="hover:bg-primary/5 transition-all duration-200 rounded-lg"
-                      activeClassName="bg-primary/10 text-primary font-medium border-l-2 border-primary"
+                      className=""
+                      activeClassName="border-l-2 border-primary"
                     >
                       <Shield className="mr-2 h-4 w-4" />
                       {!collapsed && <span className="text-[13px]">Admin</span>}
@@ -85,7 +86,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {/* Logout */}
-        <div className={`px-3 pb-5 ${collapsed ? 'px-2' : ''}`}>
+        <div className={`px-3 pb-5 ${collapsed ? "px-2" : ""}`}>
           <button
             onClick={() => signOut()}
             className="flex items-center gap-2 w-full px-3 py-2.5 rounded-lg text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-all duration-200"
