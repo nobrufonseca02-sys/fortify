@@ -17,7 +17,7 @@ export type Database = {
       mt5_connections: {
         Row: {
           broker_name: string | null
-          connection_status: string
+          connection_status: Database["public"]["Enums"]["mt5_connection_status"]
           created_at: string
           id: string
           last_sync_at: string | null
@@ -30,7 +30,7 @@ export type Database = {
         }
         Insert: {
           broker_name?: string | null
-          connection_status?: string
+          connection_status?: Database["public"]["Enums"]["mt5_connection_status"]
           created_at?: string
           id?: string
           last_sync_at?: string | null
@@ -43,7 +43,7 @@ export type Database = {
         }
         Update: {
           broker_name?: string | null
-          connection_status?: string
+          connection_status?: Database["public"]["Enums"]["mt5_connection_status"]
           created_at?: string
           id?: string
           last_sync_at?: string | null
@@ -252,7 +252,7 @@ export type Database = {
           current_balance: number
           current_equity: number
           highest_equity: number
-          status: string
+          status: Database["public"]["Enums"]["trading_account_status"]
           created_at: string
           updated_at: string
         }
@@ -269,7 +269,7 @@ export type Database = {
           current_balance?: number
           current_equity?: number
           highest_equity?: number
-          status?: string
+          status?: Database["public"]["Enums"]["trading_account_status"]
           created_at?: string
           updated_at?: string
         }
@@ -286,7 +286,7 @@ export type Database = {
           current_balance?: number
           current_equity?: number
           highest_equity?: number
-          status?: string
+          status?: Database["public"]["Enums"]["trading_account_status"]
           created_at?: string
           updated_at?: string
         }
@@ -557,6 +557,7 @@ export type Database = {
         | "leverage_limit"
       rule_mode: "percent" | "value"
       rule_set_status: "active" | "archived" | "draft"
+      trading_account_status: "active" | "inactive" | "paused" | "archived"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -714,6 +715,7 @@ export const Constants = {
       ],
       rule_mode: ["percent", "value"],
       rule_set_status: ["active", "archived", "draft"],
+      trading_account_status: ["active", "inactive", "paused", "archived"],
     },
   },
 } as const
