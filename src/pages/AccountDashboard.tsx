@@ -24,7 +24,6 @@ import {
   Area,
   AreaChart,
   CartesianGrid,
-  Legend,
   Line,
   LineChart,
   XAxis,
@@ -59,7 +58,7 @@ const mt5StatusConfig: Record<Mt5ConnectionStatus, { label: string; icon: typeof
   connecting: { label: 'Conectando', icon: RefreshCw, className: 'bg-warning/15 text-warning' },
   connected: { label: 'Conectada', icon: Link2, className: 'bg-success/15 text-success' },
   syncing: { label: 'Sincronizando', icon: RefreshCw, className: 'bg-primary/15 text-primary' },
-  error: { label: 'Erro', icon: AlertTriangle, className: 'bg-destructive/15 text-destructive' },
+  auth_error: { label: 'Erro de autenticação', icon: AlertTriangle, className: 'bg-destructive/15 text-destructive' },
 };
 
 const getSupabaseUrl = () =>
@@ -116,17 +115,14 @@ const AccountDashboard = () => {
   const sc = statusConfig[status];
   const StatusIcon = sc.icon;
 
-  // MT5 connection
-  const mt5Status = account.mt5ConnectionStatus || 'disconnected';
-  const mt5c = mt5StatusConfig[mt5Status];
-  const Mt5Icon = mt5c.icon;
-
-  // Supabase (dados reais)
+  // Supabase (dados reais - tabelas oficiais)
   const [loadingMt5Data, setLoadingMt5Data] = useState(false);
   const [mt5DataError, setMt5DataError] = useState<string | null>(null);
-  const [openPositions, setOpenPositions] = useState<OpenPosition[]>([]);
-  const [recentTrades, setRecentTrades] = useState<Trade[]>([]);
-  const [snapshots, setSnapshots] = useState<AccountSnapshot[]>([]);
+  const [openPositions, setOpenPositions] = useState<any[]>([]);
+  const [recentTrades, setRecentTrades] = useState<any[]>([]);
+  const [snapshots, setSnapshots] = useState<any[]>([]);
+  const [connection, setConnection] = useState<any | null>(null);
+  const [tradingAccountRow, setTradingAccountRow] = useState<any | null>(null);
 
   const supabaseUrl = getSupabaseUrl();
   const supabaseAnonKey = getSupabaseAnonKey();
@@ -148,21 +144,33 @@ const AccountDashboard = () => {
       setMt5DataError(null);
 
       try {
-        const [posRes, tradesRes, snapRes] = await Promise.all([
+        const [accRes, connRes, posRes, tradesRes, snapRes] = await Promise.all([
           supabase
-            .from('mt5OpenPositions')
+            .from('tradingAccounts')
+            .select('*')
+            .eq('id', account.id)
+            .maybeSingle(),
+          supabase
+            .from('mt5Connections')
+            .select('*')
+            .eq('tradingAccountId', account.id)
+            .order('createdAt', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from('openPositions')
             .select('*')
             .eq('tradingAccountId', account.id)
             .order('updatedAt', { ascending: false }),
           supabase
-            .from('mt5Trades')
+            .from('trades')
             .select('*')
             .eq('tradingAccountId', account.id)
             .order('closeTime', { ascending: false, nullsFirst: false })
             .order('openTime', { ascending: false })
             .limit(200),
           supabase
-            .from('mt5AccountSnapshots')
+            .from('accountSnapshots')
             .select('*')
             .eq('tradingAccountId', account.id)
             .order('date', { ascending: true })
@@ -171,10 +179,14 @@ const AccountDashboard = () => {
 
         if (cancelled) return;
 
+        if (accRes.error) throw accRes.error;
+        if (connRes.error) throw connRes.error;
         if (posRes.error) throw posRes.error;
         if (tradesRes.error) throw tradesRes.error;
         if (snapRes.error) throw snapRes.error;
 
+        setTradingAccountRow(accRes.data ?? null);
+        setConnection(connRes.data ?? null);
         setOpenPositions((posRes.data ?? []) as OpenPosition[]);
         setRecentTrades((tradesRes.data ?? []) as Trade[]);
         setSnapshots((snapRes.data ?? []) as AccountSnapshot[]);
@@ -194,18 +206,37 @@ const AccountDashboard = () => {
     };
   }, [supabase, account.id]);
 
+  const connectionStatus = (connection?.connectionStatus || connection?.connection_status || 'disconnected') as Mt5ConnectionStatus;
+  const mt5c = mt5StatusConfig[connectionStatus] || mt5StatusConfig.disconnected;
+  const Mt5Icon = mt5c.icon;
+
+  const headerNickname = tradingAccountRow?.nickname ?? account.nickname;
+  const headerBroker = tradingAccountRow?.broker ?? account.broker;
+  const headerServer = connection?.mt5Server ?? connection?.mt5_server ?? account.mt5Server;
+  const headerLogin = connection?.mt5Login ?? connection?.mt5_login ?? account.mt5Login;
+  const headerAccountType = tradingAccountRow?.accountType ?? tradingAccountRow?.account_type ?? account.accountType;
+  const headerPropFirm = tradingAccountRow?.propFirm ?? tradingAccountRow?.prop_firm ?? account.propFirm;
+  const lastSyncAt = connection?.lastSyncAt ?? connection?.last_sync_at ?? tradingAccountRow?.mt5LastSyncAt ?? account.mt5LastSyncAt;
+
   const latestSnapshot = snapshots.length > 0 ? snapshots[snapshots.length - 1] : null;
 
-  const maxBalanceValue = latestSnapshot?.maxBalance ?? account.currentBalance;
-  const dailyPnlValue = latestSnapshot?.dailyPnl ?? 0;
-  const floatingPnlValue = latestSnapshot?.floatingPnl ?? (account.currentEquity - account.currentBalance);
-  const drawdownValue = latestSnapshot?.drawdown ?? Math.max(0, account.highestEquityAllTime - account.currentEquity);
+  const currentBalance = Number(latestSnapshot?.balance ?? tradingAccountRow?.currentBalance ?? tradingAccountRow?.current_balance ?? account.currentBalance ?? 0);
+  const currentEquity = Number(latestSnapshot?.equity ?? tradingAccountRow?.currentEquity ?? tradingAccountRow?.current_equity ?? account.currentEquity ?? 0);
+  const highestEquity = Number(latestSnapshot?.highestEquity ?? latestSnapshot?.highest_equity ?? tradingAccountRow?.highestEquity ?? tradingAccountRow?.highest_equity ?? account.highestEquityAllTime ?? 0);
+
+  const maxBalanceValue = Number(latestSnapshot?.maxBalance ?? latestSnapshot?.max_balance ?? currentBalance);
+  const dailyPnlValue = Number(latestSnapshot?.dailyPnl ?? latestSnapshot?.daily_pnl ?? 0);
+  const floatingPnlValue = Number(latestSnapshot?.floatingPnl ?? latestSnapshot?.floating_pnl ?? (currentEquity - currentBalance));
+  const drawdownValue = Number(latestSnapshot?.drawdown ?? Math.max(0, highestEquity - currentEquity));
+
+  const usedDailyLossPctValue = latestSnapshot?.usedDailyLossPct ?? latestSnapshot?.used_daily_loss_pct;
+  const usedTotalLossPctValue = latestSnapshot?.usedTotalLossPct ?? latestSnapshot?.used_total_loss_pct;
 
   // KPIs
-  const closedTrades = useMemo(() => recentTrades.filter(t => !!t.closeTime), [recentTrades]);
+  const closedTrades = useMemo(() => recentTrades.filter(t => !!(t.closeTime ?? t.close_time)), [recentTrades]);
   const totalTrades = closedTrades.length;
-  const wins = closedTrades.filter(t => (t.profit ?? 0) > 0);
-  const losses = closedTrades.filter(t => (t.profit ?? 0) < 0);
+  const wins = closedTrades.filter(t => Number(t.profit ?? 0) > 0);
+  const losses = closedTrades.filter(t => Number(t.profit ?? 0) < 0);
   const winRate = totalTrades > 0 ? (wins.length / totalTrades) * 100 : 0;
   const totalPnl = closedTrades.reduce((s, t) => s + Number(t.profit ?? 0), 0);
   const avgWin = wins.length > 0 ? wins.reduce((s, t) => s + Number(t.profit ?? 0), 0) / wins.length : 0;
@@ -214,7 +245,7 @@ const AccountDashboard = () => {
 
   const maxDrawdown = useMemo(() => {
     if (snapshots.length === 0) return drawdownValue;
-    return snapshots.reduce((m, s) => Math.max(m, Number(s.drawdown ?? 0)), 0);
+    return snapshots.reduce((m, s) => Math.max(m, Number((s as any).drawdown ?? 0)), 0);
   }, [snapshots, drawdownValue]);
 
   const currentDrawdown = drawdownValue;
@@ -251,8 +282,8 @@ const AccountDashboard = () => {
     if (ev.status === 'NOT_MET' && ev.progressPct < 50) alerts.push({ text: `${ev.rule.name}: ${ev.message}`, severity: 'info' });
   });
 
-  if (mt5Status === 'error' && account.mt5SyncError) {
-    alerts.unshift({ text: `MT5: ${account.mt5SyncError}`, severity: 'danger' });
+  if ((connectionStatus === 'auth_error' || connectionStatus === 'disconnected') && (connection?.syncError || connection?.sync_error)) {
+    alerts.unshift({ text: `MT5: ${connection?.syncError || connection?.sync_error}`, severity: 'danger' });
   }
 
   if (mt5DataError) {
@@ -265,8 +296,8 @@ const AccountDashboard = () => {
     ev.status === 'WARNING' || ev.progressPct > 70 ? 'bg-warning' :
     'bg-success';
 
-  const pnl = account.currentBalance - account.startBalance;
-  const pnlPct = ((pnl / account.startBalance) * 100).toFixed(2);
+  const pnl = currentBalance - Number(account.startBalance ?? 0);
+  const pnlPct = Number(account.startBalance ?? 1) > 0 ? ((pnl / Number(account.startBalance)) * 100).toFixed(2) : '0.00';
 
   const kpiCards = [
     { label: 'Total de Trades', value: totalTrades.toLocaleString('pt-BR') },
@@ -282,14 +313,17 @@ const AccountDashboard = () => {
 
   const chartData = useMemo(() => {
     return snapshots
-      .filter(s => !!s.date)
-      .map(s => ({
-        date: new Date(s.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-        balance: Number(s.balance ?? 0),
-        equity: Number(s.equity ?? 0),
-        drawdown: Number(s.drawdown ?? 0),
-        dailyPnl: Number(s.dailyPnl ?? 0),
-      }));
+      .filter(s => !!((s as any).date))
+      .map(s => {
+        const d = (s as any).date;
+        return {
+          date: new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+          balance: Number((s as any).balance ?? 0),
+          equity: Number((s as any).equity ?? 0),
+          drawdown: Number((s as any).drawdown ?? 0),
+          dailyPnl: Number((s as any).dailyPnl ?? (s as any).daily_pnl ?? 0),
+        };
+      });
   }, [snapshots]);
 
   const hasChartData = chartData.length > 1;
@@ -322,20 +356,20 @@ const AccountDashboard = () => {
       {/* Header da conta + MT5 status */}
       <div className="rounded-xl border border-border bg-card p-4 flex items-center gap-3">
         <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full ${mt5c.className}`}>
-          <Mt5Icon className={`w-3 h-3 ${mt5Status === 'connecting' || mt5Status === 'syncing' ? 'animate-spin' : ''}`} />
+          <Mt5Icon className={`w-3 h-3 ${connectionStatus === 'connecting' || connectionStatus === 'syncing' ? 'animate-spin' : ''}`} />
           {mt5c.label}
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-xs text-foreground truncate">
-            <span className="font-semibold">{account.nickname}</span>
-            {account.broker ? ` • ${account.broker}` : ''}
-            {account.mt5Server ? ` • ${account.mt5Server}` : ''}
-            {account.propFirm ? ` • ${account.propFirm}` : firmName !== '—' ? ` • ${firmName}` : ''}
-            {account.accountType ? ` • ${account.accountType}` : ''}
+            <span className="font-semibold">{headerNickname}</span>
+            {headerBroker ? ` • ${headerBroker}` : ''}
+            {headerServer ? ` • ${headerServer}` : ''}
+            {headerLogin ? ` • ${headerLogin}` : ''}
+            {headerPropFirm ? ` • ${headerPropFirm}` : firmName !== '—' ? ` • ${firmName}` : ''}
+            {headerAccountType ? ` • ${headerAccountType}` : ''}
           </p>
           <p className="text-[10px] text-muted-foreground">
-            {account.mt5Login ? `MT5 ${account.mt5Login}` : 'MT5 não configurado'}
-            {account.mt5LastSyncAt ? ` • Última sincronização: ${new Date(account.mt5LastSyncAt).toLocaleString('pt-BR')}` : ' • Sem sincronização registrada'}
+            {lastSyncAt ? `Última sincronização: ${new Date(lastSyncAt).toLocaleString('pt-BR')}` : 'Sem sincronização registrada'}
             {loadingMt5Data ? ' • Carregando dados...' : ''}
           </p>
         </div>
@@ -351,9 +385,9 @@ const AccountDashboard = () => {
           <div className="flex-1 space-y-1">
             <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">Status da Conta</p>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-foreground">{account.nickname}</h1>
+              <h1 className="text-xl font-bold text-foreground">{headerNickname}</h1>
             </div>
-            <p className="text-xs text-muted-foreground">{firmName} • {account.broker}</p>
+            <p className="text-xs text-muted-foreground">{firmName} • {headerBroker}</p>
 
             <div className="flex items-center gap-2 mt-3">
               <StatusIcon className={`w-5 h-5 ${sc.color}`} />
@@ -368,7 +402,7 @@ const AccountDashboard = () => {
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Equity Atual</p>
-              <p className="font-mono font-bold text-foreground">{fmt(account.currentEquity)}</p>
+              <p className="font-mono font-bold text-foreground">{fmt(currentEquity)}</p>
               <p className={`text-xs font-mono font-semibold ${pnl >= 0 ? 'text-success' : 'text-destructive'}`}>
                 {pnl >= 0 ? '+' : ''}{pnlPct}%
               </p>
@@ -395,7 +429,7 @@ const AccountDashboard = () => {
               <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">Saldo atual</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-mono font-bold text-foreground">{fmt(account.currentBalance)}</p>
+              <p className="text-2xl font-mono font-bold text-foreground">{fmt(currentBalance)}</p>
             </CardContent>
           </Card>
 
@@ -404,7 +438,7 @@ const AccountDashboard = () => {
               <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">Equity atual</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-mono font-bold text-foreground">{fmt(account.currentEquity)}</p>
+              <p className="text-2xl font-mono font-bold text-foreground">{fmt(currentEquity)}</p>
             </CardContent>
           </Card>
 
@@ -437,19 +471,19 @@ const AccountDashboard = () => {
 
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">Max balance</CardTitle>
+              <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">Highest equity</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-mono font-bold text-foreground">{fmt(maxBalanceValue)}</p>
+              <p className="text-2xl font-mono font-bold text-foreground">{fmt(highestEquity || currentEquity)}</p>
             </CardContent>
           </Card>
         </div>
 
-        {latestSnapshot?.usedDailyLossPct !== undefined || latestSnapshot?.usedTotalLossPct !== undefined ? (
+        {usedDailyLossPctValue !== undefined || usedTotalLossPctValue !== undefined ? (
           <div className="mt-3 text-[10px] text-muted-foreground">
-            {latestSnapshot?.usedDailyLossPct !== undefined ? `Used daily loss: ${Number(latestSnapshot.usedDailyLossPct).toFixed(2)}%` : ''}
-            {latestSnapshot?.usedDailyLossPct !== undefined && latestSnapshot?.usedTotalLossPct !== undefined ? ' • ' : ''}
-            {latestSnapshot?.usedTotalLossPct !== undefined ? `Used total loss: ${Number(latestSnapshot.usedTotalLossPct).toFixed(2)}%` : ''}
+            {usedDailyLossPctValue !== undefined && usedDailyLossPctValue !== null ? `Perda diária usada: ${Number(usedDailyLossPctValue).toFixed(2)}%` : ''}
+            {usedDailyLossPctValue !== undefined && usedDailyLossPctValue !== null && usedTotalLossPctValue !== undefined && usedTotalLossPctValue !== null ? ' • ' : ''}
+            {usedTotalLossPctValue !== undefined && usedTotalLossPctValue !== null ? `Perda total usada: ${Number(usedTotalLossPctValue).toFixed(2)}%` : ''}
           </div>
         ) : null}
       </section>
@@ -464,7 +498,7 @@ const AccountDashboard = () => {
         <div className="rounded-xl border border-border bg-card">
           <div className="p-4 border-b border-border flex items-center justify-between">
             <p className="text-xs font-semibold text-foreground">{openPositions.length} posição(ões)</p>
-            <p className="text-[10px] text-muted-foreground">Atualização via MT5/Supabase</p>
+            <p className="text-[10px] text-muted-foreground">public.open_positions</p>
           </div>
           {openPositions.length === 0 ? (
             <div className="p-4">
@@ -478,7 +512,8 @@ const AccountDashboard = () => {
                   <TableHead>Símbolo</TableHead>
                   <TableHead>Lado</TableHead>
                   <TableHead className="text-right">Lote</TableHead>
-                  <TableHead className="text-right">Abertura</TableHead>
+                  <TableHead>Open time</TableHead>
+                  <TableHead className="text-right">Open</TableHead>
                   <TableHead className="text-right">Atual</TableHead>
                   <TableHead className="text-right">Floating PnL</TableHead>
                   <TableHead className="text-right">SL</TableHead>
@@ -488,23 +523,32 @@ const AccountDashboard = () => {
               </TableHeader>
               <TableBody>
                 {openPositions.map((p) => {
-                  const fp = Number(p.floatingPnl ?? 0);
+                  const fp = Number((p as any).floatingPnl ?? (p as any).floating_pnl ?? 0);
+                  const side = (p as any).side;
+                  const openTime = (p as any).openTime ?? (p as any).open_time;
+                  const updatedAt = (p as any).updatedAt ?? (p as any).updated_at;
+                  const openPrice = (p as any).openPrice ?? (p as any).open_price;
+                  const currentPrice = (p as any).currentPrice ?? (p as any).current_price;
+                  const stopLoss = (p as any).stopLoss ?? (p as any).stop_loss;
+                  const takeProfit = (p as any).takeProfit ?? (p as any).take_profit;
+
                   return (
-                    <TableRow key={p.id}>
-                      <TableCell className="font-mono text-xs">{p.ticket}</TableCell>
-                      <TableCell className="font-mono text-xs">{p.symbol}</TableCell>
+                    <TableRow key={(p as any).id}>
+                      <TableCell className="font-mono text-xs">{(p as any).ticket}</TableCell>
+                      <TableCell className="font-mono text-xs">{(p as any).symbol}</TableCell>
                       <TableCell className="text-xs">
-                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${p.side === 'buy' ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
-                          {p.side}
+                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${side === 'buy' ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
+                          {side}
                         </span>
                       </TableCell>
-                      <TableCell className="text-right font-mono text-xs">{Number(p.volume ?? 0).toFixed(2)}</TableCell>
-                      <TableCell className="text-right font-mono text-xs">{p.openPrice ?? '—'}</TableCell>
-                      <TableCell className="text-right font-mono text-xs">{p.currentPrice ?? '—'}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{Number((p as any).volume ?? 0).toFixed(2)}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{openTime ? new Date(openTime).toLocaleString('pt-BR') : '—'}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{openPrice ?? '—'}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{currentPrice ?? '—'}</TableCell>
                       <TableCell className={`text-right font-mono text-xs font-semibold ${fp >= 0 ? 'text-success' : 'text-destructive'}`}>{fmtSigned(fp)}</TableCell>
-                      <TableCell className="text-right font-mono text-xs">{p.stopLoss ?? '—'}</TableCell>
-                      <TableCell className="text-right font-mono text-xs">{p.takeProfit ?? '—'}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{p.updatedAt ? new Date(p.updatedAt).toLocaleString('pt-BR') : '—'}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{stopLoss ?? '—'}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{takeProfit ?? '—'}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{updatedAt ? new Date(updatedAt).toLocaleString('pt-BR') : '—'}</TableCell>
                     </TableRow>
                   );
                 })}
@@ -524,7 +568,7 @@ const AccountDashboard = () => {
         <div className="rounded-xl border border-border bg-card">
           <div className="p-4 border-b border-border flex items-center justify-between">
             <p className="text-xs font-semibold text-foreground">Trades fechados recentes</p>
-            <p className="text-[10px] text-muted-foreground">Mostrando até 200</p>
+            <p className="text-[10px] text-muted-foreground">public.trades • até 200</p>
           </div>
 
           {closedTrades.length === 0 ? (
@@ -550,24 +594,32 @@ const AccountDashboard = () => {
               </TableHeader>
               <TableBody>
                 {closedTrades.slice(0, 50).map((t) => {
-                  const profit = Number(t.profit ?? 0);
+                  const profit = Number((t as any).profit ?? 0);
+                  const side = (t as any).side;
+                  const openTime = (t as any).openTime ?? (t as any).open_time;
+                  const closeTime = (t as any).closeTime ?? (t as any).close_time;
+                  const openPrice = (t as any).openPrice ?? (t as any).open_price;
+                  const closePrice = (t as any).closePrice ?? (t as any).close_price;
+                  const swap = (t as any).swap;
+                  const commission = (t as any).commission;
+
                   return (
-                    <TableRow key={t.id}>
-                      <TableCell className="font-mono text-xs">{t.ticket}</TableCell>
-                      <TableCell className="font-mono text-xs">{t.symbol}</TableCell>
+                    <TableRow key={(t as any).id}>
+                      <TableCell className="font-mono text-xs">{(t as any).ticket}</TableCell>
+                      <TableCell className="font-mono text-xs">{(t as any).symbol}</TableCell>
                       <TableCell className="text-xs">
-                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${t.side === 'buy' ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
-                          {t.side}
+                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${side === 'buy' ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
+                          {side}
                         </span>
                       </TableCell>
-                      <TableCell className="text-right font-mono text-xs">{Number(t.volume ?? 0).toFixed(2)}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{t.openTime ? new Date(t.openTime).toLocaleString('pt-BR') : '—'}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{t.closeTime ? new Date(t.closeTime).toLocaleString('pt-BR') : '—'}</TableCell>
-                      <TableCell className="text-right font-mono text-xs">{t.openPrice ?? '—'}</TableCell>
-                      <TableCell className="text-right font-mono text-xs">{t.closePrice ?? '—'}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{Number((t as any).volume ?? 0).toFixed(2)}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{openTime ? new Date(openTime).toLocaleString('pt-BR') : '—'}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{closeTime ? new Date(closeTime).toLocaleString('pt-BR') : '—'}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{openPrice ?? '—'}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{closePrice ?? '—'}</TableCell>
                       <TableCell className={`text-right font-mono text-xs font-semibold ${profit >= 0 ? 'text-success' : 'text-destructive'}`}>{fmtSigned(profit)}</TableCell>
-                      <TableCell className="text-right font-mono text-xs">{t.swap ?? '—'}</TableCell>
-                      <TableCell className="text-right font-mono text-xs">{t.commission ?? '—'}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{swap ?? '—'}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{commission ?? '—'}</TableCell>
                     </TableRow>
                   );
                 })}
@@ -593,7 +645,7 @@ const AccountDashboard = () => {
         <div className="rounded-xl border border-border bg-card">
           <div className="p-4 border-b border-border flex items-center justify-between">
             <p className="text-xs font-semibold text-foreground">Histórico diário</p>
-            <p className="text-[10px] text-muted-foreground">Base para análise evolutiva</p>
+            <p className="text-[10px] text-muted-foreground">public.account_snapshots</p>
           </div>
 
           {snapshots.length === 0 ? (
@@ -616,19 +668,28 @@ const AccountDashboard = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {snapshots.slice(-30).reverse().map((s) => (
-                  <TableRow key={s.id}>
-                    <TableCell className="font-mono text-xs">{s.date ? new Date(s.date).toLocaleDateString('pt-BR') : '—'}</TableCell>
-                    <TableCell className="text-right font-mono text-xs">{s.balance ?? '—'}</TableCell>
-                    <TableCell className="text-right font-mono text-xs">{s.equity ?? '—'}</TableCell>
-                    <TableCell className={`text-right font-mono text-xs font-semibold ${Number(s.dailyPnl ?? 0) >= 0 ? 'text-success' : 'text-destructive'}`}>{fmtSigned(Number(s.dailyPnl ?? 0))}</TableCell>
-                    <TableCell className={`text-right font-mono text-xs font-semibold ${Number(s.floatingPnl ?? 0) >= 0 ? 'text-success' : 'text-destructive'}`}>{fmtSigned(Number(s.floatingPnl ?? 0))}</TableCell>
-                    <TableCell className="text-right font-mono text-xs">{s.drawdown ?? '—'}</TableCell>
-                    <TableCell className="text-right font-mono text-xs">{s.maxBalance ?? '—'}</TableCell>
-                    <TableCell className="text-right font-mono text-xs">{s.usedDailyLossPct !== undefined && s.usedDailyLossPct !== null ? `${Number(s.usedDailyLossPct).toFixed(2)}%` : '—'}</TableCell>
-                    <TableCell className="text-right font-mono text-xs">{s.usedTotalLossPct !== undefined && s.usedTotalLossPct !== null ? `${Number(s.usedTotalLossPct).toFixed(2)}%` : '—'}</TableCell>
-                  </TableRow>
-                ))}
+                {snapshots.slice(-30).reverse().map((s) => {
+                  const date = (s as any).date;
+                  const dailyPnl = Number((s as any).dailyPnl ?? (s as any).daily_pnl ?? 0);
+                  const floatingPnl = Number((s as any).floatingPnl ?? (s as any).floating_pnl ?? 0);
+                  const usedDaily = (s as any).usedDailyLossPct ?? (s as any).used_daily_loss_pct;
+                  const usedTotal = (s as any).usedTotalLossPct ?? (s as any).used_total_loss_pct;
+                  const maxBal = (s as any).maxBalance ?? (s as any).max_balance;
+
+                  return (
+                    <TableRow key={(s as any).id}>
+                      <TableCell className="font-mono text-xs">{date ? new Date(date).toLocaleDateString('pt-BR') : '—'}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{(s as any).balance ?? '—'}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{(s as any).equity ?? '—'}</TableCell>
+                      <TableCell className={`text-right font-mono text-xs font-semibold ${dailyPnl >= 0 ? 'text-success' : 'text-destructive'}`}>{fmtSigned(dailyPnl)}</TableCell>
+                      <TableCell className={`text-right font-mono text-xs font-semibold ${floatingPnl >= 0 ? 'text-success' : 'text-destructive'}`}>{fmtSigned(floatingPnl)}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{(s as any).drawdown ?? '—'}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{maxBal ?? '—'}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{usedDaily !== undefined && usedDaily !== null ? `${Number(usedDaily).toFixed(2)}%` : '—'}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{usedTotal !== undefined && usedTotal !== null ? `${Number(usedTotal).toFixed(2)}%` : '—'}</TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
@@ -695,7 +756,7 @@ const AccountDashboard = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm">Evolução de balance</CardTitle>
+                <CardTitle className="text-sm">Balance curve</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
                 <ChartContainer
