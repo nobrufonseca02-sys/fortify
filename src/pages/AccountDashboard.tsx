@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MOCK_EVALUATIONS, RULE_SET_TEMPLATES } from '@/data/mockData';
 import { useAccountsStore } from '@/pages/Accounts';
-import { RuleEvaluation, type Mt5ConnectionStatus } from '@/types/fortify';
+import { RuleEvaluation, type Mt5ConnectionStatus, type Trade, type OpenPosition, type AccountSnapshot } from '@/types/fortify';
 import {
   Shield, ShieldAlert, ShieldX, AlertTriangle, ArrowLeft,
   Lightbulb, Bell, TrendingDown, Target, Activity, Sparkles,
@@ -12,8 +12,32 @@ import { motion } from 'framer-motion';
 import { RuleExtractor } from '@/components/RuleExtractor';
 import type { TemplateRule } from '@/data/propFirmLibrary';
 import { toast } from 'sonner';
+import { createClient } from '@supabase/supabase-js';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from '@/components/ui/chart';
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  XAxis,
+  YAxis,
+} from 'recharts';
 
 const fmt = (v: number) => `$${Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`;
+const fmtSigned = (v: number | undefined | null) => {
+  const n = Number(v ?? 0);
+  const abs = Math.abs(n);
+  const s = `$${abs.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`;
+  return n >= 0 ? `+${s}` : `-${s}`;
+};
 
 function ProgressBar({ value, max, color }: { value: number; max: number; color: string }) {
   const p = max > 0 ? Math.min(100, (value / max) * 100) : 0;
@@ -37,6 +61,16 @@ const mt5StatusConfig: Record<Mt5ConnectionStatus, { label: string; icon: typeof
   syncing: { label: 'Sincronizando', icon: RefreshCw, className: 'bg-primary/15 text-primary' },
   error: { label: 'Erro', icon: AlertTriangle, className: 'bg-destructive/15 text-destructive' },
 };
+
+const getSupabaseUrl = () =>
+  (import.meta as any)?.env?.VITE_SUPABASE_URL ||
+  (import.meta as any)?.env?.VITE_PUBLIC_SUPABASE_URL ||
+  (window as any)?.__SUPABASE_URL__;
+
+const getSupabaseAnonKey = () =>
+  (import.meta as any)?.env?.VITE_SUPABASE_ANON_KEY ||
+  (import.meta as any)?.env?.VITE_PUBLIC_SUPABASE_ANON_KEY ||
+  (window as any)?.__SUPABASE_ANON_KEY__;
 
 const AccountDashboard = () => {
   const { id } = useParams<{ id: string }>();
@@ -68,12 +102,11 @@ const AccountDashboard = () => {
   const dailyRemaining = dailyLoss ? Math.max(0, dailyLoss.limitValue - dailyLoss.currentValue) : 0;
   const maxLossRemaining = totalLoss ? Math.max(0, totalLoss.limitValue - totalLoss.currentValue) : 0;
 
-  // Floating loss (simulated as open P&L)
+  // Floating loss (simulated as open P&L) - fallback quando snapshot ainda não existe
   const floatingLoss = account.currentEquity - account.currentBalance;
   const floatingLimit = dailyLoss ? dailyLoss.limitValue : 0;
 
   const riskEvals = evals.filter(e => ['MAX_DAILY_LOSS', 'MAX_TOTAL_LOSS', 'TRAILING_MAX_LOSS'].includes(e.rule.type));
-  const closestRule = riskEvals.length > 0 ? riskEvals.reduce((a, b) => a.progressPct > b.progressPct ? a : b) : null;
   const avgRisk = riskEvals.length > 0 ? riskEvals.reduce((s, e) => s + e.progressPct, 0) / riskEvals.length : 0;
 
   const hasViolation = evals.some(e => e.status === 'VIOLATED');
@@ -87,6 +120,105 @@ const AccountDashboard = () => {
   const mt5Status = account.mt5ConnectionStatus || 'disconnected';
   const mt5c = mt5StatusConfig[mt5Status];
   const Mt5Icon = mt5c.icon;
+
+  // Supabase (dados reais)
+  const [loadingMt5Data, setLoadingMt5Data] = useState(false);
+  const [mt5DataError, setMt5DataError] = useState<string | null>(null);
+  const [openPositions, setOpenPositions] = useState<OpenPosition[]>([]);
+  const [recentTrades, setRecentTrades] = useState<Trade[]>([]);
+  const [snapshots, setSnapshots] = useState<AccountSnapshot[]>([]);
+
+  const supabaseUrl = getSupabaseUrl();
+  const supabaseAnonKey = getSupabaseAnonKey();
+  const supabase = useMemo(() => {
+    if (!supabaseUrl || !supabaseAnonKey) return null;
+    return createClient(supabaseUrl, supabaseAnonKey, { auth: { persistSession: true } });
+  }, [supabaseUrl, supabaseAnonKey]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      if (!supabase) {
+        setMt5DataError('Supabase não configurado. Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.');
+        return;
+      }
+
+      setLoadingMt5Data(true);
+      setMt5DataError(null);
+
+      try {
+        const [posRes, tradesRes, snapRes] = await Promise.all([
+          supabase
+            .from('mt5OpenPositions')
+            .select('*')
+            .eq('tradingAccountId', account.id)
+            .order('updatedAt', { ascending: false }),
+          supabase
+            .from('mt5Trades')
+            .select('*')
+            .eq('tradingAccountId', account.id)
+            .order('closeTime', { ascending: false, nullsFirst: false })
+            .order('openTime', { ascending: false })
+            .limit(200),
+          supabase
+            .from('mt5AccountSnapshots')
+            .select('*')
+            .eq('tradingAccountId', account.id)
+            .order('date', { ascending: true })
+            .limit(365),
+        ]);
+
+        if (cancelled) return;
+
+        if (posRes.error) throw posRes.error;
+        if (tradesRes.error) throw tradesRes.error;
+        if (snapRes.error) throw snapRes.error;
+
+        setOpenPositions((posRes.data ?? []) as OpenPosition[]);
+        setRecentTrades((tradesRes.data ?? []) as Trade[]);
+        setSnapshots((snapRes.data ?? []) as AccountSnapshot[]);
+      } catch (e: any) {
+        if (cancelled) return;
+        const msg = e?.message || 'Falha ao carregar dados do MT5 via Supabase.';
+        setMt5DataError(msg);
+      } finally {
+        if (!cancelled) setLoadingMt5Data(false);
+      }
+    };
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase, account.id]);
+
+  const latestSnapshot = snapshots.length > 0 ? snapshots[snapshots.length - 1] : null;
+
+  const maxBalanceValue = latestSnapshot?.maxBalance ?? account.currentBalance;
+  const dailyPnlValue = latestSnapshot?.dailyPnl ?? 0;
+  const floatingPnlValue = latestSnapshot?.floatingPnl ?? (account.currentEquity - account.currentBalance);
+  const drawdownValue = latestSnapshot?.drawdown ?? Math.max(0, account.highestEquityAllTime - account.currentEquity);
+
+  // KPIs
+  const closedTrades = useMemo(() => recentTrades.filter(t => !!t.closeTime), [recentTrades]);
+  const totalTrades = closedTrades.length;
+  const wins = closedTrades.filter(t => (t.profit ?? 0) > 0);
+  const losses = closedTrades.filter(t => (t.profit ?? 0) < 0);
+  const winRate = totalTrades > 0 ? (wins.length / totalTrades) * 100 : 0;
+  const totalPnl = closedTrades.reduce((s, t) => s + Number(t.profit ?? 0), 0);
+  const avgWin = wins.length > 0 ? wins.reduce((s, t) => s + Number(t.profit ?? 0), 0) / wins.length : 0;
+  const avgLoss = losses.length > 0 ? losses.reduce((s, t) => s + Math.abs(Number(t.profit ?? 0)), 0) / losses.length : 0;
+  const payoff = avgLoss > 0 ? avgWin / avgLoss : 0;
+
+  const maxDrawdown = useMemo(() => {
+    if (snapshots.length === 0) return drawdownValue;
+    return snapshots.reduce((m, s) => Math.max(m, Number(s.drawdown ?? 0)), 0);
+  }, [snapshots, drawdownValue]);
+
+  const currentDrawdown = drawdownValue;
+  const recoveryNeeded = currentDrawdown;
 
   // Recommendations
   const recommendations: string[] = [];
@@ -123,6 +255,10 @@ const AccountDashboard = () => {
     alerts.unshift({ text: `MT5: ${account.mt5SyncError}`, severity: 'danger' });
   }
 
+  if (mt5DataError) {
+    alerts.unshift({ text: `Dados MT5/Supabase: ${mt5DataError}`, severity: 'info' });
+  }
+
   const barColorFor = (ev: RuleEvaluation | undefined) =>
     !ev ? 'bg-muted-foreground' :
     ev.status === 'VIOLATED' ? 'bg-destructive' :
@@ -132,11 +268,34 @@ const AccountDashboard = () => {
   const pnl = account.currentBalance - account.startBalance;
   const pnlPct = ((pnl / account.startBalance) * 100).toFixed(2);
 
-  const recentTrades = [] as Array<{ label: string }>; // estrutural: ingestão via backend externo/supabase
-  const openPositions = [] as Array<{ label: string }>; // estrutural: ingestão via backend externo/supabase
+  const kpiCards = [
+    { label: 'Total de Trades', value: totalTrades.toLocaleString('pt-BR') },
+    { label: 'Win Rate', value: `${winRate.toFixed(1)}%` },
+    { label: 'Average Win', value: fmt(avgWin) },
+    { label: 'Average Loss', value: fmt(avgLoss) },
+    { label: 'Payoff', value: payoff > 0 ? payoff.toFixed(2) : '—' },
+    { label: 'Total PnL', value: fmtSigned(totalPnl), valueClass: totalPnl >= 0 ? 'text-success' : 'text-destructive' },
+    { label: 'Current Drawdown', value: fmt(currentDrawdown), valueClass: currentDrawdown > 0 ? 'text-warning' : 'text-success' },
+    { label: 'Max Drawdown', value: fmt(maxDrawdown), valueClass: maxDrawdown > 0 ? 'text-warning' : 'text-success' },
+    { label: 'Recovery Needed', value: fmt(recoveryNeeded), valueClass: recoveryNeeded > 0 ? 'text-primary' : 'text-muted-foreground' },
+  ] as Array<{ label: string; value: string; valueClass?: string }>;
+
+  const chartData = useMemo(() => {
+    return snapshots
+      .filter(s => !!s.date)
+      .map(s => ({
+        date: new Date(s.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+        balance: Number(s.balance ?? 0),
+        equity: Number(s.equity ?? 0),
+        drawdown: Number(s.drawdown ?? 0),
+        dailyPnl: Number(s.dailyPnl ?? 0),
+      }));
+  }, [snapshots]);
+
+  const hasChartData = chartData.length > 1;
 
   return (
-    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
       {/* Back + Tabs */}
       <div className="flex items-center justify-between">
         <button onClick={() => navigate('/')} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
@@ -160,7 +319,7 @@ const AccountDashboard = () => {
       </div>
 
       {activeTab === 'dashboard' && (<>
-      {/* MT5 Connection banner */}
+      {/* Header da conta + MT5 status */}
       <div className="rounded-xl border border-border bg-card p-4 flex items-center gap-3">
         <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full ${mt5c.className}`}>
           <Mt5Icon className={`w-3 h-3 ${mt5Status === 'connecting' || mt5Status === 'syncing' ? 'animate-spin' : ''}`} />
@@ -168,16 +327,21 @@ const AccountDashboard = () => {
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-xs text-foreground truncate">
-            {account.mt5Login ? `MT5 ${account.mt5Login}` : 'MT5 não configurado'}
+            <span className="font-semibold">{account.nickname}</span>
+            {account.broker ? ` • ${account.broker}` : ''}
             {account.mt5Server ? ` • ${account.mt5Server}` : ''}
+            {account.propFirm ? ` • ${account.propFirm}` : firmName !== '—' ? ` • ${firmName}` : ''}
+            {account.accountType ? ` • ${account.accountType}` : ''}
           </p>
           <p className="text-[10px] text-muted-foreground">
-            {account.mt5LastSyncAt ? `Última sincronização: ${new Date(account.mt5LastSyncAt).toLocaleString('pt-BR')}` : 'Sem sincronização registrada'}
+            {account.mt5Login ? `MT5 ${account.mt5Login}` : 'MT5 não configurado'}
+            {account.mt5LastSyncAt ? ` • Última sincronização: ${new Date(account.mt5LastSyncAt).toLocaleString('pt-BR')}` : ' • Sem sincronização registrada'}
+            {loadingMt5Data ? ' • Carregando dados...' : ''}
           </p>
         </div>
       </div>
 
-      {/* === STATUS DA CONTA === */}
+      {/* === STATUS DA CONTA (saúde) === */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
@@ -186,7 +350,9 @@ const AccountDashboard = () => {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div className="flex-1 space-y-1">
             <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">Status da Conta</p>
-            <h1 className="text-xl font-bold text-foreground">{account.nickname}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold text-foreground">{account.nickname}</h1>
+            </div>
             <p className="text-xs text-muted-foreground">{firmName} • {account.broker}</p>
 
             <div className="flex items-center gap-2 mt-3">
@@ -216,7 +382,391 @@ const AccountDashboard = () => {
         </div>
       </motion.div>
 
-      {/* === RISCO DA CONTA === */}
+      {/* === VISÃO GERAL DA CONTA === */}
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <Activity className="w-4 h-4 text-primary" />
+          <h2 className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Visão geral</h2>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+          <Card className="lg:col-span-2">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">Saldo atual</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-mono font-bold text-foreground">{fmt(account.currentBalance)}</p>
+            </CardContent>
+          </Card>
+
+          <Card className="lg:col-span-2">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">Equity atual</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-mono font-bold text-foreground">{fmt(account.currentEquity)}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">Floating PnL</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className={`text-2xl font-mono font-bold ${floatingPnlValue >= 0 ? 'text-success' : 'text-destructive'}`}>{fmtSigned(floatingPnlValue)}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">Daily PnL</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className={`text-2xl font-mono font-bold ${dailyPnlValue >= 0 ? 'text-success' : 'text-destructive'}`}>{fmtSigned(dailyPnlValue)}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">Drawdown atual</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className={`text-2xl font-mono font-bold ${drawdownValue > 0 ? 'text-warning' : 'text-success'}`}>{fmt(drawdownValue)}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">Max balance</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-mono font-bold text-foreground">{fmt(maxBalanceValue)}</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {latestSnapshot?.usedDailyLossPct !== undefined || latestSnapshot?.usedTotalLossPct !== undefined ? (
+          <div className="mt-3 text-[10px] text-muted-foreground">
+            {latestSnapshot?.usedDailyLossPct !== undefined ? `Used daily loss: ${Number(latestSnapshot.usedDailyLossPct).toFixed(2)}%` : ''}
+            {latestSnapshot?.usedDailyLossPct !== undefined && latestSnapshot?.usedTotalLossPct !== undefined ? ' • ' : ''}
+            {latestSnapshot?.usedTotalLossPct !== undefined ? `Used total loss: ${Number(latestSnapshot.usedTotalLossPct).toFixed(2)}%` : ''}
+          </div>
+        ) : null}
+      </section>
+
+      {/* === POSIÇÕES ABERTAS === */}
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <Activity className="w-4 h-4 text-primary" />
+          <h2 className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Posições abertas</h2>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card">
+          <div className="p-4 border-b border-border flex items-center justify-between">
+            <p className="text-xs font-semibold text-foreground">{openPositions.length} posição(ões)</p>
+            <p className="text-[10px] text-muted-foreground">Atualização via MT5/Supabase</p>
+          </div>
+          {openPositions.length === 0 ? (
+            <div className="p-4">
+              <p className="text-xs text-muted-foreground">Sem posições abertas (ou ainda não sincronizado).</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Ticket</TableHead>
+                  <TableHead>Símbolo</TableHead>
+                  <TableHead>Lado</TableHead>
+                  <TableHead className="text-right">Lote</TableHead>
+                  <TableHead className="text-right">Abertura</TableHead>
+                  <TableHead className="text-right">Atual</TableHead>
+                  <TableHead className="text-right">Floating PnL</TableHead>
+                  <TableHead className="text-right">SL</TableHead>
+                  <TableHead className="text-right">TP</TableHead>
+                  <TableHead>Atualizado</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {openPositions.map((p) => {
+                  const fp = Number(p.floatingPnl ?? 0);
+                  return (
+                    <TableRow key={p.id}>
+                      <TableCell className="font-mono text-xs">{p.ticket}</TableCell>
+                      <TableCell className="font-mono text-xs">{p.symbol}</TableCell>
+                      <TableCell className="text-xs">
+                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${p.side === 'buy' ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
+                          {p.side}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-xs">{Number(p.volume ?? 0).toFixed(2)}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{p.openPrice ?? '—'}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{p.currentPrice ?? '—'}</TableCell>
+                      <TableCell className={`text-right font-mono text-xs font-semibold ${fp >= 0 ? 'text-success' : 'text-destructive'}`}>{fmtSigned(fp)}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{p.stopLoss ?? '—'}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{p.takeProfit ?? '—'}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{p.updatedAt ? new Date(p.updatedAt).toLocaleString('pt-BR') : '—'}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+      </section>
+
+      {/* === HISTÓRICO DE TRADES === */}
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <Activity className="w-4 h-4 text-primary" />
+          <h2 className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Histórico de trades</h2>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card">
+          <div className="p-4 border-b border-border flex items-center justify-between">
+            <p className="text-xs font-semibold text-foreground">Trades fechados recentes</p>
+            <p className="text-[10px] text-muted-foreground">Mostrando até 200</p>
+          </div>
+
+          {closedTrades.length === 0 ? (
+            <div className="p-4">
+              <p className="text-xs text-muted-foreground">Sem trades fechados (ou ainda não sincronizado).</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Ticket</TableHead>
+                  <TableHead>Símbolo</TableHead>
+                  <TableHead>Lado</TableHead>
+                  <TableHead className="text-right">Lote</TableHead>
+                  <TableHead>Abertura</TableHead>
+                  <TableHead>Fechamento</TableHead>
+                  <TableHead className="text-right">Open</TableHead>
+                  <TableHead className="text-right">Close</TableHead>
+                  <TableHead className="text-right">Lucro</TableHead>
+                  <TableHead className="text-right">Swap</TableHead>
+                  <TableHead className="text-right">Comissão</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {closedTrades.slice(0, 50).map((t) => {
+                  const profit = Number(t.profit ?? 0);
+                  return (
+                    <TableRow key={t.id}>
+                      <TableCell className="font-mono text-xs">{t.ticket}</TableCell>
+                      <TableCell className="font-mono text-xs">{t.symbol}</TableCell>
+                      <TableCell className="text-xs">
+                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${t.side === 'buy' ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
+                          {t.side}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-xs">{Number(t.volume ?? 0).toFixed(2)}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{t.openTime ? new Date(t.openTime).toLocaleString('pt-BR') : '—'}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{t.closeTime ? new Date(t.closeTime).toLocaleString('pt-BR') : '—'}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{t.openPrice ?? '—'}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{t.closePrice ?? '—'}</TableCell>
+                      <TableCell className={`text-right font-mono text-xs font-semibold ${profit >= 0 ? 'text-success' : 'text-destructive'}`}>{fmtSigned(profit)}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{t.swap ?? '—'}</TableCell>
+                      <TableCell className="text-right font-mono text-xs">{t.commission ?? '—'}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+
+          {closedTrades.length > 50 && (
+            <div className="p-3 border-t border-border">
+              <p className="text-[10px] text-muted-foreground">Exibindo 50 mais recentes (total: {closedTrades.length}).</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* === SNAPSHOTS DA CONTA === */}
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <Activity className="w-4 h-4 text-primary" />
+          <h2 className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Snapshots da conta</h2>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card">
+          <div className="p-4 border-b border-border flex items-center justify-between">
+            <p className="text-xs font-semibold text-foreground">Histórico diário</p>
+            <p className="text-[10px] text-muted-foreground">Base para análise evolutiva</p>
+          </div>
+
+          {snapshots.length === 0 ? (
+            <div className="p-4">
+              <p className="text-xs text-muted-foreground">Sem snapshots (ou ainda não sincronizado).</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Data</TableHead>
+                  <TableHead className="text-right">Balance</TableHead>
+                  <TableHead className="text-right">Equity</TableHead>
+                  <TableHead className="text-right">Daily PnL</TableHead>
+                  <TableHead className="text-right">Floating PnL</TableHead>
+                  <TableHead className="text-right">Drawdown</TableHead>
+                  <TableHead className="text-right">Max balance</TableHead>
+                  <TableHead className="text-right">Used daily loss %</TableHead>
+                  <TableHead className="text-right">Used total loss %</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {snapshots.slice(-30).reverse().map((s) => (
+                  <TableRow key={s.id}>
+                    <TableCell className="font-mono text-xs">{s.date ? new Date(s.date).toLocaleDateString('pt-BR') : '—'}</TableCell>
+                    <TableCell className="text-right font-mono text-xs">{s.balance ?? '—'}</TableCell>
+                    <TableCell className="text-right font-mono text-xs">{s.equity ?? '—'}</TableCell>
+                    <TableCell className={`text-right font-mono text-xs font-semibold ${Number(s.dailyPnl ?? 0) >= 0 ? 'text-success' : 'text-destructive'}`}>{fmtSigned(Number(s.dailyPnl ?? 0))}</TableCell>
+                    <TableCell className={`text-right font-mono text-xs font-semibold ${Number(s.floatingPnl ?? 0) >= 0 ? 'text-success' : 'text-destructive'}`}>{fmtSigned(Number(s.floatingPnl ?? 0))}</TableCell>
+                    <TableCell className="text-right font-mono text-xs">{s.drawdown ?? '—'}</TableCell>
+                    <TableCell className="text-right font-mono text-xs">{s.maxBalance ?? '—'}</TableCell>
+                    <TableCell className="text-right font-mono text-xs">{s.usedDailyLossPct !== undefined && s.usedDailyLossPct !== null ? `${Number(s.usedDailyLossPct).toFixed(2)}%` : '—'}</TableCell>
+                    <TableCell className="text-right font-mono text-xs">{s.usedTotalLossPct !== undefined && s.usedTotalLossPct !== null ? `${Number(s.usedTotalLossPct).toFixed(2)}%` : '—'}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+
+          {snapshots.length > 0 && (
+            <div className="p-3 border-t border-border">
+              <p className="text-[10px] text-muted-foreground">Exibindo últimos 30 dias (total: {snapshots.length}).</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* === KPIs OPERACIONAIS === */}
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <Target className="w-4 h-4 text-primary" />
+          <h2 className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">KPIs operacionais</h2>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-9 gap-3">
+          {kpiCards.map((k) => (
+            <Card key={k.label} className="lg:col-span-3">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">{k.label}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className={`text-xl font-mono font-bold ${k.valueClass ?? 'text-foreground'}`}>{k.value}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      {/* === GRÁFICOS E VISUALIZAÇÃO === */}
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <Activity className="w-4 h-4 text-primary" />
+          <h2 className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Gráficos</h2>
+        </div>
+
+        {hasChartData ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Equity curve</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <ChartContainer
+                  className="h-[240px] w-full"
+                  config={{
+                    equity: { label: 'Equity', color: 'hsl(var(--primary))' },
+                  }}
+                >
+                  <LineChart data={chartData} margin={{ left: 12, right: 12, top: 8, bottom: 8 }}>
+                    <CartesianGrid vertical={false} />
+                    <XAxis dataKey="date" tickLine={false} axisLine={false} />
+                    <YAxis width={48} tickLine={false} axisLine={false} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Line type="monotone" dataKey="equity" stroke="var(--color-equity)" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Evolução de balance</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <ChartContainer
+                  className="h-[240px] w-full"
+                  config={{
+                    balance: { label: 'Balance', color: 'hsl(var(--foreground))' },
+                  }}
+                >
+                  <LineChart data={chartData} margin={{ left: 12, right: 12, top: 8, bottom: 8 }}>
+                    <CartesianGrid vertical={false} />
+                    <XAxis dataKey="date" tickLine={false} axisLine={false} />
+                    <YAxis width={48} tickLine={false} axisLine={false} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Line type="monotone" dataKey="balance" stroke="var(--color-balance)" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Evolução de drawdown</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <ChartContainer
+                  className="h-[240px] w-full"
+                  config={{
+                    drawdown: { label: 'Drawdown', color: 'hsl(var(--warning))' },
+                  }}
+                >
+                  <AreaChart data={chartData} margin={{ left: 12, right: 12, top: 8, bottom: 8 }}>
+                    <CartesianGrid vertical={false} />
+                    <XAxis dataKey="date" tickLine={false} axisLine={false} />
+                    <YAxis width={48} tickLine={false} axisLine={false} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Area type="monotone" dataKey="drawdown" stroke="var(--color-drawdown)" fill="var(--color-drawdown)" fillOpacity={0.15} strokeWidth={2} />
+                  </AreaChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Daily PnL</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <ChartContainer
+                  className="h-[240px] w-full"
+                  config={{
+                    dailyPnl: { label: 'Daily PnL', color: 'hsl(var(--success))' },
+                  }}
+                >
+                  <LineChart data={chartData} margin={{ left: 12, right: 12, top: 8, bottom: 8 }}>
+                    <CartesianGrid vertical={false} />
+                    <XAxis dataKey="date" tickLine={false} axisLine={false} />
+                    <YAxis width={48} tickLine={false} axisLine={false} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Line type="monotone" dataKey="dailyPnl" stroke="var(--color-dailyPnl)" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-border bg-card p-5">
+            <p className="text-xs text-muted-foreground">Sem dados suficientes para gráficos. Quando snapshots forem sincronizados via backend externo, os gráficos aparecerão aqui.</p>
+          </div>
+        )}
+      </section>
+
+      {/* === RISCO DA CONTA (mantido) === */}
       <section>
         <div className="flex items-center gap-2 mb-4">
           <TrendingDown className="w-4 h-4 text-destructive" />
@@ -266,7 +816,7 @@ const AccountDashboard = () => {
         </div>
       </section>
 
-      {/* === PROGRESSO DA CONTA === */}
+      {/* === PROGRESSO DA CONTA (mantido) === */}
       {(profitTarget || minDays || consistency) && (
         <section>
           <div className="flex items-center gap-2 mb-4">
@@ -312,32 +862,6 @@ const AccountDashboard = () => {
           </div>
         </section>
       )}
-
-      {/* === DADOS REAIS (ESTRUTURAL) === */}
-      <section>
-        <div className="flex items-center gap-2 mb-4">
-          <Activity className="w-4 h-4 text-primary" />
-          <h2 className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Trading (dados do MT5)</h2>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="rounded-xl border border-border bg-card p-5 space-y-2">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Trades Recentes</h3>
-            {recentTrades.length === 0 ? (
-              <p className="text-xs text-muted-foreground">Sem dados ainda. Após sincronização via backend externo, os trades aparecerão aqui.</p>
-            ) : (
-              <div className="space-y-2">{recentTrades.map((t, i) => <div key={i} className="text-xs">{t.label}</div>)}</div>
-            )}
-          </div>
-          <div className="rounded-xl border border-border bg-card p-5 space-y-2">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Posições Abertas</h3>
-            {openPositions.length === 0 ? (
-              <p className="text-xs text-muted-foreground">Sem dados ainda. Após sincronização, as posições abertas aparecerão aqui.</p>
-            ) : (
-              <div className="space-y-2">{openPositions.map((p, i) => <div key={i} className="text-xs">{p.label}</div>)}</div>
-            )}
-          </div>
-        </div>
-      </section>
 
       {/* === O QUE FAZER AGORA === */}
       <section>
