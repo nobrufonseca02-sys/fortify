@@ -21,6 +21,8 @@ export type RuleStatus = 'APPROVING' | 'WARNING' | 'VIOLATED' | 'NOT_MET';
 export type RuleSetOrigin = 'template' | 'custom';
 export type AccountStatus = 'active' | 'violated' | 'passed';
 
+export type Mt5ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'syncing' | 'error';
+
 export interface TradingAccount {
   id: string;
   userId: string;
@@ -33,6 +35,80 @@ export interface TradingAccount {
   highestEquityAllTime: number;
   status: AccountStatus;
   ruleSetId: string;
+  createdAt: string;
+
+  // MT5 / conexão real via backend externo
+  mt5Server?: string;
+  mt5Login?: string;
+  accountType?: string;
+  propFirm?: string;
+  mt5ConnectionStatus?: Mt5ConnectionStatus;
+  mt5LastSyncAt?: string;
+  mt5SyncError?: string;
+}
+
+export interface Mt5Connection {
+  id: string;
+  tradingAccountId: string;
+  mt5Login: string;
+  mt5Server: string;
+  brokerName?: string;
+  provider: string;
+  connectionStatus: Mt5ConnectionStatus;
+  lastSyncAt?: string;
+  syncError?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type TradeSide = 'buy' | 'sell';
+
+export interface Trade {
+  id: string;
+  tradingAccountId: string;
+  ticket: number;
+  symbol: string;
+  side: TradeSide;
+  volume: number;
+  openTime: string;
+  closeTime?: string;
+  openPrice?: number;
+  closePrice?: number;
+  stopLoss?: number;
+  takeProfit?: number;
+  profit?: number;
+  swap?: number;
+  commission?: number;
+  createdAt: string;
+}
+
+export interface OpenPosition {
+  id: string;
+  tradingAccountId: string;
+  ticket: number;
+  symbol: string;
+  side: TradeSide;
+  volume: number;
+  openPrice?: number;
+  currentPrice?: number;
+  floatingPnl?: number;
+  stopLoss?: number;
+  takeProfit?: number;
+  updatedAt: string;
+}
+
+export interface AccountSnapshot {
+  id: string;
+  tradingAccountId: string;
+  date: string;
+  balance?: number;
+  equity?: number;
+  dailyPnl?: number;
+  floatingPnl?: number;
+  drawdown?: number;
+  maxBalance?: number;
+  usedDailyLossPct?: number;
+  usedTotalLossPct?: number;
   createdAt: string;
 }
 

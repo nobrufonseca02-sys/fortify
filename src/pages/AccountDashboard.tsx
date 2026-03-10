@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MOCK_EVALUATIONS, RULE_SET_TEMPLATES } from '@/data/mockData';
 import { useAccountsStore } from '@/pages/Accounts';
-import { RuleEvaluation } from '@/types/fortify';
+import { RuleEvaluation, type Mt5ConnectionStatus } from '@/types/fortify';
 import {
   Shield, ShieldAlert, ShieldX, AlertTriangle, ArrowLeft,
-  Lightbulb, Bell, TrendingDown, Target, Activity, Sparkles
+  Lightbulb, Bell, TrendingDown, Target, Activity, Sparkles,
+  Link2, RefreshCw, XCircle
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { RuleExtractor } from '@/components/RuleExtractor';
@@ -28,6 +29,14 @@ const statusConfig = {
   WARNING: { label: 'ATENÇÃO', color: 'text-warning', bg: 'bg-warning/10', border: 'border-warning/20', icon: ShieldAlert },
   VIOLATED: { label: 'VIOLADO', color: 'text-destructive', bg: 'bg-destructive/10', border: 'border-destructive/20', icon: ShieldX },
 } as const;
+
+const mt5StatusConfig: Record<Mt5ConnectionStatus, { label: string; icon: typeof Link2; className: string }> = {
+  disconnected: { label: 'Desconectada', icon: XCircle, className: 'bg-muted text-muted-foreground' },
+  connecting: { label: 'Conectando', icon: RefreshCw, className: 'bg-warning/15 text-warning' },
+  connected: { label: 'Conectada', icon: Link2, className: 'bg-success/15 text-success' },
+  syncing: { label: 'Sincronizando', icon: RefreshCw, className: 'bg-primary/15 text-primary' },
+  error: { label: 'Erro', icon: AlertTriangle, className: 'bg-destructive/15 text-destructive' },
+};
 
 const AccountDashboard = () => {
   const { id } = useParams<{ id: string }>();
@@ -74,6 +83,11 @@ const AccountDashboard = () => {
   const sc = statusConfig[status];
   const StatusIcon = sc.icon;
 
+  // MT5 connection
+  const mt5Status = account.mt5ConnectionStatus || 'disconnected';
+  const mt5c = mt5StatusConfig[mt5Status];
+  const Mt5Icon = mt5c.icon;
+
   // Recommendations
   const recommendations: string[] = [];
   recommendations.push(`Você ainda pode perder hoje: ${fmt(dailyRemaining)}`);
@@ -105,6 +119,10 @@ const AccountDashboard = () => {
     if (ev.status === 'NOT_MET' && ev.progressPct < 50) alerts.push({ text: `${ev.rule.name}: ${ev.message}`, severity: 'info' });
   });
 
+  if (mt5Status === 'error' && account.mt5SyncError) {
+    alerts.unshift({ text: `MT5: ${account.mt5SyncError}`, severity: 'danger' });
+  }
+
   const barColorFor = (ev: RuleEvaluation | undefined) =>
     !ev ? 'bg-muted-foreground' :
     ev.status === 'VIOLATED' ? 'bg-destructive' :
@@ -113,6 +131,9 @@ const AccountDashboard = () => {
 
   const pnl = account.currentBalance - account.startBalance;
   const pnlPct = ((pnl / account.startBalance) * 100).toFixed(2);
+
+  const recentTrades = [] as Array<{ label: string }>; // estrutural: ingestão via backend externo/supabase
+  const openPositions = [] as Array<{ label: string }>; // estrutural: ingestão via backend externo/supabase
 
   return (
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
@@ -139,6 +160,23 @@ const AccountDashboard = () => {
       </div>
 
       {activeTab === 'dashboard' && (<>
+      {/* MT5 Connection banner */}
+      <div className="rounded-xl border border-border bg-card p-4 flex items-center gap-3">
+        <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full ${mt5c.className}`}>
+          <Mt5Icon className={`w-3 h-3 ${mt5Status === 'connecting' || mt5Status === 'syncing' ? 'animate-spin' : ''}`} />
+          {mt5c.label}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs text-foreground truncate">
+            {account.mt5Login ? `MT5 ${account.mt5Login}` : 'MT5 não configurado'}
+            {account.mt5Server ? ` • ${account.mt5Server}` : ''}
+          </p>
+          <p className="text-[10px] text-muted-foreground">
+            {account.mt5LastSyncAt ? `Última sincronização: ${new Date(account.mt5LastSyncAt).toLocaleString('pt-BR')}` : 'Sem sincronização registrada'}
+          </p>
+        </div>
+      </div>
+
       {/* === STATUS DA CONTA === */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}
@@ -275,6 +313,32 @@ const AccountDashboard = () => {
         </section>
       )}
 
+      {/* === DADOS REAIS (ESTRUTURAL) === */}
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <Activity className="w-4 h-4 text-primary" />
+          <h2 className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Trading (dados do MT5)</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="rounded-xl border border-border bg-card p-5 space-y-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Trades Recentes</h3>
+            {recentTrades.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Sem dados ainda. Após sincronização via backend externo, os trades aparecerão aqui.</p>
+            ) : (
+              <div className="space-y-2">{recentTrades.map((t, i) => <div key={i} className="text-xs">{t.label}</div>)}</div>
+            )}
+          </div>
+          <div className="rounded-xl border border-border bg-card p-5 space-y-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Posições Abertas</h3>
+            {openPositions.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Sem dados ainda. Após sincronização, as posições abertas aparecerão aqui.</p>
+            ) : (
+              <div className="space-y-2">{openPositions.map((p, i) => <div key={i} className="text-xs">{p.label}</div>)}</div>
+            )}
+          </div>
+        </div>
+      </section>
+
       {/* === O QUE FAZER AGORA === */}
       <section>
         <div className="flex items-center gap-2 mb-4">
@@ -328,7 +392,7 @@ const AccountDashboard = () => {
           </div>
         </section>
       )}
-      </>)}
+      </>) }
 
       {/* === AI RULES TAB === */}
       {activeTab === 'ai-rules' && (

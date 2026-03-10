@@ -8,7 +8,7 @@ import {
   ChevronDown, ChevronUp, Wallet, Flame, Award, Building2, Globe,
   ChevronRight, ExternalLink, BookOpen
 } from 'lucide-react';
-import { RuleType, RULE_TYPE_LABELS, RULE_TYPE_DESCRIPTIONS } from '@/types/fortify';
+import { RuleType, RULE_TYPE_LABELS, RULE_TYPE_DESCRIPTIONS, type Mt5ConnectionStatus } from '@/types/fortify';
 import { type TemplateRule } from '@/data/propFirmLibrary';
 import { RuleExtractor } from '@/components/RuleExtractor';
 import {
@@ -134,6 +134,12 @@ const CreateAccount = () => {
   // Step 3: Risk
   const [riskPerTrade, setRiskPerTrade] = useState<number | null>(null);
   const [customRisk, setCustomRisk] = useState('');
+
+  // Step 4: MT5 Connection data (structural; conexão real via backend externo)
+  const [mt5Login, setMt5Login] = useState('');
+  const [mt5Server, setMt5Server] = useState('');
+  const [mt5Broker, setMt5Broker] = useState('');
+  const [mt5PropFirm, setMt5PropFirm] = useState('');
 
   const balance = parseFloat(startBalance) || 0;
   const effectiveRisk = riskPerTrade ?? (customRisk ? parseFloat(customRisk) : 0);
@@ -266,10 +272,12 @@ const CreateAccount = () => {
     if (step === 1) return !!accountName && balance > 0;
     if (step === 2) return rules.some(r => r.enabled);
     if (step === 3) return effectiveRisk > 0;
+    if (step === 4) return !!mt5Login && !!mt5Server;
     return true;
   };
 
   const handleCreate = () => {
+    const initialConnectionStatus: Mt5ConnectionStatus = 'disconnected';
     const newAccount = {
       id: `acc-${Date.now()}`,
       userId: 'u1',
@@ -283,12 +291,20 @@ const CreateAccount = () => {
       status: 'active' as const,
       ruleSetId: selectedFirmId || 'custom',
       createdAt: new Date().toISOString().split('T')[0],
+
+      mt5Login: mt5Login.trim() || undefined,
+      mt5Server: mt5Server.trim() || undefined,
+      accountType: accountType || undefined,
+      propFirm: (mt5PropFirm.trim() || selectedFirm?.name || '') || undefined,
+      mt5ConnectionStatus: initialConnectionStatus,
+      mt5LastSyncAt: undefined,
+      mt5SyncError: undefined,
     };
     addAccount(newAccount);
     navigate('/accounts');
   };
 
-  const STEPS = ['Firma & Programa', 'Conta', 'Regras', 'Risco', 'Revisão'];
+  const STEPS = ['Firma & Programa', 'Conta', 'Regras', 'Risco', 'Conexão MT5', 'Revisão'];
 
   return (
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
@@ -667,9 +683,54 @@ const CreateAccount = () => {
           </motion.div>
         )}
 
-        {/* ─── STEP 4: Review & Preview ─── */}
+        {/* ─── STEP 4: MT5 Connection ─── */}
         {step === 4 && (
-          <motion.div key="s4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+          <motion.div key="s4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">Conexão MT5</h2>
+              <p className="text-xs text-muted-foreground mt-1">Preencha os dados da conta. A conexão real e sincronização ocorrerão via backend externo.</p>
+            </div>
+
+            <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Nome da Conta (exibição)</label>
+                  <input value={accountName} onChange={e => setAccountName(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: FTMO 100k Challenge" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Prop Firm</label>
+                  <input value={mt5PropFirm} onChange={e => setMt5PropFirm(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: FTMO" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Login MT5</label>
+                  <input value={mt5Login} onChange={e => setMt5Login(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: 12345678" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Servidor MT5</label>
+                  <input value={mt5Server} onChange={e => setMt5Server(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: Broker-Server01" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Broker</label>
+                  <input value={mt5Broker} onChange={e => setMt5Broker(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: IC Markets" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Tipo de Conta</label>
+                  <input value={accountType} onChange={e => setAccountType(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: Challenge Phase 1" />
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border bg-muted/20 p-4">
+                <p className="text-xs text-muted-foreground">
+                  Ao finalizar, a conta será criada como <strong>desconectada</strong>. Um serviço backend externo deverá validar credenciais, registrar a conexão no Supabase e sincronizar trades/posições/snapshots.
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ─── STEP 5: Review & Preview ─── */}
+        {step === 5 && (
+          <motion.div key="s5" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
             <h2 className="text-sm font-semibold text-foreground">Revisão e Preview</h2>
 
             {/* Account preview card */}
@@ -680,10 +741,10 @@ const CreateAccount = () => {
                 </div>
                 <div>
                   <h3 className="font-semibold text-foreground">{accountName || 'Minha Conta'}</h3>
-                  <p className="text-[10px] text-muted-foreground">{selectedFirm?.name || 'Custom'} • {accountType} • {currency}</p>
+                  <p className="text-[10px] text-muted-foreground">{selectedFirm?.name || mt5PropFirm || 'Custom'} • {accountType} • {currency}</p>
                 </div>
-                <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full bg-success/15 text-success">
-                  <Shield className="w-3 h-3" /> ATIVA
+                <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full bg-muted text-muted-foreground">
+                  Desconectada
                 </span>
               </div>
 
@@ -697,15 +758,13 @@ const CreateAccount = () => {
                   <p className="font-mono font-bold text-primary">{effectiveRisk}% ({fmt(balance * (effectiveRisk / 100))})</p>
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Regras Ativas</p>
-                  <p className="font-mono font-bold text-foreground">{rules.filter(r => r.enabled).length}</p>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Login MT5</p>
+                  <p className="font-mono font-bold text-foreground">{mt5Login || '—'}</p>
                 </div>
-                {difficultyIndex && (
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Dificuldade</p>
-                    <p className={`font-bold ${difficultyIndex.colorClass}`}>{difficultyIndex.label}</p>
-                  </div>
-                )}
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Servidor MT5</p>
+                  <p className="font-mono font-bold text-foreground">{mt5Server || '—'}</p>
+                </div>
               </div>
 
               {/* Rules summary */}
