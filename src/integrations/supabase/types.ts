@@ -16,56 +16,58 @@ export type Database = {
     Tables: {
       mt5_connections: {
         Row: {
-          account_name: string
-          account_type: string
-          broker_name: string
-          connection_status: Database["public"]["Enums"]["mt5_connection_status"]
+          broker_name: string | null
+          connection_status: string
           created_at: string
           id: string
           last_sync_at: string | null
-          mt5_login: string
-          mt5_server: string
-          prop_firm: string | null
+          mt5_login: string | null
+          mt5_server: string | null
+          provider: string
           sync_error: string | null
+          trading_account_id: string
           updated_at: string
-          user_id: string
         }
         Insert: {
-          account_name: string
-          account_type?: string
-          broker_name: string
-          connection_status?: Database["public"]["Enums"]["mt5_connection_status"]
+          broker_name?: string | null
+          connection_status?: string
           created_at?: string
           id?: string
           last_sync_at?: string | null
-          mt5_login: string
-          mt5_server: string
-          prop_firm?: string | null
+          mt5_login?: string | null
+          mt5_server?: string | null
+          provider?: string
           sync_error?: string | null
+          trading_account_id: string
           updated_at?: string
-          user_id: string
         }
         Update: {
-          account_name?: string
-          account_type?: string
-          broker_name?: string
-          connection_status?: Database["public"]["Enums"]["mt5_connection_status"]
+          broker_name?: string | null
+          connection_status?: string
           created_at?: string
           id?: string
           last_sync_at?: string | null
-          mt5_login?: string
-          mt5_server?: string
-          prop_firm?: string | null
+          mt5_login?: string | null
+          mt5_server?: string | null
+          provider?: string
           sync_error?: string | null
+          trading_account_id?: string
           updated_at?: string
-          user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "mt5_connections_trading_account_id_fkey"
+            columns: ["trading_account_id"]
+            isOneToOne: true
+            referencedRelation: "trading_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       open_positions: {
         Row: {
           id: string
-          connection_id: string
+          trading_account_id: string
           ticket: number
           symbol: string
           side: string
@@ -80,7 +82,7 @@ export type Database = {
         }
         Insert: {
           id?: string
-          connection_id: string
+          trading_account_id: string
           ticket: number
           symbol: string
           side: string
@@ -95,7 +97,7 @@ export type Database = {
         }
         Update: {
           id?: string
-          connection_id?: string
+          trading_account_id?: string
           ticket?: number
           symbol?: string
           side?: string
@@ -110,18 +112,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "open_positions_connection_id_fkey"
-            columns: ["connection_id"]
+            foreignKeyName: "open_positions_trading_account_id_fkey"
+            columns: ["trading_account_id"]
             isOneToOne: false
-            referencedRelation: "mt5_connections"
+            referencedRelation: "trading_accounts"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       trades: {
         Row: {
           id: string
-          connection_id: string
+          trading_account_id: string
           ticket: number
           symbol: string
           side: string
@@ -139,7 +141,7 @@ export type Database = {
         }
         Insert: {
           id?: string
-          connection_id: string
+          trading_account_id: string
           ticket: number
           symbol: string
           side: string
@@ -157,7 +159,7 @@ export type Database = {
         }
         Update: {
           id?: string
-          connection_id?: string
+          trading_account_id?: string
           ticket?: number
           symbol?: string
           side?: string
@@ -175,18 +177,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "trades_connection_id_fkey"
-            columns: ["connection_id"]
+            foreignKeyName: "trades_trading_account_id_fkey"
+            columns: ["trading_account_id"]
             isOneToOne: false
-            referencedRelation: "mt5_connections"
+            referencedRelation: "trading_accounts"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       account_snapshots: {
         Row: {
           id: string
-          connection_id: string
+          trading_account_id: string
           date: string
           balance: number
           equity: number
@@ -194,11 +196,13 @@ export type Database = {
           floating_pnl: number
           drawdown: number
           max_balance: number
+          used_daily_loss_pct: number | null
+          used_total_loss_pct: number | null
           created_at: string
         }
         Insert: {
           id?: string
-          connection_id: string
+          trading_account_id: string
           date: string
           balance?: number
           equity?: number
@@ -206,11 +210,13 @@ export type Database = {
           floating_pnl?: number
           drawdown?: number
           max_balance?: number
+          used_daily_loss_pct?: number | null
+          used_total_loss_pct?: number | null
           created_at?: string
         }
         Update: {
           id?: string
-          connection_id?: string
+          trading_account_id?: string
           date?: string
           balance?: number
           equity?: number
@@ -218,34 +224,69 @@ export type Database = {
           floating_pnl?: number
           drawdown?: number
           max_balance?: number
+          used_daily_loss_pct?: number | null
+          used_total_loss_pct?: number | null
           created_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "account_snapshots_connection_id_fkey"
-            columns: ["connection_id"]
+            foreignKeyName: "account_snapshots_trading_account_id_fkey"
+            columns: ["trading_account_id"]
             isOneToOne: false
-            referencedRelation: "mt5_connections"
+            referencedRelation: "trading_accounts"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       trading_accounts: {
         Row: {
           id: string
           user_id: string
+          nickname: string
+          broker: string | null
+          mt5_server: string | null
+          mt5_login: string | null
+          account_type: string | null
+          prop_firm: string | null
+          start_balance: number
+          current_balance: number
+          current_equity: number
+          highest_equity: number
+          status: string
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
           user_id: string
+          nickname: string
+          broker?: string | null
+          mt5_server?: string | null
+          mt5_login?: string | null
+          account_type?: string | null
+          prop_firm?: string | null
+          start_balance?: number
+          current_balance?: number
+          current_equity?: number
+          highest_equity?: number
+          status?: string
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
           user_id?: string
+          nickname?: string
+          broker?: string | null
+          mt5_server?: string | null
+          mt5_login?: string | null
+          account_type?: string | null
+          prop_firm?: string | null
+          start_balance?: number
+          current_balance?: number
+          current_equity?: number
+          highest_equity?: number
+          status?: string
           created_at?: string
           updated_at?: string
         }
@@ -286,7 +327,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "prop_firms"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       prop_firms: {
@@ -409,7 +450,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "rule_set_versions"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       rule_set_versions: {
@@ -450,7 +491,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "programs"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       user_roles: {
