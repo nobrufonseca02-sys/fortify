@@ -117,10 +117,10 @@ const AccountDashboard = () => {
             .eq('id', id)
             .maybeSingle(),
           supabase
-            .from('mt5Connections')
+            .from('mt5_connections')
             .select('*')
-            .eq('tradingAccountId', id)
-            .order('createdAt', { ascending: false })
+            .eq('trading_account_id', id)
+            .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle(),
           supabase
@@ -276,6 +276,8 @@ const AccountDashboard = () => {
   const headerAccountType = tradingAccountRow?.account_type ?? tradingAccountRow?.accountType ?? (effectiveAccount as any).accountType;
   const headerPropFirm = tradingAccountRow?.prop_firm ?? tradingAccountRow?.propFirm ?? (effectiveAccount as any).propFirm;
   const lastSyncAt = connection?.lastSyncAt ?? connection?.last_sync_at ?? (effectiveAccount as any).mt5LastSyncAt;
+  const provider = connection?.provider ?? '—';
+  const lastError = connection?.syncError ?? connection?.sync_error ?? connection?.authError ?? connection?.auth_error ?? connection?.lastError ?? connection?.last_error;
 
   const latestSnapshot = snapshots.length > 0 ? snapshots[snapshots.length - 1] : null;
 
@@ -433,6 +435,62 @@ const AccountDashboard = () => {
           </p>
         </div>
       </div>
+
+      {/* Bloco consolidado da conexão MT5 (real Supabase: public.mt5_connections) */}
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <Link2 className="w-4 h-4 text-primary" />
+          <h2 className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Conexão MT5</h2>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card">
+          <div className="p-4 border-b border-border flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full ${mt5c.className}`}>
+                <Mt5Icon className={`w-3 h-3 ${connectionStatus === 'connecting' || connectionStatus === 'syncing' ? 'animate-spin' : ''}`} />
+                {mt5c.label}
+              </span>
+              <p className="text-xs font-semibold text-foreground truncate">
+                {connection ? 'Conexão vinculada à conta' : 'Conta ainda não conectada ao MT5'}
+              </p>
+            </div>
+            <p className="text-[10px] text-muted-foreground">public.mt5_connections</p>
+          </div>
+
+          {!connection ? (
+            <div className="p-4">
+              <p className="text-xs text-muted-foreground">Conta ainda não conectada ao MT5. Conecte a conta para iniciar sincronização.</p>
+              <p className="text-[10px] text-muted-foreground mt-1">Esta conexão será a base para a futura sincronização automática via backend externo.</p>
+            </div>
+          ) : (
+            <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Status</p>
+                <p className="text-sm font-semibold text-foreground mt-1">{mt5c.label}</p>
+              </div>
+
+              <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Provider</p>
+                <p className="text-sm font-mono font-semibold text-foreground mt-1">{String(provider || '—')}</p>
+              </div>
+
+              <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Última sincronização</p>
+                <p className="text-sm font-mono font-semibold text-foreground mt-1">{lastSyncAt ? new Date(lastSyncAt).toLocaleString('pt-BR') : '—'}</p>
+              </div>
+
+              <div className={`rounded-lg border p-3 ${lastError ? 'border-destructive/30 bg-destructive/5' : 'border-border/60 bg-muted/20'}`}>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Último erro</p>
+                <p className={`text-sm font-mono font-semibold mt-1 ${lastError ? 'text-destructive' : 'text-muted-foreground'}`}>{lastError ? String(lastError) : '—'}</p>
+              </div>
+
+              <div className="sm:col-span-2 lg:col-span-4">
+                <p className="text-[10px] text-muted-foreground">Esta conexão é a base para a futura sincronização automática via backend externo.</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* === STATUS DA CONTA (saúde) === */}
       <motion.div
