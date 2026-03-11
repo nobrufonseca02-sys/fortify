@@ -300,40 +300,46 @@ const CreateAccount = () => {
   const handleCreate = async () => {
     const initialConnectionStatus: Mt5ConnectionStatus = 'disconnected';
 
-    // Prefer DB (public.trading_accounts)
     if (supabase && user?.id) {
       try {
+        const insertPayload = {
+          nickname: accountName || `${selectedFirm?.name || 'Custom'} ${balance / 1000}k`,
+          broker: mt5Broker.trim() || (selectedFirm?.name || 'Custom'),
+          mt5Server: mt5Server.trim(),
+          mt5Login: mt5Login.trim(),
+          accountType: accountType || null,
+          propFirm: (mt5PropFirm.trim() || selectedFirm?.name || '') || null,
+          startBalance: balance,
+          status: 'active',
+        };
+
         const res = await supabase
           .from('trading_accounts')
           .insert({
-            user_id: user.id,
-            nickname: accountName || `${selectedFirm?.name || 'Custom'} ${balance / 1000}k`,
-            broker: mt5Broker.trim() || (selectedFirm?.name || 'Custom'),
-            mt5_server: mt5Server.trim(),
-            mt5_login: mt5Login.trim(),
-            account_type: accountType || null,
-            prop_firm: (mt5PropFirm.trim() || selectedFirm?.name || '') || null,
-            start_balance: balance,
-            current_balance: balance,
-            current_equity: balance,
-            highest_equity: balance,
-            status: 'active',
+            nickname: insertPayload.nickname,
+            broker: insertPayload.broker,
+            mt5_server: insertPayload.mt5Server,
+            mt5_login: insertPayload.mt5Login,
+            account_type: insertPayload.accountType,
+            prop_firm: insertPayload.propFirm,
+            start_balance: insertPayload.startBalance,
+            status: insertPayload.status,
           })
-          .select('id,user_id,nickname,broker,mt5_server,mt5_login,account_type,prop_firm,start_balance,current_balance,current_equity,highest_equity,status,created_at,updated_at')
+          .select('id,user_id,nickname,broker,mt5_server,mt5_login,account_type,prop_firm,start_balance,status,created_at,updated_at')
           .single();
 
         if (res.error) throw res.error;
 
         addAccount({
           id: String(res.data.id),
-          userId: String(res.data.user_id),
+          userId: String(res.data.user_id ?? user.id),
           nickname: String(res.data.nickname),
           broker: String(res.data.broker),
           baseCurrency: currency,
           startBalance: Number(res.data.start_balance ?? 0),
-          currentBalance: Number(res.data.current_balance ?? res.data.start_balance ?? 0),
-          currentEquity: Number(res.data.current_equity ?? res.data.current_balance ?? 0),
-          highestEquityAllTime: Number(res.data.highest_equity ?? res.data.current_equity ?? 0),
+          currentBalance: Number(res.data.start_balance ?? 0),
+          currentEquity: Number(res.data.start_balance ?? 0),
+          highestEquityAllTime: Number(res.data.start_balance ?? 0),
           status: 'active' as const,
           ruleSetId: selectedFirmId || 'custom',
           createdAt: String((res.data.created_at ?? new Date().toISOString()).split('T')[0]),
