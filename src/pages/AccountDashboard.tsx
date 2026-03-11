@@ -113,7 +113,7 @@ const AccountDashboard = () => {
         const [accRes, connRes, posRes, tradesRes, snapRes] = await Promise.all([
           supabase
             .from('trading_accounts')
-            .select('id,user_id,nickname,broker,mt5_server,mt5_login,account_type,prop_firm,start_balance,current_balance,current_equity,highest_equity,status,created_at,updated_at')
+            .select('id,nickname,broker,mt5_server,mt5_login,account_type,prop_firm,start_balance,current_balance,current_equity,highest_equity,status')
             .eq('id', id)
             .maybeSingle(),
           supabase
@@ -165,7 +165,7 @@ const AccountDashboard = () => {
           const highestEquityAllTime = Number(r.highest_equity ?? currentEquity);
           addAccount({
             id: String(r.id),
-            userId: String(r.user_id ?? ''),
+            userId: '',
             nickname: String(r.nickname ?? ''),
             broker: String(r.broker ?? ''),
             baseCurrency: 'USD',
@@ -175,7 +175,7 @@ const AccountDashboard = () => {
             highestEquityAllTime,
             status: (r.status as any) ?? 'active',
             ruleSetId: 'custom',
-            createdAt: String((r.created_at ?? new Date().toISOString()).split('T')[0]),
+            createdAt: new Date().toISOString().split('T')[0],
             mt5Server: r.mt5_server ?? undefined,
             mt5Login: r.mt5_login ?? undefined,
             accountType: r.account_type ?? undefined,
@@ -204,7 +204,7 @@ const AccountDashboard = () => {
 
   const effectiveAccount = account || (tradingAccountRow ? {
     id: String(tradingAccountRow.id),
-    userId: String(tradingAccountRow.user_id ?? ''),
+    userId: '',
     nickname: String(tradingAccountRow.nickname ?? ''),
     broker: String(tradingAccountRow.broker ?? ''),
     baseCurrency: 'USD',
@@ -214,7 +214,7 @@ const AccountDashboard = () => {
     highestEquityAllTime: Number(tradingAccountRow.highest_equity ?? tradingAccountRow.current_equity ?? 0),
     status: (tradingAccountRow.status as any) ?? 'active',
     ruleSetId: 'custom',
-    createdAt: String((tradingAccountRow.created_at ?? new Date().toISOString()).split('T')[0]),
+    createdAt: new Date().toISOString().split('T')[0],
     mt5Server: tradingAccountRow.mt5_server ?? undefined,
     mt5Login: tradingAccountRow.mt5_login ?? undefined,
     accountType: tradingAccountRow.account_type ?? undefined,
