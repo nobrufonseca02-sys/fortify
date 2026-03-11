@@ -58,7 +58,7 @@ const mt5StatusConfig: Record<Mt5ConnectionStatus, { label: string; icon: typeof
   connecting: { label: 'Conectando', icon: RefreshCw, className: 'bg-warning/15 text-warning' },
   connected: { label: 'Conectada', icon: Link2, className: 'bg-success/15 text-success' },
   syncing: { label: 'Sincronizando', icon: RefreshCw, className: 'bg-primary/15 text-primary' },
-  auth_error: { label: 'Erro de autenticação', icon: AlertTriangle, className: 'bg-destructive/15 text-destructive' },
+  authError: { label: 'Erro de autenticação', icon: AlertTriangle, className: 'bg-destructive/15 text-destructive' },
 };
 
 const getSupabaseUrl = () =>
@@ -113,7 +113,7 @@ const AccountDashboard = () => {
         const [accRes, connRes, posRes, tradesRes, snapRes] = await Promise.all([
           supabase
             .from('trading_accounts')
-            .select('id,nickname,broker,mt5_server,mt5_login,account_type,prop_firm,start_balance,current_balance,current_equity,highest_equity,status')
+            .select('id,nickname,broker,mt5_server,mt5_login,account_type,prop_firm,start_balance,current_balance,current_equity,highest_equity,status,created_at,updated_at')
             .eq('id', id)
             .maybeSingle(),
           supabase
@@ -124,21 +124,21 @@ const AccountDashboard = () => {
             .limit(1)
             .maybeSingle(),
           supabase
-            .from('openPositions')
+            .from('open_positions')
             .select('*')
-            .eq('tradingAccountId', id)
-            .order('updatedAt', { ascending: false }),
+            .eq('trading_account_id', id)
+            .order('updated_at', { ascending: false }),
           supabase
             .from('trades')
             .select('*')
-            .eq('tradingAccountId', id)
-            .order('closeTime', { ascending: false, nullsFirst: false })
-            .order('openTime', { ascending: false })
+            .eq('trading_account_id', id)
+            .order('close_time', { ascending: false, nullsFirst: false })
+            .order('open_time', { ascending: false })
             .limit(200),
           supabase
-            .from('accountSnapshots')
+            .from('account_snapshots')
             .select('*')
-            .eq('tradingAccountId', id)
+            .eq('trading_account_id', id)
             .order('date', { ascending: true })
             .limit(365),
         ]);
@@ -165,7 +165,7 @@ const AccountDashboard = () => {
           const highestEquityAllTime = Number(r.highest_equity ?? currentEquity);
           addAccount({
             id: String(r.id),
-            userId: '',
+            userId: String(r.user_id ?? ''),
             nickname: String(r.nickname ?? ''),
             broker: String(r.broker ?? ''),
             baseCurrency: 'USD',
@@ -175,7 +175,7 @@ const AccountDashboard = () => {
             highestEquityAllTime,
             status: (r.status as any) ?? 'active',
             ruleSetId: 'custom',
-            createdAt: new Date().toISOString().split('T')[0],
+            createdAt: String((r.created_at ?? new Date().toISOString()).split('T')[0]),
             mt5Server: r.mt5_server ?? undefined,
             mt5Login: r.mt5_login ?? undefined,
             accountType: r.account_type ?? undefined,
@@ -204,7 +204,7 @@ const AccountDashboard = () => {
 
   const effectiveAccount = account || (tradingAccountRow ? {
     id: String(tradingAccountRow.id),
-    userId: '',
+    userId: String(tradingAccountRow.user_id ?? ''),
     nickname: String(tradingAccountRow.nickname ?? ''),
     broker: String(tradingAccountRow.broker ?? ''),
     baseCurrency: 'USD',
@@ -214,7 +214,7 @@ const AccountDashboard = () => {
     highestEquityAllTime: Number(tradingAccountRow.highest_equity ?? tradingAccountRow.current_equity ?? 0),
     status: (tradingAccountRow.status as any) ?? 'active',
     ruleSetId: 'custom',
-    createdAt: new Date().toISOString().split('T')[0],
+    createdAt: String((tradingAccountRow.created_at ?? new Date().toISOString()).split('T')[0]),
     mt5Server: tradingAccountRow.mt5_server ?? undefined,
     mt5Login: tradingAccountRow.mt5_login ?? undefined,
     accountType: tradingAccountRow.account_type ?? undefined,
@@ -265,7 +265,8 @@ const AccountDashboard = () => {
   const sc = statusConfig[status];
   const StatusIcon = sc.icon;
 
-  const connectionStatus = (connection?.connectionStatus || connection?.connection_status || 'disconnected') as Mt5ConnectionStatus;
+  const rawConnectionStatus = connection?.connectionStatus ?? connection?.connection_status ?? 'disconnected';
+  const connectionStatus = (rawConnectionStatus === 'auth_error' ? 'authError' : rawConnectionStatus) as Mt5ConnectionStatus;
   const mt5c = mt5StatusConfig[connectionStatus] || mt5StatusConfig.disconnected;
   const Mt5Icon = mt5c.icon;
 
@@ -283,7 +284,7 @@ const AccountDashboard = () => {
 
   const currentBalance = Number(latestSnapshot?.balance ?? tradingAccountRow?.current_balance ?? tradingAccountRow?.currentBalance ?? (effectiveAccount as any).currentBalance ?? 0);
   const currentEquity = Number(latestSnapshot?.equity ?? tradingAccountRow?.current_equity ?? tradingAccountRow?.currentEquity ?? (effectiveAccount as any).currentEquity ?? 0);
-  const highestEquity = Number(latestSnapshot?.highestEquity ?? (latestSnapshot as any)?.highest_equity ?? tradingAccountRow?.highest_equity ?? tradingAccountRow?.highestEquity ?? (effectiveAccount as any).highestEquityAllTime ?? 0);
+  const highestEquity = Number((latestSnapshot as any)?.highestEquity ?? (latestSnapshot as any)?.highest_equity ?? tradingAccountRow?.highest_equity ?? tradingAccountRow?.highestEquity ?? (effectiveAccount as any).highestEquityAllTime ?? 0);
 
   const maxBalanceValue = Number((latestSnapshot as any)?.maxBalance ?? (latestSnapshot as any)?.max_balance ?? currentBalance);
   const dailyPnlValue = Number((latestSnapshot as any)?.dailyPnl ?? (latestSnapshot as any)?.daily_pnl ?? 0);
@@ -343,7 +344,7 @@ const AccountDashboard = () => {
     if (ev.status === 'NOT_MET' && ev.progressPct < 50) alerts.push({ text: `${ev.rule.name}: ${ev.message}`, severity: 'info' });
   });
 
-  if ((connectionStatus === 'auth_error' || connectionStatus === 'disconnected') && (connection?.syncError || connection?.sync_error)) {
+  if ((connectionStatus === 'authError' || connectionStatus === 'disconnected') && (connection?.syncError || connection?.sync_error)) {
     alerts.unshift({ text: `MT5: ${connection?.syncError || connection?.sync_error}`, severity: 'danger' });
   }
 
