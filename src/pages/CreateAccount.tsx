@@ -8,13 +8,16 @@ import {
   ChevronDown, ChevronUp, Wallet, Flame, Award, Building2, Globe,
   ChevronRight, ExternalLink, BookOpen
 } from 'lucide-react';
-import { RuleType, RULE_TYPE_LABELS, RULE_TYPE_DESCRIPTIONS, type Mt5ConnectionStatus } from '@/types/fortify';
+import { RuleType, type Mt5ConnectionStatus } from '@/types/fortify';
 import { type TemplateRule } from '@/data/propFirmLibrary';
 import { RuleExtractor } from '@/components/RuleExtractor';
 import {
   usePropFirms, usePrograms, useProgramRules,
   type PropFirm, type Program, type RuleInstance,
 } from '@/hooks/usePropFirmLibrary';
+import { useAuth } from '@/hooks/useAuth';
+import { createClient } from '@supabase/supabase-js';
+import { toast } from '@/hooks/use-toast';
 
 const RISK_OPTIONS = [
   { label: '0.25%', value: 0.25, desc: 'Ultra conservador' },
@@ -84,6 +87,16 @@ function mapDbRulesToTemplateRules(dbRules: RuleInstance[]): TemplateRule[] {
 
 const fmt = (v: number) => `$${v.toLocaleString('en-US', { minimumFractionDigits: 0 })}`;
 
+const getSupabaseUrl = () =>
+  (import.meta as any)?.env?.VITE_SUPABASE_URL ||
+  (import.meta as any)?.env?.VITE_PUBLIC_SUPABASE_URL ||
+  (window as any)?.__SUPABASE_URL__;
+
+const getSupabaseAnonKey = () =>
+  (import.meta as any)?.env?.VITE_SUPABASE_ANON_KEY ||
+  (import.meta as any)?.env?.VITE_PUBLIC_SUPABASE_ANON_KEY ||
+  (window as any)?.__SUPABASE_ANON_KEY__;
+
 // ─── Step indicator ───
 const StepIndicator = ({ current, total }: { current: number; total: number }) => (
   <div className="flex items-center gap-2">
@@ -107,7 +120,15 @@ const CreateAccount = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { addAccount } = useAccountsStore();
+  const { user } = useAuth();
   const [step, setStep] = useState(0);
+
+  const supabaseUrl = getSupabaseUrl();
+  const supabaseAnonKey = getSupabaseAnonKey();
+  const supabase = useMemo(() => {
+    if (!supabaseUrl || !supabaseAnonKey) return null;
+    return createClient(supabaseUrl, supabaseAnonKey, { auth: { persistSession: true } });
+  }, [supabaseUrl, supabaseAnonKey]);
 
   // Step 0: Prop Firm + Program from DB
   const [selectedFirmId, setSelectedFirmId] = useState<string | null>(null);
@@ -276,11 +297,68 @@ const CreateAccount = () => {
     return true;
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     const initialConnectionStatus: Mt5ConnectionStatus = 'disconnected';
+
+    // Prefer DB (public.trading_accounts)
+    if (supabase && user?.id) {
+      try {
+        const res = await supabase
+          .from('trading_accounts')
+          .insert({
+            user_id: user.id,
+            nickname: accountName || `${selectedFirm?.name || 'Custom'} ${balance / 1000}k`,
+            broker: mt5Broker.trim() || (selectedFirm?.name || 'Custom'),
+            mt5_server: mt5Server.trim(),
+            mt5_login: mt5Login.trim(),
+            account_type: accountType || null,
+            prop_firm: (mt5PropFirm.trim() || selectedFirm?.name || '') || null,
+            start_balance: balance,
+            current_balance: balance,
+            current_equity: balance,
+            highest_equity: balance,
+            status: 'active',
+          })
+          .select('id,user_id,nickname,broker,mt5_server,mt5_login,account_type,prop_firm,start_balance,current_balance,current_equity,highest_equity,status,created_at,updated_at')
+          .single();
+
+        if (res.error) throw res.error;
+
+        addAccount({
+          id: String(res.data.id),
+          userId: String(res.data.user_id),
+          nickname: String(res.data.nickname),
+          broker: String(res.data.broker),
+          baseCurrency: currency,
+          startBalance: Number(res.data.start_balance ?? 0),
+          currentBalance: Number(res.data.current_balance ?? res.data.start_balance ?? 0),
+          currentEquity: Number(res.data.current_equity ?? res.data.current_balance ?? 0),
+          highestEquityAllTime: Number(res.data.highest_equity ?? res.data.current_equity ?? 0),
+          status: 'active' as const,
+          ruleSetId: selectedFirmId || 'custom',
+          createdAt: String((res.data.created_at ?? new Date().toISOString()).split('T')[0]),
+
+          mt5Login: res.data.mt5_login ?? undefined,
+          mt5Server: res.data.mt5_server ?? undefined,
+          accountType: res.data.account_type ?? undefined,
+          propFirm: res.data.prop_firm ?? undefined,
+          mt5ConnectionStatus: initialConnectionStatus,
+          mt5LastSyncAt: undefined,
+          mt5SyncError: undefined,
+        } as any);
+
+        toast({ title: 'Conta criada', description: 'Conta real salva em trading_accounts.' });
+        navigate('/accounts');
+        return;
+      } catch {
+        toast({ title: 'Erro ao criar conta', description: 'Falha ao salvar no Supabase. Usando fallback local.', variant: 'destructive' });
+      }
+    }
+
+    // Fallback (store local) - secundário/temporário
     const newAccount = {
       id: `acc-${Date.now()}`,
-      userId: 'u1',
+      userId: user?.id || 'u1',
       nickname: accountName || `${selectedFirm?.name || 'Custom'} ${balance / 1000}k`,
       broker: `${selectedFirm?.name || 'Custom'} - ${accountType}`,
       baseCurrency: currency,
@@ -300,7 +378,7 @@ const CreateAccount = () => {
       mt5LastSyncAt: undefined,
       mt5SyncError: undefined,
     };
-    addAccount(newAccount);
+    addAccount(newAccount as any);
     navigate('/accounts');
   };
 

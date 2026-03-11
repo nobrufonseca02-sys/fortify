@@ -74,46 +74,11 @@ const getSupabaseAnonKey = () =>
 const AccountDashboard = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { accounts } = useAccountsStore();
+  const { accounts, addAccount } = useAccountsStore();
   const [activeTab, setActiveTab] = useState<'dashboard' | 'ai-rules'>('dashboard');
   const [appliedAiRules, setAppliedAiRules] = useState<TemplateRule[]>([]);
 
   const account = accounts.find(a => a.id === id);
-  if (!account) {
-    return (
-      <div className="p-6 text-center">
-        <p className="text-muted-foreground">Conta não encontrada.</p>
-        <button onClick={() => navigate('/')} className="mt-4 text-primary text-sm">Voltar ao Painel</button>
-      </div>
-    );
-  }
-
-  const evals = MOCK_EVALUATIONS.filter(e => e.tradingAccountId === account.id);
-  const ruleSet = RULE_SET_TEMPLATES.find(r => r.id === account.ruleSetId);
-  const firmName = ruleSet?.firmName || ruleSet?.name || '—';
-
-  const dailyLoss = evals.find(e => e.rule.type === 'MAX_DAILY_LOSS');
-  const totalLoss = evals.find(e => e.rule.type === 'MAX_TOTAL_LOSS') || evals.find(e => e.rule.type === 'TRAILING_MAX_LOSS');
-  const profitTarget = evals.find(e => e.rule.type === 'PROFIT_TARGET');
-  const consistency = evals.find(e => e.rule.type === 'CONSISTENCY_BEST_DAY_CAP');
-  const minDays = evals.find(e => e.rule.type === 'MIN_TRADING_DAYS');
-
-  const dailyRemaining = dailyLoss ? Math.max(0, dailyLoss.limitValue - dailyLoss.currentValue) : 0;
-  const maxLossRemaining = totalLoss ? Math.max(0, totalLoss.limitValue - totalLoss.currentValue) : 0;
-
-  // Floating loss (simulated as open P&L) - fallback quando snapshot ainda não existe
-  const floatingLoss = account.currentEquity - account.currentBalance;
-  const floatingLimit = dailyLoss ? dailyLoss.limitValue : 0;
-
-  const riskEvals = evals.filter(e => ['MAX_DAILY_LOSS', 'MAX_TOTAL_LOSS', 'TRAILING_MAX_LOSS'].includes(e.rule.type));
-  const avgRisk = riskEvals.length > 0 ? riskEvals.reduce((s, e) => s + e.progressPct, 0) / riskEvals.length : 0;
-
-  const hasViolation = evals.some(e => e.status === 'VIOLATED');
-  const hasWarning = evals.some(e => e.status === 'WARNING');
-  const status: 'SAFE' | 'WARNING' | 'VIOLATED' = hasViolation ? 'VIOLATED' : hasWarning ? 'WARNING' : 'SAFE';
-  const healthScore = Math.max(0, Math.round(100 - avgRisk));
-  const sc = statusConfig[status];
-  const StatusIcon = sc.icon;
 
   // Supabase (dados reais - tabelas oficiais)
   const [loadingMt5Data, setLoadingMt5Data] = useState(false);
@@ -123,6 +88,7 @@ const AccountDashboard = () => {
   const [snapshots, setSnapshots] = useState<any[]>([]);
   const [connection, setConnection] = useState<any | null>(null);
   const [tradingAccountRow, setTradingAccountRow] = useState<any | null>(null);
+  const [dbAccountLoaded, setDbAccountLoaded] = useState(false);
 
   const supabaseUrl = getSupabaseUrl();
   const supabaseAnonKey = getSupabaseAnonKey();
@@ -135,8 +101,8 @@ const AccountDashboard = () => {
     let cancelled = false;
 
     const load = async () => {
-      if (!supabase) {
-        setMt5DataError('Supabase não configurado. Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.');
+      if (!supabase || !id) {
+        setDbAccountLoaded(true);
         return;
       }
 
@@ -146,33 +112,33 @@ const AccountDashboard = () => {
       try {
         const [accRes, connRes, posRes, tradesRes, snapRes] = await Promise.all([
           supabase
-            .from('tradingAccounts')
-            .select('*')
-            .eq('id', account.id)
+            .from('trading_accounts')
+            .select('id,user_id,nickname,broker,mt5_server,mt5_login,account_type,prop_firm,start_balance,current_balance,current_equity,highest_equity,status,created_at,updated_at')
+            .eq('id', id)
             .maybeSingle(),
           supabase
             .from('mt5Connections')
             .select('*')
-            .eq('tradingAccountId', account.id)
+            .eq('tradingAccountId', id)
             .order('createdAt', { ascending: false })
             .limit(1)
             .maybeSingle(),
           supabase
             .from('openPositions')
             .select('*')
-            .eq('tradingAccountId', account.id)
+            .eq('tradingAccountId', id)
             .order('updatedAt', { ascending: false }),
           supabase
             .from('trades')
             .select('*')
-            .eq('tradingAccountId', account.id)
+            .eq('tradingAccountId', id)
             .order('closeTime', { ascending: false, nullsFirst: false })
             .order('openTime', { ascending: false })
             .limit(200),
           supabase
             .from('accountSnapshots')
             .select('*')
-            .eq('tradingAccountId', account.id)
+            .eq('tradingAccountId', id)
             .order('date', { ascending: true })
             .limit(365),
         ]);
@@ -190,12 +156,41 @@ const AccountDashboard = () => {
         setOpenPositions((posRes.data ?? []) as OpenPosition[]);
         setRecentTrades((tradesRes.data ?? []) as Trade[]);
         setSnapshots((snapRes.data ?? []) as AccountSnapshot[]);
+
+        if (accRes.data && !account) {
+          const r = accRes.data as any;
+          const startBalance = Number(r.start_balance ?? 0);
+          const currentBalance = Number(r.current_balance ?? startBalance);
+          const currentEquity = Number(r.current_equity ?? currentBalance);
+          const highestEquityAllTime = Number(r.highest_equity ?? currentEquity);
+          addAccount({
+            id: String(r.id),
+            userId: String(r.user_id ?? ''),
+            nickname: String(r.nickname ?? ''),
+            broker: String(r.broker ?? ''),
+            baseCurrency: 'USD',
+            startBalance,
+            currentBalance,
+            currentEquity,
+            highestEquityAllTime,
+            status: (r.status as any) ?? 'active',
+            ruleSetId: 'custom',
+            createdAt: String((r.created_at ?? new Date().toISOString()).split('T')[0]),
+            mt5Server: r.mt5_server ?? undefined,
+            mt5Login: r.mt5_login ?? undefined,
+            accountType: r.account_type ?? undefined,
+            propFirm: r.prop_firm ?? undefined,
+          } as any);
+        }
       } catch (e: any) {
         if (cancelled) return;
         const msg = e?.message || 'Falha ao carregar dados do MT5 via Supabase.';
         setMt5DataError(msg);
       } finally {
-        if (!cancelled) setLoadingMt5Data(false);
+        if (!cancelled) {
+          setLoadingMt5Data(false);
+          setDbAccountLoaded(true);
+        }
       }
     };
 
@@ -204,43 +199,107 @@ const AccountDashboard = () => {
     return () => {
       cancelled = true;
     };
-  }, [supabase, account.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supabase, id]);
+
+  const effectiveAccount = account || (tradingAccountRow ? {
+    id: String(tradingAccountRow.id),
+    userId: String(tradingAccountRow.user_id ?? ''),
+    nickname: String(tradingAccountRow.nickname ?? ''),
+    broker: String(tradingAccountRow.broker ?? ''),
+    baseCurrency: 'USD',
+    startBalance: Number(tradingAccountRow.start_balance ?? 0),
+    currentBalance: Number(tradingAccountRow.current_balance ?? tradingAccountRow.start_balance ?? 0),
+    currentEquity: Number(tradingAccountRow.current_equity ?? tradingAccountRow.current_balance ?? 0),
+    highestEquityAllTime: Number(tradingAccountRow.highest_equity ?? tradingAccountRow.current_equity ?? 0),
+    status: (tradingAccountRow.status as any) ?? 'active',
+    ruleSetId: 'custom',
+    createdAt: String((tradingAccountRow.created_at ?? new Date().toISOString()).split('T')[0]),
+    mt5Server: tradingAccountRow.mt5_server ?? undefined,
+    mt5Login: tradingAccountRow.mt5_login ?? undefined,
+    accountType: tradingAccountRow.account_type ?? undefined,
+    propFirm: tradingAccountRow.prop_firm ?? undefined,
+  } as any : null);
+
+  if (!effectiveAccount) {
+    if (!dbAccountLoaded) {
+      return (
+        <div className="p-6 text-center">
+          <p className="text-muted-foreground">Carregando conta...</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="p-6 text-center">
+        <p className="text-muted-foreground">Conta não encontrada.</p>
+        <button onClick={() => navigate('/')} className="mt-4 text-primary text-sm">Voltar ao Painel</button>
+      </div>
+    );
+  }
+
+  const evals = MOCK_EVALUATIONS.filter(e => e.tradingAccountId === effectiveAccount.id);
+  const ruleSet = RULE_SET_TEMPLATES.find(r => r.id === (effectiveAccount as any).ruleSetId);
+  const firmName = ruleSet?.firmName || ruleSet?.name || '—';
+
+  const dailyLoss = evals.find(e => e.rule.type === 'MAX_DAILY_LOSS');
+  const totalLoss = evals.find(e => e.rule.type === 'MAX_TOTAL_LOSS') || evals.find(e => e.rule.type === 'TRAILING_MAX_LOSS');
+  const profitTarget = evals.find(e => e.rule.type === 'PROFIT_TARGET');
+  const consistency = evals.find(e => e.rule.type === 'CONSISTENCY_BEST_DAY_CAP');
+  const minDays = evals.find(e => e.rule.type === 'MIN_TRADING_DAYS');
+
+  const dailyRemaining = dailyLoss ? Math.max(0, dailyLoss.limitValue - dailyLoss.currentValue) : 0;
+  const maxLossRemaining = totalLoss ? Math.max(0, totalLoss.limitValue - totalLoss.currentValue) : 0;
+
+  // Floating loss (simulated as open P&L) - fallback quando snapshot ainda não existe
+  const floatingLoss = (effectiveAccount as any).currentEquity - (effectiveAccount as any).currentBalance;
+  const floatingLimit = dailyLoss ? dailyLoss.limitValue : 0;
+
+  const riskEvals = evals.filter(e => ['MAX_DAILY_LOSS', 'MAX_TOTAL_LOSS', 'TRAILING_MAX_LOSS'].includes(e.rule.type));
+  const avgRisk = riskEvals.length > 0 ? riskEvals.reduce((s, e) => s + e.progressPct, 0) / riskEvals.length : 0;
+
+  const hasViolation = evals.some(e => e.status === 'VIOLATED');
+  const hasWarning = evals.some(e => e.status === 'WARNING');
+  const status: 'SAFE' | 'WARNING' | 'VIOLATED' = hasViolation ? 'VIOLATED' : hasWarning ? 'WARNING' : 'SAFE';
+  const healthScore = Math.max(0, Math.round(100 - avgRisk));
+  const sc = statusConfig[status];
+  const StatusIcon = sc.icon;
 
   const connectionStatus = (connection?.connectionStatus || connection?.connection_status || 'disconnected') as Mt5ConnectionStatus;
   const mt5c = mt5StatusConfig[connectionStatus] || mt5StatusConfig.disconnected;
   const Mt5Icon = mt5c.icon;
 
-  const headerNickname = tradingAccountRow?.nickname ?? account.nickname;
-  const headerBroker = tradingAccountRow?.broker ?? account.broker;
-  const headerServer = connection?.mt5Server ?? connection?.mt5_server ?? account.mt5Server;
-  const headerLogin = connection?.mt5Login ?? connection?.mt5_login ?? account.mt5Login;
-  const headerAccountType = tradingAccountRow?.accountType ?? tradingAccountRow?.account_type ?? account.accountType;
-  const headerPropFirm = tradingAccountRow?.propFirm ?? tradingAccountRow?.prop_firm ?? account.propFirm;
-  const lastSyncAt = connection?.lastSyncAt ?? connection?.last_sync_at ?? tradingAccountRow?.mt5LastSyncAt ?? account.mt5LastSyncAt;
+  const headerNickname = tradingAccountRow?.nickname ?? (effectiveAccount as any).nickname;
+  const headerBroker = tradingAccountRow?.broker ?? (effectiveAccount as any).broker;
+  const headerServer = tradingAccountRow?.mt5_server ?? tradingAccountRow?.mt5Server ?? connection?.mt5Server ?? connection?.mt5_server ?? (effectiveAccount as any).mt5Server;
+  const headerLogin = tradingAccountRow?.mt5_login ?? tradingAccountRow?.mt5Login ?? connection?.mt5Login ?? connection?.mt5_login ?? (effectiveAccount as any).mt5Login;
+  const headerAccountType = tradingAccountRow?.account_type ?? tradingAccountRow?.accountType ?? (effectiveAccount as any).accountType;
+  const headerPropFirm = tradingAccountRow?.prop_firm ?? tradingAccountRow?.propFirm ?? (effectiveAccount as any).propFirm;
+  const lastSyncAt = connection?.lastSyncAt ?? connection?.last_sync_at ?? (effectiveAccount as any).mt5LastSyncAt;
 
   const latestSnapshot = snapshots.length > 0 ? snapshots[snapshots.length - 1] : null;
 
-  const currentBalance = Number(latestSnapshot?.balance ?? tradingAccountRow?.currentBalance ?? tradingAccountRow?.current_balance ?? account.currentBalance ?? 0);
-  const currentEquity = Number(latestSnapshot?.equity ?? tradingAccountRow?.currentEquity ?? tradingAccountRow?.current_equity ?? account.currentEquity ?? 0);
-  const highestEquity = Number(latestSnapshot?.highestEquity ?? latestSnapshot?.highest_equity ?? tradingAccountRow?.highestEquity ?? tradingAccountRow?.highest_equity ?? account.highestEquityAllTime ?? 0);
+  const currentBalance = Number(latestSnapshot?.balance ?? tradingAccountRow?.current_balance ?? tradingAccountRow?.currentBalance ?? (effectiveAccount as any).currentBalance ?? 0);
+  const currentEquity = Number(latestSnapshot?.equity ?? tradingAccountRow?.current_equity ?? tradingAccountRow?.currentEquity ?? (effectiveAccount as any).currentEquity ?? 0);
+  const highestEquity = Number(latestSnapshot?.highestEquity ?? (latestSnapshot as any)?.highest_equity ?? tradingAccountRow?.highest_equity ?? tradingAccountRow?.highestEquity ?? (effectiveAccount as any).highestEquityAllTime ?? 0);
 
-  const maxBalanceValue = Number(latestSnapshot?.maxBalance ?? latestSnapshot?.max_balance ?? currentBalance);
-  const dailyPnlValue = Number(latestSnapshot?.dailyPnl ?? latestSnapshot?.daily_pnl ?? 0);
-  const floatingPnlValue = Number(latestSnapshot?.floatingPnl ?? latestSnapshot?.floating_pnl ?? (currentEquity - currentBalance));
-  const drawdownValue = Number(latestSnapshot?.drawdown ?? Math.max(0, highestEquity - currentEquity));
+  const maxBalanceValue = Number((latestSnapshot as any)?.maxBalance ?? (latestSnapshot as any)?.max_balance ?? currentBalance);
+  const dailyPnlValue = Number((latestSnapshot as any)?.dailyPnl ?? (latestSnapshot as any)?.daily_pnl ?? 0);
+  const floatingPnlValue = Number((latestSnapshot as any)?.floatingPnl ?? (latestSnapshot as any)?.floating_pnl ?? (currentEquity - currentBalance));
+  const drawdownValue = Number((latestSnapshot as any)?.drawdown ?? Math.max(0, highestEquity - currentEquity));
 
-  const usedDailyLossPctValue = latestSnapshot?.usedDailyLossPct ?? latestSnapshot?.used_daily_loss_pct;
-  const usedTotalLossPctValue = latestSnapshot?.usedTotalLossPct ?? latestSnapshot?.used_total_loss_pct;
+  const usedDailyLossPctValue = (latestSnapshot as any)?.usedDailyLossPct ?? (latestSnapshot as any)?.used_daily_loss_pct;
+  const usedTotalLossPctValue = (latestSnapshot as any)?.usedTotalLossPct ?? (latestSnapshot as any)?.used_total_loss_pct;
 
   // KPIs
-  const closedTrades = useMemo(() => recentTrades.filter(t => !!(t.closeTime ?? t.close_time)), [recentTrades]);
+  const closedTrades = useMemo(() => recentTrades.filter(t => !!((t as any).closeTime ?? (t as any).close_time)), [recentTrades]);
   const totalTrades = closedTrades.length;
-  const wins = closedTrades.filter(t => Number(t.profit ?? 0) > 0);
-  const losses = closedTrades.filter(t => Number(t.profit ?? 0) < 0);
+  const wins = closedTrades.filter(t => Number((t as any).profit ?? 0) > 0);
+  const losses = closedTrades.filter(t => Number((t as any).profit ?? 0) < 0);
   const winRate = totalTrades > 0 ? (wins.length / totalTrades) * 100 : 0;
-  const totalPnl = closedTrades.reduce((s, t) => s + Number(t.profit ?? 0), 0);
-  const avgWin = wins.length > 0 ? wins.reduce((s, t) => s + Number(t.profit ?? 0), 0) / wins.length : 0;
-  const avgLoss = losses.length > 0 ? losses.reduce((s, t) => s + Math.abs(Number(t.profit ?? 0)), 0) / losses.length : 0;
+  const totalPnl = closedTrades.reduce((s, t) => s + Number((t as any).profit ?? 0), 0);
+  const avgWin = wins.length > 0 ? wins.reduce((s, t) => s + Number((t as any).profit ?? 0), 0) / wins.length : 0;
+  const avgLoss = losses.length > 0 ? losses.reduce((s, t) => s + Math.abs(Number((t as any).profit ?? 0)), 0) / losses.length : 0;
   const payoff = avgLoss > 0 ? avgWin / avgLoss : 0;
 
   const maxDrawdown = useMemo(() => {
@@ -296,8 +355,8 @@ const AccountDashboard = () => {
     ev.status === 'WARNING' || ev.progressPct > 70 ? 'bg-warning' :
     'bg-success';
 
-  const pnl = currentBalance - Number(account.startBalance ?? 0);
-  const pnlPct = Number(account.startBalance ?? 1) > 0 ? ((pnl / Number(account.startBalance)) * 100).toFixed(2) : '0.00';
+  const pnl = currentBalance - Number((effectiveAccount as any).startBalance ?? 0);
+  const pnlPct = Number((effectiveAccount as any).startBalance ?? 1) > 0 ? ((pnl / Number((effectiveAccount as any).startBalance)) * 100).toFixed(2) : '0.00';
 
   const kpiCards = [
     { label: 'Total de Trades', value: totalTrades.toLocaleString('pt-BR') },
@@ -398,7 +457,7 @@ const AccountDashboard = () => {
           <div className="grid grid-cols-3 gap-6 text-center">
             <div>
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Saldo Inicial</p>
-              <p className="font-mono font-bold text-foreground">{fmt(account.startBalance)}</p>
+              <p className="font-mono font-bold text-foreground">{fmt(Number((effectiveAccount as any).startBalance ?? 0))}</p>
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Equity Atual</p>
@@ -992,7 +1051,7 @@ const AccountDashboard = () => {
           <RuleExtractor
             onRulesExtracted={(extractedRules, firmName, _accountTypes, summary) => {
               setAppliedAiRules(extractedRules);
-              toast.success(`${extractedRules.length} regras de "${firmName}" aplicadas à conta ${account.nickname}`);
+              toast.success(`${extractedRules.length} regras de "${firmName}" aplicadas à conta ${headerNickname}`);
             }}
           />
 
