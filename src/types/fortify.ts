@@ -21,7 +21,7 @@ export type RuleStatus = 'APPROVING' | 'WARNING' | 'VIOLATED' | 'NOT_MET';
 export type RuleSetOrigin = 'template' | 'custom';
 export type AccountStatus = 'active' | 'violated' | 'passed';
 
-export type Mt5ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'syncing' | 'error';
+export type Mt5ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'syncing' | 'auth_error';
 
 export interface TradingAccount {
   id: string;
@@ -168,9 +168,9 @@ export const RULE_TYPE_LABELS: Record<RuleType, string> = {
   CONSISTENCY_BEST_DAY_CAP: 'Consistência (Best Day Cap)',
   INACTIVITY_LIMIT: 'Limite de Inatividade',
   NEWS_RESTRICTION_WINDOW: 'Restrição de Notícias',
-  SCALPING_RULE: 'Regra de Scalping',
-  MAX_STACKING_TRADES: 'Max Trades Simultâneos',
-  PROFIT_CAP_PAYOUT: 'Teto de Lucro/Payout',
+  SCALPING_RULE: 'Restrições sobre trades de curta duração (scalping).',
+  MAX_STACKING_TRADES: 'Limite de posições abertas simultâneas no mesmo símbolo.',
+  PROFIT_CAP_PAYOUT: 'Teto máximo de lucro por ciclo de saque.',
 };
 
 export const RULE_TYPE_DESCRIPTIONS: Record<RuleType, string> = {

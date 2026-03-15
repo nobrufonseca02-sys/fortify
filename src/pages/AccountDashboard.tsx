@@ -12,7 +12,6 @@ import { motion } from 'framer-motion';
 import { RuleExtractor } from '@/components/RuleExtractor';
 import type { TemplateRule } from '@/data/propFirmLibrary';
 import { toast } from 'sonner';
-import { createClient } from '@supabase/supabase-js';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
@@ -61,18 +60,8 @@ const mt5StatusConfig: Record<Mt5ConnectionStatus, { label: string; icon: typeof
   connecting: { label: 'Conectando', icon: RefreshCw, className: 'bg-warning/15 text-warning' },
   connected: { label: 'Conectada', icon: Link2, className: 'bg-success/15 text-success' },
   syncing: { label: 'Sincronizando', icon: RefreshCw, className: 'bg-primary/15 text-primary' },
-  authError: { label: 'Erro de autenticação', icon: AlertTriangle, className: 'bg-destructive/15 text-destructive' },
+  auth_error: { label: 'Erro de autenticação', icon: AlertTriangle, className: 'bg-destructive/15 text-destructive' },
 };
-
-const getSupabaseUrl = () =>
-  (import.meta as any)?.env?.VITE_SUPABASE_URL ||
-  (import.meta as any)?.env?.VITE_PUBLIC_SUPABASE_URL ||
-  (window as any)?.__SUPABASE_URL__;
-
-const getSupabaseAnonKey = () =>
-  (import.meta as any)?.env?.VITE_SUPABASE_ANON_KEY ||
-  (import.meta as any)?.env?.VITE_PUBLIC_SUPABASE_ANON_KEY ||
-  (window as any)?.__SUPABASE_ANON_KEY__;
 
 const AccountDashboard = () => {
   const { id } = useParams<{ id: string }>();
@@ -93,12 +82,7 @@ const AccountDashboard = () => {
   const [tradingAccountRow, setTradingAccountRow] = useState<any | null>(null);
   const [dbAccountLoaded, setDbAccountLoaded] = useState(false);
 
-  const supabaseUrl = getSupabaseUrl();
-  const supabaseAnonKey = getSupabaseAnonKey();
-  const supabase = useMemo(() => {
-    if (!supabaseUrl || !supabaseAnonKey) return null;
-    return createClient(supabaseUrl, supabaseAnonKey, { auth: { persistSession: true } });
-  }, [supabaseUrl, supabaseAnonKey]);
+  const supabase = (window as any)?.supabase;
 
   const [showMt5Dialog, setShowMt5Dialog] = useState(false);
   const [savingMt5Dialog, setSavingMt5Dialog] = useState(false);
@@ -462,7 +446,7 @@ const AccountDashboard = () => {
   const StatusIcon = sc.icon;
 
   const rawConnectionStatus = connection?.connectionStatus ?? connection?.connection_status ?? 'disconnected';
-  const connectionStatus = (rawConnectionStatus === 'auth_error' ? 'authError' : rawConnectionStatus) as Mt5ConnectionStatus;
+  const connectionStatus = (rawConnectionStatus || 'disconnected') as Mt5ConnectionStatus;
   const mt5c = mt5StatusConfig[connectionStatus] || mt5StatusConfig.disconnected;
   const Mt5Icon = mt5c.icon;
 
@@ -540,7 +524,7 @@ const AccountDashboard = () => {
     if (ev.status === 'NOT_MET' && ev.progressPct < 50) alerts.push({ text: `${ev.rule.name}: ${ev.message}`, severity: 'info' });
   });
 
-  if ((connectionStatus === 'authError' || connectionStatus === 'disconnected') && (connection?.syncError || connection?.sync_error)) {
+  if ((connectionStatus === 'auth_error' || connectionStatus === 'disconnected') && (connection?.syncError || connection?.sync_error)) {
     alerts.unshift({ text: `MT5: ${connection?.syncError || connection?.sync_error}`, severity: 'danger' });
   }
 
