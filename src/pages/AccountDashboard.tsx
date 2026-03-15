@@ -983,7 +983,7 @@ const AccountDashboard = () => {
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Perda Flutuante</h3>
             <div className="flex items-end justify-between">
               <span className={`text-2xl font-mono font-bold ${floatingLoss < 0 ? 'text-destructive' : 'text-success'}`}>
-                {floatingLoss < 0 ? `-${fmt(Math.abs(floatingLoss))}` : fmt(floatingLoss)}
+                {fmtSigned(floatingLoss)}
               </span>
               {floatingLimit > 0 && <span className="text-sm font-mono text-muted-foreground">/ {fmt(floatingLimit)}</span>}
             </div>
