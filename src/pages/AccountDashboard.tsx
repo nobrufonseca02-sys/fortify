@@ -6,7 +6,7 @@ import { RuleEvaluation, type Mt5ConnectionStatus, type Trade, type OpenPosition
 import {
   Shield, ShieldAlert, ShieldX, AlertTriangle, ArrowLeft,
   Lightbulb, Bell, TrendingDown, Target, Activity, Sparkles,
-  Link2, RefreshCw, XCircle
+  Link2, RefreshCw, XCircle, Settings2
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { RuleExtractor } from '@/components/RuleExtractor';
@@ -29,6 +29,9 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 const fmt = (v: number) => `$${Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`;
 const fmtSigned = (v: number | undefined | null) => {
@@ -96,6 +99,84 @@ const AccountDashboard = () => {
     if (!supabaseUrl || !supabaseAnonKey) return null;
     return createClient(supabaseUrl, supabaseAnonKey, { auth: { persistSession: true } });
   }, [supabaseUrl, supabaseAnonKey]);
+
+  const [showMt5Dialog, setShowMt5Dialog] = useState(false);
+  const [savingMt5Dialog, setSavingMt5Dialog] = useState(false);
+  const [editingMt5ConnectionId, setEditingMt5ConnectionId] = useState<string | null>(null);
+  const [dialogMt5Login, setDialogMt5Login] = useState('');
+  const [dialogMt5Server, setDialogMt5Server] = useState('');
+  const [dialogBrokerName, setDialogBrokerName] = useState('');
+  const [dialogProvider, setDialogProvider] = useState('');
+  const [dialogStatus, setDialogStatus] = useState<string>('disconnected');
+
+  const openMt5Dialog = async () => {
+    if (!id) return;
+
+    setEditingMt5ConnectionId(connection?.id ? String(connection.id) : null);
+    setDialogMt5Login(String(connection?.mt5_login ?? connection?.mt5Login ?? ''));
+    setDialogMt5Server(String(connection?.mt5_server ?? connection?.mt5Server ?? ''));
+    setDialogBrokerName(String(connection?.broker_name ?? connection?.brokerName ?? ''));
+    setDialogProvider(String(connection?.provider ?? ''));
+    setDialogStatus(String(connection?.connection_status ?? connection?.connectionStatus ?? 'disconnected'));
+
+    setShowMt5Dialog(true);
+  };
+
+  const handleMt5DialogSave = async () => {
+    if (!supabase || !id) {
+      toast.error('Supabase indisponível. Não foi possível salvar a conexão.');
+      return;
+    }
+
+    if (!dialogMt5Login || !dialogMt5Server || !dialogBrokerName || !dialogProvider) return;
+
+    setSavingMt5Dialog(true);
+    try {
+      if (editingMt5ConnectionId) {
+        const res = await supabase
+          .from('mt5_connections')
+          .update({
+            trading_account_id: id,
+            mt5_login: dialogMt5Login,
+            mt5_server: dialogMt5Server,
+            broker_name: dialogBrokerName,
+            provider: dialogProvider,
+          })
+          .eq('id', editingMt5ConnectionId)
+          .select('*')
+          .single();
+
+        if (res.error) throw res.error;
+        setConnection(res.data ?? null);
+        setDialogStatus(String(res.data?.connection_status ?? dialogStatus));
+        toast.success('Conexão MT5 atualizada.');
+      } else {
+        const res = await supabase
+          .from('mt5_connections')
+          .insert({
+            trading_account_id: id,
+            mt5_login: dialogMt5Login,
+            mt5_server: dialogMt5Server,
+            broker_name: dialogBrokerName,
+            provider: dialogProvider,
+          })
+          .select('*')
+          .single();
+
+        if (res.error) throw res.error;
+        setEditingMt5ConnectionId(String(res.data?.id ?? ''));
+        setConnection(res.data ?? null);
+        setDialogStatus(String(res.data?.connection_status ?? 'disconnected'));
+        toast.success('Conexão MT5 registrada.');
+      }
+
+      setShowMt5Dialog(false);
+    } catch (e: any) {
+      toast.error(e?.message || 'Erro ao salvar conexão. Tente novamente.');
+    } finally {
+      setSavingMt5Dialog(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -455,7 +536,27 @@ const AccountDashboard = () => {
                 {connection ? 'Conexão vinculada à conta' : 'Conta ainda não conectada ao MT5'}
               </p>
             </div>
-            <p className="text-[10px] text-muted-foreground">public.mt5_connections</p>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Button
+                variant={connection ? 'outline' : 'default'}
+                size="sm"
+                onClick={openMt5Dialog}
+                className={connection ? '' : 'btn-glow'}
+                disabled={!id}
+              >
+                {connection ? (
+                  <>
+                    <Settings2 className="w-4 h-4" />
+                    Atualizar credenciais
+                  </>
+                ) : (
+                  <>
+                    <Link2 className="w-4 h-4" />
+                    Conectar conta
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
 
           {!connection ? (
@@ -491,6 +592,47 @@ const AccountDashboard = () => {
             </div>
           )}
         </div>
+
+        <Dialog open={showMt5Dialog} onOpenChange={setShowMt5Dialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{editingMt5ConnectionId ? 'Atualizar conexão MT5' : 'Conectar conta MT5'}</DialogTitle>
+              <DialogDescription>
+                Informe os dados da sua conexão. Esta etapa apenas cadastra/atualiza credenciais em mt5_connections.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Login MT5</label>
+                <Input value={dialogMt5Login} onChange={e => setDialogMt5Login(e.target.value)} placeholder="Ex.: 12345678" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Servidor MT5</label>
+                <Input value={dialogMt5Server} onChange={e => setDialogMt5Server(e.target.value)} placeholder="Ex.: ICMarketsSC-Live" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Broker</label>
+                <Input value={dialogBrokerName} onChange={e => setDialogBrokerName(e.target.value)} placeholder="Ex.: ICMarkets, Pepperstone" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Provider</label>
+                <Input value={dialogProvider} onChange={e => setDialogProvider(e.target.value)} placeholder="Ex.: mt5" />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-2">
+              <span className="text-[10px] text-muted-foreground">Status atual: {dialogStatus}</span>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowMt5Dialog(false)} disabled={savingMt5Dialog}>Cancelar</Button>
+              <Button onClick={handleMt5DialogSave} disabled={savingMt5Dialog || !dialogMt5Login || !dialogMt5Server || !dialogBrokerName || !dialogProvider}>
+                Salvar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </section>
 
       {/* === STATUS DA CONTA (saúde) === */}
