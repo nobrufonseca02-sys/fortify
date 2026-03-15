@@ -2,7 +2,7 @@ import { MOCK_EVALUATIONS, RULE_SET_TEMPLATES } from '@/data/mockData';
 import { useAccountsStore } from '@/hooks/useAccountsStore';
 import { TradingAccount } from '@/types/fortify';
 import {
-  AlertTriangle, Shield, ShieldAlert, ShieldX, Target, Lightbulb,
+  Shield, ShieldAlert, ShieldX, Lightbulb,
   TrendingUp, TrendingDown, Activity, Zap, ChevronRight, ArrowUpRight
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
