@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RULE_SET_TEMPLATES, TEMPLATE_RULES, MOCK_EVALUATIONS } from '@/data/mockData';
 import { TradingAccount } from '@/types/fortify';
@@ -12,7 +12,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { createClient } from '@supabase/supabase-js';
 
 // Re-export for backward compatibility
 export { useAccountsStore } from '@/hooks/useAccountsStore';
@@ -33,60 +32,11 @@ const StatusBadge = ({ status }: { status: 'SAFE' | 'WARNING' | 'VIOLATED' }) =>
   );
 };
 
-const getSupabaseUrl = () =>
-  (import.meta as any)?.env?.VITE_SUPABASE_URL ||
-  (import.meta as any)?.env?.VITE_PUBLIC_SUPABASE_URL ||
-  (window as any)?.__SUPABASE_URL__;
-
-const getSupabaseAnonKey = () =>
-  (import.meta as any)?.env?.VITE_SUPABASE_ANON_KEY ||
-  (import.meta as any)?.env?.VITE_PUBLIC_SUPABASE_ANON_KEY ||
-  (window as any)?.__SUPABASE_ANON_KEY__;
-
-function mapTradingAccountsToStoreAccounts(rows: any[]): TradingAccount[] {
-  return (rows || []).map((r) => {
-    const startBalance = Number(r.start_balance ?? r.startBalance ?? 0);
-    const currentBalance = Number(r.current_balance ?? r.currentBalance ?? startBalance);
-    const currentEquity = Number(r.current_equity ?? r.currentEquity ?? currentBalance);
-    const highestEquityAllTime = Number(r.highest_equity ?? r.highestEquity ?? currentEquity);
-
-    const mapped: TradingAccount = {
-      id: String(r.id),
-      userId: String(r.user_id ?? r.userId ?? ''),
-      nickname: String(r.nickname ?? ''),
-      broker: String(r.broker ?? ''),
-      baseCurrency: 'USD',
-      startBalance,
-      currentBalance,
-      currentEquity,
-      highestEquityAllTime,
-      status: (r.status as any) ?? 'active',
-      ruleSetId: 'custom',
-      createdAt: String((r.created_at ?? r.createdAt ?? new Date().toISOString()).split('T')[0]),
-
-      mt5Server: r.mt5_server ?? r.mt5Server ?? undefined,
-      mt5Login: r.mt5_login ?? r.mt5Login ?? undefined,
-      accountType: r.account_type ?? r.accountType ?? undefined,
-      propFirm: r.prop_firm ?? r.propFirm ?? undefined,
-    };
-
-    return mapped;
-  });
-}
-
 const Accounts = () => {
   const navigate = useNavigate();
   const { accounts, addAccount, removeAccount } = useAccountsStore();
   const { user } = useAuth();
   const [showForm, setShowForm] = useState(false);
-  const [loadingDbAccounts, setLoadingDbAccounts] = useState(false);
-
-  const supabaseUrl = getSupabaseUrl();
-  const supabaseAnonKey = getSupabaseAnonKey();
-  const supabase = useMemo(() => {
-    if (!supabaseUrl || !supabaseAnonKey) return null;
-    return createClient(supabaseUrl, supabaseAnonKey, { auth: { persistSession: true } });
-  }, [supabaseUrl, supabaseAnonKey]);
 
   // Form state
   const [nickname, setNickname] = useState('');
@@ -96,119 +46,31 @@ const Accounts = () => {
   const [startBalance, setStartBalance] = useState('');
   const [selectedRuleSetId, setSelectedRuleSetId] = useState(RULE_SET_TEMPLATES[0].id);
 
-  const selectedRules = TEMPLATE_RULES.filter(r => r.ruleSetId === selectedRuleSetId);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadFromDb = async () => {
-      if (!supabase || !user?.id) return;
-
-      setLoadingDbAccounts(true);
-      try {
-        const res = await supabase
-          .from('trading_accounts')
-          .select('id,user_id,nickname,broker,mt5_server,mt5_login,account_type,prop_firm,start_balance,current_balance,current_equity,highest_equity,status,created_at,updated_at')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
-
-        if (res.error) throw res.error;
-
-        const mapped = mapTradingAccountsToStoreAccounts(res.data ?? []);
-        if (cancelled) return;
-
-        // Keep store as fallback; DB becomes primary
-        const existingIds = new Set(accounts.map(a => a.id));
-        mapped.forEach(acc => {
-          if (!existingIds.has(acc.id)) addAccount(acc);
-        });
-      } catch {
-        // silently keep local store as temporary fallback
-      } finally {
-        if (!cancelled) setLoadingDbAccounts(false);
-      }
-    };
-
-    loadFromDb();
-
-    return () => {
-      cancelled = true;
-    };
-    // intentional: run when auth/supabase ready
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supabase, user?.id]);
+  const selectedRules = useMemo(() => TEMPLATE_RULES.filter(r => r.ruleSetId === selectedRuleSetId), [selectedRuleSetId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const balance = parseFloat(startBalance);
     if (!nickname || !broker || !startBalance || isNaN(balance)) return;
 
-    // Prefer DB
-    if (supabase && user?.id) {
-      try {
-        const insertRes = await supabase
-          .from('trading_accounts')
-          .insert({
-            user_id: user.id,
-            nickname,
-            broker: `${broker}${origin ? ` - ${origin}` : ''}`,
-            start_balance: balance,
-            current_balance: balance,
-            current_equity: balance,
-            highest_equity: balance,
-            status: 'active',
-          })
-          .select('id,user_id,nickname,broker,mt5_server,mt5_login,account_type,prop_firm,start_balance,current_balance,current_equity,highest_equity,status,created_at,updated_at')
-          .single();
+    // Lovable Cloud is the official backend; keep local store behavior here.
+    const newAccount: TradingAccount = {
+      id: `acc-${Date.now()}`,
+      userId: user?.id || 'u1',
+      nickname,
+      broker: `${broker}${origin ? ` - ${origin}` : ''}`,
+      baseCurrency,
+      startBalance: balance,
+      currentBalance: balance,
+      currentEquity: balance,
+      highestEquityAllTime: balance,
+      status: 'active',
+      ruleSetId: selectedRuleSetId,
+      createdAt: new Date().toISOString().split('T')[0],
+    };
 
-        if (insertRes.error) throw insertRes.error;
-
-        const mapped = mapTradingAccountsToStoreAccounts([insertRes.data])[0];
-        addAccount({
-          ...mapped,
-          baseCurrency,
-          ruleSetId: selectedRuleSetId,
-        });
-
-        toast({ title: 'Conta criada', description: 'Conta real salva em trading_accounts.' });
-      } catch {
-        // fallback store
-        const newAccount: TradingAccount = {
-          id: `acc-${Date.now()}`,
-          userId: user?.id || 'u1',
-          nickname,
-          broker: `${broker}${origin ? ` - ${origin}` : ''}`,
-          baseCurrency,
-          startBalance: balance,
-          currentBalance: balance,
-          currentEquity: balance,
-          highestEquityAllTime: balance,
-          status: 'active',
-          ruleSetId: selectedRuleSetId,
-          createdAt: new Date().toISOString().split('T')[0],
-        };
-        addAccount(newAccount);
-        toast({ title: 'Conta criada (fallback)', description: 'Supabase indisponível. Conta criada localmente.' });
-      }
-    } else {
-      // fallback store
-      const newAccount: TradingAccount = {
-        id: `acc-${Date.now()}`,
-        userId: user?.id || 'u1',
-        nickname,
-        broker: `${broker}${origin ? ` - ${origin}` : ''}`,
-        baseCurrency,
-        startBalance: balance,
-        currentBalance: balance,
-        currentEquity: balance,
-        highestEquityAllTime: balance,
-        status: 'active',
-        ruleSetId: selectedRuleSetId,
-        createdAt: new Date().toISOString().split('T')[0],
-      };
-
-      addAccount(newAccount);
-    }
+    addAccount(newAccount);
+    toast({ title: 'Conta criada', description: 'Conta adicionada localmente.' });
 
     setShowForm(false);
     setNickname('');
@@ -225,9 +87,6 @@ const Accounts = () => {
         <div>
           <h1 className="text-lg font-bold text-foreground">Minhas Contas</h1>
           <p className="text-xs text-muted-foreground">Cadastre e gerencie suas contas de trading.</p>
-          {loadingDbAccounts && (
-            <p className="text-[10px] text-muted-foreground mt-1">Carregando contas reais...</p>
-          )}
         </div>
         <button
           onClick={() => navigate('/accounts/new')}
