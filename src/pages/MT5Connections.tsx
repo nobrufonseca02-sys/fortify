@@ -52,6 +52,7 @@ const MT5Connections = () => {
   const [editingConnectionId, setEditingConnectionId] = useState<string | null>(null);
   const [showAccountDialog, setShowAccountDialog] = useState(false);
   const [savingAccountDialog, setSavingAccountDialog] = useState(false);
+  const [syncingNow, setSyncingNow] = useState(false);
 
   // Form (global list)
   const [accountName, setAccountName] = useState('');
@@ -175,6 +176,31 @@ const MT5Connections = () => {
     }
   };
 
+  const handleSyncNow = async () => {
+    if (!supabase || !tradingAccountId) {
+      toast({ title: 'Supabase indisponível', description: 'Nao foi possivel sincronizar.', variant: 'destructive' });
+      return;
+    }
+
+    setSyncingNow(true);
+    try {
+      const res = await supabase.functions.invoke('sync-mt5-account', {
+        body: { tradingAccountId: tradingAccountId },
+      });
+
+      if ((res as any)?.error) {
+        const err: any = (res as any).error;
+        throw new Error(err?.message || 'Falha ao sincronizar.');
+      }
+
+      toast({ title: 'Sincronizacao concluida', description: 'Dados atualizados via Edge Function.' });
+    } catch (e: any) {
+      toast({ title: 'Erro na sincronizacao', description: e?.message || 'Tente novamente.', variant: 'destructive' });
+    } finally {
+      setSyncingNow(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!accountName || !mt5Login || !mt5Server || !brokerName) return;
@@ -250,6 +276,16 @@ const MT5Connections = () => {
             </div>
 
             <div className="flex items-center gap-2 flex-shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSyncNow}
+                disabled={!scopedConnection || syncingNow}
+              >
+                <RefreshCw className={`w-4 h-4 ${syncingNow ? 'animate-spin' : ''}`} />
+                Sincronizar agora
+              </Button>
+
               <Button
                 variant={scopedConnection ? 'outline' : 'default'}
                 size="sm"
@@ -330,8 +366,8 @@ const MT5Connections = () => {
         <div className="space-y-1">
           <p className="text-sm font-medium text-foreground">Sincronizacao automatica</p>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Ao registrar sua conta MT5, o backend externo validara a conexao e sincronizara automaticamente historico de trades,
-            posicoes abertas e snapshots diarios. Os dados alimentam KPIs, regras e alertas em tempo real.
+            Ao registrar sua conta MT5, o backend validara a conexao e sincronizara historico de trades,
+            posicoes abertas e snapshots diarios. Use "Sincronizar agora" para executar manualmente.
           </p>
         </div>
       </div>

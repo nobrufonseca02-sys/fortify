@@ -109,6 +109,8 @@ const AccountDashboard = () => {
   const [dialogProvider, setDialogProvider] = useState('');
   const [dialogStatus, setDialogStatus] = useState<string>('disconnected');
 
+  const [syncingNow, setSyncingNow] = useState(false);
+
   const openMt5Dialog = async () => {
     if (!id) return;
 
@@ -175,6 +177,119 @@ const AccountDashboard = () => {
       toast.error(e?.message || 'Erro ao salvar conexão. Tente novamente.');
     } finally {
       setSavingMt5Dialog(false);
+    }
+  };
+
+  const reloadAccountData = async () => {
+    if (!supabase || !id) return;
+
+    setLoadingMt5Data(true);
+    setMt5DataError(null);
+
+    try {
+      const [accRes, connRes, posRes, tradesRes, snapRes] = await Promise.all([
+        supabase
+          .from('trading_accounts')
+          .select('id,nickname,broker,mt5_server,mt5_login,account_type,prop_firm,start_balance,current_balance,current_equity,highest_equity,status,created_at,updated_at')
+          .eq('id', id)
+          .maybeSingle(),
+        supabase
+          .from('mt5_connections')
+          .select('*')
+          .eq('trading_account_id', id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from('open_positions')
+          .select('*')
+          .eq('trading_account_id', id)
+          .order('updated_at', { ascending: false }),
+        supabase
+          .from('trades')
+          .select('*')
+          .eq('trading_account_id', id)
+          .order('close_time', { ascending: false, nullsFirst: false })
+          .order('open_time', { ascending: false })
+          .limit(200),
+        supabase
+          .from('account_snapshots')
+          .select('*')
+          .eq('trading_account_id', id)
+          .order('date', { ascending: true })
+          .limit(365),
+      ]);
+
+      if (accRes.error) throw accRes.error;
+      if (connRes.error) throw connRes.error;
+      if (posRes.error) throw posRes.error;
+      if (tradesRes.error) throw tradesRes.error;
+      if (snapRes.error) throw snapRes.error;
+
+      setTradingAccountRow(accRes.data ?? null);
+      setConnection(connRes.data ?? null);
+      setOpenPositions((posRes.data ?? []) as OpenPosition[]);
+      setRecentTrades((tradesRes.data ?? []) as Trade[]);
+      setSnapshots((snapRes.data ?? []) as AccountSnapshot[]);
+
+      if (accRes.data && !account) {
+        const r = accRes.data as any;
+        const startBalance = Number(r.start_balance ?? 0);
+        const currentBalance = Number(r.current_balance ?? startBalance);
+        const currentEquity = Number(r.current_equity ?? currentBalance);
+        const highestEquityAllTime = Number(r.highest_equity ?? currentEquity);
+        addAccount({
+          id: String(r.id),
+          userId: String(r.user_id ?? ''),
+          nickname: String(r.nickname ?? ''),
+          broker: String(r.broker ?? ''),
+          baseCurrency: 'USD',
+          startBalance,
+          currentBalance,
+          currentEquity,
+          highestEquityAllTime,
+          status: (r.status as any) ?? 'active',
+          ruleSetId: 'custom',
+          createdAt: String((r.created_at ?? new Date().toISOString()).split('T')[0]),
+          mt5Server: r.mt5_server ?? undefined,
+          mt5Login: r.mt5_login ?? undefined,
+          accountType: r.account_type ?? undefined,
+          propFirm: r.prop_firm ?? undefined,
+        } as any);
+      }
+    } catch (e: any) {
+      const msg = e?.message || 'Falha ao carregar dados do MT5 via Supabase.';
+      setMt5DataError(msg);
+    } finally {
+      setLoadingMt5Data(false);
+      setDbAccountLoaded(true);
+    }
+  };
+
+  const handleSyncNow = async () => {
+    if (!supabase || !id) {
+      toast.error('Supabase indisponível.');
+      return;
+    }
+
+    setSyncingNow(true);
+    try {
+      const res = await supabase.functions.invoke('sync-mt5-account', {
+        body: { tradingAccountId: id },
+      });
+
+      if ((res as any)?.error) {
+        const err: any = (res as any).error;
+        throw new Error(err?.message || 'Falha ao sincronizar.');
+      }
+
+      toast.success('Sincronização iniciada/concluída. Atualizando dados...');
+      await reloadAccountData();
+    } catch (e: any) {
+      toast.error(e?.message || 'Erro ao sincronizar com o backend.');
+      await reloadAccountData();
+    } finally {
+      setSyncingNow(false);
     }
   };
 
@@ -538,6 +653,15 @@ const AccountDashboard = () => {
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSyncNow}
+                disabled={!id || !connection || syncingNow}
+              >
+                <RefreshCw className={`w-4 h-4 ${syncingNow ? 'animate-spin' : ''}`} />
+                Sincronizar agora
+              </Button>
+              <Button
                 variant={connection ? 'outline' : 'default'}
                 size="sm"
                 onClick={openMt5Dialog}
@@ -562,7 +686,7 @@ const AccountDashboard = () => {
           {!connection ? (
             <div className="p-4">
               <p className="text-xs text-muted-foreground">Conta ainda não conectada ao MT5. Conecte a conta para iniciar sincronização.</p>
-              <p className="text-[10px] text-muted-foreground mt-1">Esta conexão será a base para a futura sincronização automática via backend externo.</p>
+              <p className="text-[10px] text-muted-foreground mt-1">A sincronização acontece via Edge Function server-side no Lovable Cloud.</p>
             </div>
           ) : (
             <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -587,7 +711,7 @@ const AccountDashboard = () => {
               </div>
 
               <div className="sm:col-span-2 lg:col-span-4">
-                <p className="text-[10px] text-muted-foreground">Esta conexão é a base para a futura sincronização automática via backend externo.</p>
+                <p className="text-[10px] text-muted-foreground">Use “Sincronizar agora” para chamar a Edge Function e gravar dados reais nas tabelas oficiais.</p>
               </div>
             </div>
           )}
@@ -1082,7 +1206,7 @@ const AccountDashboard = () => {
           </div>
         ) : (
           <div className="rounded-xl border border-border bg-card p-5">
-            <p className="text-xs text-muted-foreground">Sem dados suficientes para gráficos. Quando snapshots forem sincronizados via backend externo, os gráficos aparecerão aqui.</p>
+            <p className="text-xs text-muted-foreground">Sem dados suficientes para gráficos. Quando snapshots forem sincronizados via backend, os gráficos aparecerão aqui.</p>
           </div>
         )}
       </section>
