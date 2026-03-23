@@ -252,25 +252,8 @@ const AccountDashboard = () => {
       return;
     }
 
-    setSyncingNow(true);
-    try {
-      const res = await supabase.functions.invoke('sync-mt5-account', {
-        body: { tradingAccountId: id },
-      });
-
-      if ((res as any)?.error) {
-        const err: any = (res as any).error;
-        throw new Error(err?.message || 'Falha ao sincronizar.');
-      }
-
-      toast.success('Sincronização iniciada/concluída. Atualizando dados...');
-      await reloadAccountData();
-    } catch (e: any) {
-      toast.error(e?.message || 'Erro ao sincronizar com o backend.');
-      await reloadAccountData();
-    } finally {
-      setSyncingNow(false);
-    }
+    toast.error('Integração MT5 ainda não concluída: Edge Function "sync-mt5-account" não está disponível no Lovable Cloud neste projeto.');
+    return;
   };
 
   useEffect(() => {
@@ -518,6 +501,11 @@ const AccountDashboard = () => {
     alerts.unshift({ text: `Dados MT5/Supabase: ${mt5DataError}`, severity: 'info' });
   }
 
+  alerts.unshift({
+    text: 'MT5: refatoração/integracao ainda não concluída. No estado atual, não existe integração real funcional via Lovable Cloud (Edge Functions ausentes).',
+    severity: 'info',
+  });
+
   const barColorFor = (ev: RuleEvaluation | undefined) =>
     !ev ? 'bg-muted-foreground' :
     ev.status === 'VIOLATED' ? 'bg-destructive' :
@@ -626,6 +614,7 @@ const AccountDashboard = () => {
                 size="sm"
                 onClick={handleSyncNow}
                 disabled={!id || !connection || syncingNow}
+                title="Indisponível: Edge Function sync-mt5-account ainda não existe neste projeto"
               >
                 <RefreshCw className={`w-4 h-4 ${syncingNow ? 'animate-spin' : ''}`} />
                 Sincronizar agora
@@ -655,7 +644,7 @@ const AccountDashboard = () => {
           {!connection ? (
             <div className="p-4">
               <p className="text-xs text-muted-foreground">Conta ainda não conectada ao MT5. Conecte a conta para iniciar sincronização.</p>
-              <p className="text-[10px] text-muted-foreground mt-1">A sincronização acontece via Edge Function server-side no Lovable Cloud.</p>
+              <p className="text-[10px] text-muted-foreground mt-1">Observação: a integração real ainda não foi concluída neste projeto (Edge Functions ausentes).</p>
             </div>
           ) : (
             <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -680,7 +669,7 @@ const AccountDashboard = () => {
               </div>
 
               <div className="sm:col-span-2 lg:col-span-4">
-                <p className="text-[10px] text-muted-foreground">Use “Sincronizar agora” para chamar a Edge Function e gravar dados reais nas tabelas oficiais.</p>
+                <p className="text-[10px] text-muted-foreground">A sincronização server-side ainda não está operacional neste projeto. Este painel pode exibir dados somente se forem gravados no banco por outro processo.</p>
               </div>
             </div>
           )}
