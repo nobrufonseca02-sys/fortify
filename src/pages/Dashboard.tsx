@@ -9,7 +9,6 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 
-// === Helpers ===
 const fmt = (v: number) => `$${Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`;
 const pct = (v: number, t: number) => t > 0 ? Math.min(100, (v / t) * 100) : 0;
 
@@ -56,10 +55,9 @@ type AccountStatus = 'SAFE' | 'WARNING' | 'VIOLATED';
 const statusConfig: Record<AccountStatus, { label: string; color: string; bg: string; icon: typeof Shield; border: string; glow: string }> = {
   SAFE: { label: 'SEGURO', color: 'text-success', bg: 'bg-success/10', icon: Shield, border: 'border-success/20', glow: 'shadow-success/5' },
   WARNING: { label: 'ATENCAO', color: 'text-warning', bg: 'bg-warning/10', icon: ShieldAlert, border: 'border-warning/20', glow: 'shadow-warning/5' },
-  VIOLATED: { label: 'VIOLADO', color: 'text-destructive', bg: 'bg-destructive/10', icon: ShieldX, border: 'border-destructive/20', glow: 'shadow-destructive/5' },
+  VIOLATED: { label: 'VIOLADO', color: 'text-destructive', bg: 'bg-destructive/10', icon: ShieldX, border: 'border-destructive/20', glow: 'shadow-destructive/20' },
 };
 
-// === Progress Ring ===
 function ProgressRing({ value, size = 80, strokeWidth = 6, status }: { value: number; size?: number; strokeWidth?: number; status: AccountStatus }) {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
@@ -78,7 +76,7 @@ function ProgressRing({ value, size = 80, strokeWidth = 6, status }: { value: nu
           strokeDasharray={circumference}
           initial={{ strokeDashoffset: circumference }}
           animate={{ strokeDashoffset: offset }}
-          transition={{ duration: 1.2, ease: "easeOut" }}
+          transition={{ duration: 1.2, ease: 'easeOut' }}
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
@@ -88,7 +86,6 @@ function ProgressRing({ value, size = 80, strokeWidth = 6, status }: { value: nu
   );
 }
 
-// === Glow Bar ===
 function GlowBar({ value, max, variant = 'risk' }: { value: number; max: number; variant?: 'risk' | 'profit' }) {
   const p = pct(value, max);
   const color = variant === 'profit'
@@ -101,13 +98,12 @@ function GlowBar({ value, max, variant = 'risk' }: { value: number; max: number;
         className={`h-full rounded-full ${color}`}
         initial={{ width: 0 }}
         animate={{ width: `${Math.min(100, p)}%` }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
+        transition={{ duration: 0.8, ease: 'easeOut' }}
       />
     </div>
   );
 }
 
-// === Hero Card ===
 function HeroCard() {
   const { accounts } = useAccountsStore();
   const { user } = useAuth();
@@ -165,7 +161,6 @@ function HeroCard() {
   );
 }
 
-// === Decision Card ===
 function DecisionCard() {
   const { accounts } = useAccountsStore();
   const primary = accounts[0];
@@ -237,13 +232,12 @@ function DecisionCard() {
   );
 }
 
-// === Account Card ===
 function AccountCard({ account, index }: { account: TradingAccount; index: number }) {
   const navigate = useNavigate();
   const data = getAccountData(account);
   const sc = statusConfig[data.status];
   const StatusIcon = sc.icon;
-  const firmName = data.ruleSet?.firmName || data.ruleSet?.name || '—';
+  const brokerName = account.broker || '—';
 
   return (
     <motion.div
@@ -259,7 +253,7 @@ function AccountCard({ account, index }: { account: TradingAccount; index: numbe
         <div className="flex items-start justify-between mb-5">
           <div>
             <h3 className="font-bold text-foreground text-sm group-hover:text-primary transition-colors">{account.nickname}</h3>
-            <p className="text-[10px] text-muted-foreground mt-0.5">{firmName}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{brokerName}</p>
           </div>
           <div className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 ${sc.bg} border ${sc.border}`}>
             <StatusIcon className={`w-3 h-3 ${sc.color}`} />
@@ -331,7 +325,6 @@ function AccountCard({ account, index }: { account: TradingAccount; index: numbe
   );
 }
 
-// === Dashboard Page ===
 const Dashboard = () => {
   const { accounts } = useAccountsStore();
   const navigate = useNavigate();

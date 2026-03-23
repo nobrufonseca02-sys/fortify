@@ -72,7 +72,6 @@ const AccountDashboard = () => {
 
   const account = accounts.find(a => a.id === id);
 
-  // Supabase (dados reais - tabelas oficiais)
   const [loadingMt5Data, setLoadingMt5Data] = useState(false);
   const [mt5DataError, setMt5DataError] = useState<string | null>(null);
   const [openPositions, setOpenPositions] = useState<any[]>([]);
@@ -100,12 +99,12 @@ const AccountDashboard = () => {
     if (!id) return;
 
     setEditingMt5ConnectionId(connection?.id ? String(connection.id) : null);
-    setDialogMt5Login(String(connection?.mt5_login ?? connection?.mt5Login ?? ''));
-    setDialogMt5Server(String(connection?.mt5_server ?? connection?.mt5Server ?? ''));
-    setDialogBrokerName(String(connection?.broker_name ?? connection?.brokerName ?? ''));
-    setDialogProvider(String(connection?.provider ?? ''));
-    setDialogInvestorMode(Boolean(connection?.investor_mode ?? connection?.investorMode ?? false));
-    setDialogStatus(String(connection?.connection_status ?? connection?.connectionStatus ?? 'disconnected'));
+    setDialogMt5Login(String(connection?.mt5_login ?? ''));
+    setDialogMt5Server(String(connection?.mt5_server ?? ''));
+    setDialogBrokerName(String(connection?.broker_name ?? ''));
+    setDialogProvider(String(connection?.provider ?? 'mt5'));
+    setDialogInvestorMode(Boolean(connection?.investor_mode ?? false));
+    setDialogStatus(String(connection?.connection_status ?? 'disconnected'));
 
     setShowMt5Dialog(true);
   };
@@ -129,6 +128,8 @@ const AccountDashboard = () => {
         investor_mode: dialogInvestorMode,
       } as any;
 
+      let connectionId = editingMt5ConnectionId;
+
       if (editingMt5ConnectionId) {
         const res = await supabase
           .from('mt5_connections')
@@ -139,6 +140,7 @@ const AccountDashboard = () => {
 
         if (res.error) throw res.error;
         setConnection(res.data ?? null);
+        connectionId = String(res.data?.id ?? editingMt5ConnectionId);
         setDialogStatus(String(res.data?.connection_status ?? dialogStatus));
         toast.success('Conexão MT5 atualizada.');
       } else {
@@ -149,10 +151,19 @@ const AccountDashboard = () => {
           .single();
 
         if (res.error) throw res.error;
-        setEditingMt5ConnectionId(String(res.data?.id ?? ''));
+        connectionId = String(res.data?.id ?? '');
+        setEditingMt5ConnectionId(connectionId);
         setConnection(res.data ?? null);
         setDialogStatus(String(res.data?.connection_status ?? 'disconnected'));
         toast.success('Conexão MT5 registrada.');
+      }
+
+      if (connectionId) {
+        try {
+          await supabase.functions.invoke('connect-mt5-account', { body: { mt5ConnectionId: connectionId, tradingAccountId: id } });
+        } catch {
+          // silencioso
+        }
       }
 
       setShowMt5Dialog(false);
@@ -372,12 +383,11 @@ const AccountDashboard = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase, id]);
 
-  // Auto sync: tenta sincronizar automaticamente ao entrar no dashboard se já existir conexão e não estiver recente
   useEffect(() => {
     if (!supabase || !id) return;
     if (!connection?.id) return;
 
-    const lastSyncAt = connection?.last_sync_at ?? connection?.lastSyncAt;
+    const lastSyncAt = connection?.last_sync_at;
     const last = lastSyncAt ? new Date(lastSyncAt).getTime() : 0;
     const now = Date.now();
     const shouldSync = !last || (now - last) > 10 * 60 * 1000;
@@ -391,7 +401,7 @@ const AccountDashboard = () => {
         await supabase.functions.invoke('sync-mt5-account', { body: { tradingAccountId: id, reason: 'auto' } });
         if (!cancelled) await reloadAccountData();
       } catch {
-        // silencioso (evita spam de toast)
+        // silencioso
       }
     }, 800);
 
@@ -447,7 +457,6 @@ const AccountDashboard = () => {
   const dailyRemaining = dailyLoss ? Math.max(0, dailyLoss.limitValue - dailyLoss.currentValue) : 0;
   const maxLossRemaining = totalLoss ? Math.max(0, totalLoss.limitValue - totalLoss.currentValue) : 0;
 
-  // Floating loss (simulated as open P&L) - fallback quando snapshot ainda não existe
   const floatingLoss = (effectiveAccount as any).currentEquity - (effectiveAccount as any).currentBalance;
   const floatingLimit = dailyLoss ? dailyLoss.limitValue : 0;
 
@@ -461,36 +470,35 @@ const AccountDashboard = () => {
   const sc = statusConfig[status];
   const StatusIcon = sc.icon;
 
-  const rawConnectionStatus = connection?.connectionStatus ?? connection?.connection_status ?? 'disconnected';
+  const rawConnectionStatus = connection?.connection_status ?? 'disconnected';
   const connectionStatus = (rawConnectionStatus || 'disconnected') as Mt5ConnectionStatus;
   const mt5c = mt5StatusConfig[connectionStatus] || mt5StatusConfig.disconnected;
   const Mt5Icon = mt5c.icon;
 
   const headerNickname = tradingAccountRow?.nickname ?? (effectiveAccount as any).nickname;
   const headerBroker = tradingAccountRow?.broker ?? (effectiveAccount as any).broker;
-  const headerServer = connection?.mt5Server ?? connection?.mt5_server;
-  const headerLogin = connection?.mt5Login ?? connection?.mt5_login;
-  const lastSyncAt = connection?.lastSyncAt ?? connection?.last_sync_at;
+  const headerServer = connection?.mt5_server;
+  const headerLogin = connection?.mt5_login;
+  const lastSyncAt = connection?.last_sync_at;
   const provider = connection?.provider ?? '—';
-  const investorMode = connection?.investorMode ?? connection?.investor_mode;
-  const lastError = connection?.syncError ?? connection?.sync_error;
+  const investorMode = connection?.investor_mode;
+  const lastError = connection?.sync_error;
 
   const latestSnapshot = snapshots.length > 0 ? snapshots[snapshots.length - 1] : null;
 
-  const currentBalance = Number(latestSnapshot?.balance ?? tradingAccountRow?.current_balance ?? tradingAccountRow?.currentBalance ?? (effectiveAccount as any).currentBalance ?? 0);
-  const currentEquity = Number(latestSnapshot?.equity ?? tradingAccountRow?.current_equity ?? tradingAccountRow?.currentEquity ?? (effectiveAccount as any).currentEquity ?? 0);
-  const highestEquity = Number((latestSnapshot as any)?.highestEquity ?? (latestSnapshot as any)?.highest_equity ?? tradingAccountRow?.highest_equity ?? tradingAccountRow?.highestEquity ?? (effectiveAccount as any).highestEquityAllTime ?? 0);
+  const currentBalance = Number(latestSnapshot?.balance ?? tradingAccountRow?.current_balance ?? (effectiveAccount as any).currentBalance ?? 0);
+  const currentEquity = Number(latestSnapshot?.equity ?? tradingAccountRow?.current_equity ?? (effectiveAccount as any).currentEquity ?? 0);
+  const highestEquity = Number((latestSnapshot as any)?.highest_equity ?? tradingAccountRow?.highest_equity ?? (effectiveAccount as any).highestEquityAllTime ?? 0);
 
-  const maxBalanceValue = Number((latestSnapshot as any)?.maxBalance ?? (latestSnapshot as any)?.max_balance ?? currentBalance);
-  const dailyPnlValue = Number((latestSnapshot as any)?.dailyPnl ?? (latestSnapshot as any)?.daily_pnl ?? 0);
-  const floatingPnlValue = Number((latestSnapshot as any)?.floatingPnl ?? (latestSnapshot as any)?.floating_pnl ?? (currentEquity - currentBalance));
+  const maxBalanceValue = Number((latestSnapshot as any)?.max_balance ?? currentBalance);
+  const dailyPnlValue = Number((latestSnapshot as any)?.daily_pnl ?? 0);
+  const floatingPnlValue = Number((latestSnapshot as any)?.floating_pnl ?? (currentEquity - currentBalance));
   const drawdownValue = Number((latestSnapshot as any)?.drawdown ?? Math.max(0, highestEquity - currentEquity));
 
-  const usedDailyLossPctValue = (latestSnapshot as any)?.usedDailyLossPct ?? (latestSnapshot as any)?.used_daily_loss_pct;
-  const usedTotalLossPctValue = (latestSnapshot as any)?.usedTotalLossPct ?? (latestSnapshot as any)?.used_total_loss_pct;
+  const usedDailyLossPctValue = (latestSnapshot as any)?.used_daily_loss_pct;
+  const usedTotalLossPctValue = (latestSnapshot as any)?.used_total_loss_pct;
 
-  // KPIs
-  const closedTrades = useMemo(() => recentTrades.filter(t => !!((t as any).closeTime ?? (t as any).close_time)), [recentTrades]);
+  const closedTrades = useMemo(() => recentTrades.filter(t => !!((t as any).close_time)), [recentTrades]);
   const totalTrades = closedTrades.length;
   const wins = closedTrades.filter(t => Number((t as any).profit ?? 0) > 0);
   const losses = closedTrades.filter(t => Number((t as any).profit ?? 0) < 0);
@@ -508,7 +516,6 @@ const AccountDashboard = () => {
   const currentDrawdown = drawdownValue;
   const recoveryNeeded = currentDrawdown;
 
-  // Recommendations
   const recommendations: string[] = [];
   recommendations.push(`Você ainda pode perder hoje: ${fmt(dailyRemaining)}`);
   if (dailyLoss && dailyLoss.progressPct > 70) {
@@ -531,7 +538,6 @@ const AccountDashboard = () => {
   else if (avgRisk > 45) recommendations.push('Reduza o tamanho dos lotes nos próximos trades');
   else recommendations.push('Risco controlado, mantenha a estratégia');
 
-  // Alerts
   const alerts: { text: string; severity: 'warning' | 'danger' | 'info' }[] = [];
   evals.forEach(ev => {
     if (ev.status === 'WARNING') alerts.push({ text: `${ev.rule.name}: ${ev.message}`, severity: 'warning' });
@@ -539,8 +545,8 @@ const AccountDashboard = () => {
     if (ev.status === 'NOT_MET' && ev.progressPct < 50) alerts.push({ text: `${ev.rule.name}: ${ev.message}`, severity: 'info' });
   });
 
-  if ((connectionStatus === 'authError' || connectionStatus === 'disconnected') && (connection?.syncError || connection?.sync_error)) {
-    alerts.unshift({ text: `MT5: ${connection?.syncError || connection?.sync_error}`, severity: 'danger' });
+  if ((connectionStatus === 'authError' || connectionStatus === 'disconnected') && lastError) {
+    alerts.unshift({ text: `MT5: ${lastError}`, severity: 'danger' });
   }
 
   if (mt5DataError) {
@@ -578,7 +584,7 @@ const AccountDashboard = () => {
           balance: Number((s as any).balance ?? 0),
           equity: Number((s as any).equity ?? 0),
           drawdown: Number((s as any).drawdown ?? 0),
-          dailyPnl: Number((s as any).dailyPnl ?? (s as any).daily_pnl ?? 0),
+          dailyPnl: Number((s as any).daily_pnl ?? 0),
         };
       });
   }, [snapshots]);
@@ -587,7 +593,6 @@ const AccountDashboard = () => {
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
-      {/* Back + Tabs */}
       <div className="flex items-center justify-between">
         <button onClick={() => navigate('/')} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="w-3.5 h-3.5" /> Voltar ao Painel
@@ -610,7 +615,6 @@ const AccountDashboard = () => {
       </div>
 
       {activeTab === 'dashboard' && (<>
-      {/* Header da conta + MT5 status */}
       <div className="rounded-xl border border-border bg-card p-4 flex items-center gap-3">
         <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full ${mt5c.className}`}>
           <Mt5Icon className={`w-3 h-3 ${connectionStatus === 'connecting' || connectionStatus === 'syncing' ? 'animate-spin' : ''}`} />
@@ -631,7 +635,6 @@ const AccountDashboard = () => {
         </div>
       </div>
 
-      {/* Bloco consolidado da conexão MT5 (real Supabase: public.mt5_connections) */}
       <section>
         <div className="flex items-center gap-2 mb-4">
           <Link2 className="w-4 h-4 text-primary" />
@@ -766,7 +769,6 @@ const AccountDashboard = () => {
         </Dialog>
       </section>
 
-      {/* === STATUS DA CONTA (saúde) === */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
@@ -807,7 +809,6 @@ const AccountDashboard = () => {
         </div>
       </motion.div>
 
-      {/* === VISÃO GERAL DA CONTA === */}
       <section>
         <div className="flex items-center gap-2 mb-4">
           <Activity className="w-4 h-4 text-primary" />
@@ -879,7 +880,6 @@ const AccountDashboard = () => {
         ) : null}
       </section>
 
-      {/* === POSIÇÕES ABERTAS === */}
       <section>
         <div className="flex items-center gap-2 mb-4">
           <Activity className="w-4 h-4 text-primary" />
@@ -914,14 +914,14 @@ const AccountDashboard = () => {
               </TableHeader>
               <TableBody>
                 {openPositions.map((p) => {
-                  const fp = Number((p as any).floatingPnl ?? (p as any).floating_pnl ?? 0);
+                  const fp = Number((p as any).floating_pnl ?? 0);
                   const side = (p as any).side;
-                  const openTime = (p as any).openTime ?? (p as any).open_time;
-                  const updatedAt = (p as any).updatedAt ?? (p as any).updated_at;
-                  const openPrice = (p as any).openPrice ?? (p as any).open_price;
-                  const currentPrice = (p as any).currentPrice ?? (p as any).current_price;
-                  const stopLoss = (p as any).stopLoss ?? (p as any).stop_loss;
-                  const takeProfit = (p as any).takeProfit ?? (p as any).take_profit;
+                  const openTime = (p as any).open_time;
+                  const updatedAt = (p as any).updated_at;
+                  const openPrice = (p as any).open_price;
+                  const currentPrice = (p as any).current_price;
+                  const stopLoss = (p as any).stop_loss;
+                  const takeProfit = (p as any).take_profit;
 
                   return (
                     <TableRow key={(p as any).id}>
@@ -949,7 +949,6 @@ const AccountDashboard = () => {
         </div>
       </section>
 
-      {/* === HISTÓRICO DE TRADES === */}
       <section>
         <div className="flex items-center gap-2 mb-4">
           <Activity className="w-4 h-4 text-primary" />
@@ -987,10 +986,10 @@ const AccountDashboard = () => {
                 {closedTrades.slice(0, 50).map((t) => {
                   const profit = Number((t as any).profit ?? 0);
                   const side = (t as any).side;
-                  const openTime = (t as any).openTime ?? (t as any).open_time;
-                  const closeTime = (t as any).closeTime ?? (t as any).close_time;
-                  const openPrice = (t as any).openPrice ?? (t as any).open_price;
-                  const closePrice = (t as any).closePrice ?? (t as any).close_price;
+                  const openTime = (t as any).open_time;
+                  const closeTime = (t as any).close_time;
+                  const openPrice = (t as any).open_price;
+                  const closePrice = (t as any).close_price;
                   const swap = (t as any).swap;
                   const commission = (t as any).commission;
 
@@ -1026,7 +1025,6 @@ const AccountDashboard = () => {
         </div>
       </section>
 
-      {/* === SNAPSHOTS DA CONTA === */}
       <section>
         <div className="flex items-center gap-2 mb-4">
           <Activity className="w-4 h-4 text-primary" />
@@ -1061,11 +1059,11 @@ const AccountDashboard = () => {
               <TableBody>
                 {snapshots.slice(-30).reverse().map((s) => {
                   const date = (s as any).date;
-                  const dailyPnl = Number((s as any).dailyPnl ?? (s as any).daily_pnl ?? 0);
-                  const floatingPnl = Number((s as any).floatingPnl ?? (s as any).floating_pnl ?? 0);
-                  const usedDaily = (s as any).usedDailyLossPct ?? (s as any).used_daily_loss_pct;
-                  const usedTotal = (s as any).usedTotalLossPct ?? (s as any).used_total_loss_pct;
-                  const maxBal = (s as any).maxBalance ?? (s as any).max_balance;
+                  const dailyPnl = Number((s as any).daily_pnl ?? 0);
+                  const floatingPnl = Number((s as any).floating_pnl ?? 0);
+                  const usedDaily = (s as any).used_daily_loss_pct;
+                  const usedTotal = (s as any).used_total_loss_pct;
+                  const maxBal = (s as any).max_balance;
 
                   return (
                     <TableRow key={(s as any).id}>
@@ -1093,7 +1091,6 @@ const AccountDashboard = () => {
         </div>
       </section>
 
-      {/* === KPIs OPERACIONAIS === */}
       <section>
         <div className="flex items-center gap-2 mb-4">
           <Target className="w-4 h-4 text-primary" />
@@ -1114,7 +1111,6 @@ const AccountDashboard = () => {
         </div>
       </section>
 
-      {/* === GRÁFICOS E VISUALIZAÇÃO === */}
       <section>
         <div className="flex items-center gap-2 mb-4">
           <Activity className="w-4 h-4 text-primary" />
@@ -1218,14 +1214,12 @@ const AccountDashboard = () => {
         )}
       </section>
 
-      {/* === RISCO DA CONTA (mantido) === */}
       <section>
         <div className="flex items-center gap-2 mb-4">
           <TrendingDown className="w-4 h-4 text-destructive" />
           <h2 className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Risco da Conta</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Daily Loss */}
           <div className="rounded-xl border border-border bg-card p-5 space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Perda Diária</h3>
             <div className="flex items-end justify-between">
@@ -1238,7 +1232,6 @@ const AccountDashboard = () => {
             </p>
           </div>
 
-          {/* Max Loss */}
           <div className="rounded-xl border border-border bg-card p-5 space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Perda Máxima</h3>
             <div className="flex items-end justify-between">
@@ -1251,7 +1244,6 @@ const AccountDashboard = () => {
             </p>
           </div>
 
-          {/* Floating Loss */}
           <div className="rounded-xl border border-border bg-card p-5 space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Perda Flutuante</h3>
             <div className="flex items-end justify-between">
@@ -1268,7 +1260,6 @@ const AccountDashboard = () => {
         </div>
       </section>
 
-      {/* === PROGRESSO DA CONTA (mantido) === */}
       {(profitTarget || minDays || consistency) && (
         <section>
           <div className="flex items-center gap-2 mb-4">
@@ -1315,7 +1306,6 @@ const AccountDashboard = () => {
         </section>
       )}
 
-      {/* === O QUE FAZER AGORA === */}
       <section>
         <div className="flex items-center gap-2 mb-4">
           <Lightbulb className="w-4 h-4 text-primary" />
@@ -1337,7 +1327,6 @@ const AccountDashboard = () => {
         </div>
       </section>
 
-      {/* === ALERTAS === */}
       {alerts.length > 0 && (
         <section>
           <div className="flex items-center gap-2 mb-4">
@@ -1370,7 +1359,6 @@ const AccountDashboard = () => {
       )}
       </>) }
 
-      {/* === AI RULES TAB === */}
       {activeTab === 'ai-rules' && (
         <div className="space-y-6">
           <div>
@@ -1397,7 +1385,6 @@ const AccountDashboard = () => {
         </div>
       )}
 
-      {/* Footer */}
       <footer className="pt-4 border-t border-border">
         <p className="text-[10px] text-muted-foreground font-mono">
           Última atualização: {new Date().toLocaleString('pt-BR')}

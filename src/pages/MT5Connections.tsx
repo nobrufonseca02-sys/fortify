@@ -19,6 +19,7 @@ const STATUS_MAP: Record<string, { label: string; icon: typeof CheckCircle2; cla
   connecting: { label: 'Conectando', icon: Loader2, className: 'text-info bg-info/10' },
   syncing: { label: 'Sincronizando', icon: RefreshCw, className: 'text-info bg-info/10' },
   disconnected: { label: 'Desconectada', icon: Unlink, className: 'text-muted-foreground bg-muted' },
+  authError: { label: 'Erro de autenticacao', icon: AlertTriangle, className: 'text-destructive bg-destructive/10' },
   auth_error: { label: 'Erro de autenticacao', icon: AlertTriangle, className: 'text-destructive bg-destructive/10' },
 };
 
@@ -54,7 +55,7 @@ const MT5Connections = () => {
   const [savingAccountDialog, setSavingAccountDialog] = useState(false);
   const [syncingNow, setSyncingNow] = useState(false);
 
-  // Form (global list) - campos atualizados (removidos legados)
+  // Form (global list)
   const [nickname, setNickname] = useState('');
   const [mt5Login, setMt5Login] = useState('');
   const [mt5Server, setMt5Server] = useState('');
@@ -144,15 +145,18 @@ const MT5Connections = () => {
         investor_mode: dialogInvestorMode,
       } as any;
 
+      let connectionId = editingConnectionId;
+
       if (editingConnectionId) {
         const res = await supabase
           .from('mt5_connections')
           .update(payload)
           .eq('id', editingConnectionId)
-          .select('id,mt5_login,mt5_server,broker_name,provider,investor_mode,connection_status')
+          .select('id,connection_status')
           .single();
 
         if (res.error) throw res.error;
+        connectionId = String(res.data?.id ?? editingConnectionId);
         setDialogStatus(String(res.data?.connection_status ?? dialogStatus));
         toast({ title: 'Credenciais atualizadas', description: 'Conexao MT5 atualizada em mt5_connections.' });
       } else {
@@ -162,13 +166,24 @@ const MT5Connections = () => {
             trading_account_id: tradingAccountId,
             ...payload,
           })
-          .select('id,mt5_login,mt5_server,broker_name,provider,investor_mode,connection_status')
+          .select('id,connection_status')
           .single();
 
         if (res.error) throw res.error;
-        setEditingConnectionId(String(res.data.id));
+        connectionId = String(res.data?.id ?? '');
+        setEditingConnectionId(connectionId);
         setDialogStatus(String(res.data?.connection_status ?? 'disconnected'));
         toast({ title: 'Conexao registrada', description: 'Dados salvos em mt5_connections.' });
+      }
+
+      if (connectionId) {
+        try {
+          await supabase.functions.invoke('connect-mt5-account', {
+            body: { mt5ConnectionId: connectionId, tradingAccountId },
+          });
+        } catch {
+          // silencioso: UI ainda funciona e o sync manual continua disponível
+        }
       }
 
       setShowAccountDialog(false);
@@ -208,7 +223,7 @@ const MT5Connections = () => {
     e.preventDefault();
     if (!nickname || !mt5Login || !mt5Server || !brokerName || !provider) return;
     try {
-      await createMutation.mutateAsync({
+      const created = await createMutation.mutateAsync({
         nickname,
         mt5Login,
         mt5Server,
@@ -216,7 +231,20 @@ const MT5Connections = () => {
         provider,
         investorMode,
       } as any);
-      toast({ title: 'Conta registrada', description: 'Aguardando sincronizacao com o backend.' });
+
+      const createdId = String((created as any)?.id ?? '');
+
+      if (supabase && createdId) {
+        try {
+          await supabase.functions.invoke('connect-mt5-account', {
+            body: { mt5ConnectionId: createdId },
+          });
+        } catch {
+          // silencioso
+        }
+      }
+
+      toast({ title: 'Conta registrada', description: 'Conexao cadastrada. Voce pode sincronizar a qualquer momento.' });
       setShowForm(false);
       setNickname('');
       setMt5Login('');
@@ -244,7 +272,6 @@ const MT5Connections = () => {
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-bold text-foreground">Contas MT5</h1>
@@ -259,15 +286,13 @@ const MT5Connections = () => {
         </button>
       </div>
 
-      {/* Account scoped block (used in individual account page) */}
       {tradingAccountId && (
         <div className="card-premium rounded-xl border border-border bg-card p-5 space-y-3">
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Conexao MT5</p>
               <div className="flex items-center gap-2 mt-1">
-                <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full ${scopedStatus.className}`}
-                >
+                <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full ${scopedStatus.className}`}>
                   <ScopedStatusIcon className={`w-3 h-3 ${scopedIsAnimated ? 'animate-spin' : ''}`} />
                   {scopedStatus.label}
                 </span>
@@ -376,7 +401,6 @@ const MT5Connections = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Info block */}
       <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 flex gap-3 items-start">
         <Server className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
         <div className="space-y-1">
@@ -388,7 +412,6 @@ const MT5Connections = () => {
         </div>
       </div>
 
-      {/* Form */}
       {showForm && (
         <motion.form
           initial={{ opacity: 0, y: -8 }}
@@ -421,7 +444,6 @@ const MT5Connections = () => {
         </motion.form>
       )}
 
-      {/* Connections List */}
       {isLoading ? (
         <div className="flex items-center justify-center py-16">
           <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -457,20 +479,17 @@ const MT5Connections = () => {
                   </div>
 
                   <div className="flex items-center gap-3">
-                    {/* Status */}
                     <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full ${status.className}`}>
                       <StatusIcon className={`w-3 h-3 ${isAnimated ? 'animate-spin' : ''}`} />
                       {status.label}
                     </span>
 
-                    {/* Last sync */}
                     {conn.last_sync_at && (
                       <span className="text-[10px] text-muted-foreground hidden sm:block">
                         Sincronizado: {new Date(conn.last_sync_at).toLocaleDateString('pt-BR')} {new Date(conn.last_sync_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     )}
 
-                    {/* View Dashboard */}
                     <button
                       onClick={() => navigate(`/mt5/${conn.id}`)}
                       className="flex items-center gap-1 text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity"
@@ -478,7 +497,6 @@ const MT5Connections = () => {
                       Abrir <ChevronRight className="w-3 h-3" />
                     </button>
 
-                    {/* Delete */}
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <button className="text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100">
@@ -506,7 +524,6 @@ const MT5Connections = () => {
                   </div>
                 </div>
 
-                {/* Error message */}
                 {conn.sync_error && (
                   <div className="mt-3 flex items-center gap-2 text-xs text-destructive bg-destructive/5 rounded-lg px-3 py-2">
                     <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
