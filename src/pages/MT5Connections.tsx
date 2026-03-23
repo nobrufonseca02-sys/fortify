@@ -54,19 +54,20 @@ const MT5Connections = () => {
   const [savingAccountDialog, setSavingAccountDialog] = useState(false);
   const [syncingNow, setSyncingNow] = useState(false);
 
-  // Form (global list)
-  const [accountName, setAccountName] = useState('');
+  // Form (global list) - campos atualizados (removidos legados)
+  const [nickname, setNickname] = useState('');
   const [mt5Login, setMt5Login] = useState('');
   const [mt5Server, setMt5Server] = useState('');
   const [brokerName, setBrokerName] = useState('');
-  const [accountType, setAccountType] = useState('demo');
-  const [propFirm, setPropFirm] = useState('');
+  const [provider, setProvider] = useState('mt5');
+  const [investorMode, setInvestorMode] = useState(false);
 
   // Account page dialog form
   const [dialogMt5Login, setDialogMt5Login] = useState('');
   const [dialogMt5Server, setDialogMt5Server] = useState('');
   const [dialogBrokerName, setDialogBrokerName] = useState('');
   const [dialogProvider, setDialogProvider] = useState('');
+  const [dialogInvestorMode, setDialogInvestorMode] = useState(false);
   const [dialogStatus, setDialogStatus] = useState<string>('disconnected');
 
   const scopedConnection = useMemo(() => {
@@ -85,7 +86,7 @@ const MT5Connections = () => {
       try {
         const res = await supabase
           .from('mt5_connections')
-          .select('id,mt5_login,mt5_server,broker_name,provider,connection_status')
+          .select('id,mt5_login,mt5_server,broker_name,provider,investor_mode,connection_status')
           .eq('trading_account_id', tradingAccountId)
           .order('created_at', { ascending: false })
           .limit(1)
@@ -100,6 +101,7 @@ const MT5Connections = () => {
         setDialogMt5Server(String(row?.mt5_server ?? ''));
         setDialogBrokerName(String(row?.broker_name ?? ''));
         setDialogProvider(String(row?.provider ?? ''));
+        setDialogInvestorMode(Boolean((row as any)?.investor_mode ?? false));
         setDialogStatus(String(row?.connection_status ?? 'disconnected'));
       } catch {
         if (cancelled) return;
@@ -108,6 +110,7 @@ const MT5Connections = () => {
         setDialogMt5Server('');
         setDialogBrokerName('');
         setDialogProvider('');
+        setDialogInvestorMode(false);
         setDialogStatus('disconnected');
       }
     };
@@ -133,17 +136,20 @@ const MT5Connections = () => {
 
     setSavingAccountDialog(true);
     try {
+      const payload = {
+        mt5_login: dialogMt5Login,
+        mt5_server: dialogMt5Server,
+        broker_name: dialogBrokerName,
+        provider: dialogProvider,
+        investor_mode: dialogInvestorMode,
+      } as any;
+
       if (editingConnectionId) {
         const res = await supabase
           .from('mt5_connections')
-          .update({
-            mt5_login: dialogMt5Login,
-            mt5_server: dialogMt5Server,
-            broker_name: dialogBrokerName,
-            provider: dialogProvider,
-          })
+          .update(payload)
           .eq('id', editingConnectionId)
-          .select('id,mt5_login,mt5_server,broker_name,provider,connection_status')
+          .select('id,mt5_login,mt5_server,broker_name,provider,investor_mode,connection_status')
           .single();
 
         if (res.error) throw res.error;
@@ -154,12 +160,9 @@ const MT5Connections = () => {
           .from('mt5_connections')
           .insert({
             trading_account_id: tradingAccountId,
-            mt5_login: dialogMt5Login,
-            mt5_server: dialogMt5Server,
-            broker_name: dialogBrokerName,
-            provider: dialogProvider,
+            ...payload,
           })
-          .select('id,mt5_login,mt5_server,broker_name,provider,connection_status')
+          .select('id,mt5_login,mt5_server,broker_name,provider,investor_mode,connection_status')
           .single();
 
         if (res.error) throw res.error;
@@ -203,19 +206,24 @@ const MT5Connections = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!accountName || !mt5Login || !mt5Server || !brokerName) return;
+    if (!nickname || !mt5Login || !mt5Server || !brokerName || !provider) return;
     try {
       await createMutation.mutateAsync({
-        account_name: accountName,
-        mt5_login: mt5Login,
-        mt5_server: mt5Server,
-        broker_name: brokerName,
-        account_type: accountType,
-        prop_firm: propFirm || undefined,
-      });
+        nickname,
+        mt5Login,
+        mt5Server,
+        brokerName,
+        provider,
+        investorMode,
+      } as any);
       toast({ title: 'Conta registrada', description: 'Aguardando sincronizacao com o backend.' });
       setShowForm(false);
-      setAccountName(''); setMt5Login(''); setMt5Server(''); setBrokerName(''); setPropFirm('');
+      setNickname('');
+      setMt5Login('');
+      setMt5Server('');
+      setBrokerName('');
+      setProvider('mt5');
+      setInvestorMode(false);
     } catch {
       toast({ title: 'Erro ao registrar conta', description: 'Tente novamente.', variant: 'destructive' });
     }
@@ -258,12 +266,16 @@ const MT5Connections = () => {
             <div className="min-w-0">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Conexao MT5</p>
               <div className="flex items-center gap-2 mt-1">
-                <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full ${scopedStatus.className}`}>
+                <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full ${scopedStatus.className}`}
+                >
                   <ScopedStatusIcon className={`w-3 h-3 ${scopedIsAnimated ? 'animate-spin' : ''}`} />
                   {scopedStatus.label}
                 </span>
                 {scopedConnection?.provider && (
                   <span className="text-[10px] text-muted-foreground">Provider: {scopedConnection.provider}</span>
+                )}
+                {typeof (scopedConnection as any)?.investor_mode === 'boolean' && (
+                  <span className="text-[10px] text-muted-foreground">• Investor: {(scopedConnection as any).investor_mode ? 'sim' : 'nao'}</span>
                 )}
               </div>
               {scopedConnection ? (
@@ -338,6 +350,10 @@ const MT5Connections = () => {
           </div>
 
           <div className="flex items-center justify-between pt-2">
+            <label className="inline-flex items-center gap-2 text-[10px] text-muted-foreground">
+              <input type="checkbox" checked={dialogInvestorMode} onChange={e => setDialogInvestorMode(e.target.checked)} />
+              Investor mode (somente leitura)
+            </label>
             <span className="text-[10px] text-muted-foreground">Status atual: {dialogStatus}</span>
           </div>
 
@@ -382,24 +398,15 @@ const MT5Connections = () => {
         >
           <h2 className="text-sm font-semibold text-foreground">Registrar Conta MT5</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Field label="Nome da Conta" value={accountName} onChange={setAccountName} placeholder="Ex.: FTMO 100k Challenge" required />
+            <Field label="Nome da Conta" value={nickname} onChange={setNickname} placeholder="Ex.: Minha conta MT5" required />
             <Field label="Login MT5" value={mt5Login} onChange={setMt5Login} placeholder="Ex.: 12345678" required />
             <Field label="Servidor MT5" value={mt5Server} onChange={setMt5Server} placeholder="Ex.: FTMODemo-Server" required />
-            <Field label="Corretora" value={brokerName} onChange={setBrokerName} placeholder="Ex.: ICMarkets, Pepperstone" required />
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Tipo de Conta</label>
-              <select
-                value={accountType}
-                onChange={e => setAccountType(e.target.value)}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                <option value="demo">Demo</option>
-                <option value="live">Real</option>
-                <option value="challenge">Desafio</option>
-                <option value="funded">Funded</option>
-              </select>
-            </div>
-            <Field label="Prop Firm (opcional)" value={propFirm} onChange={setPropFirm} placeholder="Ex.: FTMO, E8, FundingPips" />
+            <Field label="Broker" value={brokerName} onChange={setBrokerName} placeholder="Ex.: ICMarkets, Pepperstone" required />
+            <Field label="Provider" value={provider} onChange={setProvider} placeholder="Ex.: mt5" required />
+            <label className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+              <input type="checkbox" checked={investorMode} onChange={e => setInvestorMode(e.target.checked)} />
+              Investor mode (somente leitura)
+            </label>
           </div>
 
           <div className="flex items-center gap-3 pt-2">
@@ -425,6 +432,8 @@ const MT5Connections = () => {
             const status = STATUS_MAP[conn.connection_status] || STATUS_MAP.disconnected;
             const StatusIcon = status.icon;
             const isAnimated = conn.connection_status === 'connecting' || conn.connection_status === 'syncing';
+            const displayName = String(conn.nickname ?? conn.broker_name ?? conn.mt5_login ?? 'Conta MT5');
+
             return (
               <motion.div
                 key={conn.id}
@@ -439,10 +448,10 @@ const MT5Connections = () => {
                       <Server className="w-5 h-5 text-primary" />
                     </div>
                     <div className="min-w-0">
-                      <h3 className="font-semibold text-foreground truncate">{conn.account_name}</h3>
+                      <h3 className="font-semibold text-foreground truncate">{displayName}</h3>
                       <p className="text-[10px] text-muted-foreground mt-0.5">
                         Login: {conn.mt5_login} — {conn.mt5_server} — {conn.broker_name}
-                        {conn.prop_firm && ` — ${conn.prop_firm}`}
+                        {typeof conn.investor_mode === 'boolean' && ` — Investor: ${conn.investor_mode ? 'sim' : 'nao'}`}
                       </p>
                     </div>
                   </div>
@@ -480,13 +489,13 @@ const MT5Connections = () => {
                         <AlertDialogHeader>
                           <AlertDialogTitle>Desconectar conta MT5?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            A conta "{conn.account_name}" sera removida. Os dados sincronizados serao perdidos.
+                            A conta "{displayName}" sera removida. Os dados sincronizados serao perdidos.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancelar</AlertDialogCancel>
                           <AlertDialogAction
-                            onClick={() => handleDelete(conn.id, conn.account_name)}
+                            onClick={() => handleDelete(conn.id, displayName)}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                           >
                             Desconectar

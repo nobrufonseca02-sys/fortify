@@ -91,6 +91,7 @@ const AccountDashboard = () => {
   const [dialogMt5Server, setDialogMt5Server] = useState('');
   const [dialogBrokerName, setDialogBrokerName] = useState('');
   const [dialogProvider, setDialogProvider] = useState('');
+  const [dialogInvestorMode, setDialogInvestorMode] = useState(false);
   const [dialogStatus, setDialogStatus] = useState<string>('disconnected');
 
   const [syncingNow, setSyncingNow] = useState(false);
@@ -103,6 +104,7 @@ const AccountDashboard = () => {
     setDialogMt5Server(String(connection?.mt5_server ?? connection?.mt5Server ?? ''));
     setDialogBrokerName(String(connection?.broker_name ?? connection?.brokerName ?? ''));
     setDialogProvider(String(connection?.provider ?? ''));
+    setDialogInvestorMode(Boolean(connection?.investor_mode ?? connection?.investorMode ?? false));
     setDialogStatus(String(connection?.connection_status ?? connection?.connectionStatus ?? 'disconnected'));
 
     setShowMt5Dialog(true);
@@ -118,16 +120,19 @@ const AccountDashboard = () => {
 
     setSavingMt5Dialog(true);
     try {
+      const payload = {
+        trading_account_id: id,
+        mt5_login: dialogMt5Login,
+        mt5_server: dialogMt5Server,
+        broker_name: dialogBrokerName,
+        provider: dialogProvider,
+        investor_mode: dialogInvestorMode,
+      } as any;
+
       if (editingMt5ConnectionId) {
         const res = await supabase
           .from('mt5_connections')
-          .update({
-            trading_account_id: id,
-            mt5_login: dialogMt5Login,
-            mt5_server: dialogMt5Server,
-            broker_name: dialogBrokerName,
-            provider: dialogProvider,
-          })
+          .update(payload)
           .eq('id', editingMt5ConnectionId)
           .select('*')
           .single();
@@ -139,13 +144,7 @@ const AccountDashboard = () => {
       } else {
         const res = await supabase
           .from('mt5_connections')
-          .insert({
-            trading_account_id: id,
-            mt5_login: dialogMt5Login,
-            mt5_server: dialogMt5Server,
-            broker_name: dialogBrokerName,
-            provider: dialogProvider,
-          })
+          .insert(payload)
           .select('*')
           .single();
 
@@ -174,7 +173,7 @@ const AccountDashboard = () => {
       const [accRes, connRes, posRes, tradesRes, snapRes] = await Promise.all([
         supabase
           .from('trading_accounts')
-          .select('id,nickname,broker,start_balance,current_balance,current_equity,highest_equity,status,created_at,updated_at')
+          .select('id,user_id,nickname,broker,start_balance,current_balance,current_equity,highest_equity,status,created_at,updated_at')
           .eq('id', id)
           .maybeSingle(),
         supabase
@@ -252,8 +251,24 @@ const AccountDashboard = () => {
       return;
     }
 
-    toast.error('Integração MT5 ainda não concluída: Edge Function "sync-mt5-account" não está disponível no Lovable Cloud neste projeto.');
-    return;
+    setSyncingNow(true);
+    try {
+      const res = await supabase.functions.invoke('sync-mt5-account', {
+        body: { tradingAccountId: id },
+      });
+
+      if ((res as any)?.error) {
+        const err: any = (res as any).error;
+        throw new Error(err?.message || 'Falha ao sincronizar.');
+      }
+
+      toast.success('Sincronização concluída.');
+      await reloadAccountData();
+    } catch (e: any) {
+      toast.error(e?.message || 'Erro ao sincronizar.');
+    } finally {
+      setSyncingNow(false);
+    }
   };
 
   useEffect(() => {
@@ -272,7 +287,7 @@ const AccountDashboard = () => {
         const [accRes, connRes, posRes, tradesRes, snapRes] = await Promise.all([
           supabase
             .from('trading_accounts')
-            .select('id,nickname,broker,start_balance,current_balance,current_equity,highest_equity,status,created_at,updated_at')
+            .select('id,user_id,nickname,broker,start_balance,current_balance,current_equity,highest_equity,status,created_at,updated_at')
             .eq('id', id)
             .maybeSingle(),
           supabase
@@ -357,6 +372,36 @@ const AccountDashboard = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase, id]);
 
+  // Auto sync: tenta sincronizar automaticamente ao entrar no dashboard se já existir conexão e não estiver recente
+  useEffect(() => {
+    if (!supabase || !id) return;
+    if (!connection?.id) return;
+
+    const lastSyncAt = connection?.last_sync_at ?? connection?.lastSyncAt;
+    const last = lastSyncAt ? new Date(lastSyncAt).getTime() : 0;
+    const now = Date.now();
+    const shouldSync = !last || (now - last) > 10 * 60 * 1000;
+
+    if (!shouldSync) return;
+
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      if (cancelled) return;
+      try {
+        await supabase.functions.invoke('sync-mt5-account', { body: { tradingAccountId: id, reason: 'auto' } });
+        if (!cancelled) await reloadAccountData();
+      } catch {
+        // silencioso (evita spam de toast)
+      }
+    }, 800);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supabase, id, connection?.id]);
+
   const effectiveAccount = account || (tradingAccountRow ? {
     id: String(tradingAccountRow.id),
     userId: String(tradingAccountRow.user_id ?? ''),
@@ -427,6 +472,7 @@ const AccountDashboard = () => {
   const headerLogin = connection?.mt5Login ?? connection?.mt5_login;
   const lastSyncAt = connection?.lastSyncAt ?? connection?.last_sync_at;
   const provider = connection?.provider ?? '—';
+  const investorMode = connection?.investorMode ?? connection?.investor_mode;
   const lastError = connection?.syncError ?? connection?.sync_error;
 
   const latestSnapshot = snapshots.length > 0 ? snapshots[snapshots.length - 1] : null;
@@ -500,11 +546,6 @@ const AccountDashboard = () => {
   if (mt5DataError) {
     alerts.unshift({ text: `Dados MT5/Supabase: ${mt5DataError}`, severity: 'info' });
   }
-
-  alerts.unshift({
-    text: 'MT5: refatoração/integracao ainda não concluída. No estado atual, não existe integração real funcional via Lovable Cloud (Edge Functions ausentes).',
-    severity: 'info',
-  });
 
   const barColorFor = (ev: RuleEvaluation | undefined) =>
     !ev ? 'bg-muted-foreground' :
@@ -614,7 +655,6 @@ const AccountDashboard = () => {
                 size="sm"
                 onClick={handleSyncNow}
                 disabled={!id || !connection || syncingNow}
-                title="Indisponível: Edge Function sync-mt5-account ainda não existe neste projeto"
               >
                 <RefreshCw className={`w-4 h-4 ${syncingNow ? 'animate-spin' : ''}`} />
                 Sincronizar agora
@@ -644,7 +684,7 @@ const AccountDashboard = () => {
           {!connection ? (
             <div className="p-4">
               <p className="text-xs text-muted-foreground">Conta ainda não conectada ao MT5. Conecte a conta para iniciar sincronização.</p>
-              <p className="text-[10px] text-muted-foreground mt-1">Observação: a integração real ainda não foi concluída neste projeto (Edge Functions ausentes).</p>
+              <p className="text-[10px] text-muted-foreground mt-1">Após conectar, o backend valida credenciais via Edge Function e pode iniciar sincronização automática.</p>
             </div>
           ) : (
             <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -659,17 +699,22 @@ const AccountDashboard = () => {
               </div>
 
               <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Investor</p>
+                <p className="text-sm font-mono font-semibold text-foreground mt-1">{typeof investorMode === 'boolean' ? (investorMode ? 'sim' : 'nao') : '—'}</p>
+              </div>
+
+              <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Última sincronização</p>
                 <p className="text-sm font-mono font-semibold text-foreground mt-1">{lastSyncAt ? new Date(lastSyncAt).toLocaleString('pt-BR') : '—'}</p>
               </div>
 
-              <div className={`rounded-lg border p-3 ${lastError ? 'border-destructive/30 bg-destructive/5' : 'border-border/60 bg-muted/20'}`}>
+              <div className={`rounded-lg border p-3 sm:col-span-2 lg:col-span-4 ${lastError ? 'border-destructive/30 bg-destructive/5' : 'border-border/60 bg-muted/20'}`}>
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Último erro</p>
                 <p className={`text-sm font-mono font-semibold mt-1 ${lastError ? 'text-destructive' : 'text-muted-foreground'}`}>{lastError ? String(lastError) : '—'}</p>
               </div>
 
               <div className="sm:col-span-2 lg:col-span-4">
-                <p className="text-[10px] text-muted-foreground">A sincronização server-side ainda não está operacional neste projeto. Este painel pode exibir dados somente se forem gravados no banco por outro processo.</p>
+                <p className="text-[10px] text-muted-foreground">Sincronização manual disponível em "Sincronizar agora". Sincronização automática ocorre ao abrir esta página quando a última sync estiver desatualizada.</p>
               </div>
             </div>
           )}
@@ -680,7 +725,7 @@ const AccountDashboard = () => {
             <DialogHeader>
               <DialogTitle>{editingMt5ConnectionId ? 'Atualizar conexão MT5' : 'Conectar conta MT5'}</DialogTitle>
               <DialogDescription>
-                Informe os dados da sua conexão. Esta etapa apenas cadastra/atualiza credenciais em mt5_connections.
+                Informe os dados da sua conexão. Esta etapa cadastra/atualiza credenciais em mt5_connections.
               </DialogDescription>
             </DialogHeader>
 
@@ -704,6 +749,10 @@ const AccountDashboard = () => {
             </div>
 
             <div className="flex items-center justify-between pt-2">
+              <label className="inline-flex items-center gap-2 text-[10px] text-muted-foreground">
+                <input type="checkbox" checked={dialogInvestorMode} onChange={e => setDialogInvestorMode(e.target.checked)} />
+                Investor mode (somente leitura)
+              </label>
               <span className="text-[10px] text-muted-foreground">Status atual: {dialogStatus}</span>
             </div>
 

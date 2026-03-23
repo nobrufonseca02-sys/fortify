@@ -7,8 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
@@ -19,11 +17,17 @@ export type Database = {
           broker_name: string | null
           connection_status: Database["public"]["Enums"]["mt5_connection_status"]
           created_at: string
+          external_account_id: string | null
           id: string
+          investor_mode: boolean
+          last_history_sync_at: string | null
+          last_positions_sync_at: string | null
           last_sync_at: string | null
           mt5_login: string | null
           mt5_server: string | null
+          nickname: string | null
           provider: string
+          sync_cursor: Json | null
           sync_error: string | null
           trading_account_id: string
           updated_at: string
@@ -32,11 +36,17 @@ export type Database = {
           broker_name?: string | null
           connection_status?: Database["public"]["Enums"]["mt5_connection_status"]
           created_at?: string
+          external_account_id?: string | null
           id?: string
+          investor_mode?: boolean
+          last_history_sync_at?: string | null
+          last_positions_sync_at?: string | null
           last_sync_at?: string | null
           mt5_login?: string | null
           mt5_server?: string | null
+          nickname?: string | null
           provider?: string
+          sync_cursor?: Json | null
           sync_error?: string | null
           trading_account_id: string
           updated_at?: string
@@ -45,11 +55,17 @@ export type Database = {
           broker_name?: string | null
           connection_status?: Database["public"]["Enums"]["mt5_connection_status"]
           created_at?: string
+          external_account_id?: string | null
           id?: string
+          investor_mode?: boolean
+          last_history_sync_at?: string | null
+          last_positions_sync_at?: string | null
           last_sync_at?: string | null
           mt5_login?: string | null
           mt5_server?: string | null
+          nickname?: string | null
           provider?: string
+          sync_cursor?: Json | null
           sync_error?: string | null
           trading_account_id?: string
           updated_at?: string
