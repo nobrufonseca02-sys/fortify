@@ -6,8 +6,8 @@ import { useMT5Connections, useCreateMT5Connection, useDeleteMT5Connection } fro
 import { toast } from '@/hooks/use-toast';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
-  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
-  AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+  AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -64,10 +64,11 @@ const MT5Connections = () => {
   const [investorMode, setInvestorMode] = useState(false);
 
   // Account page dialog form
+  const [dialogNickname, setDialogNickname] = useState('');
   const [dialogMt5Login, setDialogMt5Login] = useState('');
   const [dialogMt5Server, setDialogMt5Server] = useState('');
   const [dialogBrokerName, setDialogBrokerName] = useState('');
-  const [dialogProvider, setDialogProvider] = useState('');
+  const [dialogProvider, setDialogProvider] = useState('mt5');
   const [dialogInvestorMode, setDialogInvestorMode] = useState(false);
   const [dialogStatus, setDialogStatus] = useState<string>('disconnected');
 
@@ -87,7 +88,7 @@ const MT5Connections = () => {
       try {
         const res = await supabase
           .from('mt5_connections')
-          .select('id,mt5_login,mt5_server,broker_name,provider,investor_mode,connection_status')
+          .select('id,nickname,mt5_login,mt5_server,broker_name,provider,investor_mode,connection_status')
           .eq('trading_account_id', tradingAccountId)
           .order('created_at', { ascending: false })
           .limit(1)
@@ -98,19 +99,21 @@ const MT5Connections = () => {
 
         const row = res.data;
         setEditingConnectionId(row?.id ? String(row.id) : null);
+        setDialogNickname(String((row as any)?.nickname ?? ''));
         setDialogMt5Login(String(row?.mt5_login ?? ''));
         setDialogMt5Server(String(row?.mt5_server ?? ''));
         setDialogBrokerName(String(row?.broker_name ?? ''));
-        setDialogProvider(String(row?.provider ?? ''));
+        setDialogProvider(String(row?.provider ?? 'mt5'));
         setDialogInvestorMode(Boolean((row as any)?.investor_mode ?? false));
         setDialogStatus(String(row?.connection_status ?? 'disconnected'));
       } catch {
         if (cancelled) return;
         setEditingConnectionId(null);
+        setDialogNickname('');
         setDialogMt5Login('');
         setDialogMt5Server('');
         setDialogBrokerName('');
-        setDialogProvider('');
+        setDialogProvider('mt5');
         setDialogInvestorMode(false);
         setDialogStatus('disconnected');
       }
@@ -138,6 +141,7 @@ const MT5Connections = () => {
     setSavingAccountDialog(true);
     try {
       const payload = {
+        nickname: dialogNickname || null,
         mt5_login: dialogMt5Login,
         mt5_server: dialogMt5Server,
         broker_name: dialogBrokerName,
@@ -182,7 +186,7 @@ const MT5Connections = () => {
             body: { mt5ConnectionId: connectionId, tradingAccountId },
           });
         } catch {
-          // silencioso: UI ainda funciona e o sync manual continua disponível
+          // silencioso
         }
       }
 
@@ -222,14 +226,15 @@ const MT5Connections = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nickname || !mt5Login || !mt5Server || !brokerName || !provider) return;
+
     try {
       const created = await createMutation.mutateAsync({
         nickname,
-        mt5Login,
-        mt5Server,
-        brokerName,
+        mt5_login: mt5Login,
+        mt5_server: mt5Server,
+        broker_name: brokerName,
         provider,
-        investorMode,
+        investor_mode: investorMode,
       } as any);
 
       const createdId = String((created as any)?.id ?? '');
@@ -237,7 +242,7 @@ const MT5Connections = () => {
       if (supabase && createdId) {
         try {
           await supabase.functions.invoke('connect-mt5-account', {
-            body: { mt5ConnectionId: createdId },
+            body: { mt5ConnectionId: createdId, tradingAccountId: (created as any)?.trading_account_id },
           });
         } catch {
           // silencioso
@@ -356,6 +361,10 @@ const MT5Connections = () => {
           </DialogHeader>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5 md:col-span-2">
+              <label className="text-xs font-medium text-muted-foreground">Nome (opcional)</label>
+              <Input value={dialogNickname} onChange={e => setDialogNickname(e.target.value)} placeholder="Ex.: Conta Challenge 100k" />
+            </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Login MT5</label>
               <Input value={dialogMt5Login} onChange={e => setDialogMt5Login(e.target.value)} placeholder="Ex.: 12345678" />

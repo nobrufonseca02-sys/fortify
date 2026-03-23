@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Server, TrendingUp, TrendingDown, Activity, BarChart3, Clock, Loader2, AlertTriangle, DollarSign, Target } from 'lucide-react';
+import { ArrowLeft, Server, TrendingUp, TrendingDown, Activity, Clock, Loader2, AlertTriangle, DollarSign, Target } from 'lucide-react';
 import { useMT5ConnectionDetail, useMT5Snapshots, useMT5Trades, useMT5Positions } from '@/hooks/useMT5';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
@@ -34,7 +34,6 @@ const MT5Dashboard = () => {
   }
 
   const latestSnap = snapshots && snapshots.length > 0 ? snapshots[snapshots.length - 1] : null;
-  const prevSnap = snapshots && snapshots.length > 1 ? snapshots[snapshots.length - 2] : null;
 
   const balance = latestSnap?.balance ?? 0;
   const equity = latestSnap?.equity ?? 0;
@@ -66,14 +65,10 @@ const MT5Dashboard = () => {
     drawdown: -Number(s.drawdown),
   })) ?? [];
 
-  const dailyPnlCurve = snapshots?.map(s => ({
-    date: new Date(s.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-    pnl: Number(s.daily_pnl),
-  })) ?? [];
+  const headerName = String((connection as any).nickname ?? (connection as any).broker_name ?? (connection as any).mt5_login ?? 'Conta MT5');
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {/* Header */}
       <div className="flex items-center gap-4">
         <button onClick={() => navigate('/mt5')} className="text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="w-5 h-5" />
@@ -83,22 +78,21 @@ const MT5Dashboard = () => {
             <Server className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-foreground">{connection.account_name}</h1>
+            <h1 className="text-lg font-bold text-foreground">{headerName}</h1>
             <p className="text-[10px] text-muted-foreground">
-              {connection.mt5_login} — {connection.mt5_server} — {connection.broker_name}
-              {connection.prop_firm && ` — ${connection.prop_firm}`}
+              {(connection as any).mt5_login} — {(connection as any).mt5_server} — {(connection as any).broker_name}
+              {(connection as any).provider ? ` — Provider: ${(connection as any).provider}` : ''}
             </p>
           </div>
         </div>
-        {connection.last_sync_at && (
+        {(connection as any).last_sync_at && (
           <span className="text-[10px] text-muted-foreground flex items-center gap-1">
             <Clock className="w-3 h-3" />
-            Ultima sincronizacao: {new Date(connection.last_sync_at).toLocaleString('pt-BR')}
+            Ultima sincronizacao: {new Date((connection as any).last_sync_at).toLocaleString('pt-BR')}
           </span>
         )}
       </div>
 
-      {/* No data state */}
       {!latestSnap && (
         <div className="card-premium rounded-xl border border-border bg-card p-8 text-center">
           <AlertTriangle className="w-8 h-8 text-warning mx-auto mb-3" />
@@ -111,7 +105,6 @@ const MT5Dashboard = () => {
 
       {latestSnap && (
         <>
-          {/* KPI Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-3">
             <KPICard icon={DollarSign} label="Saldo Atual" value={fmt(balance)} />
             <KPICard icon={Activity} label="Equity Atual" value={fmt(equity)} />
@@ -121,7 +114,6 @@ const MT5Dashboard = () => {
             <KPICard icon={Target} label="Drawdown" value={fmtPct(-drawdown)} valueClass="text-warning" />
           </div>
 
-          {/* Stats row */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <StatPill label="Max Balance" value={fmt(maxBalance)} />
             <StatPill label="Dias de Trading" value={String(tradingDays)} />
@@ -130,9 +122,7 @@ const MT5Dashboard = () => {
             <StatPill label="Profit Factor" value={profitFactor === Infinity ? '-' : profitFactor.toFixed(2)} />
           </div>
 
-          {/* Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Equity Curve */}
             <div className="card-premium rounded-xl border border-border bg-card p-5">
               <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider mb-4">Curva de Equity</h3>
               {equityCurve.length > 1 ? (
@@ -156,7 +146,6 @@ const MT5Dashboard = () => {
               )}
             </div>
 
-            {/* Drawdown */}
             <div className="card-premium rounded-xl border border-border bg-card p-5">
               <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider mb-4">Historico de Drawdown</h3>
               {drawdownCurve.length > 1 ? (
@@ -180,7 +169,6 @@ const MT5Dashboard = () => {
             </div>
           </div>
 
-          {/* Open Positions */}
           <div className="card-premium rounded-xl border border-border bg-card p-5">
             <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider mb-4">
               Posicoes Abertas ({openPositionCount})
@@ -223,7 +211,6 @@ const MT5Dashboard = () => {
             )}
           </div>
 
-          {/* Recent Trades */}
           <div className="card-premium rounded-xl border border-border bg-card p-5">
             <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider mb-4">
               Historico de Trades ({totalTrades})
