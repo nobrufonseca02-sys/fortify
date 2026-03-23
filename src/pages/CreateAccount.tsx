@@ -316,6 +316,7 @@ const CreateAccount = () => {
         const res = await supabase
           .from('trading_accounts')
           .insert({
+            user_id: user.id,
             nickname: insertPayload.nickname,
             broker: insertPayload.broker,
             mt5_server: insertPayload.mt5Server,
