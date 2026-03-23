@@ -60,7 +60,7 @@ const mt5StatusConfig: Record<Mt5ConnectionStatus, { label: string; icon: typeof
   connecting: { label: 'Conectando', icon: RefreshCw, className: 'bg-warning/15 text-warning' },
   connected: { label: 'Conectada', icon: Link2, className: 'bg-success/15 text-success' },
   syncing: { label: 'Sincronizando', icon: RefreshCw, className: 'bg-primary/15 text-primary' },
-  auth_error: { label: 'Erro de autenticação', icon: AlertTriangle, className: 'bg-destructive/15 text-destructive' },
+  authError: { label: 'Erro de autenticação', icon: AlertTriangle, className: 'bg-destructive/15 text-destructive' },
 };
 
 const AccountDashboard = () => {
@@ -174,7 +174,7 @@ const AccountDashboard = () => {
       const [accRes, connRes, posRes, tradesRes, snapRes] = await Promise.all([
         supabase
           .from('trading_accounts')
-          .select('id,nickname,broker,mt5_server,mt5_login,account_type,prop_firm,start_balance,current_balance,current_equity,highest_equity,status,created_at,updated_at')
+          .select('id,nickname,broker,start_balance,current_balance,current_equity,highest_equity,status,created_at,updated_at')
           .eq('id', id)
           .maybeSingle(),
         supabase
@@ -235,10 +235,6 @@ const AccountDashboard = () => {
           status: (r.status as any) ?? 'active',
           ruleSetId: 'custom',
           createdAt: String((r.created_at ?? new Date().toISOString()).split('T')[0]),
-          mt5Server: r.mt5_server ?? undefined,
-          mt5Login: r.mt5_login ?? undefined,
-          accountType: r.account_type ?? undefined,
-          propFirm: r.prop_firm ?? undefined,
         } as any);
       }
     } catch (e: any) {
@@ -293,7 +289,7 @@ const AccountDashboard = () => {
         const [accRes, connRes, posRes, tradesRes, snapRes] = await Promise.all([
           supabase
             .from('trading_accounts')
-            .select('id,nickname,broker,mt5_server,mt5_login,account_type,prop_firm,start_balance,current_balance,current_equity,highest_equity,status,created_at,updated_at')
+            .select('id,nickname,broker,start_balance,current_balance,current_equity,highest_equity,status,created_at,updated_at')
             .eq('id', id)
             .maybeSingle(),
           supabase
@@ -356,10 +352,6 @@ const AccountDashboard = () => {
             status: (r.status as any) ?? 'active',
             ruleSetId: 'custom',
             createdAt: String((r.created_at ?? new Date().toISOString()).split('T')[0]),
-            mt5Server: r.mt5_server ?? undefined,
-            mt5Login: r.mt5_login ?? undefined,
-            accountType: r.account_type ?? undefined,
-            propFirm: r.prop_firm ?? undefined,
           } as any);
         }
       } catch (e: any) {
@@ -395,10 +387,6 @@ const AccountDashboard = () => {
     status: (tradingAccountRow.status as any) ?? 'active',
     ruleSetId: 'custom',
     createdAt: String((tradingAccountRow.created_at ?? new Date().toISOString()).split('T')[0]),
-    mt5Server: tradingAccountRow.mt5_server ?? undefined,
-    mt5Login: tradingAccountRow.mt5_login ?? undefined,
-    accountType: tradingAccountRow.account_type ?? undefined,
-    propFirm: tradingAccountRow.prop_firm ?? undefined,
   } as any : null);
 
   if (!effectiveAccount) {
@@ -452,13 +440,11 @@ const AccountDashboard = () => {
 
   const headerNickname = tradingAccountRow?.nickname ?? (effectiveAccount as any).nickname;
   const headerBroker = tradingAccountRow?.broker ?? (effectiveAccount as any).broker;
-  const headerServer = tradingAccountRow?.mt5_server ?? tradingAccountRow?.mt5Server ?? connection?.mt5Server ?? connection?.mt5_server ?? (effectiveAccount as any).mt5Server;
-  const headerLogin = tradingAccountRow?.mt5_login ?? tradingAccountRow?.mt5Login ?? connection?.mt5Login ?? connection?.mt5_login ?? (effectiveAccount as any).mt5Login;
-  const headerAccountType = tradingAccountRow?.account_type ?? tradingAccountRow?.accountType ?? (effectiveAccount as any).accountType;
-  const headerPropFirm = tradingAccountRow?.prop_firm ?? tradingAccountRow?.propFirm ?? (effectiveAccount as any).propFirm;
-  const lastSyncAt = connection?.lastSyncAt ?? connection?.last_sync_at ?? (effectiveAccount as any).mt5LastSyncAt;
+  const headerServer = connection?.mt5Server ?? connection?.mt5_server;
+  const headerLogin = connection?.mt5Login ?? connection?.mt5_login;
+  const lastSyncAt = connection?.lastSyncAt ?? connection?.last_sync_at;
   const provider = connection?.provider ?? '—';
-  const lastError = connection?.syncError ?? connection?.sync_error ?? connection?.authError ?? connection?.auth_error ?? connection?.lastError ?? connection?.last_error;
+  const lastError = connection?.syncError ?? connection?.sync_error;
 
   const latestSnapshot = snapshots.length > 0 ? snapshots[snapshots.length - 1] : null;
 
@@ -524,7 +510,7 @@ const AccountDashboard = () => {
     if (ev.status === 'NOT_MET' && ev.progressPct < 50) alerts.push({ text: `${ev.rule.name}: ${ev.message}`, severity: 'info' });
   });
 
-  if ((connectionStatus === 'auth_error' || connectionStatus === 'disconnected') && (connection?.syncError || connection?.sync_error)) {
+  if ((connectionStatus === 'authError' || connectionStatus === 'disconnected') && (connection?.syncError || connection?.sync_error)) {
     alerts.unshift({ text: `MT5: ${connection?.syncError || connection?.sync_error}`, severity: 'danger' });
   }
 
@@ -607,8 +593,7 @@ const AccountDashboard = () => {
             {headerBroker ? ` • ${headerBroker}` : ''}
             {headerServer ? ` • ${headerServer}` : ''}
             {headerLogin ? ` • ${headerLogin}` : ''}
-            {headerPropFirm ? ` • ${headerPropFirm}` : firmName !== '—' ? ` • ${firmName}` : ''}
-            {headerAccountType ? ` • ${headerAccountType}` : ''}
+            {firmName !== '—' ? ` • ${firmName}` : ''}
           </p>
           <p className="text-[10px] text-muted-foreground">
             {lastSyncAt ? `Última sincronização: ${new Date(lastSyncAt).toLocaleString('pt-BR')}` : 'Sem sincronização registrada'}

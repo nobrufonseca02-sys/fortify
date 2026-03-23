@@ -21,7 +21,7 @@ export type RuleStatus = 'APPROVING' | 'WARNING' | 'VIOLATED' | 'NOT_MET';
 export type RuleSetOrigin = 'template' | 'custom';
 export type AccountStatus = 'active' | 'violated' | 'passed';
 
-export type Mt5ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'syncing' | 'auth_error';
+export type Mt5ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'syncing' | 'authError';
 
 export interface TradingAccount {
   id: string;
@@ -37,11 +37,9 @@ export interface TradingAccount {
   ruleSetId: string;
   createdAt: string;
 
-  // MT5 / conexão real via backend externo
+  // MT5 / conexão real via backend (Edge Functions)
   mt5Server?: string;
   mt5Login?: string;
-  accountType?: string;
-  propFirm?: string;
   mt5ConnectionStatus?: Mt5ConnectionStatus;
   mt5LastSyncAt?: string;
   mt5SyncError?: string;
@@ -89,6 +87,7 @@ export interface OpenPosition {
   symbol: string;
   side: TradeSide;
   volume: number;
+  openTime?: string;
   openPrice?: number;
   currentPrice?: number;
   floatingPnl?: number;
