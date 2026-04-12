@@ -4,9 +4,9 @@ import { useAuth } from '@/hooks/useAuth';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 
 export type MT5Connection = Tables<'mt5_connections'>;
-export type MT5Trade = Tables<'trades'>;
-export type MT5Position = Tables<'open_positions'>;
-export type MT5Snapshot = Tables<'account_snapshots'>;
+export type MT5Trade = Tables<'mt5_trades'>;
+export type MT5Position = Tables<'mt5_positions'>;
+export type MT5Snapshot = Tables<'mt5_account_snapshots'>;
 
 export function useMT5Connections() {
   const { session } = useAuth();
@@ -40,54 +40,54 @@ export function useMT5ConnectionDetail(connectionId: string | undefined) {
   });
 }
 
-export function useMT5Trades(tradingAccountId: string | undefined) {
+export function useMT5Trades(connectionId: string | undefined) {
   return useQuery({
-    queryKey: ['trades', tradingAccountId],
+    queryKey: ['mt5_trades', connectionId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('trades')
+        .from('mt5_trades')
         .select('*')
-        .eq('trading_account_id', tradingAccountId!)
+        .eq('connection_id', connectionId!)
         .order('close_time', { ascending: false, nullsFirst: false })
         .order('open_time', { ascending: false })
         .limit(200);
       if (error) throw error;
       return data as MT5Trade[];
     },
-    enabled: !!tradingAccountId,
+    enabled: !!connectionId,
   });
 }
 
-export function useMT5Positions(tradingAccountId: string | undefined) {
+export function useMT5Positions(connectionId: string | undefined) {
   return useQuery({
-    queryKey: ['open_positions', tradingAccountId],
+    queryKey: ['mt5_positions', connectionId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('open_positions')
+        .from('mt5_positions')
         .select('*')
-        .eq('trading_account_id', tradingAccountId!)
+        .eq('connection_id', connectionId!)
         .order('updated_at', { ascending: false });
       if (error) throw error;
       return data as MT5Position[];
     },
-    enabled: !!tradingAccountId,
+    enabled: !!connectionId,
   });
 }
 
-export function useMT5Snapshots(tradingAccountId: string | undefined) {
+export function useMT5Snapshots(connectionId: string | undefined) {
   return useQuery({
-    queryKey: ['account_snapshots', tradingAccountId],
+    queryKey: ['mt5_account_snapshots', connectionId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('account_snapshots')
+        .from('mt5_account_snapshots')
         .select('*')
-        .eq('trading_account_id', tradingAccountId!)
+        .eq('connection_id', connectionId!)
         .order('date', { ascending: true })
         .limit(365);
       if (error) throw error;
       return data as MT5Snapshot[];
     },
-    enabled: !!tradingAccountId,
+    enabled: !!connectionId,
   });
 }
 
@@ -96,19 +96,19 @@ export function useCreateMT5Connection() {
 
   return useMutation({
     mutationFn: async (input: {
-      tradingAccountId: string;
+      accountName: string;
       mt5Login: string;
       mt5Server: string;
       brokerName: string;
-      provider: string;
+      userId: string;
     }) => {
       const row: TablesInsert<'mt5_connections'> = {
-        trading_account_id: input.tradingAccountId,
+        account_name: input.accountName,
         mt5_login: input.mt5Login,
         mt5_server: input.mt5Server,
         broker_name: input.brokerName,
-        provider: input.provider,
-      } as any;
+        user_id: input.userId,
+      };
 
       const { data, error } = await supabase
         .from('mt5_connections')
@@ -118,12 +118,8 @@ export function useCreateMT5Connection() {
       if (error) throw error;
       return data;
     },
-    onSuccess: (_data, vars) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['mt5_connections'] });
-      queryClient.invalidateQueries({ queryKey: ['mt5_connection'] });
-      queryClient.invalidateQueries({ queryKey: ['trades', vars.tradingAccountId] });
-      queryClient.invalidateQueries({ queryKey: ['open_positions', vars.tradingAccountId] });
-      queryClient.invalidateQueries({ queryKey: ['account_snapshots', vars.tradingAccountId] });
     },
   });
 }

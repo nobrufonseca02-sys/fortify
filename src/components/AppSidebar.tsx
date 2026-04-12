@@ -1,4 +1,4 @@
-import { LayoutDashboard, ScrollText, PlusCircle, Settings, BarChart3, Shield, BookOpen, Archive, LogOut, Server } from "lucide-react";
+import { LayoutDashboard, ScrollText, PlusCircle, Settings, BarChart3, Shield, BookOpen, Archive, LogOut, Server, Calculator, Target, ClipboardList, FileCheck } from "lucide-react";
 import fortifyLogo from "@/assets/fortify-eagle.png";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -15,13 +15,17 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { useAuth } from "@/hooks/useAuth";
 
 const items = [
-  { title: "Painel", url: "/", icon: LayoutDashboard },
+  { title: "Risk Panel", url: "/", icon: LayoutDashboard },
+  { title: "Calculadora", url: "/calculator", icon: Calculator },
+  { title: "Challenge", url: "/challenge", icon: Target },
   { title: "Minhas Contas", url: "/accounts", icon: PlusCircle },
+  { title: "Regras", url: "/rules", icon: ScrollText },
   { title: "Performance", url: "/performance", icon: BarChart3 },
-  { title: "Regras da Conta", url: "/rules", icon: ScrollText },
+  { title: "Plano de Sessão", url: "/planner", icon: ClipboardList },
+  { title: "Revisão", url: "/review", icon: FileCheck },
   { title: "Prop Firm Library", url: "/library", icon: BookOpen },
   { title: "Contas MT5", url: "/mt5", icon: Server },
-  { title: "Historico", url: "/history", icon: Archive },
+  { title: "Histórico", url: "/history", icon: Archive },
   { title: "Configurações", url: "/settings", icon: Settings },
 ];
 
@@ -34,7 +38,6 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon" className="border-r border-border/50 bg-sidebar">
       <SidebarContent className="pt-5 flex flex-col h-full">
-        {/* Logo */}
         <div className={`px-4 mb-8 ${collapsed ? "px-2" : ""}`}>
           <div className="flex items-center gap-2.5">
             <div className="relative">
@@ -47,7 +50,6 @@ export function AppSidebar() {
           </div>
         </div>
 
-        {/* Nav */}
         <SidebarGroup className="flex-1">
           <SidebarGroupContent>
             <SidebarMenu>
@@ -57,7 +59,6 @@ export function AppSidebar() {
                     <NavLink
                       to={item.url}
                       end={item.url === "/"}
-                      // Mantém mínimo: agora o visual futurista/glow vem do NavLink
                       className=""
                       activeClassName="border-l-2 border-primary"
                     >
@@ -70,11 +71,7 @@ export function AppSidebar() {
               {isAdmin && (
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <NavLink
-                      to="/admin"
-                      className=""
-                      activeClassName="border-l-2 border-primary"
-                    >
+                    <NavLink to="/admin" className="" activeClassName="border-l-2 border-primary">
                       <Shield className="mr-2 h-4 w-4" />
                       {!collapsed && <span className="text-[13px]">Admin</span>}
                     </NavLink>
@@ -85,7 +82,6 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Logout */}
         <div className={`px-3 pb-5 ${collapsed ? "px-2" : ""}`}>
           <button
             onClick={() => signOut()}

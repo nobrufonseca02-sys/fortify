@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Server, TrendingUp, TrendingDown, Activity, Clock, Loader2, AlertTriangle, DollarSign, Target } from 'lucide-react';
+import { ArrowLeft, Server, TrendingUp, TrendingDown, Activity, BarChart3, Clock, Loader2, AlertTriangle, DollarSign, Target } from 'lucide-react';
 import { useMT5ConnectionDetail, useMT5Snapshots, useMT5Trades, useMT5Positions } from '@/hooks/useMT5';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
@@ -28,7 +28,7 @@ const MT5Dashboard = () => {
   if (!connection) {
     return (
       <div className="p-6 text-center">
-        <p className="text-muted-foreground">Conta nao encontrada.</p>
+        <p className="text-muted-foreground">Conta não encontrada.</p>
       </div>
     );
   }
@@ -42,7 +42,7 @@ const MT5Dashboard = () => {
   const drawdown = latestSnap?.drawdown ?? 0;
   const maxBalance = latestSnap?.max_balance ?? balance;
 
-  const totalPnl = snapshots ? snapshots.reduce((sum, s) => sum + s.daily_pnl, 0) : 0;
+  const totalPnl = snapshots ? snapshots.reduce((sum, s) => sum + (s.daily_pnl ?? 0), 0) : 0;
   const tradingDays = snapshots?.length ?? 0;
   const totalTrades = trades?.length ?? 0;
   const openPositionCount = positions?.length ?? 0;
@@ -65,8 +65,6 @@ const MT5Dashboard = () => {
     drawdown: -Number(s.drawdown),
   })) ?? [];
 
-  const headerName = String((connection as any).nickname ?? (connection as any).broker_name ?? (connection as any).mt5_login ?? 'Conta MT5');
-
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
@@ -78,17 +76,17 @@ const MT5Dashboard = () => {
             <Server className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-foreground">{headerName}</h1>
+            <h1 className="text-lg font-bold text-foreground">{connection.account_name}</h1>
             <p className="text-[10px] text-muted-foreground">
-              {(connection as any).mt5_login} — {(connection as any).mt5_server} — {(connection as any).broker_name}
-              {(connection as any).provider ? ` — Provider: ${(connection as any).provider}` : ''}
+              {connection.mt5_login} — {connection.mt5_server} — {connection.broker_name}
+              {connection.prop_firm && ` — ${connection.prop_firm}`}
             </p>
           </div>
         </div>
-        {(connection as any).last_sync_at && (
+        {connection.last_sync_at && (
           <span className="text-[10px] text-muted-foreground flex items-center gap-1">
             <Clock className="w-3 h-3" />
-            Ultima sincronizacao: {new Date((connection as any).last_sync_at).toLocaleString('pt-BR')}
+            Última sincronização: {new Date(connection.last_sync_at).toLocaleString('pt-BR')}
           </span>
         )}
       </div>
@@ -96,9 +94,9 @@ const MT5Dashboard = () => {
       {!latestSnap && (
         <div className="card-premium rounded-xl border border-border bg-card p-8 text-center">
           <AlertTriangle className="w-8 h-8 text-warning mx-auto mb-3" />
-          <p className="text-sm text-foreground font-medium">Aguardando sincronizacao</p>
+          <p className="text-sm text-foreground font-medium">Aguardando sincronização</p>
           <p className="text-xs text-muted-foreground mt-1">
-            Os dados serao exibidos automaticamente apos a primeira sincronizacao com o backend.
+            Os dados serão exibidos automaticamente após a primeira sincronização com o backend.
           </p>
         </div>
       )}
@@ -108,7 +106,7 @@ const MT5Dashboard = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-3">
             <KPICard icon={DollarSign} label="Saldo Atual" value={fmt(balance)} />
             <KPICard icon={Activity} label="Equity Atual" value={fmt(equity)} />
-            <KPICard icon={TrendingUp} label="Lucro Diario" value={fmt(dailyPnl)} valueClass={dailyPnl >= 0 ? 'text-success' : 'text-destructive'} />
+            <KPICard icon={TrendingUp} label="Lucro Diário" value={fmt(dailyPnl)} valueClass={dailyPnl >= 0 ? 'text-success' : 'text-destructive'} />
             <KPICard icon={TrendingDown} label="P&L Acumulado" value={fmt(totalPnl)} valueClass={totalPnl >= 0 ? 'text-success' : 'text-destructive'} />
             <KPICard icon={Activity} label="Floating P&L" value={fmt(floatingPnl)} valueClass={floatingPnl >= 0 ? 'text-success' : 'text-destructive'} />
             <KPICard icon={Target} label="Drawdown" value={fmtPct(-drawdown)} valueClass="text-warning" />
@@ -119,7 +117,7 @@ const MT5Dashboard = () => {
             <StatPill label="Dias de Trading" value={String(tradingDays)} />
             <StatPill label="Total de Trades" value={String(totalTrades)} />
             <StatPill label="Win Rate" value={`${winRate.toFixed(1)}%`} />
-            <StatPill label="Profit Factor" value={profitFactor === Infinity ? '-' : profitFactor.toFixed(2)} />
+            <StatPill label="Profit Factor" value={profitFactor === Infinity ? '∞' : profitFactor.toFixed(2)} />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -142,12 +140,12 @@ const MT5Dashboard = () => {
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
-                <p className="text-xs text-muted-foreground text-center py-10">Dados insuficientes para gerar o grafico.</p>
+                <p className="text-xs text-muted-foreground text-center py-10">Dados insuficientes para gerar o gráfico.</p>
               )}
             </div>
 
             <div className="card-premium rounded-xl border border-border bg-card p-5">
-              <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider mb-4">Historico de Drawdown</h3>
+              <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider mb-4">Histórico de Drawdown</h3>
               {drawdownCurve.length > 1 ? (
                 <ResponsiveContainer width="100%" height={220}>
                   <AreaChart data={drawdownCurve}>
@@ -164,14 +162,15 @@ const MT5Dashboard = () => {
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
-                <p className="text-xs text-muted-foreground text-center py-10">Dados insuficientes para gerar o grafico.</p>
+                <p className="text-xs text-muted-foreground text-center py-10">Dados insuficientes para gerar o gráfico.</p>
               )}
             </div>
           </div>
 
+          {/* Open Positions */}
           <div className="card-premium rounded-xl border border-border bg-card p-5">
             <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider mb-4">
-              Posicoes Abertas ({openPositionCount})
+              Posições Abertas ({openPositionCount})
             </h3>
             {positions && positions.length > 0 ? (
               <div className="overflow-x-auto">
@@ -179,10 +178,10 @@ const MT5Dashboard = () => {
                   <thead>
                     <tr className="border-b border-border text-muted-foreground uppercase tracking-wider">
                       <th className="text-left py-2 px-2">Ticket</th>
-                      <th className="text-left py-2 px-2">Simbolo</th>
+                      <th className="text-left py-2 px-2">Símbolo</th>
                       <th className="text-right py-2 px-2">Volume</th>
-                      <th className="text-right py-2 px-2">Preco Abertura</th>
-                      <th className="text-right py-2 px-2">Preco Atual</th>
+                      <th className="text-right py-2 px-2">Preço Abertura</th>
+                      <th className="text-right py-2 px-2">Preço Atual</th>
                       <th className="text-right py-2 px-2">SL</th>
                       <th className="text-right py-2 px-2">TP</th>
                       <th className="text-right py-2 px-2">Floating P&L</th>
@@ -196,8 +195,8 @@ const MT5Dashboard = () => {
                         <td className="py-2 px-2 text-right font-mono">{Number(pos.volume).toFixed(2)}</td>
                         <td className="py-2 px-2 text-right font-mono">{Number(pos.open_price).toFixed(5)}</td>
                         <td className="py-2 px-2 text-right font-mono">{Number(pos.current_price).toFixed(5)}</td>
-                        <td className="py-2 px-2 text-right font-mono text-muted-foreground">{pos.stop_loss ? Number(pos.stop_loss).toFixed(5) : '-'}</td>
-                        <td className="py-2 px-2 text-right font-mono text-muted-foreground">{pos.take_profit ? Number(pos.take_profit).toFixed(5) : '-'}</td>
+                        <td className="py-2 px-2 text-right font-mono text-muted-foreground">{pos.stop_loss ? Number(pos.stop_loss).toFixed(5) : '—'}</td>
+                        <td className="py-2 px-2 text-right font-mono text-muted-foreground">{pos.take_profit ? Number(pos.take_profit).toFixed(5) : '—'}</td>
                         <td className={`py-2 px-2 text-right font-mono font-semibold ${Number(pos.floating_pnl) >= 0 ? 'text-success' : 'text-destructive'}`}>
                           {fmt(Number(pos.floating_pnl))}
                         </td>
@@ -207,13 +206,14 @@ const MT5Dashboard = () => {
                 </table>
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground text-center py-6">Nenhuma posicao aberta no momento.</p>
+              <p className="text-xs text-muted-foreground text-center py-6">Nenhuma posição aberta no momento.</p>
             )}
           </div>
 
+          {/* Recent Trades */}
           <div className="card-premium rounded-xl border border-border bg-card p-5">
             <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider mb-4">
-              Historico de Trades ({totalTrades})
+              Histórico de Trades ({totalTrades})
             </h3>
             {trades && trades.length > 0 ? (
               <div className="overflow-x-auto">
@@ -221,14 +221,14 @@ const MT5Dashboard = () => {
                   <thead>
                     <tr className="border-b border-border text-muted-foreground uppercase tracking-wider">
                       <th className="text-left py-2 px-2">Ticket</th>
-                      <th className="text-left py-2 px-2">Simbolo</th>
+                      <th className="text-left py-2 px-2">Símbolo</th>
                       <th className="text-left py-2 px-2">Lado</th>
                       <th className="text-right py-2 px-2">Volume</th>
                       <th className="text-right py-2 px-2">Abertura</th>
                       <th className="text-right py-2 px-2">Fechamento</th>
                       <th className="text-right py-2 px-2">Lucro</th>
                       <th className="text-right py-2 px-2">Swap</th>
-                      <th className="text-right py-2 px-2">Comissao</th>
+                      <th className="text-right py-2 px-2">Comissão</th>
                       <th className="text-left py-2 px-2">Data</th>
                     </tr>
                   </thead>
@@ -244,7 +244,7 @@ const MT5Dashboard = () => {
                         </td>
                         <td className="py-2 px-2 text-right font-mono">{Number(trade.volume).toFixed(2)}</td>
                         <td className="py-2 px-2 text-right font-mono">{Number(trade.open_price).toFixed(5)}</td>
-                        <td className="py-2 px-2 text-right font-mono">{trade.close_price ? Number(trade.close_price).toFixed(5) : '-'}</td>
+                        <td className="py-2 px-2 text-right font-mono">{trade.close_price ? Number(trade.close_price).toFixed(5) : '—'}</td>
                         <td className={`py-2 px-2 text-right font-mono font-semibold ${Number(trade.profit) >= 0 ? 'text-success' : 'text-destructive'}`}>
                           {fmt(Number(trade.profit))}
                         </td>
