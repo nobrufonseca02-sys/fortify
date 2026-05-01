@@ -1,4 +1,4 @@
-import { LayoutDashboard, ScrollText, PlusCircle, Settings, BarChart3, Shield, BookOpen, Archive, LogOut, Server, Calculator, Target, ClipboardList, FileCheck } from "lucide-react";
+import { LayoutDashboard, Wallet, PlusCircle, Calculator, ScrollText, LogOut } from "lucide-react";
 import fortifyLogo from "@/assets/fortify-eagle.png";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -11,28 +11,19 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { useUserRole } from "@/hooks/useUserRole";
 import { useAuth } from "@/hooks/useAuth";
 
 const items = [
-  { title: "Risk Panel", url: "/", icon: LayoutDashboard },
-  { title: "Calculadora", url: "/calculator", icon: Calculator },
-  { title: "Challenge", url: "/challenge", icon: Target },
-  { title: "Minhas Contas", url: "/accounts", icon: PlusCircle },
-  { title: "Regras", url: "/rules", icon: ScrollText },
-  { title: "Performance", url: "/performance", icon: BarChart3 },
-  { title: "Plano de Sessão", url: "/planner", icon: ClipboardList },
-  { title: "Revisão", url: "/review", icon: FileCheck },
-  { title: "Prop Firm Library", url: "/library", icon: BookOpen },
-  { title: "Contas MT5", url: "/mt5", icon: Server },
-  { title: "Histórico", url: "/history", icon: Archive },
-  { title: "Configurações", url: "/settings", icon: Settings },
+  { title: "Risk Panel", url: "/", icon: LayoutDashboard, end: true },
+  { title: "Minhas Contas", url: "/accounts", icon: Wallet, end: false },
+  { title: "Nova Conta", url: "/accounts/new", icon: PlusCircle, end: true },
+  { title: "Regras", url: "/rules", icon: ScrollText, end: false },
+  { title: "Calculadora de Risco", url: "/calculator", icon: Calculator, end: true },
 ];
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const { isAdmin } = useUserRole();
   const { signOut } = useAuth();
 
   return (
@@ -58,7 +49,7 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild>
                     <NavLink
                       to={item.url}
-                      end={item.url === "/"}
+                      end={item.end}
                       className=""
                       activeClassName="border-l-2 border-primary"
                     >
@@ -68,16 +59,6 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
-              {isAdmin && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <NavLink to="/admin" className="" activeClassName="border-l-2 border-primary">
-                      <Shield className="mr-2 h-4 w-4" />
-                      {!collapsed && <span className="text-[13px]">Admin</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
