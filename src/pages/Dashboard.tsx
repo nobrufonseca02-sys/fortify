@@ -31,59 +31,139 @@ function Bar({ pct, variant = 'risk' }: { pct: number; variant?: 'risk' | 'profi
   );
 }
 
+function MetricCard({
+  label,
+  value,
+  sub,
+  icon,
+  accent,
+}: {
+  label: string;
+  value: string;
+  sub?: React.ReactNode;
+  icon?: React.ReactNode;
+  accent?: 'success' | 'warning' | 'danger' | 'neutral';
+}) {
+  const accentCls =
+    accent === 'success'
+      ? 'border-success/20 bg-success/7'
+      : accent === 'warning'
+        ? 'border-warning/20 bg-warning/7'
+        : accent === 'danger'
+          ? 'border-destructive/20 bg-destructive/7'
+          : 'border-border/50 bg-muted/20';
+
+  return (
+    <div className={`rounded-2xl border ${accentCls} p-4 md:p-5 card-premium`}> 
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">{label}</p>
+          <p className="font-mono text-2xl md:text-3xl font-black text-foreground truncate">{value}</p>
+        </div>
+        {icon && (
+          <div className="w-10 h-10 rounded-xl border border-border/60 bg-background/40 flex items-center justify-center flex-shrink-0">
+            {icon}
+          </div>
+        )}
+      </div>
+      {sub && <div className="mt-2 text-xs text-muted-foreground">{sub}</div>}
+    </div>
+  );
+}
+
 function HeroCard({ accounts }: { accounts: AccountRow[] }) {
   const { user } = useAuth();
-  const totalEquity = accounts.reduce((s, a) => s + Number(a.current_equity || 0), 0);
-  const totalInitial = accounts.reduce((s, a) => s + Number(a.start_balance || 0), 0);
-  const pnl = totalEquity - totalInitial;
-  const pnlPct = totalInitial > 0 ? ((pnl / totalInitial) * 100).toFixed(1) : '0.0';
-  const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 'Trader';
 
   const metrics = accounts.map(computeAccountMetrics);
   const warnings = metrics.filter(m => m.status === 'WARNING').length;
   const dangers = metrics.filter(m => m.status === 'DANGER').length;
+
+  const totalEquity = accounts.reduce((s, a) => s + Number(a.current_equity || 0), 0);
+  const totalInitial = accounts.reduce((s, a) => s + Number(a.start_balance || 0), 0);
+  const pnl = totalEquity - totalInitial;
+  const pnlPct = totalInitial > 0 ? ((pnl / totalInitial) * 100).toFixed(1) : '0.0';
+
+  const riskRecommended = accounts.length
+    ? Math.max(0, accounts.reduce((s, a) => s + Math.max(0, computeAccountMetrics(a).dailyRemaining), 0)) * 0.01
+    : 0;
+
+  const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 'Trader';
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 md:p-8"
+      className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 md:p-8 card-premium"
     >
-      <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-primary/[0.05] blur-[60px] pointer-events-none" />
-      <div className="relative flex items-start justify-between mb-8">
+      <div className="absolute -top-28 -right-28 w-80 h-80 rounded-full bg-primary/[0.06] blur-[70px] pointer-events-none" />
+      <div className="absolute -bottom-28 -left-28 w-80 h-80 rounded-full bg-info/[0.05] blur-[70px] pointer-events-none" />
+
+      <div className="relative flex items-start justify-between mb-6 md:mb-8">
         <div>
           <p className="text-muted-foreground text-sm mb-1">
             Bem-vindo, <span className="text-foreground font-medium">{firstName}</span>
           </p>
-          <h1 className="text-2xl md:text-3xl font-black text-foreground">Risk Panel</h1>
+          <h1 className="text-2xl md:text-3xl font-black text-foreground">
+            Central de Proteção <span className="text-gradient-primary">FORTIFY</span>
+          </h1>
+          <p className="text-xs text-muted-foreground mt-2 max-w-2xl">
+            Monitoramento manual, claro e direto para você não perder conta por erro de gestão.
+          </p>
         </div>
+
         <div className="flex items-center gap-1.5 text-[10px] bg-success/5 border border-success/10 rounded-full px-3 py-1.5">
           <Activity className="w-3 h-3 text-success animate-pulse" />
           <span className="text-success font-medium">Ao vivo</span>
         </div>
       </div>
 
-      <div className="relative grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5">
-        {[
-          {
-            label: 'Equity Total', value: fmt(totalEquity),
-            sub: <span className={`flex items-center gap-1 mt-1 text-xs font-mono font-medium ${pnl >= 0 ? 'text-success' : 'text-destructive'}`}>
-              {pnl >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+      <div className="relative grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-5">
+        <MetricCard
+          label="Equity total"
+          value={fmt(totalEquity)}
+          icon={pnl >= 0 ? <TrendingUp className="w-4 h-4 text-success" /> : <TrendingDown className="w-4 h-4 text-destructive" />}
+          sub={
+            <span className={`inline-flex items-center gap-1 font-mono font-semibold ${pnl >= 0 ? 'text-success' : 'text-destructive'}`}>
               {pnl >= 0 ? '+' : ''}{pnlPct}%
-            </span>,
-          },
-          { label: 'Contas Ativas', value: String(accounts.length), sub: <span className="text-xs text-muted-foreground mt-1">em monitoramento</span> },
-          { label: 'Alertas', value: String(warnings), valueClass: warnings > 0 ? 'text-warning' : 'text-success', sub: <span className="text-xs text-muted-foreground mt-1">{warnings === 0 ? 'tudo certo' : 'requer atenção'}</span> },
-          { label: 'Críticos', value: String(dangers), valueClass: dangers > 0 ? 'text-destructive' : 'text-success', sub: <span className="text-xs text-muted-foreground mt-1">{dangers === 0 ? 'nenhum' : 'ação necessária'}</span> },
-        ].map((stat, i) => (
-          <motion.div key={stat.label} className="rounded-xl bg-muted/30 border border-border/50 p-4" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.05 }}>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">{stat.label}</p>
-            <p className={`font-mono text-xl md:text-2xl font-bold ${(stat as any).valueClass || 'text-foreground'}`}>{stat.value}</p>
-            {stat.sub}
-          </motion.div>
-        ))}
+              <span className="text-muted-foreground font-normal ml-1">(vs. inicial)</span>
+            </span>
+          }
+        />
+        <MetricCard
+          label="Contas em monitoramento"
+          value={String(accounts.length)}
+          icon={<Wallet className="w-4 h-4 text-primary" />}
+          sub={<span>painéis operacionais</span>}
+        />
+        <MetricCard
+          label="Alertas"
+          value={String(warnings)}
+          accent={warnings > 0 ? 'warning' : 'success'}
+          icon={<AlertTriangle className={`w-4 h-4 ${warnings > 0 ? 'text-warning' : 'text-success'}`} />}
+          sub={<span>{warnings === 0 ? 'tudo certo hoje' : 'reduza risco nas contas em atenção'}</span>}
+        />
+        <MetricCard
+          label="Risco recomendado/oper."
+          value={accounts.length ? fmt(riskRecommended) : '—'}
+          icon={<Shield className="w-4 h-4 text-primary" />}
+          sub={<span className="text-muted-foreground">referência: ~1% do restante diário somado</span>}
+        />
       </div>
+
+      {(dangers > 0) && (
+        <div className="relative mt-6 rounded-xl border border-destructive/20 bg-destructive/10 p-4">
+          <div className="flex items-start gap-3">
+            <ShieldX className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">Ação imediata</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Você tem {dangers} conta(s) em estado crítico. Abra o painel da conta e reduza o risco agora.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }
@@ -94,13 +174,15 @@ function AccountCard({ account, index }: { account: AccountRow; index: number })
   const sc = statusConfig[m.status];
   const StatusIcon = sc.icon;
 
+  const recommendedPerTrade = Math.max(0, m.dailyRemaining) * 0.01;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.1 + index * 0.06, duration: 0.4 }}
       onClick={() => navigate(`/accounts/${account.id}`)}
-      className="group cursor-pointer rounded-2xl border border-border bg-card hover:border-primary/40 transition-all duration-300 p-5"
+      className="group cursor-pointer rounded-2xl border border-border bg-card hover:border-primary/40 transition-all duration-300 p-5 card-premium"
     >
       <div className="flex items-start justify-between mb-4">
         <div className="min-w-0">
@@ -128,24 +210,38 @@ function AccountCard({ account, index }: { account: AccountRow; index: number })
         </div>
       </div>
 
-      <div className="rounded-xl bg-muted/30 border border-border/40 p-3 mb-4">
-        <div className="flex items-center justify-between">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Pode perder hoje</p>
-          <p className="font-mono font-bold text-base text-foreground">{fmt(m.dailyRemaining)}</p>
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="rounded-xl bg-muted/20 border border-border/40 p-3">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Perda diária restante</p>
+          </div>
+          <p className="font-mono font-black text-base text-foreground mt-1">{fmt(m.dailyRemaining)}</p>
         </div>
+        <div className="rounded-xl bg-muted/20 border border-border/40 p-3">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Perda total restante</p>
+          <p className="font-mono font-black text-base text-foreground mt-1">{fmt(m.totalRemaining)}</p>
+        </div>
+      </div>
+
+      <div className="rounded-xl bg-primary/5 border border-primary/15 p-3 mb-4">
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Risco recomendado/oper.</p>
+          <p className="font-mono font-bold text-base text-primary">{fmt(recommendedPerTrade)}</p>
+        </div>
+        <p className="text-[10px] text-muted-foreground mt-1">Sugestão conservadora: ~1% do restante diário</p>
       </div>
 
       <div className="space-y-2.5">
         <div>
           <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-            <span>Perda Diária</span>
+            <span>Uso da perda diária</span>
             <span className="font-mono">{Math.round(m.dailyPct)}%</span>
           </div>
           <Bar pct={m.dailyPct} />
         </div>
         <div>
           <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-            <span>Perda Total</span>
+            <span>Uso da perda total</span>
             <span className="font-mono">{Math.round(m.totalPct)}%</span>
           </div>
           <Bar pct={m.totalPct} />
@@ -153,7 +249,7 @@ function AccountCard({ account, index }: { account: AccountRow; index: number })
         {account.profit_target > 0 && (
           <div>
             <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-              <span>Meta de Lucro</span>
+              <span>Progresso da meta</span>
               <span className="font-mono">{Math.round(m.profitPct)}%</span>
             </div>
             <Bar pct={m.profitPct} variant="profit" />
@@ -162,7 +258,7 @@ function AccountCard({ account, index }: { account: AccountRow; index: number })
         {account.min_trading_days > 0 && (
           <div>
             <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-              <span>Dias de Trading</span>
+              <span>Dias operados</span>
               <span className="font-mono">{account.trading_days_count}/{account.min_trading_days}</span>
             </div>
             <Bar pct={m.daysPct} variant="profit" />
@@ -183,7 +279,10 @@ const Dashboard = () => {
 
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground">Suas Contas</h2>
+          <div>
+            <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground">Painéis de Conta</h2>
+            <p className="text-xs text-muted-foreground mt-1">Clique para abrir e atualizar seu uso de limites (manual).</p>
+          </div>
           <button onClick={() => navigate('/accounts')} className="text-xs text-primary hover:text-primary/80 transition-colors flex items-center gap-1 font-medium">
             Ver todas <ChevronRight className="w-3 h-3" />
           </button>
@@ -192,17 +291,17 @@ const Dashboard = () => {
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-64 rounded-2xl border border-border bg-card animate-pulse" />
+              <div key={i} className="h-72 rounded-2xl border border-border bg-card animate-pulse" />
             ))}
           </div>
         ) : accounts.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border p-12 text-center">
+          <div className="rounded-2xl border border-dashed border-border p-12 text-center card-premium">
             <Wallet className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
             <p className="text-sm text-foreground font-medium">Nenhuma conta cadastrada</p>
             <p className="text-xs text-muted-foreground mt-1 mb-5">Comece adicionando sua primeira conta de prop firm.</p>
             <button
               onClick={() => navigate('/accounts/new')}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors btn-glow"
             >
               <PlusCircle className="w-4 h-4" />
               Criar primeira conta
