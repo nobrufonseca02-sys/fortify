@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Plus, Trash2, Wallet, ChevronRight, Shield, AlertTriangle, XCircle, Building2, Ban } from 'lucide-react';
+import { Plus, Trash2, Wallet, ChevronRight, Shield, AlertTriangle, XCircle, Building2, Ban, Info } from 'lucide-react';
 import { useAccounts, useDeleteAccount, computeAccountMetrics, type AccountRow } from '@/hooks/useAccountsStore';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -143,7 +143,7 @@ const Accounts = () => {
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
-      <div className="rounded-2xl border border-border bg-card p-5 md:p-6 card-premium">
+      <div className="rounded-2xl border border-border bg-card p-5 md:p-6 card-premium space-y-4">
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
@@ -151,7 +151,7 @@ const Accounts = () => {
               <h1 className="text-lg font-black text-foreground truncate">Minhas Contas</h1>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Plataforma para proteger contas de prop firms e facilitar a gestão manual de regras e risco.
+              Crie um painel por conta e registre manualmente seus limites e uso (perda diária/total) para reduzir risco de violação.
             </p>
           </div>
           <button
@@ -161,6 +161,21 @@ const Accounts = () => {
             <Plus className="w-4 h-4" />
             Nova Conta
           </button>
+        </div>
+
+        <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl border border-border/60 bg-background/40 flex items-center justify-center flex-shrink-0">
+              <Info className="w-4 h-4 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">Aviso importante</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                As regras variam por prop firm. Revise o regulamento e mantenha os valores atualizados manualmente.
+                Os alertas servem como referência para decisão de risco.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 

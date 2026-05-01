@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Shield, ShieldAlert, ShieldX, Activity, TrendingUp, TrendingDown,
-  ChevronRight, Wallet, PlusCircle, AlertTriangle, Target, CalendarDays, BadgeCheck, Ban,
+  ChevronRight, Wallet, PlusCircle, AlertTriangle, Target, CalendarDays, BadgeCheck, Ban, Info,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAccounts, computeAccountMetrics, type AccountRow } from '@/hooks/useAccountsStore';
@@ -112,7 +112,7 @@ function HeroCard({ accounts }: { accounts: AccountRow[] }) {
       <div className="absolute -top-28 -right-28 w-80 h-80 rounded-full bg-primary/[0.06] blur-[70px] pointer-events-none" />
       <div className="absolute -bottom-28 -left-28 w-80 h-80 rounded-full bg-info/[0.05] blur-[70px] pointer-events-none" />
 
-      <div className="relative flex items-start justify-between mb-6 md:mb-8 gap-4">
+      <div className="relative flex items-start justify-between mb-6 md:mb-6 gap-4">
         <div className="min-w-0">
           <p className="text-muted-foreground text-sm mb-1">
             Bem-vindo, <span className="text-foreground font-medium">{firstName}</span>
@@ -121,7 +121,7 @@ function HeroCard({ accounts }: { accounts: AccountRow[] }) {
             Proteção de Contas de Prop Firm <span className="text-gradient-primary">FORTIFY</span>
           </h1>
           <p className="text-xs text-muted-foreground mt-2 max-w-2xl">
-            Gestão manual de regras e risco, com leitura rápida: quanto ainda pode perder hoje, no total e o que fazer agora.
+            Gestão manual de regras e risco. Você atualiza os valores e o sistema sinaliza o que está perto de violar.
           </p>
         </div>
 
@@ -137,7 +137,22 @@ function HeroCard({ accounts }: { accounts: AccountRow[] }) {
         </div>
       </div>
 
-      <div className="relative grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-5">
+      <div className="relative mt-3 rounded-xl border border-border/60 bg-muted/20 p-4">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl border border-border/60 bg-background/40 flex items-center justify-center flex-shrink-0">
+            <Info className="w-4 h-4 text-primary" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-foreground">Como este painel funciona</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Esta é uma ferramenta de organização. As regras e limites são gerenciados manualmente por você conforme o regulamento da sua prop firm.
+              Use os alertas para evitar violação por perda diária/total.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="relative grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-5 mt-5">
         <MetricCard
           label="Equity total"
           value={fmt(totalEquity)}
@@ -160,7 +175,7 @@ function HeroCard({ accounts }: { accounts: AccountRow[] }) {
           value={String(warnings + dangers + violated)}
           accent={(warnings + dangers + violated) > 0 ? (violated > 0 || dangers > 0 ? 'danger' : 'warning') : 'success'}
           icon={<AlertTriangle className={`w-4 h-4 ${(warnings + dangers + violated) > 0 ? (violated > 0 || dangers > 0 ? 'text-destructive' : 'text-warning') : 'text-success'}`} />}
-          sub={<span>{(warnings + dangers + violated) === 0 ? 'tudo certo hoje' : 'reduza risco nas contas em atenção/crítico'}</span>}
+          sub={<span>{(warnings + dangers + violated) === 0 ? 'tudo certo hoje' : 'revise e reduza o risco nas contas sinalizadas'}</span>}
         />
         <MetricCard
           label="Risco recomendado/oper."
@@ -217,7 +232,7 @@ function AccountCard({ account, index }: { account: AccountRow; index: number })
             {account.prop_firm || '—'} {account.program ? `• ${account.program}` : ''} {account.phase ? `• ${account.phase}` : ''}
           </p>
         </div>
-        <div className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 ${sc.bg} border ${sc.border} flex-shrink-0`}> 
+        <div className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 ${sc.bg} border ${sc.border} flex-shrink-0`}>
           <StatusIcon className={`w-3 h-3 ${sc.color}`} />
           <span className={`text-[10px] font-black uppercase tracking-wider ${sc.color}`}>{sc.label}</span>
         </div>
@@ -305,7 +320,7 @@ function AccountCard({ account, index }: { account: AccountRow; index: number })
       <div className="mt-4 pt-4 border-t border-border/50 flex items-center justify-between">
         <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
           <BadgeCheck className="w-3.5 h-3.5 text-primary" />
-          <span>Plataforma para proteger contas e gerir regras de risco manualmente</span>
+          <span>Gestão manual: atualize os limites conforme as regras da prop firm</span>
         </div>
         <span className="text-[10px] text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
           Abrir painel <ChevronRight className="w-3 h-3" />
@@ -327,7 +342,7 @@ const Dashboard = () => {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground">Painéis de Conta</h2>
-            <p className="text-xs text-muted-foreground mt-1">Clique para abrir e atualizar seu uso de limites (manual).</p>
+            <p className="text-xs text-muted-foreground mt-1">Clique para abrir e registrar manualmente seu uso de limites e regras.</p>
           </div>
           <button onClick={() => navigate('/accounts')} className="text-xs text-primary hover:text-primary/80 transition-colors flex items-center gap-1 font-medium">
             Ver todas <ChevronRight className="w-3 h-3" />
@@ -344,7 +359,7 @@ const Dashboard = () => {
           <div className="rounded-2xl border border-dashed border-border p-12 text-center card-premium">
             <Wallet className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
             <p className="text-sm text-foreground font-medium">Nenhuma conta cadastrada</p>
-            <p className="text-xs text-muted-foreground mt-1 mb-5">Comece adicionando sua primeira conta de prop firm.</p>
+            <p className="text-xs text-muted-foreground mt-1 mb-5">Comece adicionando sua primeira conta e configure os limites conforme a prop firm.</p>
             <button
               onClick={() => navigate('/accounts/new')}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors btn-glow"
