@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Plus, Trash2, Wallet, ChevronRight, Shield, AlertTriangle, XCircle, Building2 } from 'lucide-react';
+import { Plus, Trash2, Wallet, ChevronRight, Shield, AlertTriangle, XCircle, Building2, Ban } from 'lucide-react';
 import { useAccounts, useDeleteAccount, computeAccountMetrics, type AccountRow } from '@/hooks/useAccountsStore';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -15,13 +15,21 @@ const statusConfig = {
   SAFE: { label: 'SEGURO', icon: Shield, className: 'bg-success/15 text-success border-success/20' },
   WARNING: { label: 'ATENÇÃO', icon: AlertTriangle, className: 'bg-warning/15 text-warning border-warning/20' },
   DANGER: { label: 'CRÍTICO', icon: XCircle, className: 'bg-destructive/15 text-destructive border-destructive/20' },
+  VIOLATED: { label: 'VIOLADO', icon: Ban, className: 'bg-destructive/20 text-destructive border-destructive/35' },
 } as const;
 
-function StatusBadge({ status }: { status: 'SAFE' | 'WARNING' | 'DANGER' }) {
+type VisualStatus = keyof typeof statusConfig;
+
+function resolveVisualStatus(m: ReturnType<typeof computeAccountMetrics>): VisualStatus {
+  if (m.dailyRemaining <= 0 || m.totalRemaining <= 0) return 'VIOLATED';
+  return m.status;
+}
+
+function StatusBadge({ status }: { status: VisualStatus }) {
   const c = statusConfig[status];
   const Icon = c.icon;
   return (
-    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full border ${c.className}`}>
+    <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border ${c.className}`}>
       <Icon className="w-3 h-3" />
       {c.label}
     </span>
@@ -31,6 +39,7 @@ function StatusBadge({ status }: { status: 'SAFE' | 'WARNING' | 'DANGER' }) {
 function AccountRowCard({ account, index, onDelete }: { account: AccountRow; index: number; onDelete: (id: string) => void }) {
   const navigate = useNavigate();
   const m = computeAccountMetrics(account);
+  const visualStatus = resolveVisualStatus(m);
   const isPositive = m.profit >= 0;
   const pnlPct = account.start_balance > 0 ? ((m.profit / account.start_balance) * 100).toFixed(2) : '0.00';
 
@@ -51,12 +60,12 @@ function AccountRowCard({ account, index, onDelete }: { account: AccountRow; ind
             </p>
           </div>
         </div>
-        <StatusBadge status={m.status} />
+        <StatusBadge status={visualStatus} />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-xl border border-border/50 bg-muted/15 p-3">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Equity</p>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Saldo / Equity</p>
           <p className="font-mono font-black text-base text-foreground mt-1">{fmt(account.current_equity)}</p>
           <p className={`text-[10px] font-mono font-semibold mt-1 ${isPositive ? 'text-success' : 'text-destructive'}`}>
             {isPositive ? '+' : ''}{pnlPct}%
@@ -70,13 +79,13 @@ function AccountRowCard({ account, index, onDelete }: { account: AccountRow; ind
       </div>
 
       <div className="grid grid-cols-2 gap-3 pt-1">
-        <div className="rounded-xl border border-warning/15 bg-warning/5 p-3">
+        <div className={`rounded-xl border p-3 ${visualStatus === 'VIOLATED' ? 'border-destructive/25 bg-destructive/10' : 'border-warning/15 bg-warning/5'}`}>
           <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Perda diária restante</p>
-          <p className="font-mono font-black text-base text-foreground mt-1">{fmt(m.dailyRemaining)}</p>
+          <p className={`font-mono font-black text-base mt-1 ${m.dailyRemaining <= 0 ? 'text-destructive' : 'text-foreground'}`}>{fmt(m.dailyRemaining)}</p>
         </div>
-        <div className="rounded-xl border border-border/50 bg-muted/15 p-3">
+        <div className={`rounded-xl border p-3 ${visualStatus === 'VIOLATED' ? 'border-destructive/25 bg-destructive/10' : 'border-border/50 bg-muted/15'}`}>
           <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Perda total restante</p>
-          <p className="font-mono font-black text-base text-foreground mt-1">{fmt(m.totalRemaining)}</p>
+          <p className={`font-mono font-black text-base mt-1 ${m.totalRemaining <= 0 ? 'text-destructive' : 'text-foreground'}`}>{fmt(m.totalRemaining)}</p>
         </div>
       </div>
 
@@ -142,7 +151,7 @@ const Accounts = () => {
               <h1 className="text-lg font-black text-foreground truncate">Minhas Contas</h1>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Cadastro manual e monitoramento de regras. Escaneie rápido: risco restante e status.
+              Plataforma para proteger contas de prop firms e facilitar a gestão manual de regras e risco.
             </p>
           </div>
           <button

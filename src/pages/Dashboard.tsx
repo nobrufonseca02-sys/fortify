@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Shield, ShieldAlert, ShieldX, Activity, TrendingUp, TrendingDown,
-  ChevronRight, Wallet, PlusCircle, AlertTriangle, Target, CalendarDays,
+  ChevronRight, Wallet, PlusCircle, AlertTriangle, Target, CalendarDays, BadgeCheck, Ban,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAccounts, computeAccountMetrics, type AccountRow } from '@/hooks/useAccountsStore';
@@ -10,10 +10,18 @@ import { useAccounts, computeAccountMetrics, type AccountRow } from '@/hooks/use
 const fmt = (v: number) => `$${Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`;
 
 const statusConfig = {
-  SAFE: { label: 'SEGURO', color: 'text-success', bg: 'bg-success/10', border: 'border-success/20', icon: Shield },
-  WARNING: { label: 'ATENÇÃO', color: 'text-warning', bg: 'bg-warning/10', border: 'border-warning/20', icon: ShieldAlert },
-  DANGER: { label: 'CRÍTICO', color: 'text-destructive', bg: 'bg-destructive/10', border: 'border-destructive/20', icon: ShieldX },
+  SAFE: { label: 'SEGURO', color: 'text-success', bg: 'bg-success/10', border: 'border-success/25', icon: Shield },
+  WARNING: { label: 'ATENÇÃO', color: 'text-warning', bg: 'bg-warning/10', border: 'border-warning/25', icon: ShieldAlert },
+  DANGER: { label: 'CRÍTICO', color: 'text-destructive', bg: 'bg-destructive/10', border: 'border-destructive/25', icon: ShieldX },
+  VIOLATED: { label: 'VIOLADO', color: 'text-destructive', bg: 'bg-destructive/15', border: 'border-destructive/35', icon: Ban },
 } as const;
+
+type VisualStatus = keyof typeof statusConfig;
+
+function resolveVisualStatus(m: ReturnType<typeof computeAccountMetrics>): VisualStatus {
+  if (m.dailyRemaining <= 0 || m.totalRemaining <= 0) return 'VIOLATED';
+  return m.status;
+}
 
 function Bar({ pct, variant = 'risk' }: { pct: number; variant?: 'risk' | 'profit' }) {
   const color = variant === 'profit'
@@ -54,7 +62,7 @@ function MetricCard({
           : 'border-border/50 bg-muted/20';
 
   return (
-    <div className={`rounded-2xl border ${accentCls} p-4 md:p-5 card-premium`}> 
+    <div className={`rounded-2xl border ${accentCls} p-4 md:p-5 card-premium`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">{label}</p>
@@ -75,8 +83,9 @@ function HeroCard({ accounts }: { accounts: AccountRow[] }) {
   const { user } = useAuth();
 
   const metrics = accounts.map(computeAccountMetrics);
-  const warnings = metrics.filter(m => m.status === 'WARNING').length;
-  const dangers = metrics.filter(m => m.status === 'DANGER').length;
+  const warnings = metrics.filter(m => resolveVisualStatus(m) === 'WARNING').length;
+  const dangers = metrics.filter(m => resolveVisualStatus(m) === 'DANGER').length;
+  const violated = metrics.filter(m => resolveVisualStatus(m) === 'VIOLATED').length;
 
   const totalEquity = accounts.reduce((s, a) => s + Number(a.current_equity || 0), 0);
   const totalInitial = accounts.reduce((s, a) => s + Number(a.start_balance || 0), 0);
@@ -89,6 +98,10 @@ function HeroCard({ accounts }: { accounts: AccountRow[] }) {
 
   const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 'Trader';
 
+  const headlineStatus: VisualStatus = violated > 0 ? 'VIOLATED' : dangers > 0 ? 'DANGER' : warnings > 0 ? 'WARNING' : 'SAFE';
+  const sc = statusConfig[headlineStatus];
+  const HeadlineIcon = sc.icon;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -99,22 +112,28 @@ function HeroCard({ accounts }: { accounts: AccountRow[] }) {
       <div className="absolute -top-28 -right-28 w-80 h-80 rounded-full bg-primary/[0.06] blur-[70px] pointer-events-none" />
       <div className="absolute -bottom-28 -left-28 w-80 h-80 rounded-full bg-info/[0.05] blur-[70px] pointer-events-none" />
 
-      <div className="relative flex items-start justify-between mb-6 md:mb-8">
-        <div>
+      <div className="relative flex items-start justify-between mb-6 md:mb-8 gap-4">
+        <div className="min-w-0">
           <p className="text-muted-foreground text-sm mb-1">
             Bem-vindo, <span className="text-foreground font-medium">{firstName}</span>
           </p>
           <h1 className="text-2xl md:text-3xl font-black text-foreground">
-            Central de Proteção <span className="text-gradient-primary">FORTIFY</span>
+            Proteção de Contas de Prop Firm <span className="text-gradient-primary">FORTIFY</span>
           </h1>
           <p className="text-xs text-muted-foreground mt-2 max-w-2xl">
-            Monitoramento manual, claro e direto para você não perder conta por erro de gestão.
+            Gestão manual de regras e risco, com leitura rápida: quanto ainda pode perder hoje, no total e o que fazer agora.
           </p>
         </div>
 
-        <div className="flex items-center gap-1.5 text-[10px] bg-success/5 border border-success/10 rounded-full px-3 py-1.5">
-          <Activity className="w-3 h-3 text-success animate-pulse" />
-          <span className="text-success font-medium">Ao vivo</span>
+        <div className="flex flex-col items-end gap-2 flex-shrink-0">
+          <div className="flex items-center gap-1.5 text-[10px] bg-success/5 border border-success/10 rounded-full px-3 py-1.5">
+            <Activity className="w-3 h-3 text-success animate-pulse" />
+            <span className="text-success font-medium">Ao vivo</span>
+          </div>
+          <div className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 ${sc.bg} border ${sc.border}`}>
+            <HeadlineIcon className={`w-3.5 h-3.5 ${sc.color}`} />
+            <span className={`text-[10px] font-black uppercase tracking-wider ${sc.color}`}>Status geral: {sc.label}</span>
+          </div>
         </div>
       </div>
 
@@ -131,17 +150,17 @@ function HeroCard({ accounts }: { accounts: AccountRow[] }) {
           }
         />
         <MetricCard
-          label="Contas em monitoramento"
+          label="Contas protegidas"
           value={String(accounts.length)}
           icon={<Wallet className="w-4 h-4 text-primary" />}
           sub={<span>painéis operacionais</span>}
         />
         <MetricCard
-          label="Alertas"
-          value={String(warnings)}
-          accent={warnings > 0 ? 'warning' : 'success'}
-          icon={<AlertTriangle className={`w-4 h-4 ${warnings > 0 ? 'text-warning' : 'text-success'}`} />}
-          sub={<span>{warnings === 0 ? 'tudo certo hoje' : 'reduza risco nas contas em atenção'}</span>}
+          label="Alertas (atenção/crítico)"
+          value={String(warnings + dangers + violated)}
+          accent={(warnings + dangers + violated) > 0 ? (violated > 0 || dangers > 0 ? 'danger' : 'warning') : 'success'}
+          icon={<AlertTriangle className={`w-4 h-4 ${(warnings + dangers + violated) > 0 ? (violated > 0 || dangers > 0 ? 'text-destructive' : 'text-warning') : 'text-success'}`} />}
+          sub={<span>{(warnings + dangers + violated) === 0 ? 'tudo certo hoje' : 'reduza risco nas contas em atenção/crítico'}</span>}
         />
         <MetricCard
           label="Risco recomendado/oper."
@@ -151,14 +170,20 @@ function HeroCard({ accounts }: { accounts: AccountRow[] }) {
         />
       </div>
 
-      {(dangers > 0) && (
-        <div className="relative mt-6 rounded-xl border border-destructive/20 bg-destructive/10 p-4">
+      {(violated > 0 || dangers > 0) && (
+        <div className={`relative mt-6 rounded-xl border ${(violated > 0) ? 'border-destructive/30 bg-destructive/12' : 'border-destructive/20 bg-destructive/10'} p-4`}>
           <div className="flex items-start gap-3">
-            <ShieldX className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+            {(violated > 0) ? (
+              <Ban className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+            ) : (
+              <ShieldX className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+            )}
             <div className="min-w-0">
               <p className="text-sm font-semibold text-foreground">Ação imediata</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Você tem {dangers} conta(s) em estado crítico. Abra o painel da conta e reduza o risco agora.
+                {violated > 0
+                  ? `Você tem ${violated} conta(s) possivelmente violada(s) (limite diário/total atingido). Abra o painel para revisar e pausar o risco.`
+                  : `Você tem ${dangers} conta(s) em estado crítico. Abra o painel da conta e reduza o risco agora.`}
               </p>
             </div>
           </div>
@@ -171,7 +196,8 @@ function HeroCard({ accounts }: { accounts: AccountRow[] }) {
 function AccountCard({ account, index }: { account: AccountRow; index: number }) {
   const navigate = useNavigate();
   const m = computeAccountMetrics(account);
-  const sc = statusConfig[m.status];
+  const visualStatus = resolveVisualStatus(m);
+  const sc = statusConfig[visualStatus];
   const StatusIcon = sc.icon;
 
   const recommendedPerTrade = Math.max(0, m.dailyRemaining) * 0.01;
@@ -184,51 +210,61 @@ function AccountCard({ account, index }: { account: AccountRow; index: number })
       onClick={() => navigate(`/accounts/${account.id}`)}
       className="group cursor-pointer rounded-2xl border border-border bg-card hover:border-primary/40 transition-all duration-300 p-5 card-premium"
     >
-      <div className="flex items-start justify-between mb-4">
+      <div className="flex items-start justify-between mb-4 gap-3">
         <div className="min-w-0">
           <h3 className="font-bold text-foreground text-sm truncate group-hover:text-primary transition-colors">{account.nickname}</h3>
           <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
             {account.prop_firm || '—'} {account.program ? `• ${account.program}` : ''} {account.phase ? `• ${account.phase}` : ''}
           </p>
         </div>
-        <div className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 ${sc.bg} border ${sc.border} flex-shrink-0`}>
+        <div className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 ${sc.bg} border ${sc.border} flex-shrink-0`}> 
           <StatusIcon className={`w-3 h-3 ${sc.color}`} />
-          <span className={`text-[10px] font-bold uppercase tracking-wider ${sc.color}`}>{sc.label}</span>
+          <span className={`text-[10px] font-black uppercase tracking-wider ${sc.color}`}>{sc.label}</span>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 mb-4">
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Equity</p>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Saldo / Equity</p>
           <p className="font-mono font-bold text-foreground">{fmt(account.current_equity)}</p>
         </div>
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">P&L</p>
-          <p className={`font-mono font-bold ${m.profit >= 0 ? 'text-success' : 'text-destructive'}`}>
-            {m.profit >= 0 ? '+' : '-'}{fmt(m.profit)}
-          </p>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Meta</p>
+          <p className="font-mono font-bold text-foreground">{account.profit_target > 0 ? fmt(account.profit_target) : '—'}</p>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 mb-4">
-        <div className="rounded-xl bg-muted/20 border border-border/40 p-3">
+        <div className={`rounded-xl border p-3 ${visualStatus === 'VIOLATED' ? 'bg-destructive/10 border-destructive/25' : 'bg-muted/20 border-border/40'}`}>
           <div className="flex items-center justify-between">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Perda diária restante</p>
           </div>
-          <p className="font-mono font-black text-base text-foreground mt-1">{fmt(m.dailyRemaining)}</p>
+          <p className={`font-mono font-black text-base mt-1 ${m.dailyRemaining <= 0 ? 'text-destructive' : 'text-foreground'}`}>{fmt(m.dailyRemaining)}</p>
         </div>
-        <div className="rounded-xl bg-muted/20 border border-border/40 p-3">
+        <div className={`rounded-xl border p-3 ${visualStatus === 'VIOLATED' ? 'bg-destructive/10 border-destructive/25' : 'bg-muted/20 border-border/40'}`}>
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Perda total restante</p>
-          <p className="font-mono font-black text-base text-foreground mt-1">{fmt(m.totalRemaining)}</p>
+          <p className={`font-mono font-black text-base mt-1 ${m.totalRemaining <= 0 ? 'text-destructive' : 'text-foreground'}`}>{fmt(m.totalRemaining)}</p>
         </div>
       </div>
 
-      <div className="rounded-xl bg-primary/5 border border-primary/15 p-3 mb-4">
-        <div className="flex items-center justify-between">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Risco recomendado/oper.</p>
-          <p className="font-mono font-bold text-base text-primary">{fmt(recommendedPerTrade)}</p>
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="rounded-xl bg-primary/5 border border-primary/15 p-3">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Risco recomendado/oper.</p>
+            <p className="font-mono font-black text-base text-primary">{fmt(recommendedPerTrade)}</p>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1">Conservador: ~1% do restante diário</p>
         </div>
-        <p className="text-[10px] text-muted-foreground mt-1">Sugestão conservadora: ~1% do restante diário</p>
+        <div className="rounded-xl bg-muted/20 border border-border/40 p-3">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Dias operados</p>
+            <div className="flex items-center gap-1.5">
+              <CalendarDays className="w-3.5 h-3.5 text-muted-foreground" />
+              <p className="font-mono font-bold text-foreground">{account.min_trading_days > 0 ? `${account.trading_days_count}/${account.min_trading_days}` : '—'}</p>
+            </div>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1">Regra comum em challenges</p>
+        </div>
       </div>
 
       <div className="space-y-2.5">
@@ -264,6 +300,16 @@ function AccountCard({ account, index }: { account: AccountRow; index: number })
             <Bar pct={m.daysPct} variant="profit" />
           </div>
         )}
+      </div>
+
+      <div className="mt-4 pt-4 border-t border-border/50 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+          <BadgeCheck className="w-3.5 h-3.5 text-primary" />
+          <span>Plataforma para proteger contas e gerir regras de risco manualmente</span>
+        </div>
+        <span className="text-[10px] text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+          Abrir painel <ChevronRight className="w-3 h-3" />
+        </span>
       </div>
     </motion.div>
   );
