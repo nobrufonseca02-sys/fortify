@@ -1,338 +1,185 @@
-import { MOCK_EVALUATIONS, RULE_SET_TEMPLATES } from '@/data/mockData';
-import { useAccountsStore } from '@/hooks/useAccountsStore';
-import { TradingAccount } from '@/types/fortify';
-import {
-  Shield, ShieldAlert, ShieldX, Lightbulb,
-  TrendingUp, TrendingDown, Activity, Zap, ChevronRight, ArrowUpRight
-} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import {
+  Shield, ShieldAlert, ShieldX, Activity, TrendingUp, TrendingDown,
+  ChevronRight, Wallet, PlusCircle, AlertTriangle, Target, CalendarDays,
+} from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useAccounts, computeAccountMetrics, type AccountRow } from '@/hooks/useAccountsStore';
 
 const fmt = (v: number) => `$${Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`;
-const pct = (v: number, t: number) => t > 0 ? Math.min(100, (v / t) * 100) : 0;
 
-function getAccountData(account: TradingAccount) {
-  const evals = MOCK_EVALUATIONS.filter(e => e.tradingAccountId === account.id);
-  const ruleSet = RULE_SET_TEMPLATES.find(r => r.id === account.ruleSetId);
-  const dailyLoss = evals.find(e => e.rule.type === 'MAX_DAILY_LOSS');
-  const totalLoss = evals.find(e => e.rule.type === 'MAX_TOTAL_LOSS') || evals.find(e => e.rule.type === 'TRAILING_MAX_LOSS');
-  const profitTarget = evals.find(e => e.rule.type === 'PROFIT_TARGET');
-  const dailyRemaining = dailyLoss ? Math.max(0, dailyLoss.limitValue - dailyLoss.currentValue) : 0;
-  const maxLossRemaining = totalLoss ? Math.max(0, totalLoss.limitValue - totalLoss.currentValue) : 0;
-  const riskEvals = evals.filter(e => ['MAX_DAILY_LOSS', 'MAX_TOTAL_LOSS', 'TRAILING_MAX_LOSS'].includes(e.rule.type));
-  const closestRule = riskEvals.length > 0 ? riskEvals.reduce((a, b) => a.progressPct > b.progressPct ? a : b) : null;
-  const hasViolation = evals.some(e => e.status === 'VIOLATED');
-  const hasWarning = evals.some(e => e.status === 'WARNING');
-  const status = hasViolation ? 'VIOLATED' as const : hasWarning ? 'WARNING' as const : 'SAFE' as const;
-  const avgRisk = riskEvals.length > 0 ? riskEvals.reduce((s, e) => s + e.progressPct, 0) / riskEvals.length : 0;
-  const healthScore = Math.max(0, Math.round(100 - avgRisk));
+const statusConfig = {
+  SAFE: { label: 'SEGURO', color: 'text-success', bg: 'bg-success/10', border: 'border-success/20', icon: Shield },
+  WARNING: { label: 'ATENÇÃO', color: 'text-warning', bg: 'bg-warning/10', border: 'border-warning/20', icon: ShieldAlert },
+  DANGER: { label: 'CRÍTICO', color: 'text-destructive', bg: 'bg-destructive/10', border: 'border-destructive/20', icon: ShieldX },
+} as const;
 
-  let action = 'Manter risco atual';
-  if (avgRisk > 85) action = 'Parar de operar imediatamente';
-  else if (avgRisk > 65) action = 'Reduzir lote significativamente';
-  else if (avgRisk > 45) action = 'Reduzir tamanho do lote';
-  else if (avgRisk > 30) action = 'Recuperacao gradual';
-
-  let insight = '';
-  if (dailyLoss && dailyLoss.progressPct > 50) {
-    insight = `Ja usou ${fmt(dailyLoss.currentValue)} do limite diario. Restam ${fmt(Math.max(0, dailyLoss.limitValue - dailyLoss.currentValue))}`;
-  } else if (profitTarget && profitTarget.currentValue < 0) {
-    insight = `Precisa de ${fmt(profitTarget.limitValue - profitTarget.currentValue)} para atingir a meta`;
-  } else if (totalLoss && totalLoss.progressPct > 30) {
-    insight = `Margem de perda restante: ${fmt(Math.max(0, totalLoss.limitValue - totalLoss.currentValue))}`;
-  } else if (profitTarget) {
-    insight = `Faltam ${fmt(profitTarget.limitValue - Math.max(0, profitTarget.currentValue))} para a meta de lucro`;
-  } else {
-    insight = 'Conta dentro dos limites seguros';
-  }
-
-  return { evals, ruleSet, dailyLoss, totalLoss, profitTarget, dailyRemaining, maxLossRemaining, closestRule, status, healthScore, action, insight, avgRisk };
-}
-
-type AccountStatus = 'SAFE' | 'WARNING' | 'VIOLATED';
-
-const statusConfig: Record<AccountStatus, { label: string; color: string; bg: string; icon: typeof Shield; border: string; glow: string }> = {
-  SAFE: { label: 'SEGURO', color: 'text-success', bg: 'bg-success/10', icon: Shield, border: 'border-success/20', glow: 'shadow-success/5' },
-  WARNING: { label: 'ATENCAO', color: 'text-warning', bg: 'bg-warning/10', icon: ShieldAlert, border: 'border-warning/20', glow: 'shadow-warning/5' },
-  VIOLATED: { label: 'VIOLADO', color: 'text-destructive', bg: 'bg-destructive/10', icon: ShieldX, border: 'border-destructive/20', glow: 'shadow-destructive/20' },
-};
-
-function ProgressRing({ value, size = 80, strokeWidth = 6, status }: { value: number; size?: number; strokeWidth?: number; status: AccountStatus }) {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = radius * 2 * Math.PI;
-  const offset = circumference - (value / 100) * circumference;
-  const colorMap = { SAFE: 'hsl(var(--success))', WARNING: 'hsl(var(--warning))', VIOLATED: 'hsl(var(--destructive))' };
-
-  return (
-    <div className="relative" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="hsl(var(--muted))" strokeWidth={strokeWidth} />
-        <motion.circle
-          cx={size / 2} cy={size / 2} r={radius} fill="none"
-          stroke={colorMap[status]}
-          strokeWidth={strokeWidth}
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          initial={{ strokeDashoffset: circumference }}
-          animate={{ strokeDashoffset: offset }}
-          transition={{ duration: 1.2, ease: 'easeOut' }}
-        />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="font-mono font-bold text-lg text-foreground">{value}</span>
-      </div>
-    </div>
-  );
-}
-
-function GlowBar({ value, max, variant = 'risk' }: { value: number; max: number; variant?: 'risk' | 'profit' }) {
-  const p = pct(value, max);
+function Bar({ pct, variant = 'risk' }: { pct: number; variant?: 'risk' | 'profit' }) {
   const color = variant === 'profit'
     ? 'bg-primary'
-    : p > 70 ? 'bg-destructive' : p > 45 ? 'bg-warning' : 'bg-success';
-
+    : pct >= 80 ? 'bg-destructive' : pct >= 50 ? 'bg-warning' : 'bg-success';
   return (
     <div className="h-1.5 w-full rounded-full bg-muted/60 overflow-hidden">
       <motion.div
         className={`h-full rounded-full ${color}`}
         initial={{ width: 0 }}
-        animate={{ width: `${Math.min(100, p)}%` }}
-        transition={{ duration: 0.8, ease: 'easeOut' }}
+        animate={{ width: `${Math.min(100, pct)}%` }}
+        transition={{ duration: 0.7, ease: 'easeOut' }}
       />
     </div>
   );
 }
 
-function HeroCard() {
-  const { accounts } = useAccountsStore();
+function HeroCard({ accounts }: { accounts: AccountRow[] }) {
   const { user } = useAuth();
-  const totalEquity = accounts.reduce((s, a) => s + a.currentEquity, 0);
-  const totalInitial = accounts.reduce((s, a) => s + a.startBalance, 0);
+  const totalEquity = accounts.reduce((s, a) => s + Number(a.current_equity || 0), 0);
+  const totalInitial = accounts.reduce((s, a) => s + Number(a.start_balance || 0), 0);
   const pnl = totalEquity - totalInitial;
   const pnlPct = totalInitial > 0 ? ((pnl / totalInitial) * 100).toFixed(1) : '0.0';
   const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 'Trader';
-  const allData = accounts.map(a => getAccountData(a));
-  const activeAccounts = accounts.length;
-  const warnings = allData.filter(d => d.status === 'WARNING').length;
-  const violations = allData.filter(d => d.status === 'VIOLATED').length;
+
+  const metrics = accounts.map(computeAccountMetrics);
+  const warnings = metrics.filter(m => m.status === 'WARNING').length;
+  const dangers = metrics.filter(m => m.status === 'DANGER').length;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="relative overflow-hidden rounded-2xl card-premium"
+      transition={{ duration: 0.4 }}
+      className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 md:p-8"
     >
-      <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-primary/[0.04] blur-[60px] pointer-events-none" />
+      <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-primary/[0.05] blur-[60px] pointer-events-none" />
+      <div className="relative flex items-start justify-between mb-8">
+        <div>
+          <p className="text-muted-foreground text-sm mb-1">
+            Bem-vindo, <span className="text-foreground font-medium">{firstName}</span>
+          </p>
+          <h1 className="text-2xl md:text-3xl font-black text-foreground">Risk Panel</h1>
+        </div>
+        <div className="flex items-center gap-1.5 text-[10px] bg-success/5 border border-success/10 rounded-full px-3 py-1.5">
+          <Activity className="w-3 h-3 text-success animate-pulse" />
+          <span className="text-success font-medium">Ao vivo</span>
+        </div>
+      </div>
 
-      <div className="relative p-6 md:p-8">
-        <div className="flex items-start justify-between mb-8">
-          <div>
-            <motion.p className="text-muted-foreground text-sm mb-1" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
-              Bem-vindo, <span className="text-foreground font-medium">{firstName}</span>
-            </motion.p>
-            <motion.h1 className="text-2xl md:text-3xl font-black text-foreground" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
-              Visao Geral
-            </motion.h1>
-          </div>
-          <motion.div className="flex items-center gap-1.5 text-[10px] text-muted-foreground bg-success/5 border border-success/10 rounded-full px-3 py-1.5" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
-            <Activity className="w-3 h-3 text-success animate-pulse" />
-            <span className="text-success font-medium">Ao vivo</span>
+      <div className="relative grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5">
+        {[
+          {
+            label: 'Equity Total', value: fmt(totalEquity),
+            sub: <span className={`flex items-center gap-1 mt-1 text-xs font-mono font-medium ${pnl >= 0 ? 'text-success' : 'text-destructive'}`}>
+              {pnl >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+              {pnl >= 0 ? '+' : ''}{pnlPct}%
+            </span>,
+          },
+          { label: 'Contas Ativas', value: String(accounts.length), sub: <span className="text-xs text-muted-foreground mt-1">em monitoramento</span> },
+          { label: 'Alertas', value: String(warnings), valueClass: warnings > 0 ? 'text-warning' : 'text-success', sub: <span className="text-xs text-muted-foreground mt-1">{warnings === 0 ? 'tudo certo' : 'requer atenção'}</span> },
+          { label: 'Críticos', value: String(dangers), valueClass: dangers > 0 ? 'text-destructive' : 'text-success', sub: <span className="text-xs text-muted-foreground mt-1">{dangers === 0 ? 'nenhum' : 'ação necessária'}</span> },
+        ].map((stat, i) => (
+          <motion.div key={stat.label} className="rounded-xl bg-muted/30 border border-border/50 p-4" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.05 }}>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">{stat.label}</p>
+            <p className={`font-mono text-xl md:text-2xl font-bold ${(stat as any).valueClass || 'text-foreground'}`}>{stat.value}</p>
+            {stat.sub}
           </motion.div>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5">
-          {[
-            { label: 'Equity Total', value: fmt(totalEquity), sub: <span className={`flex items-center gap-1 mt-1 text-xs font-mono font-medium ${pnl >= 0 ? 'text-success' : 'text-destructive'}`}>{pnl >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}{pnl >= 0 ? '+' : ''}{pnlPct}%</span> },
-            { label: 'Contas Ativas', value: String(activeAccounts), sub: <span className="text-xs text-muted-foreground mt-1">em monitoramento</span> },
-            { label: 'Alertas', value: String(warnings), valueClass: warnings > 0 ? 'text-warning' : 'text-success', sub: <span className="text-xs text-muted-foreground mt-1">{warnings === 0 ? 'tudo certo' : 'requer atenção'}</span> },
-            { label: 'Violações', value: String(violations), valueClass: violations > 0 ? 'text-destructive' : 'text-success', sub: <span className="text-xs text-muted-foreground mt-1">{violations === 0 ? 'nenhuma' : 'ação necessária'}</span> },
-          ].map((stat, i) => (
-            <motion.div key={stat.label} className="rounded-xl bg-muted/30 border border-border/50 p-4" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.1 }}>
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">{stat.label}</p>
-              <p className={`font-mono text-xl md:text-2xl font-bold ${(stat as any).valueClass || 'text-foreground'}`}>{stat.value}</p>
-              {stat.sub}
-            </motion.div>
-          ))}
-        </div>
+        ))}
       </div>
     </motion.div>
   );
 }
 
-function DecisionCard() {
-  const { accounts } = useAccountsStore();
-  const primary = accounts[0];
-  if (!primary) return null;
-  const data = getAccountData(primary);
-  const sc = statusConfig[data.status];
-  const StatusIcon = sc.icon;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.3, duration: 0.4 }}
-      className={`rounded-2xl border ${sc.border} bg-card overflow-hidden shadow-lg ${sc.glow}`}
-    >
-      <div className="p-6">
-        <div className="flex items-center gap-2 mb-5">
-          <div className={`w-8 h-8 rounded-lg ${sc.bg} flex items-center justify-center`}>
-            <Zap className={`w-4 h-4 ${sc.color}`} />
-          </div>
-          <div>
-            <p className="text-xs font-bold text-foreground">Próxima Decisão</p>
-            <p className="text-[10px] text-muted-foreground">{primary.nickname}</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">Pode perder hoje</p>
-            <p className="text-3xl font-mono font-black text-foreground mb-3">{fmt(data.dailyRemaining)}</p>
-            {data.dailyLoss && (
-              <>
-                <GlowBar value={data.dailyLoss.currentValue} max={data.dailyLoss.limitValue} />
-                <p className="text-[10px] text-muted-foreground mt-1.5 font-mono">{fmt(data.dailyLoss.currentValue)} / {fmt(data.dailyLoss.limitValue)}</p>
-              </>
-            )}
-          </div>
-
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">Regra mais proxima</p>
-            {data.closestRule ? (
-              <div className="flex items-center gap-4">
-                <ProgressRing value={Math.round(data.closestRule.progressPct)} size={72} status={data.status} />
-                <div>
-                  <p className="text-sm font-bold text-foreground">{data.closestRule.rule.name}</p>
-                  <p className="text-[10px] text-muted-foreground font-mono mt-0.5">{fmt(data.closestRule.currentValue)} / {fmt(data.closestRule.limitValue)}</p>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Shield className="w-5 h-5 text-success" />
-                <span className="text-success font-bold text-sm">Nenhuma em risco</span>
-              </div>
-            )}
-          </div>
-
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">Status</p>
-            <div className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 ${sc.bg} border ${sc.border} mb-3`}>
-              <StatusIcon className={`w-3.5 h-3.5 ${sc.color}`} />
-              <span className={`text-xs font-bold ${sc.color}`}>{sc.label}</span>
-            </div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 font-medium">Recomendacao</p>
-            <p className="text-sm font-bold text-foreground">{data.action}</p>
-          </div>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-function AccountCard({ account, index }: { account: TradingAccount; index: number }) {
+function AccountCard({ account, index }: { account: AccountRow; index: number }) {
   const navigate = useNavigate();
-  const data = getAccountData(account);
-  const sc = statusConfig[data.status];
+  const m = computeAccountMetrics(account);
+  const sc = statusConfig[m.status];
   const StatusIcon = sc.icon;
-  const brokerName = account.broker || '—';
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.2 + index * 0.08, duration: 0.4 }}
-      className="group relative rounded-2xl border border-border bg-card hover:border-primary/30 transition-all duration-300 cursor-pointer overflow-hidden shadow-lg shadow-background/30 hover:shadow-primary/5"
+      transition={{ delay: 0.1 + index * 0.06, duration: 0.4 }}
       onClick={() => navigate(`/accounts/${account.id}`)}
+      className="group cursor-pointer rounded-2xl border border-border bg-card hover:border-primary/40 transition-all duration-300 p-5"
     >
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br from-primary/[0.03] to-transparent pointer-events-none" />
+      <div className="flex items-start justify-between mb-4">
+        <div className="min-w-0">
+          <h3 className="font-bold text-foreground text-sm truncate group-hover:text-primary transition-colors">{account.nickname}</h3>
+          <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+            {account.prop_firm || '—'} {account.program ? `• ${account.program}` : ''} {account.phase ? `• ${account.phase}` : ''}
+          </p>
+        </div>
+        <div className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 ${sc.bg} border ${sc.border} flex-shrink-0`}>
+          <StatusIcon className={`w-3 h-3 ${sc.color}`} />
+          <span className={`text-[10px] font-bold uppercase tracking-wider ${sc.color}`}>{sc.label}</span>
+        </div>
+      </div>
 
-      <div className="relative p-5">
-        <div className="flex items-start justify-between mb-5">
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Equity</p>
+          <p className="font-mono font-bold text-foreground">{fmt(account.current_equity)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">P&L</p>
+          <p className={`font-mono font-bold ${m.profit >= 0 ? 'text-success' : 'text-destructive'}`}>
+            {m.profit >= 0 ? '+' : '-'}{fmt(m.profit)}
+          </p>
+        </div>
+      </div>
+
+      <div className="rounded-xl bg-muted/30 border border-border/40 p-3 mb-4">
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Pode perder hoje</p>
+          <p className="font-mono font-bold text-base text-foreground">{fmt(m.dailyRemaining)}</p>
+        </div>
+      </div>
+
+      <div className="space-y-2.5">
+        <div>
+          <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+            <span>Perda Diária</span>
+            <span className="font-mono">{Math.round(m.dailyPct)}%</span>
+          </div>
+          <Bar pct={m.dailyPct} />
+        </div>
+        <div>
+          <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+            <span>Perda Total</span>
+            <span className="font-mono">{Math.round(m.totalPct)}%</span>
+          </div>
+          <Bar pct={m.totalPct} />
+        </div>
+        {account.profit_target > 0 && (
           <div>
-            <h3 className="font-bold text-foreground text-sm group-hover:text-primary transition-colors">{account.nickname}</h3>
-            <p className="text-[10px] text-muted-foreground mt-0.5">{brokerName}</p>
+            <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+              <span>Meta de Lucro</span>
+              <span className="font-mono">{Math.round(m.profitPct)}%</span>
+            </div>
+            <Bar pct={m.profitPct} variant="profit" />
           </div>
-          <div className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 ${sc.bg} border ${sc.border}`}>
-            <StatusIcon className={`w-3 h-3 ${sc.color}`} />
-            <span className={`text-[10px] font-bold uppercase tracking-wider ${sc.color}`}>{sc.label}</span>
+        )}
+        {account.min_trading_days > 0 && (
+          <div>
+            <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+              <span>Dias de Trading</span>
+              <span className="font-mono">{account.trading_days_count}/{account.min_trading_days}</span>
+            </div>
+            <Bar pct={m.daysPct} variant="profit" />
           </div>
-        </div>
-
-        <div className="flex items-center gap-5 mb-5">
-          <ProgressRing value={data.healthScore} size={64} strokeWidth={5} status={data.status} />
-          <div className="flex-1 grid grid-cols-2 gap-3">
-            <div>
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Saldo</p>
-              <p className="font-mono font-bold text-sm text-foreground">{fmt(account.startBalance)}</p>
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Equity</p>
-              <p className="font-mono font-bold text-sm text-foreground">{fmt(account.currentEquity)}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-xl bg-muted/30 border border-border/40 p-3 mb-4">
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Pode perder hoje</p>
-            <p className="font-mono font-bold text-base text-foreground">{fmt(data.dailyRemaining)}</p>
-          </div>
-        </div>
-
-        <div className="space-y-3 mb-4">
-          {data.dailyLoss && (
-            <div>
-              <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-                <span>Perda Diaria</span>
-                <span className="font-mono">{Math.round(pct(data.dailyLoss.currentValue, data.dailyLoss.limitValue))}%</span>
-              </div>
-              <GlowBar value={data.dailyLoss.currentValue} max={data.dailyLoss.limitValue} />
-            </div>
-          )}
-          {data.totalLoss && (
-            <div>
-              <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-                <span>Perda Maxima</span>
-                <span className="font-mono">{Math.round(pct(data.totalLoss.currentValue, data.totalLoss.limitValue))}%</span>
-              </div>
-              <GlowBar value={data.totalLoss.currentValue} max={data.totalLoss.limitValue} />
-            </div>
-          )}
-          {data.profitTarget && (
-            <div>
-              <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-                <span>Meta de Lucro</span>
-                <span className="font-mono">{Math.round(Math.max(0, data.profitTarget.progressPct))}%</span>
-              </div>
-              <GlowBar value={Math.max(0, data.profitTarget.currentValue)} max={data.profitTarget.limitValue} variant="profit" />
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-start gap-2 rounded-xl border border-border/30 bg-muted/20 p-3">
-          <Lightbulb className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
-          <p className="text-[11px] text-foreground/80 leading-relaxed">{data.insight}</p>
-        </div>
-
-        <div className="flex justify-end mt-3">
-          <ArrowUpRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-        </div>
+        )}
       </div>
     </motion.div>
   );
 }
 
 const Dashboard = () => {
-  const { accounts } = useAccountsStore();
   const navigate = useNavigate();
+  const { data: accounts = [], isLoading } = useAccounts();
 
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
-      <HeroCard />
-      <DecisionCard />
+      <HeroCard accounts={accounts} />
 
       <section>
         <div className="flex items-center justify-between mb-4">
@@ -341,18 +188,34 @@ const Dashboard = () => {
             Ver todas <ChevronRight className="w-3 h-3" />
           </button>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-          {accounts.map((account, i) => (
-            <AccountCard key={account.id} account={account} index={i} />
-          ))}
-        </div>
-      </section>
 
-      <footer className="pt-4 border-t border-border/30">
-        <p className="text-[10px] text-muted-foreground/50 font-mono">
-          Ultima atualizacao: {new Date().toLocaleString('pt-BR')}
-        </p>
-      </footer>
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-64 rounded-2xl border border-border bg-card animate-pulse" />
+            ))}
+          </div>
+        ) : accounts.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border p-12 text-center">
+            <Wallet className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+            <p className="text-sm text-foreground font-medium">Nenhuma conta cadastrada</p>
+            <p className="text-xs text-muted-foreground mt-1 mb-5">Comece adicionando sua primeira conta de prop firm.</p>
+            <button
+              onClick={() => navigate('/accounts/new')}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              <PlusCircle className="w-4 h-4" />
+              Criar primeira conta
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            {accounts.map((account, i) => (
+              <AccountCard key={account.id} account={account} index={i} />
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 };
