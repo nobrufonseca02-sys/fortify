@@ -1,8 +1,7 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Unlink, Loader2, AlertTriangle, CheckCircle2, RefreshCw, Trash2, ChevronRight, Server } from 'lucide-react';
-import { useMT5Connections, useCreateMT5Connection, useDeleteMT5Connection } from '@/hooks/useMT5';
+import { CheckCircle2, Loader2, AlertTriangle, RefreshCw, Unlink, PlugZap, Server, Plus } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -13,7 +12,20 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
-const STATUS_MAP: Record<string, { label: string; icon: typeof CheckCircle2; className: string }> = {
+type Mt5ConnectionRow = {
+  id: string;
+  userId: string;
+  connectionName: string;
+  mt5Login: string;
+  serverName: string;
+  connectionStatus: 'disconnected' | 'connecting' | 'connected' | 'auth_error' | 'syncing';
+  lastSyncTime: string | null;
+  latestSyncError: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+const STATUS_MAP: Record<Mt5ConnectionRow['connectionStatus'], { label: string; icon: typeof CheckCircle2; className: string }> = {
   connected: { label: 'Conectada', icon: CheckCircle2, className: 'text-success bg-success/10' },
   connecting: { label: 'Conectando', icon: Loader2, className: 'text-info bg-info/10' },
   syncing: { label: 'Sincronizando', icon: RefreshCw, className: 'text-info bg-info/10' },
@@ -21,70 +33,175 @@ const STATUS_MAP: Record<string, { label: string; icon: typeof CheckCircle2; cla
   auth_error: { label: 'Erro de autenticação', icon: AlertTriangle, className: 'text-destructive bg-destructive/10' },
 };
 
-const MT5Connections = () => {
-  const navigate = useNavigate();
+export default function MT5Connections() {
   const { session } = useAuth();
-  const { data: connections, isLoading } = useMT5Connections();
-  const createMutation = useCreateMT5Connection();
-  const deleteMutation = useDeleteMT5Connection();
+  const userId = session?.user?.id;
+
+  const [loading, setLoading] = useState(true);
+  const [rows, setRows] = useState<Mt5ConnectionRow[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const [accountName, setAccountName] = useState('');
+  const [connectionName, setConnectionName] = useState('');
   const [mt5Login, setMt5Login] = useState('');
-  const [mt5Server, setMt5Server] = useState('');
-  const [brokerName, setBrokerName] = useState('');
+  const [serverName, setServerName] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const canUse = Boolean(userId);
+
+  const fetchRows = async () => {
+    if (!userId) return;
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('mt5Connections')
+      .select('*')
+      .order('createdAt', { ascending: false });
+
+    if (error) {
+      toast({ title: 'Erro ao carregar conexões', description: error.message, variant: 'destructive' });
+      setRows([]);
+      setLoading(false);
+      return;
+    }
+
+    setRows((data || []) as Mt5ConnectionRow[]);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    if (!userId) return;
+    fetchRows();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  const formattedRows = useMemo(() => {
+    return rows.map((r) => {
+      const st = STATUS_MAP[r.connectionStatus] || STATUS_MAP.disconnected;
+      return { ...r, st };
+    });
+  }, [rows]);
+
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!accountName || !mt5Login || !mt5Server || !brokerName || !session?.user?.id) return;
-    try {
-      await createMutation.mutateAsync({
-        accountName,
-        mt5Login,
-        mt5Server,
-        brokerName,
-        userId: session.user.id,
-      });
-      toast({ title: 'Conta registrada', description: 'Conexão cadastrada com sucesso.' });
-      setShowForm(false);
-      setAccountName('');
-      setMt5Login('');
-      setMt5Server('');
-      setBrokerName('');
-    } catch {
-      toast({ title: 'Erro ao registrar conta', description: 'Tente novamente.', variant: 'destructive' });
+    if (!userId) return;
+    if (!connectionName || !mt5Login || !serverName) return;
+
+    setSaving(true);
+    const { error } = await supabase.from('mt5Connections').insert({
+      userId,
+      connectionName,
+      mt5Login,
+      serverName,
+      connectionStatus: 'disconnected',
+    });
+    setSaving(false);
+
+    if (error) {
+      toast({ title: 'Erro ao adicionar conexão', description: error.message, variant: 'destructive' });
+      return;
     }
+
+    toast({ title: 'Conexão criada', description: 'Agora você pode conectar e sincronizar.' });
+    setShowForm(false);
+    setConnectionName('');
+    setMt5Login('');
+    setServerName('');
+    fetchRows();
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    try {
-      await deleteMutation.mutateAsync(id);
-      toast({ title: 'Conta removida', description: `"${name}" foi desconectada.` });
-    } catch {
-      toast({ title: 'Erro ao remover', variant: 'destructive' });
+  const setStatus = async (id: string, patch: Partial<Mt5ConnectionRow>) => {
+    const { error } = await supabase.from('mt5Connections').update(patch).eq('id', id);
+    if (error) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+      return false;
     }
+    return true;
   };
+
+  const handleConnect = async (r: Mt5ConnectionRow) => {
+    const ok1 = await setStatus(r.id, { connectionStatus: 'connecting', latestSyncError: null });
+    if (!ok1) return;
+
+    const ok2 = await setStatus(r.id, { connectionStatus: 'connected', latestSyncError: null });
+    if (!ok2) return;
+
+    toast({ title: 'Conectado', description: 'Conexão marcada como ativa.' });
+    fetchRows();
+  };
+
+  const handleSyncNow = async (r: Mt5ConnectionRow) => {
+    const startedAt = new Date().toISOString();
+
+    const { data: run, error: runError } = await supabase
+      .from('mt5SyncRuns')
+      .insert({ connectionId: r.id, startedAt, status: 'running' })
+      .select('id')
+      .single();
+
+    if (runError) {
+      toast({ title: 'Erro ao iniciar sync', description: runError.message, variant: 'destructive' });
+      return;
+    }
+
+    const ok1 = await setStatus(r.id, { connectionStatus: 'syncing', latestSyncError: null });
+    if (!ok1) return;
+
+    const finishedAt = new Date().toISOString();
+    const ok2 = await setStatus(r.id, { connectionStatus: 'connected', lastSyncTime: finishedAt, latestSyncError: null });
+
+    await supabase
+      .from('mt5SyncRuns')
+      .update({ finishedAt, status: ok2 ? 'success' : 'failed' })
+      .eq('id', run?.id);
+
+    toast({ title: 'Sincronização concluída', description: 'Última sincronização atualizada.' });
+    fetchRows();
+  };
+
+  const handleDisconnect = async (r: Mt5ConnectionRow) => {
+    const ok = await setStatus(r.id, { connectionStatus: 'disconnected' });
+    if (!ok) return;
+    toast({ title: 'Desconectado', description: 'Conexão marcada como desconectada.' });
+    fetchRows();
+  };
+
+  const handleDelete = async (r: Mt5ConnectionRow) => {
+    const { error } = await supabase.from('mt5Connections').delete().eq('id', r.id);
+    if (error) {
+      toast({ title: 'Erro ao remover', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Conexão removida', description: `"${r.connectionName}" foi removida.` });
+    fetchRows();
+  };
+
+  if (!canUse) {
+    return (
+      <div className="p-6 max-w-5xl mx-auto space-y-3">
+        <h1 className="text-lg font-bold text-foreground">MT5</h1>
+        <p className="text-sm text-muted-foreground">Faça login para gerenciar suas integrações.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg font-bold text-foreground">Contas MT5</h1>
-          <p className="text-xs text-muted-foreground">Conecte suas contas MetaTrader 5 para sincronização automática.</p>
+          <h1 className="text-lg font-bold text-foreground">Integrações · MT5</h1>
+          <p className="text-xs text-muted-foreground">Gerencie conexões e sincronizações da sua conta MetaTrader 5.</p>
         </div>
         <Button onClick={() => setShowForm(!showForm)} className="btn-glow">
           <Plus className="w-4 h-4" />
-          Conectar Conta
+          Nova conexão
         </Button>
       </div>
 
       <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 flex gap-3 items-start">
         <Server className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
         <div className="space-y-1">
-          <p className="text-sm font-medium text-foreground">Sincronização automática</p>
+          <p className="text-sm font-medium text-foreground">Conexão e sync</p>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Ao registrar sua conta MT5, o backend validará a conexão e sincronizará histórico de trades,
-            posições abertas e snapshots diários.
+            Esta página gerencia o cadastro e o estado da conexão. A sincronização real deve ser executada por um backend/worker.
           </p>
         </div>
       </div>
@@ -93,126 +210,147 @@ const MT5Connections = () => {
         <motion.form
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          onSubmit={handleSubmit}
+          onSubmit={handleCreate}
           className="card-premium rounded-xl border border-border bg-card p-6 space-y-5"
         >
-          <h2 className="text-sm font-semibold text-foreground">Registrar Conta MT5</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <h2 className="text-sm font-semibold text-foreground">Adicionar conexão</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Nome da Conta</label>
-              <Input value={accountName} onChange={e => setAccountName(e.target.value)} placeholder="Ex.: Minha conta FTMO" required />
+              <label className="text-xs font-medium text-muted-foreground">Nome da conexão</label>
+              <Input value={connectionName} onChange={e => setConnectionName(e.target.value)} placeholder="Ex.: Conta principal" required />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Login MT5</label>
               <Input value={mt5Login} onChange={e => setMt5Login(e.target.value)} placeholder="Ex.: 12345678" required />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Servidor MT5</label>
-              <Input value={mt5Server} onChange={e => setMt5Server(e.target.value)} placeholder="Ex.: ICMarketsSC-Live" required />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Broker</label>
-              <Input value={brokerName} onChange={e => setBrokerName(e.target.value)} placeholder="Ex.: ICMarkets" required />
+              <label className="text-xs font-medium text-muted-foreground">Servidor</label>
+              <Input value={serverName} onChange={e => setServerName(e.target.value)} placeholder="Ex.: ICMarketsSC-Live" required />
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Button type="submit" disabled={createMutation.isPending}>
-              {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              Registrar
+            <Button type="submit" disabled={saving}>
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              Salvar
             </Button>
             <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancelar</Button>
           </div>
         </motion.form>
       )}
 
-      {isLoading ? (
+      {loading ? (
         <div className="flex justify-center py-12">
           <Loader2 className="w-6 h-6 animate-spin text-primary" />
         </div>
-      ) : connections && connections.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {connections.map((conn, i) => {
-            const st = STATUS_MAP[conn.connection_status] || STATUS_MAP.disconnected;
-            const StIcon = st.icon;
-            const isAnimated = conn.connection_status === 'connecting' || conn.connection_status === 'syncing';
+      ) : formattedRows.length > 0 ? (
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40">
+                <tr className="text-left text-xs text-muted-foreground">
+                  <th className="px-4 py-3 font-medium">Nome</th>
+                  <th className="px-4 py-3 font-medium">Login</th>
+                  <th className="px-4 py-3 font-medium">Servidor</th>
+                  <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 font-medium">Último sync</th>
+                  <th className="px-4 py-3 font-medium">Erro</th>
+                  <th className="px-4 py-3 font-medium">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {formattedRows.map((r, i) => {
+                  const StIcon = r.st.icon;
+                  const isAnimated = r.connectionStatus === 'connecting' || r.connectionStatus === 'syncing';
+                  return (
+                    <motion.tr
+                      key={r.id}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.03 }}
+                      className="border-t border-border"
+                    >
+                      <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">{r.connectionName}</td>
+                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{r.mt5Login}</td>
+                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{r.serverName}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full ${r.st.className}`}>
+                          <StIcon className={`w-3 h-3 ${isAnimated ? 'animate-spin' : ''}`} />
+                          {r.st.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                        {r.lastSyncTime ? new Date(r.lastSyncTime).toLocaleString('pt-BR') : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-destructive max-w-[260px] truncate" title={r.latestSyncError || ''}>
+                        {r.latestSyncError || '—'}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleConnect(r)}
+                            disabled={r.connectionStatus === 'connected' || r.connectionStatus === 'syncing' || r.connectionStatus === 'connecting'}
+                          >
+                            <PlugZap className="w-4 h-4" />
+                            Connect
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleSyncNow(r)}
+                            disabled={r.connectionStatus !== 'connected'}
+                          >
+                            <RefreshCw className="w-4 h-4" />
+                            Sync now
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDisconnect(r)}
+                            disabled={r.connectionStatus === 'disconnected' || r.connectionStatus === 'connecting' || r.connectionStatus === 'syncing'}
+                          >
+                            <Unlink className="w-4 h-4" />
+                            Disconnect
+                          </Button>
 
-            return (
-              <motion.div
-                key={conn.id}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-                className="rounded-xl border border-border bg-card p-5 space-y-3 hover:border-primary/30 transition-colors cursor-pointer group"
-                onClick={() => navigate(`/mt5/${conn.id}`)}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-semibold text-foreground truncate">{conn.account_name}</h3>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
-                      {conn.mt5_login} — {conn.mt5_server} — {conn.broker_name}
-                    </p>
-                  </div>
-                  <span className={`inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full ${st.className}`}>
-                    <StIcon className={`w-3 h-3 ${isAnimated ? 'animate-spin' : ''}`} />
-                    {st.label}
-                  </span>
-                </div>
-
-                {conn.last_sync_at && (
-                  <p className="text-[10px] text-muted-foreground">
-                    Última sincronização: {new Date(conn.last_sync_at).toLocaleString('pt-BR')}
-                  </p>
-                )}
-                {conn.sync_error && (
-                  <p className="text-[10px] text-destructive">{conn.sync_error}</p>
-                )}
-
-                <div className="flex items-center justify-between pt-1">
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <button
-                        onClick={e => e.stopPropagation()}
-                        className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                        Remover
-                      </button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent onClick={e => e.stopPropagation()}>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Remover conexão?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          A conexão "{conn.account_name}" será removida permanentemente.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={e => { e.stopPropagation(); handleDelete(conn.id, conn.account_name); }}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          Remover
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                  <span className="text-[10px] text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                    Ver Dashboard <ChevronRight className="w-3 h-3" />
-                  </span>
-                </div>
-              </motion.div>
-            );
-          })}
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button size="sm" variant="destructive">Remover</Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Remover conexão?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  A conexão "{r.connectionName}" será removida permanentemente.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDelete(r)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Remover
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </td>
+                    </motion.tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : (
         <div className="rounded-xl border border-dashed border-border p-10 text-center">
           <Server className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">Nenhuma conta MT5 conectada.</p>
-          <p className="text-xs text-muted-foreground mt-1">Clique em "Conectar Conta" para começar.</p>
+          <p className="text-sm text-muted-foreground">Nenhuma conexão MT5 cadastrada.</p>
+          <p className="text-xs text-muted-foreground mt-1">Clique em "Nova conexão" para começar.</p>
         </div>
       )}
     </div>
   );
-};
-
-export default MT5Connections;
+}
