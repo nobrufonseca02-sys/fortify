@@ -135,6 +135,9 @@ const CreateAccount = () => {
   const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
   const [firmStep, setFirmStep] = useState<'firm' | 'program'>('firm');
 
+  // Rule source inside Step 0
+  const [ruleSource, setRuleSource] = useState<'template' | 'manual'>('template');
+
   // DB queries
   const { data: firms = [], isLoading: firmsLoading } = usePropFirms();
   const { data: programs = [], isLoading: programsLoading } = usePrograms(selectedFirmId);
@@ -177,8 +180,9 @@ const CreateAccount = () => {
     }
   }, [location.state]);
 
-  // Auto-load rules when program data arrives
+  // Auto-load rules when program data arrives (only when using template mode)
   useEffect(() => {
+    if (ruleSource !== 'template') return;
     if (programData?.rules && programData.rules.length > 0) {
       const mapped = mapDbRulesToTemplateRules(programData.rules);
       setRules(mapped);
@@ -189,13 +193,14 @@ const CreateAccount = () => {
         }
       }
     }
-  }, [programData]);
+  }, [programData, ruleSource]);
 
   const handleSelectFirm = (firm: PropFirm) => {
     setSelectedFirmId(firm.id);
     setSelectedProgramId(null);
     setRules([]);
     setFirmStep('program');
+    setRuleSource('template');
   };
 
   const handleSelectProgram = (program: Program) => {
@@ -208,6 +213,7 @@ const CreateAccount = () => {
       setSelectedFirmId(null);
       setSelectedProgramId(null);
       setRules([]);
+      setRuleSource('template');
     }
   };
 
@@ -289,7 +295,11 @@ const CreateAccount = () => {
   }, [balance]);
 
   const canNext = () => {
-    if (step === 0) return !!selectedProgramId && rules.length > 0;
+    if (step === 0) {
+      if (!selectedProgramId) return false;
+      if (ruleSource === 'template') return rules.length > 0;
+      return true;
+    }
     if (step === 1) return !!accountName && balance > 0;
     if (step === 2) return rules.some(r => r.enabled);
     if (step === 3) return effectiveRisk > 0;
@@ -389,7 +399,7 @@ const CreateAccount = () => {
     navigate('/accounts');
   };
 
-  const STEPS = ['Firma & Programa', 'Conta', 'Regras', 'Risco', 'Conexão MT5', 'Revisão'];
+  const STEPS = ['Biblioteca', 'Conta', 'Regras', 'Risco', 'Conexão MT5', 'Revisão'];
 
   return (
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
@@ -400,13 +410,13 @@ const CreateAccount = () => {
         </button>
         <div className="flex-1">
           <h1 className="text-lg font-bold text-foreground">Criar Nova Conta</h1>
-          <p className="text-xs text-muted-foreground">Configure sua conta de prop firm em menos de 1 minuto</p>
+          <p className="text-xs text-muted-foreground">Escolha a prop firm, selecione o modelo e então defina as regras</p>
         </div>
         <StepIndicator current={step} total={STEPS.length} />
       </div>
 
       <AnimatePresence mode="wait">
-        {/* ─── STEP 0: Prop Firm & Program Selection (from DB) ─── */}
+        {/* ─── STEP 0: Prop Firm Library Flow ─── */}
         {step === 0 && (
           <motion.div key="s0" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
             {firmStep === 'firm' ? (
@@ -414,9 +424,9 @@ const CreateAccount = () => {
                 <div>
                   <div className="flex items-center gap-2">
                     <BookOpen className="w-4 h-4 text-primary" />
-                    <h2 className="text-sm font-semibold text-foreground">Selecione sua Prop Firm</h2>
+                    <h2 className="text-sm font-semibold text-foreground">Prop Firm Library</h2>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">Escolha a empresa e o programa — as regras serão carregadas automaticamente</p>
+                  <p className="text-xs text-muted-foreground mt-1">Escolha a empresa (prop firm). Depois selecione o modelo de conta.</p>
                 </div>
 
                 {firmsLoading ? (
@@ -452,21 +462,30 @@ const CreateAccount = () => {
                   </div>
                 )}
 
-                {/* AI Rule Extraction fallback */}
                 <div className="pt-4 border-t border-border">
-                  <RuleExtractor
-                    onRulesExtracted={(extractedRules, firmName, accountTypes) => {
-                      setRules(extractedRules);
-                      setAccountName(`${firmName} Account`);
-                      if (accountTypes.length > 0) setAccountType(accountTypes[0]);
-                      setFirmStep('program');
-                    }}
-                  />
+                  <div className="rounded-xl border border-border bg-card p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Globe className="w-4 h-4 text-primary" />
+                      <h3 className="text-sm font-semibold text-foreground">Não encontrou a prop firm?</h3>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Use o reconhecimento automático para criar regras a partir de um link ou PDF.</p>
+                  </div>
+
+                  <div className="mt-3">
+                    <RuleExtractor
+                      onRulesExtracted={(extractedRules, firmName, accountTypes) => {
+                        setRules(extractedRules);
+                        setAccountName(`${firmName} Account`);
+                        if (accountTypes.length > 0) setAccountType(accountTypes[0]);
+                        setRuleSource('template');
+                        setFirmStep('program');
+                      }}
+                    />
+                  </div>
                 </div>
               </>
             ) : (
               <>
-                {/* Selected firm header + program selection */}
                 <div>
                   <button onClick={goBackFirmStep} className="flex items-center gap-1 text-xs text-primary hover:underline mb-3">
                     <ArrowLeft className="w-3 h-3" /> Voltar às Prop Firms
@@ -489,8 +508,8 @@ const CreateAccount = () => {
                     </div>
                   )}
 
-                  <h2 className="text-sm font-semibold text-foreground">Escolha o Programa</h2>
-                  <p className="text-xs text-muted-foreground mt-1">As regras serão carregadas automaticamente ao selecionar</p>
+                  <h2 className="text-sm font-semibold text-foreground">Modelo de conta</h2>
+                  <p className="text-xs text-muted-foreground mt-1">Selecione o programa/modelo. Em seguida, escolha: usar template pronto ou definir regras manualmente.</p>
                 </div>
 
                 {programsLoading ? (
@@ -539,33 +558,73 @@ const CreateAccount = () => {
                   </div>
                 )}
 
-                {/* Rules preview when program is selected */}
+                {/* Rule source selection */}
                 {selectedProgramId && (
-                  <div className="rounded-xl border border-border bg-card p-4 mt-4">
-                    {rulesLoading ? (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                        Carregando regras...
+                  <div className="rounded-xl border border-border bg-card p-4 mt-4 space-y-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-foreground">Como deseja criar as regras?</h3>
+                      <p className="text-xs text-muted-foreground mt-1">Use o template pronto do programa ou avance para editar/adicionar regras manualmente.</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <button
+                        onClick={() => setRuleSource('template')}
+                        className={`rounded-xl border p-4 text-left transition-all ${ruleSource === 'template' ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border bg-card hover:border-primary/30'}`}
+                      >
+                        <p className="text-sm font-semibold text-foreground">Usar template pronto</p>
+                        <p className="text-[11px] text-muted-foreground mt-1">Carrega regras automaticamente do programa selecionado.</p>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setRuleSource('manual');
+                          setRules([]);
+                        }}
+                        className={`rounded-xl border p-4 text-left transition-all ${ruleSource === 'manual' ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border bg-card hover:border-primary/30'}`}
+                      >
+                        <p className="text-sm font-semibold text-foreground">Adicionar regras manualmente</p>
+                        <p className="text-[11px] text-muted-foreground mt-1">Avance para a etapa Regras e crie/edite do zero.</p>
+                      </button>
+                    </div>
+
+                    {/* Rules preview when in template mode */}
+                    {ruleSource === 'template' && (
+                      <div className="rounded-lg border border-border bg-muted/20 p-4">
+                        {rulesLoading ? (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                            Carregando regras...
+                          </div>
+                        ) : rules.length > 0 ? (
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-2">
+                              <Shield className="w-4 h-4 text-primary" />
+                              <h4 className="text-sm font-semibold text-foreground">
+                                {rules.length} regra{rules.length !== 1 ? 's' : ''} carregada{rules.length !== 1 ? 's' : ''}
+                              </h4>
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-success/15 text-success ml-auto">Pronto</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {rules.filter(r => r.enabled).map((rule, i) => (
+                                <span key={i} className="text-[10px] px-2 py-1 rounded-lg bg-muted text-foreground flex items-center gap-1">
+                                  {rule.name}: <span className="font-mono text-primary">{rule.defaultValue}{rule.unit}</span>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">Nenhuma regra encontrada para este programa</p>
+                        )}
                       </div>
-                    ) : rules.length > 0 ? (
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <Shield className="w-4 h-4 text-primary" />
-                          <h3 className="text-sm font-semibold text-foreground">
-                            {rules.length} regra{rules.length !== 1 ? 's' : ''} carregada{rules.length !== 1 ? 's' : ''}
-                          </h3>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-success/15 text-success ml-auto">Pronto</span>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {rules.filter(r => r.enabled).map((rule, i) => (
-                            <span key={i} className="text-[10px] px-2 py-1 rounded-lg bg-muted text-foreground flex items-center gap-1">
-                              {rule.name}: <span className="font-mono text-primary">{rule.defaultValue}{rule.unit}</span>
-                            </span>
-                          ))}
+                    )}
+
+                    {ruleSource === 'manual' && (
+                      <div className="rounded-lg border border-warning/20 bg-warning/5 p-4">
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle className="w-4 h-4 text-warning mt-0.5 flex-shrink-0" />
+                          <p className="text-xs text-foreground/80">Você escolheu regras manuais. Clique em Próximo para abrir o editor na etapa Regras.</p>
                         </div>
                       </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">Nenhuma regra encontrada para este programa</p>
                     )}
                   </div>
                 )}
@@ -619,6 +678,32 @@ const CreateAccount = () => {
                 </div>
               )}
             </div>
+
+            {rules.length === 0 && (
+              <div className="rounded-xl border border-border bg-card p-5">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-4 h-4 text-warning mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-foreground">Nenhuma regra carregada</p>
+                    <p className="text-xs text-muted-foreground mt-1">Você escolheu criar regras manualmente. Use o botão abaixo para gerar um template e então ajustar os valores.</p>
+                    <button
+                      onClick={() => {
+                        setRules([
+                          { type: 'MAX_DAILY_LOSS', name: 'Perda Máx. Diária', severity: 'hard', defaultValue: 5, unit: '%', editable: true, enabled: true },
+                          { type: 'MAX_TOTAL_LOSS', name: 'Perda Máx. Total', severity: 'hard', defaultValue: 10, unit: '%', editable: true, enabled: true },
+                          { type: 'PROFIT_TARGET', name: 'Meta de Lucro', severity: 'soft', defaultValue: 10, unit: '%', editable: true, enabled: true },
+                          { type: 'MIN_TRADING_DAYS', name: 'Dias Mínimos', severity: 'soft', defaultValue: 4, unit: 'days', editable: true, enabled: true },
+                        ]);
+                      }}
+                      className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      Criar template base
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {rules.map((rule, idx) => {
@@ -855,20 +940,24 @@ const CreateAccount = () => {
               {/* Rules summary */}
               <div className="border-t border-border pt-3 space-y-2">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Regras Configuradas</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {rules.filter(r => r.enabled).map((rule, i) => {
-                    const Icon = RULE_ICONS[rule.type] || Shield;
-                    const computedValue = rule.unit === '%' ? balance * (rule.defaultValue / 100) : rule.defaultValue;
-                    return (
-                      <div key={i} className="flex items-center gap-2 rounded-lg bg-muted/30 px-3 py-2">
-                        <Icon className="w-3.5 h-3.5 text-muted-foreground" />
-                        <span className="text-xs text-foreground flex-1">{rule.name}</span>
-                        <span className="text-xs font-mono text-primary">{rule.defaultValue}{rule.unit}</span>
-                        {rule.unit === '%' && <span className="text-[10px] font-mono text-muted-foreground">({fmt(computedValue)})</span>}
-                      </div>
-                    );
-                  })}
-                </div>
+                {rules.filter(r => r.enabled).length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Nenhuma regra ativada.</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {rules.filter(r => r.enabled).map((rule, i) => {
+                      const Icon = RULE_ICONS[rule.type] || Shield;
+                      const computedValue = rule.unit === '%' ? balance * (rule.defaultValue / 100) : rule.defaultValue;
+                      return (
+                        <div key={i} className="flex items-center gap-2 rounded-lg bg-muted/30 px-3 py-2">
+                          <Icon className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span className="text-xs text-foreground flex-1">{rule.name}</span>
+                          <span className="text-xs font-mono text-primary">{rule.defaultValue}{rule.unit}</span>
+                          {rule.unit === '%' && <span className="text-[10px] font-mono text-muted-foreground">({fmt(computedValue)})</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 

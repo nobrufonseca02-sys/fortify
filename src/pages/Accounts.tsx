@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RULE_SET_TEMPLATES, TEMPLATE_RULES, MOCK_EVALUATIONS } from '@/data/mockData';
 import { TradingAccount } from '@/types/fortify';
-import { Plus, Trash2, Wallet, ChevronRight, Shield, AlertTriangle, XCircle } from 'lucide-react';
+import { Plus, Trash2, Wallet, ChevronRight, Shield, AlertTriangle, XCircle, BookOpen } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAccountsStore } from '@/hooks/useAccountsStore';
 import {
@@ -89,13 +89,22 @@ const Accounts = () => {
           <h1 className="text-3xl md:text-4xl font-bold text-gradient-steel tracking-tight">Minhas Contas</h1>
           <p className="text-sm text-muted-foreground mt-3 max-w-md">Cadastre, monitore e proteja cada conta de prop firm em uma única superfície.</p>
         </div>
-        <button
-          onClick={() => navigate('/accounts/new')}
-          className="btn-glow flex items-center gap-2 px-5 py-2.5 rounded-lg text-primary-foreground text-sm font-semibold whitespace-nowrap"
-        >
-          <Plus className="w-4 h-4" />
-          Nova Conta
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate('/library')}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
+          >
+            <BookOpen className="w-4 h-4" />
+            Prop Firm Library
+          </button>
+          <button
+            onClick={() => navigate('/accounts/new')}
+            className="btn-glow flex items-center gap-2 px-5 py-2.5 rounded-lg text-primary-foreground text-sm font-semibold whitespace-nowrap"
+          >
+            <Plus className="w-4 h-4" />
+            Nova Conta
+          </button>
+        </div>
       </div>
 
       {/* Form */}
