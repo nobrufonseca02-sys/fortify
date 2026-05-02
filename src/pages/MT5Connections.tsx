@@ -52,7 +52,7 @@ export default function MT5Connections() {
     if (!userId) return;
     setLoading(true);
     const { data, error } = await supabase
-      .from('mt5Connections')
+      .from('mt5_connections')
       .select('*')
       .order('createdAt', { ascending: false });
 
@@ -86,7 +86,7 @@ export default function MT5Connections() {
     if (!connectionName || !mt5Login || !serverName) return;
 
     setSaving(true);
-    const { error } = await supabase.from('mt5Connections').insert({
+    const { error } = await supabase.from('mt5_connections').insert({
       userId,
       connectionName,
       mt5Login,
@@ -109,7 +109,7 @@ export default function MT5Connections() {
   };
 
   const setStatus = async (id: string, patch: Partial<Mt5ConnectionRow>) => {
-    const { error } = await supabase.from('mt5Connections').update(patch).eq('id', id);
+    const { error } = await supabase.from('mt5_connections').update(patch).eq('id', id);
     if (error) {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' });
       return false;
@@ -132,7 +132,7 @@ export default function MT5Connections() {
     const startedAt = new Date().toISOString();
 
     const { data: run, error: runError } = await supabase
-      .from('mt5SyncRuns')
+      .from('mt5_sync_runs')
       .insert({ connectionId: r.id, startedAt, status: 'running' })
       .select('id')
       .single();
@@ -149,7 +149,7 @@ export default function MT5Connections() {
     const ok2 = await setStatus(r.id, { connectionStatus: 'connected', lastSyncTime: finishedAt, latestSyncError: null });
 
     await supabase
-      .from('mt5SyncRuns')
+      .from('mt5_sync_runs')
       .update({ finishedAt, status: ok2 ? 'success' : 'failed' })
       .eq('id', run?.id);
 
@@ -165,7 +165,7 @@ export default function MT5Connections() {
   };
 
   const handleDelete = async (r: Mt5ConnectionRow) => {
-    const { error } = await supabase.from('mt5Connections').delete().eq('id', r.id);
+    const { error } = await supabase.from('mt5_connections').delete().eq('id', r.id);
     if (error) {
       toast({ title: 'Erro ao remover', description: error.message, variant: 'destructive' });
       return;
