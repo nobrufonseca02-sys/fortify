@@ -21,7 +21,7 @@ const groups = [
     items: [
       { title: "Risk Panel", url: "/", icon: LayoutDashboard },
       { title: "Calculadora", url: "/calculator", icon: Calculator },
-      { title: "Challenge", url: "/challenge", icon: Target },
+      
     ],
   },
   {
