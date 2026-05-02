@@ -606,18 +606,29 @@ export type Database = {
           created_at: string
           current_balance: number
           current_equity: number
+          daily_loss_limit: number
+          daily_loss_reset_date: string | null
+          daily_loss_used: number
           highest_equity: number
           id: string
+          last_trading_date: string | null
+          min_trading_days: number
           mt5_connection_status: string | null
           mt5_last_sync_at: string | null
           mt5_login: string | null
           mt5_server: string | null
           mt5_sync_error: string | null
           nickname: string
+          phase: string | null
+          profit_target: number
+          program: string | null
           prop_firm: string | null
           rule_set_id: string | null
           start_balance: number
           status: string
+          total_loss_limit: number
+          total_loss_used: number
+          trading_days_count: number
           updated_at: string
           user_id: string
         }
@@ -628,18 +639,29 @@ export type Database = {
           created_at?: string
           current_balance?: number
           current_equity?: number
+          daily_loss_limit?: number
+          daily_loss_reset_date?: string | null
+          daily_loss_used?: number
           highest_equity?: number
           id?: string
+          last_trading_date?: string | null
+          min_trading_days?: number
           mt5_connection_status?: string | null
           mt5_last_sync_at?: string | null
           mt5_login?: string | null
           mt5_server?: string | null
           mt5_sync_error?: string | null
           nickname: string
+          phase?: string | null
+          profit_target?: number
+          program?: string | null
           prop_firm?: string | null
           rule_set_id?: string | null
           start_balance?: number
           status?: string
+          total_loss_limit?: number
+          total_loss_used?: number
+          trading_days_count?: number
           updated_at?: string
           user_id: string
         }
@@ -650,18 +672,29 @@ export type Database = {
           created_at?: string
           current_balance?: number
           current_equity?: number
+          daily_loss_limit?: number
+          daily_loss_reset_date?: string | null
+          daily_loss_used?: number
           highest_equity?: number
           id?: string
+          last_trading_date?: string | null
+          min_trading_days?: number
           mt5_connection_status?: string | null
           mt5_last_sync_at?: string | null
           mt5_login?: string | null
           mt5_server?: string | null
           mt5_sync_error?: string | null
           nickname?: string
+          phase?: string | null
+          profit_target?: number
+          program?: string | null
           prop_firm?: string | null
           rule_set_id?: string | null
           start_balance?: number
           status?: string
+          total_loss_limit?: number
+          total_loss_used?: number
+          trading_days_count?: number
           updated_at?: string
           user_id?: string
         }

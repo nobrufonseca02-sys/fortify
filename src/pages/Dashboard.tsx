@@ -116,41 +116,63 @@ function HeroCard() {
   const activeAccounts = accounts.length;
   const warnings = allData.filter(d => d.status === 'WARNING').length;
   const violations = allData.filter(d => d.status === 'VIOLATED').length;
+  const overallStatus: AccountStatus = violations > 0 ? 'VIOLATED' : warnings > 0 ? 'WARNING' : 'SAFE';
+  const sc = statusConfig[overallStatus];
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="relative overflow-hidden rounded-2xl card-premium"
+      transition={{ duration: 0.6 }}
+      className="relative overflow-hidden rounded-2xl hero-surface edge-top"
     >
-      <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-primary/[0.04] blur-[60px] pointer-events-none" />
-
-      <div className="relative p-6 md:p-8">
-        <div className="flex items-start justify-between mb-8">
-          <div>
-            <motion.p className="text-muted-foreground text-sm mb-1" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
-              Bem-vindo, <span className="text-foreground font-medium">{firstName}</span>
-            </motion.p>
-            <motion.h1 className="text-2xl md:text-3xl font-black text-foreground" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
-              Visao Geral
-            </motion.h1>
+      <div className="relative p-7 md:p-10">
+        {/* status strip */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-2">
+            <span className={`w-1.5 h-1.5 rounded-full ${sc.color.replace('text-', 'bg-')} animate-pulse`} />
+            <span className="text-[10px] font-mono uppercase tracking-[0.22em] text-muted-foreground">
+              Risk Console <span className="text-foreground/40">/</span> {sc.label}
+            </span>
           </div>
-          <motion.div className="flex items-center gap-1.5 text-[10px] text-muted-foreground bg-success/5 border border-success/10 rounded-full px-3 py-1.5" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
-            <Activity className="w-3 h-3 text-success animate-pulse" />
-            <span className="text-success font-medium">Ao vivo</span>
-          </motion.div>
+          <span className="badge-system">
+            <Activity className="w-3 h-3 text-primary" />
+            Ao vivo
+          </span>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5">
+        <div className="max-w-2xl mb-10">
+          <motion.p className="text-[11px] font-mono uppercase tracking-[0.22em] text-muted-foreground mb-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}>
+            Bem-vindo, <span className="text-foreground/90">{firstName}</span>
+          </motion.p>
+          <motion.h1
+            className="text-3xl md:text-5xl font-bold leading-[1.05] tracking-tight text-gradient-steel"
+            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+          >
+            <span className="text-gradient-primary">Proteja</span> a conta antes do próximo trade.
+          </motion.h1>
+          <motion.p
+            className="mt-4 text-sm md:text-base text-muted-foreground leading-relaxed max-w-xl"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
+          >
+            Painel de risco em tempo real para suas contas de prop firm — limites, drawdown e regras críticas em uma única superfície.
+          </motion.p>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           {[
-            { label: 'Equity Total', value: fmt(totalEquity), sub: <span className={`flex items-center gap-1 mt-1 text-xs font-mono font-medium ${pnl >= 0 ? 'text-success' : 'text-destructive'}`}>{pnl >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}{pnl >= 0 ? '+' : ''}{pnlPct}%</span> },
-            { label: 'Contas Ativas', value: String(activeAccounts), sub: <span className="text-xs text-muted-foreground mt-1">em monitoramento</span> },
-            { label: 'Alertas', value: String(warnings), valueClass: warnings > 0 ? 'text-warning' : 'text-success', sub: <span className="text-xs text-muted-foreground mt-1">{warnings === 0 ? 'tudo certo' : 'requer atenção'}</span> },
-            { label: 'Violações', value: String(violations), valueClass: violations > 0 ? 'text-destructive' : 'text-success', sub: <span className="text-xs text-muted-foreground mt-1">{violations === 0 ? 'nenhuma' : 'ação necessária'}</span> },
+            { label: 'Equity Total', value: fmt(totalEquity), sub: <span className={`flex items-center gap-1 mt-1.5 text-xs font-mono font-medium ${pnl >= 0 ? 'text-success' : 'text-destructive'}`}>{pnl >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}{pnl >= 0 ? '+' : ''}{pnlPct}%</span> },
+            { label: 'Contas Ativas', value: String(activeAccounts), sub: <span className="text-[11px] text-muted-foreground mt-1.5">em monitoramento</span> },
+            { label: 'Alertas', value: String(warnings), valueClass: warnings > 0 ? 'text-warning' : 'text-success', sub: <span className="text-[11px] text-muted-foreground mt-1.5">{warnings === 0 ? 'tudo certo' : 'requer atenção'}</span> },
+            { label: 'Violações', value: String(violations), valueClass: violations > 0 ? 'text-destructive' : 'text-success', sub: <span className="text-[11px] text-muted-foreground mt-1.5">{violations === 0 ? 'nenhuma' : 'ação necessária'}</span> },
           ].map((stat, i) => (
-            <motion.div key={stat.label} className="rounded-xl bg-muted/30 border border-border/50 p-4" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.1 }}>
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">{stat.label}</p>
+            <motion.div
+              key={stat.label}
+              className="relative rounded-xl border border-border/70 bg-background/40 backdrop-blur-sm p-4 overflow-hidden group"
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 + i * 0.07 }}
+            >
+              <div className="absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent opacity-60" />
+              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground mb-2 font-mono">{stat.label}</p>
               <p className={`font-mono text-xl md:text-2xl font-bold ${(stat as any).valueClass || 'text-foreground'}`}>{stat.value}</p>
               {stat.sub}
             </motion.div>
@@ -335,8 +357,11 @@ const Dashboard = () => {
       <DecisionCard />
 
       <section>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground">Suas Contas</h2>
+        <div className="flex items-end justify-between mb-5">
+          <div>
+            <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground/70 mb-1">Portfolio</p>
+            <h2 className="text-xl font-bold text-foreground tracking-tight">Suas Contas</h2>
+          </div>
           <button onClick={() => navigate('/accounts')} className="text-xs text-primary hover:text-primary/80 transition-colors flex items-center gap-1 font-medium">
             Ver todas <ChevronRight className="w-3 h-3" />
           </button>

@@ -82,15 +82,16 @@ const Accounts = () => {
   const fmt = (v: number) => `$${v.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`;
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-6 max-w-6xl mx-auto space-y-8">
+      <div className="rounded-2xl hero-surface edge-top p-7 md:p-9 flex items-end justify-between gap-6">
         <div>
-          <h1 className="text-lg font-bold text-foreground">Minhas Contas</h1>
-          <p className="text-xs text-muted-foreground">Cadastre e gerencie suas contas de trading.</p>
+          <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-muted-foreground mb-3">Portfolio · Contas</p>
+          <h1 className="text-3xl md:text-4xl font-bold text-gradient-steel tracking-tight">Minhas Contas</h1>
+          <p className="text-sm text-muted-foreground mt-3 max-w-md">Cadastre, monitore e proteja cada conta de prop firm em uma única superfície.</p>
         </div>
         <button
           onClick={() => navigate('/accounts/new')}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+          className="btn-glow flex items-center gap-2 px-5 py-2.5 rounded-lg text-primary-foreground text-sm font-semibold whitespace-nowrap"
         >
           <Plus className="w-4 h-4" />
           Nova Conta
