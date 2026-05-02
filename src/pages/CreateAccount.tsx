@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Check, Wallet, Building2, BadgeCheck } from 'lucide-react';
+import { ArrowLeft, Check, Wallet, Building2 } from 'lucide-react';
 import { useCreateAccount } from '@/hooks/useAccountsStore';
 import { PROP_FIRMS } from '@/data/propFirmsMVP';
 import { Input } from '@/components/ui/input';
@@ -79,27 +79,15 @@ const CreateAccount = () => {
         <button onClick={() => navigate('/accounts')} className="p-2 rounded-lg hover:bg-muted transition-colors">
           <ArrowLeft className="w-4 h-4 text-muted-foreground" />
         </button>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-black text-foreground">Nova Conta</h1>
-          <p className="text-xs text-muted-foreground">Cadastre sua conta e deixe as regras visíveis no painel.</p>
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-border bg-card p-5 md:p-6 card-premium">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
-            <BadgeCheck className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-foreground">Configuração em 2 passos</p>
-            <p className="text-xs text-muted-foreground mt-1">1) Selecione a prop firm e a fase. 2) Informe os números atuais (manual).</p>
-          </div>
+        <div>
+          <h1 className="text-lg font-bold text-foreground">Nova Conta</h1>
+          <p className="text-xs text-muted-foreground">Cadastre sua conta de prop firm em segundos.</p>
         </div>
       </div>
 
       <motion.section
         initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl border border-border bg-card p-6 space-y-5 card-premium"
+        className="rounded-xl border border-border bg-card p-6 space-y-5"
       >
         <div className="flex items-center gap-2">
           <Building2 className="w-4 h-4 text-primary" />
@@ -142,16 +130,16 @@ const CreateAccount = () => {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-3 border-t border-border/50">
-          <Stat label="Perda diária" value={`${phase.dailyLossPct}%`} />
-          <Stat label="Perda total" value={`${phase.totalLossPct}%`} />
-          <Stat label="Meta" value={phase.profitTargetPct > 0 ? `${phase.profitTargetPct}%` : '—'} />
-          <Stat label="Dias mín." value={phase.minTradingDays > 0 ? String(phase.minTradingDays) : '—'} />
+          <Stat label="Perda Diária" value={`${phase.dailyLossPct}%`} />
+          <Stat label="Perda Total" value={`${phase.totalLossPct}%`} />
+          <Stat label="Meta de Lucro" value={phase.profitTargetPct > 0 ? `${phase.profitTargetPct}%` : '—'} />
+          <Stat label="Dias Mínimos" value={phase.minTradingDays > 0 ? String(phase.minTradingDays) : '—'} />
         </div>
       </motion.section>
 
       <motion.section
         initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
-        className="rounded-2xl border border-border bg-card p-6 space-y-5 card-premium"
+        className="rounded-xl border border-border bg-card p-6 space-y-5"
       >
         <div className="flex items-center gap-2">
           <Wallet className="w-4 h-4 text-primary" />
@@ -160,13 +148,12 @@ const CreateAccount = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Apelido</label>
+            <label className="text-xs font-medium text-muted-foreground">Apelido da Conta</label>
             <Input
               value={nickname}
               onChange={e => setNickname(e.target.value)}
               placeholder={`Ex.: ${propFirmName} 100k`}
             />
-            <p className="text-[10px] text-muted-foreground">Esse nome aparece nos cards e nos painéis.</p>
           </div>
 
           <div className="space-y-1.5">
@@ -184,7 +171,7 @@ const CreateAccount = () => {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Saldo inicial</label>
+            <label className="text-xs font-medium text-muted-foreground">Saldo Inicial</label>
             <Input
               type="number"
               value={startBalance}
@@ -197,7 +184,7 @@ const CreateAccount = () => {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Equity atual</label>
+            <label className="text-xs font-medium text-muted-foreground">Equity Atual</label>
             <Input
               type="number"
               value={currentEquity}
@@ -207,20 +194,20 @@ const CreateAccount = () => {
           </div>
         </div>
 
-        <div className="rounded-xl bg-muted/20 border border-border/50 p-4 space-y-2">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Limites calculados para monitoramento</p>
+        <div className="rounded-lg bg-muted/30 border border-border/50 p-4 space-y-2">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Limites Calculados</p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Stat label="Perda diária" value={fmt(limits.daily_loss_limit)} />
-            <Stat label="Perda total" value={fmt(limits.total_loss_limit)} />
+            <Stat label="Perda Diária" value={fmt(limits.daily_loss_limit)} />
+            <Stat label="Perda Total" value={fmt(limits.total_loss_limit)} />
             <Stat label="Meta" value={limits.profit_target > 0 ? fmt(limits.profit_target) : '—'} />
-            <Stat label="Dias mín." value={limits.min_trading_days > 0 ? String(limits.min_trading_days) : '—'} />
+            <Stat label="Dias Mín." value={limits.min_trading_days > 0 ? String(limits.min_trading_days) : '—'} />
           </div>
         </div>
       </motion.section>
 
       <div className="flex items-center justify-end gap-3">
         <Button variant="outline" onClick={() => navigate('/accounts')}>Cancelar</Button>
-        <Button onClick={handleSubmit} disabled={!canSubmit || createMutation.isPending} className="btn-glow">
+        <Button onClick={handleSubmit} disabled={!canSubmit || createMutation.isPending}>
           <Check className="w-4 h-4 mr-1.5" />
           {createMutation.isPending ? 'Criando...' : 'Criar Conta'}
         </Button>

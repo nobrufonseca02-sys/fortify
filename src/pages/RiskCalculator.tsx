@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calculator, Shield, AlertTriangle, Lightbulb, Gauge } from 'lucide-react';
+import { Calculator, Shield, AlertTriangle, Lightbulb } from 'lucide-react';
 import { useAccounts, computeAccountMetrics, type AccountRow } from '@/hooks/useAccountsStore';
 import { Input } from '@/components/ui/input';
 
@@ -49,10 +49,7 @@ const RiskCalculator = () => {
     if (riskPctOfDaily > 50 || stopsInDay <= 1) severity = 'danger';
     else if (riskPctOfDaily > 30 || stopsInDay <= 2) severity = 'warning';
 
-    const dailyRecommended = Math.max(0, dailyRemaining) * 0.25;
-    const safetyMargin = Math.max(0, dailyRemaining - riskValue);
-
-    return { maxLot, stopsInDay, stopsInAccount, riskPctOfDaily, riskPctOfMax, severity, dailyRecommended, safetyMargin };
+    return { maxLot, stopsInDay, stopsInAccount, riskPctOfDaily, riskPctOfMax, severity };
   }, [riskValue, stopVal, ptVal, dailyRemaining, totalRemaining]);
 
   const message = useMemo(() => {
@@ -82,23 +79,16 @@ const RiskCalculator = () => {
 
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-6">
-      <div className="rounded-2xl border border-border bg-card p-5 md:p-6 card-premium">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Calculator className="w-5 h-5 text-primary" />
-              <h1 className="text-lg font-black text-foreground">Calculadora de risco</h1>
-            </div>
-            <p className="text-xs text-muted-foreground">Transforme regras em tamanho de lote. Resultado objetivo para operar sem “estourar” limites.</p>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
-            <Gauge className="w-5 h-5 text-primary" />
-          </div>
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <Calculator className="w-5 h-5 text-primary" />
+          <h1 className="text-lg font-bold text-foreground">Calculadora de Risco</h1>
         </div>
+        <p className="text-xs text-muted-foreground">Calcule o lote ideal e entenda o impacto de cada operação na sua conta.</p>
       </div>
 
       {accounts.length > 1 && (
-        <div className="rounded-2xl border border-border bg-card p-3 card-premium">
+        <div className="rounded-xl border border-border bg-card p-3">
           <select
             value={selected.id}
             onChange={e => setAccountId(e.target.value)}
@@ -111,22 +101,22 @@ const RiskCalculator = () => {
         </div>
       )}
 
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-border bg-card p-5 card-premium">
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-3 font-medium">Contexto da conta</p>
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border border-border bg-card p-5">
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-3 font-medium">Contexto da Conta</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Box label="Equity" value={fmt(equity)} />
-          <Box label="Limite diário" value={fmt(selected.daily_loss_limit)} />
-          <Box label="Restante hoje" value={fmt(dailyRemaining)} valueClass={dailyRemaining <= 0 ? 'text-destructive' : 'text-warning'} />
-          <Box label="Perda total restante" value={fmt(totalRemaining)} />
+          <Box label="Limite Diário" value={fmt(selected.daily_loss_limit)} />
+          <Box label="Restante Hoje" value={fmt(dailyRemaining)} valueClass="text-warning" />
+          <Box label="Drawdown Restante" value={fmt(totalRemaining)} />
         </div>
       </motion.div>
 
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="rounded-2xl border border-border bg-card p-5 space-y-5 card-premium">
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Parâmetros da operação</p>
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="rounded-xl border border-border bg-card p-5 space-y-5">
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Parâmetros da Operação</p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2">
-            <label className="text-xs font-medium text-muted-foreground">Risco por trade</label>
+            <label className="text-xs font-medium text-muted-foreground">Risco por Trade</label>
             <div className="flex gap-2">
               <div className="flex rounded-lg border border-border overflow-hidden">
                 <button
@@ -144,12 +134,12 @@ const RiskCalculator = () => {
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-medium text-muted-foreground">Stop loss (pontos)</label>
+            <label className="text-xs font-medium text-muted-foreground">Stop Loss (pontos)</label>
             <Input type="number" value={stopPoints} onChange={e => setStopPoints(e.target.value)} step="1" min="1" />
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-medium text-muted-foreground">Valor por ponto (por lote)</label>
+            <label className="text-xs font-medium text-muted-foreground">Valor por Ponto (por lote)</label>
             <Input type="number" value={pointValue} onChange={e => setPointValue(e.target.value)} step="0.01" min="0.01" />
           </div>
         </div>
@@ -157,18 +147,28 @@ const RiskCalculator = () => {
 
       {calc && (
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="space-y-4">
-          <div className="rounded-2xl border border-border bg-card p-5 card-premium">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-4 font-medium">Resultado (pronto para executar)</p>
+          <div className="rounded-xl border border-border bg-card p-5">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-4 font-medium">Resultado</p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-              <Box label="Perda máx. por trade" value={fmt(riskValue)} big valueClass={calc.severity === 'danger' ? 'text-destructive' : calc.severity === 'warning' ? 'text-warning' : 'text-foreground'} />
-              <Box label="Lote sugerido" value={calc.maxLot.toFixed(2)} big />
-              <Box label="Risco diário recomendado" value={fmt(calc.dailyRecommended)} big valueClass="text-primary" />
-              <Box label="Margem de segurança" value={fmt(calc.safetyMargin)} big valueClass={calc.safetyMargin <= 0 ? 'text-destructive' : 'text-success'} />
+              <Box label="Lote Máximo" value={calc.maxLot.toFixed(2)} big />
+              <Box label="Risco da Operação" value={fmt(riskValue)} big />
+              <Box
+                label="Stops no Dia"
+                value={String(calc.stopsInDay)}
+                big
+                valueClass={calc.stopsInDay <= 1 ? 'text-destructive' : calc.stopsInDay <= 3 ? 'text-warning' : 'text-success'}
+              />
+              <Box
+                label="Stops na Conta"
+                value={String(calc.stopsInAccount)}
+                big
+                valueClass={calc.stopsInAccount <= 2 ? 'text-destructive' : calc.stopsInAccount <= 5 ? 'text-warning' : 'text-foreground'}
+              />
             </div>
           </div>
 
           {message && (
-            <div className={`rounded-2xl border p-4 flex items-start gap-3 ${message.bg} card-premium`}>
+            <div className={`rounded-xl border p-4 flex items-start gap-3 ${message.bg}`}>
               {calc.severity === 'danger' ? (
                 <AlertTriangle className={`w-5 h-5 ${message.color} flex-shrink-0 mt-0.5`} />
               ) : calc.severity === 'warning' ? (
@@ -180,10 +180,10 @@ const RiskCalculator = () => {
             </div>
           )}
 
-          <div className="rounded-2xl border border-border bg-card p-5 space-y-4 card-premium">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Impacto nos limites</p>
-            <Impact label="Uso do limite diário" pct={calc.riskPctOfDaily} />
-            <Impact label="Uso do drawdown total" pct={calc.riskPctOfMax} />
+          <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Impacto nos Limites</p>
+            <Impact label="Uso do Limite Diário" pct={calc.riskPctOfDaily} />
+            <Impact label="Uso do Drawdown Total" pct={calc.riskPctOfMax} />
           </div>
         </motion.div>
       )}
@@ -195,7 +195,7 @@ function Box({ label, value, valueClass, big }: { label: string; value: string; 
   return (
     <div>
       <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
-      <p className={`font-mono ${big ? 'text-2xl font-black' : 'font-bold'} ${valueClass || 'text-foreground'}`}>{value}</p>
+      <p className={`font-mono font-bold ${big ? 'text-2xl font-black' : ''} ${valueClass || 'text-foreground'}`}>{value}</p>
     </div>
   );
 }
