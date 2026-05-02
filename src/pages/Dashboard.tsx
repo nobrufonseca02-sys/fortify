@@ -357,8 +357,11 @@ const Dashboard = () => {
       <DecisionCard />
 
       <section>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground">Suas Contas</h2>
+        <div className="flex items-end justify-between mb-5">
+          <div>
+            <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground/70 mb-1">Portfolio</p>
+            <h2 className="text-xl font-bold text-foreground tracking-tight">Suas Contas</h2>
+          </div>
           <button onClick={() => navigate('/accounts')} className="text-xs text-primary hover:text-primary/80 transition-colors flex items-center gap-1 font-medium">
             Ver todas <ChevronRight className="w-3 h-3" />
           </button>
