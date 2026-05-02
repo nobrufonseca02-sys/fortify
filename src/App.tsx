@@ -52,7 +52,7 @@ function ProtectedRoutes() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/calculator" element={<RiskCalculator />} />
-        <Route path="/challenge" element={<ChallengeControl />} />
+        
         <Route path="/planner" element={<SessionPlanner />} />
         <Route path="/review" element={<PostSessionReview />} />
         <Route path="/accounts" element={<Accounts />} />
