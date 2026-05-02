@@ -14,380 +14,436 @@ export type Database = {
   }
   public: {
     Tables: {
-      account_daily_snapshots: {
+      accountDailySnapshots: {
         Row: {
           balance: number | null
-          created_at: string
-          daily_pnl: number | null
+          createdAt: string
+          dailyPnl: number | null
           date: string
           drawdown: number | null
           equity: number | null
-          floating_pnl: number | null
+          floatingPnl: number | null
           id: string
-          max_balance: number | null
-          trading_account_id: string
-          used_daily_loss_pct: number | null
-          used_total_loss_pct: number | null
-          user_id: string
+          maxBalance: number | null
+          tradingAccountId: string
+          usedDailyLossPct: number | null
+          usedTotalLossPct: number | null
+          userId: string
         }
         Insert: {
           balance?: number | null
-          created_at?: string
-          daily_pnl?: number | null
+          createdAt?: string
+          dailyPnl?: number | null
           date: string
           drawdown?: number | null
           equity?: number | null
-          floating_pnl?: number | null
+          floatingPnl?: number | null
           id?: string
-          max_balance?: number | null
-          trading_account_id: string
-          used_daily_loss_pct?: number | null
-          used_total_loss_pct?: number | null
-          user_id: string
+          maxBalance?: number | null
+          tradingAccountId: string
+          usedDailyLossPct?: number | null
+          usedTotalLossPct?: number | null
+          userId: string
         }
         Update: {
           balance?: number | null
-          created_at?: string
-          daily_pnl?: number | null
+          createdAt?: string
+          dailyPnl?: number | null
           date?: string
           drawdown?: number | null
           equity?: number | null
-          floating_pnl?: number | null
+          floatingPnl?: number | null
           id?: string
-          max_balance?: number | null
-          trading_account_id?: string
-          used_daily_loss_pct?: number | null
-          used_total_loss_pct?: number | null
-          user_id?: string
+          maxBalance?: number | null
+          tradingAccountId?: string
+          usedDailyLossPct?: number | null
+          usedTotalLossPct?: number | null
+          userId?: string
         }
         Relationships: [
           {
             foreignKeyName: "account_daily_snapshots_trading_account_id_fkey"
-            columns: ["trading_account_id"]
+            columns: ["tradingAccountId"]
             isOneToOne: false
-            referencedRelation: "trading_accounts"
+            referencedRelation: "tradingAccounts"
             referencedColumns: ["id"]
           },
         ]
       }
-      mt5_account_snapshots: {
+      mt5AccountSnapshots: {
         Row: {
           balance: number
-          connection_id: string
-          created_at: string
-          daily_pnl: number
+          connectionId: string
+          createdAt: string
+          dailyPnl: number
           date: string
           drawdown: number
           equity: number
-          floating_pnl: number
+          floatingPnl: number
           id: string
-          max_balance: number
+          maxBalance: number
         }
         Insert: {
           balance?: number
-          connection_id: string
-          created_at?: string
-          daily_pnl?: number
+          connectionId: string
+          createdAt?: string
+          dailyPnl?: number
           date: string
           drawdown?: number
           equity?: number
-          floating_pnl?: number
+          floatingPnl?: number
           id?: string
-          max_balance?: number
+          maxBalance?: number
         }
         Update: {
           balance?: number
-          connection_id?: string
-          created_at?: string
-          daily_pnl?: number
+          connectionId?: string
+          createdAt?: string
+          dailyPnl?: number
           date?: string
           drawdown?: number
           equity?: number
-          floating_pnl?: number
+          floatingPnl?: number
           id?: string
-          max_balance?: number
+          maxBalance?: number
         }
         Relationships: [
           {
             foreignKeyName: "mt5_account_snapshots_connection_id_fkey"
-            columns: ["connection_id"]
+            columns: ["connectionId"]
             isOneToOne: false
-            referencedRelation: "mt5_connections"
+            referencedRelation: "mt5Connections"
             referencedColumns: ["id"]
           },
         ]
       }
-      mt5_connections: {
+      mt5Connections: {
         Row: {
-          account_name: string
-          account_type: string
-          broker_name: string
-          connection_status: Database["public"]["Enums"]["mt5_connection_status"]
-          created_at: string
+          accountName: string
+          accountType: string
+          brokerName: string
+          connectionStatus: Database["public"]["Enums"]["mt5_connection_status"]
+          createdAt: string
           id: string
-          last_sync_at: string | null
-          mt5_login: string
-          mt5_server: string
-          prop_firm: string | null
-          sync_error: string | null
-          updated_at: string
-          user_id: string
+          lastSyncAt: string | null
+          mt5Login: string
+          mt5PasswordEnc: string | null
+          mt5PasswordLast4: string | null
+          mt5Server: string
+          propFirm: string | null
+          syncError: string | null
+          updatedAt: string
+          userId: string
         }
         Insert: {
-          account_name: string
-          account_type?: string
-          broker_name: string
-          connection_status?: Database["public"]["Enums"]["mt5_connection_status"]
-          created_at?: string
+          accountName: string
+          accountType?: string
+          brokerName: string
+          connectionStatus?: Database["public"]["Enums"]["mt5_connection_status"]
+          createdAt?: string
           id?: string
-          last_sync_at?: string | null
-          mt5_login: string
-          mt5_server: string
-          prop_firm?: string | null
-          sync_error?: string | null
-          updated_at?: string
-          user_id: string
+          lastSyncAt?: string | null
+          mt5Login: string
+          mt5PasswordEnc?: string | null
+          mt5PasswordLast4?: string | null
+          mt5Server: string
+          propFirm?: string | null
+          syncError?: string | null
+          updatedAt?: string
+          userId: string
         }
         Update: {
-          account_name?: string
-          account_type?: string
-          broker_name?: string
-          connection_status?: Database["public"]["Enums"]["mt5_connection_status"]
-          created_at?: string
+          accountName?: string
+          accountType?: string
+          brokerName?: string
+          connectionStatus?: Database["public"]["Enums"]["mt5_connection_status"]
+          createdAt?: string
           id?: string
-          last_sync_at?: string | null
-          mt5_login?: string
-          mt5_server?: string
-          prop_firm?: string | null
-          sync_error?: string | null
-          updated_at?: string
-          user_id?: string
+          lastSyncAt?: string | null
+          mt5Login?: string
+          mt5PasswordEnc?: string | null
+          mt5PasswordLast4?: string | null
+          mt5Server?: string
+          propFirm?: string | null
+          syncError?: string | null
+          updatedAt?: string
+          userId?: string
         }
         Relationships: []
       }
-      mt5_positions: {
+      mt5Positions: {
         Row: {
-          connection_id: string
-          current_price: number
-          floating_pnl: number
+          connectionId: string
+          currentPrice: number
+          floatingPnl: number
           id: string
-          open_price: number
-          stop_loss: number | null
+          openPrice: number
+          stopLoss: number | null
           symbol: string
-          take_profit: number | null
+          takeProfit: number | null
           ticket: number
-          updated_at: string
+          updatedAt: string
           volume: number
         }
         Insert: {
-          connection_id: string
-          current_price?: number
-          floating_pnl?: number
+          connectionId: string
+          currentPrice?: number
+          floatingPnl?: number
           id?: string
-          open_price?: number
-          stop_loss?: number | null
+          openPrice?: number
+          stopLoss?: number | null
           symbol: string
-          take_profit?: number | null
+          takeProfit?: number | null
           ticket: number
-          updated_at?: string
-          volume?: number
+          updatedAt?: string
+          volume: number
         }
         Update: {
-          connection_id?: string
-          current_price?: number
-          floating_pnl?: number
+          connectionId?: string
+          currentPrice?: number
+          floatingPnl?: number
           id?: string
-          open_price?: number
-          stop_loss?: number | null
+          openPrice?: number
+          stopLoss?: number | null
           symbol?: string
-          take_profit?: number | null
+          takeProfit?: number | null
           ticket?: number
-          updated_at?: string
+          updatedAt?: string
           volume?: number
         }
         Relationships: [
           {
             foreignKeyName: "mt5_positions_connection_id_fkey"
-            columns: ["connection_id"]
+            columns: ["connectionId"]
             isOneToOne: false
-            referencedRelation: "mt5_connections"
+            referencedRelation: "mt5Connections"
             referencedColumns: ["id"]
           },
         ]
       }
-      mt5_trades: {
+      mt5Trades: {
         Row: {
-          close_price: number | null
-          close_time: string | null
+          closePrice: number | null
+          closeTime: string | null
           commission: number
-          connection_id: string
-          created_at: string
+          connectionId: string
+          createdAt: string
           id: string
-          open_price: number
-          open_time: string
+          openPrice: number
+          openTime: string
           profit: number
           side: string
-          stop_loss: number | null
+          stopLoss: number | null
           swap: number
           symbol: string
-          take_profit: number | null
+          takeProfit: number | null
           ticket: number
           volume: number
         }
         Insert: {
-          close_price?: number | null
-          close_time?: string | null
+          closePrice?: number | null
+          closeTime?: string | null
           commission?: number
-          connection_id: string
-          created_at?: string
+          connectionId: string
+          createdAt?: string
           id?: string
-          open_price?: number
-          open_time: string
+          openPrice?: number
+          openTime: string
           profit?: number
           side: string
-          stop_loss?: number | null
+          stopLoss?: number | null
           swap?: number
           symbol: string
-          take_profit?: number | null
+          takeProfit?: number | null
           ticket: number
           volume?: number
         }
         Update: {
-          close_price?: number | null
-          close_time?: string | null
+          closePrice?: number | null
+          closeTime?: string | null
           commission?: number
-          connection_id?: string
-          created_at?: string
+          connectionId?: string
+          createdAt?: string
           id?: string
-          open_price?: number
-          open_time?: string
+          openPrice?: number
+          openTime?: string
           profit?: number
           side?: string
-          stop_loss?: number | null
+          stopLoss?: number | null
           swap?: number
           symbol?: string
-          take_profit?: number | null
+          takeProfit?: number | null
           ticket?: number
           volume?: number
         }
         Relationships: [
           {
             foreignKeyName: "mt5_trades_connection_id_fkey"
-            columns: ["connection_id"]
+            columns: ["connectionId"]
             isOneToOne: false
-            referencedRelation: "mt5_connections"
+            referencedRelation: "mt5Connections"
             referencedColumns: ["id"]
           },
         ]
       }
-      post_session_reviews: {
+      mt5SyncRuns: {
+        Row: {
+          id: string
+          createdAt: string
+          userId: string
+          connectionId: string | null
+          runType: string
+          status: string
+          requestId: string | null
+          startedAt: string | null
+          finishedAt: string | null
+          errorMessage: string | null
+          meta: Json
+        }
+        Insert: {
+          id?: string
+          createdAt?: string
+          userId: string
+          connectionId?: string | null
+          runType: string
+          status: string
+          requestId?: string | null
+          startedAt?: string | null
+          finishedAt?: string | null
+          errorMessage?: string | null
+          meta?: Json
+        }
+        Update: {
+          id?: string
+          createdAt?: string
+          userId?: string
+          connectionId?: string | null
+          runType?: string
+          status?: string
+          requestId?: string | null
+          startedAt?: string | null
+          finishedAt?: string | null
+          errorMessage?: string | null
+          meta?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mt5SyncRunsConnectionIdFkey"
+            columns: ["connectionId"]
+            isOneToOne: false
+            referencedRelation: "mt5Connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      postSessionReviews: {
         Row: {
           comment: string | null
-          created_at: string
+          createdAt: string
           date: string
-          emotional_error: string | null
+          emotionalError: string | null
           id: string
-          operational_error: string | null
-          plan_adherence: string | null
+          operationalError: string | null
+          planAdherence: string | null
           result: number | null
-          session_plan_id: string | null
-          session_rating: number | null
-          trading_account_id: string | null
-          updated_at: string
-          user_id: string
+          sessionPlanId: string | null
+          sessionRating: number | null
+          tradingAccountId: string | null
+          updatedAt: string
+          userId: string
         }
         Insert: {
           comment?: string | null
-          created_at?: string
+          createdAt?: string
           date?: string
-          emotional_error?: string | null
+          emotionalError?: string | null
           id?: string
-          operational_error?: string | null
-          plan_adherence?: string | null
+          operationalError?: string | null
+          planAdherence?: string | null
           result?: number | null
-          session_plan_id?: string | null
-          session_rating?: number | null
-          trading_account_id?: string | null
-          updated_at?: string
-          user_id: string
+          sessionPlanId?: string | null
+          sessionRating?: number | null
+          tradingAccountId?: string | null
+          updatedAt?: string
+          userId: string
         }
         Update: {
           comment?: string | null
-          created_at?: string
+          createdAt?: string
           date?: string
-          emotional_error?: string | null
+          emotionalError?: string | null
           id?: string
-          operational_error?: string | null
-          plan_adherence?: string | null
+          operationalError?: string | null
+          planAdherence?: string | null
           result?: number | null
-          session_plan_id?: string | null
-          session_rating?: number | null
-          trading_account_id?: string | null
-          updated_at?: string
-          user_id?: string
+          sessionPlanId?: string | null
+          sessionRating?: number | null
+          tradingAccountId?: string | null
+          updatedAt?: string
+          userId?: string
         }
         Relationships: [
           {
             foreignKeyName: "post_session_reviews_session_plan_id_fkey"
-            columns: ["session_plan_id"]
+            columns: ["sessionPlanId"]
             isOneToOne: false
-            referencedRelation: "session_plans"
+            referencedRelation: "sessionPlans"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "post_session_reviews_trading_account_id_fkey"
-            columns: ["trading_account_id"]
+            columns: ["tradingAccountId"]
             isOneToOne: false
-            referencedRelation: "trading_accounts"
+            referencedRelation: "tradingAccounts"
             referencedColumns: ["id"]
           },
         ]
       }
       programs: {
         Row: {
-          account_type: string
-          created_at: string
+          accountType: string
+          createdAt: string
           id: string
-          market_type: string
+          marketType: string
           name: string
           notes: string | null
-          prop_firm_id: string
+          propFirmId: string
         }
         Insert: {
-          account_type: string
-          created_at?: string
+          accountType: string
+          createdAt?: string
           id?: string
-          market_type?: string
+          marketType?: string
           name: string
           notes?: string | null
-          prop_firm_id: string
+          propFirmId: string
         }
         Update: {
-          account_type?: string
-          created_at?: string
+          accountType?: string
+          createdAt?: string
           id?: string
-          market_type?: string
+          marketType?: string
           name?: string
           notes?: string | null
-          prop_firm_id?: string
+          propFirmId?: string
         }
         Relationships: [
           {
             foreignKeyName: "programs_prop_firm_id_fkey"
-            columns: ["prop_firm_id"]
+            columns: ["propFirmId"]
             isOneToOne: false
-            referencedRelation: "prop_firms"
+            referencedRelation: "propFirms"
             referencedColumns: ["id"]
           },
         ]
       }
-      prop_firms: {
+      propFirms: {
         Row: {
           category: Database["public"]["Enums"]["prop_firm_category"]
           color: string | null
-          created_at: string
+          createdAt: string
           id: string
-          logo_url: string | null
+          logoUrl: string | null
           name: string
           slug: string
           status: Database["public"]["Enums"]["prop_firm_status"]
@@ -396,9 +452,9 @@ export type Database = {
         Insert: {
           category?: Database["public"]["Enums"]["prop_firm_category"]
           color?: string | null
-          created_at?: string
+          createdAt?: string
           id?: string
-          logo_url?: string | null
+          logoUrl?: string | null
           name: string
           slug: string
           status?: Database["public"]["Enums"]["prop_firm_status"]
@@ -407,9 +463,9 @@ export type Database = {
         Update: {
           category?: Database["public"]["Enums"]["prop_firm_category"]
           color?: string | null
-          created_at?: string
+          createdAt?: string
           id?: string
-          logo_url?: string | null
+          logoUrl?: string | null
           name?: string
           slug?: string
           status?: Database["public"]["Enums"]["prop_firm_status"]
@@ -417,10 +473,10 @@ export type Database = {
         }
         Relationships: []
       }
-      rule_definitions: {
+      ruleDefinitions: {
         Row: {
           category: string
-          created_at: string
+          createdAt: string
           description: string | null
           id: string
           key: Database["public"]["Enums"]["rule_definition_key"]
@@ -428,7 +484,7 @@ export type Database = {
         }
         Insert: {
           category?: string
-          created_at?: string
+          createdAt?: string
           description?: string | null
           id?: string
           key: Database["public"]["Enums"]["rule_definition_key"]
@@ -436,7 +492,7 @@ export type Database = {
         }
         Update: {
           category?: string
-          created_at?: string
+          createdAt?: string
           description?: string | null
           id?: string
           key?: Database["public"]["Enums"]["rule_definition_key"]
@@ -444,280 +500,280 @@ export type Database = {
         }
         Relationships: []
       }
-      rule_instances: {
+      ruleInstances: {
         Row: {
-          base_calculation: string | null
-          created_at: string
-          daily_reset: boolean
+          baseCalculation: string | null
+          createdAt: string
+          dailyReset: boolean
           enabled: boolean
           id: string
-          includes_floating: boolean
-          limit_value: number
+          includesFloating: boolean
+          limitValue: number
           mode: Database["public"]["Enums"]["rule_mode"]
           params: Json | null
-          rule_definition_id: string
-          rule_set_version_id: string
+          ruleDefinitionId: string
+          ruleSetVersionId: string
           severity: string
         }
         Insert: {
-          base_calculation?: string | null
-          created_at?: string
-          daily_reset?: boolean
+          baseCalculation?: string | null
+          createdAt?: string
+          dailyReset?: boolean
           enabled?: boolean
           id?: string
-          includes_floating?: boolean
-          limit_value?: number
+          includesFloating?: boolean
+          limitValue?: number
           mode?: Database["public"]["Enums"]["rule_mode"]
           params?: Json | null
-          rule_definition_id: string
-          rule_set_version_id: string
+          ruleDefinitionId: string
+          ruleSetVersionId: string
           severity?: string
         }
         Update: {
-          base_calculation?: string | null
-          created_at?: string
-          daily_reset?: boolean
+          baseCalculation?: string | null
+          createdAt?: string
+          dailyReset?: boolean
           enabled?: boolean
           id?: string
-          includes_floating?: boolean
-          limit_value?: number
+          includesFloating?: boolean
+          limitValue?: number
           mode?: Database["public"]["Enums"]["rule_mode"]
           params?: Json | null
-          rule_definition_id?: string
-          rule_set_version_id?: string
+          ruleDefinitionId?: string
+          ruleSetVersionId?: string
           severity?: string
         }
         Relationships: [
           {
             foreignKeyName: "rule_instances_rule_definition_id_fkey"
-            columns: ["rule_definition_id"]
+            columns: ["ruleDefinitionId"]
             isOneToOne: false
-            referencedRelation: "rule_definitions"
+            referencedRelation: "ruleDefinitions"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "rule_instances_rule_set_version_id_fkey"
-            columns: ["rule_set_version_id"]
+            columns: ["ruleSetVersionId"]
             isOneToOne: false
-            referencedRelation: "rule_set_versions"
+            referencedRelation: "ruleSetVersions"
             referencedColumns: ["id"]
           },
         ]
       }
-      rule_set_versions: {
+      ruleSetVersions: {
         Row: {
-          created_at: string
-          end_date: string | null
+          createdAt: string
+          endDate: string | null
           id: string
           name: string
-          program_id: string
-          source_url: string | null
-          start_date: string | null
+          programId: string
+          sourceUrl: string | null
+          startDate: string | null
           status: Database["public"]["Enums"]["rule_set_status"]
         }
         Insert: {
-          created_at?: string
-          end_date?: string | null
+          createdAt?: string
+          endDate?: string | null
           id?: string
           name: string
-          program_id: string
-          source_url?: string | null
-          start_date?: string | null
+          programId: string
+          sourceUrl?: string | null
+          startDate?: string | null
           status?: Database["public"]["Enums"]["rule_set_status"]
         }
         Update: {
-          created_at?: string
-          end_date?: string | null
+          createdAt?: string
+          endDate?: string | null
           id?: string
           name?: string
-          program_id?: string
-          source_url?: string | null
-          start_date?: string | null
+          programId?: string
+          sourceUrl?: string | null
+          startDate?: string | null
           status?: Database["public"]["Enums"]["rule_set_status"]
         }
         Relationships: [
           {
             foreignKeyName: "rule_set_versions_program_id_fkey"
-            columns: ["program_id"]
+            columns: ["programId"]
             isOneToOne: false
             referencedRelation: "programs"
             referencedColumns: ["id"]
           },
         ]
       }
-      session_plans: {
+      sessionPlans: {
         Row: {
-          conservative_target: number | null
-          created_at: string
+          conservativeTarget: number | null
+          createdAt: string
           date: string
           id: string
-          max_risk_today: number | null
-          max_trades: number | null
+          maxRiskToday: number | null
+          maxTrades: number | null
           notes: string | null
-          personal_daily_stop: number | null
-          risk_per_trade: number | null
-          trading_account_id: string | null
-          updated_at: string
-          user_id: string
+          personalDailyStop: number | null
+          riskPerTrade: number | null
+          tradingAccountId: string | null
+          updatedAt: string
+          userId: string
         }
         Insert: {
-          conservative_target?: number | null
-          created_at?: string
+          conservativeTarget?: number | null
+          createdAt?: string
           date?: string
           id?: string
-          max_risk_today?: number | null
-          max_trades?: number | null
+          maxRiskToday?: number | null
+          maxTrades?: number | null
           notes?: string | null
-          personal_daily_stop?: number | null
-          risk_per_trade?: number | null
-          trading_account_id?: string | null
-          updated_at?: string
-          user_id: string
+          personalDailyStop?: number | null
+          riskPerTrade?: number | null
+          tradingAccountId?: string | null
+          updatedAt?: string
+          userId: string
         }
         Update: {
-          conservative_target?: number | null
-          created_at?: string
+          conservativeTarget?: number | null
+          createdAt?: string
           date?: string
           id?: string
-          max_risk_today?: number | null
-          max_trades?: number | null
+          maxRiskToday?: number | null
+          maxTrades?: number | null
           notes?: string | null
-          personal_daily_stop?: number | null
-          risk_per_trade?: number | null
-          trading_account_id?: string | null
-          updated_at?: string
-          user_id?: string
+          personalDailyStop?: number | null
+          riskPerTrade?: number | null
+          tradingAccountId?: string | null
+          updatedAt?: string
+          userId?: string
         }
         Relationships: [
           {
             foreignKeyName: "session_plans_trading_account_id_fkey"
-            columns: ["trading_account_id"]
+            columns: ["tradingAccountId"]
             isOneToOne: false
-            referencedRelation: "trading_accounts"
+            referencedRelation: "tradingAccounts"
             referencedColumns: ["id"]
           },
         ]
       }
-      trading_accounts: {
+      tradingAccounts: {
         Row: {
-          account_type: string | null
-          base_currency: string
+          accountType: string | null
+          baseCurrency: string
           broker: string | null
-          created_at: string
-          current_balance: number
-          current_equity: number
-          daily_loss_limit: number
-          daily_loss_reset_date: string | null
-          daily_loss_used: number
-          highest_equity: number
+          createdAt: string
+          currentBalance: number
+          currentEquity: number
+          dailyLossLimit: number
+          dailyLossResetDate: string | null
+          dailyLossUsed: number
+          highestEquity: number
           id: string
-          last_trading_date: string | null
-          min_trading_days: number
-          mt5_connection_status: string | null
-          mt5_last_sync_at: string | null
-          mt5_login: string | null
-          mt5_server: string | null
-          mt5_sync_error: string | null
+          lastTradingDate: string | null
+          minTradingDays: number
+          mt5ConnectionStatus: string | null
+          mt5LastSyncAt: string | null
+          mt5Login: string | null
+          mt5Server: string | null
+          mt5SyncError: string | null
           nickname: string
           phase: string | null
-          profit_target: number
+          profitTarget: number
           program: string | null
-          prop_firm: string | null
-          rule_set_id: string | null
-          start_balance: number
+          propFirm: string | null
+          ruleSetId: string | null
+          startBalance: number
           status: string
-          total_loss_limit: number
-          total_loss_used: number
-          trading_days_count: number
-          updated_at: string
-          user_id: string
+          totalLossLimit: number
+          totalLossUsed: number
+          tradingDaysCount: number
+          updatedAt: string
+          userId: string
         }
         Insert: {
-          account_type?: string | null
-          base_currency?: string
+          accountType?: string | null
+          baseCurrency?: string
           broker?: string | null
-          created_at?: string
-          current_balance?: number
-          current_equity?: number
-          daily_loss_limit?: number
-          daily_loss_reset_date?: string | null
-          daily_loss_used?: number
-          highest_equity?: number
+          createdAt?: string
+          currentBalance?: number
+          currentEquity?: number
+          dailyLossLimit?: number
+          dailyLossResetDate?: string | null
+          dailyLossUsed?: number
+          highestEquity?: number
           id?: string
-          last_trading_date?: string | null
-          min_trading_days?: number
-          mt5_connection_status?: string | null
-          mt5_last_sync_at?: string | null
-          mt5_login?: string | null
-          mt5_server?: string | null
-          mt5_sync_error?: string | null
+          lastTradingDate?: string | null
+          minTradingDays?: number
+          mt5ConnectionStatus?: string | null
+          mt5LastSyncAt?: string | null
+          mt5Login?: string | null
+          mt5Server?: string | null
+          mt5SyncError?: string | null
           nickname: string
           phase?: string | null
-          profit_target?: number
+          profitTarget?: number
           program?: string | null
-          prop_firm?: string | null
-          rule_set_id?: string | null
-          start_balance?: number
+          propFirm?: string | null
+          ruleSetId?: string | null
+          startBalance?: number
           status?: string
-          total_loss_limit?: number
-          total_loss_used?: number
-          trading_days_count?: number
-          updated_at?: string
-          user_id: string
+          totalLossLimit?: number
+          totalLossUsed?: number
+          tradingDaysCount?: number
+          updatedAt?: string
+          userId: string
         }
         Update: {
-          account_type?: string | null
-          base_currency?: string
+          accountType?: string | null
+          baseCurrency?: string
           broker?: string | null
-          created_at?: string
-          current_balance?: number
-          current_equity?: number
-          daily_loss_limit?: number
-          daily_loss_reset_date?: string | null
-          daily_loss_used?: number
-          highest_equity?: number
+          createdAt?: string
+          currentBalance?: number
+          currentEquity?: number
+          dailyLossLimit?: number
+          dailyLossResetDate?: string | null
+          dailyLossUsed?: number
+          highestEquity?: number
           id?: string
-          last_trading_date?: string | null
-          min_trading_days?: number
-          mt5_connection_status?: string | null
-          mt5_last_sync_at?: string | null
-          mt5_login?: string | null
-          mt5_server?: string | null
-          mt5_sync_error?: string | null
+          lastTradingDate?: string | null
+          minTradingDays?: number
+          mt5ConnectionStatus?: string | null
+          mt5LastSyncAt?: string | null
+          mt5Login?: string | null
+          mt5Server?: string | null
+          mt5SyncError?: string | null
           nickname?: string
           phase?: string | null
-          profit_target?: number
+          profitTarget?: number
           program?: string | null
-          prop_firm?: string | null
-          rule_set_id?: string | null
-          start_balance?: number
+          propFirm?: string | null
+          ruleSetId?: string | null
+          startBalance?: number
           status?: string
-          total_loss_limit?: number
-          total_loss_used?: number
-          trading_days_count?: number
-          updated_at?: string
-          user_id?: string
+          totalLossLimit?: number
+          totalLossUsed?: number
+          tradingDaysCount?: number
+          updatedAt?: string
+          userId?: string
         }
         Relationships: []
       }
-      user_roles: {
+      userRoles: {
         Row: {
-          created_at: string
+          createdAt: string
           id: string
           role: Database["public"]["Enums"]["app_role"]
-          user_id: string
+          userId: string
         }
         Insert: {
-          created_at?: string
+          createdAt?: string
           id?: string
           role: Database["public"]["Enums"]["app_role"]
-          user_id: string
+          userId: string
         }
         Update: {
-          created_at?: string
+          createdAt?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
-          user_id?: string
+          userId?: string
         }
         Relationships: []
       }
