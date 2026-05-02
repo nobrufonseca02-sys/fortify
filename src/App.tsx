@@ -22,7 +22,7 @@ import AccountHistory from "./pages/AccountHistory";
 import MT5Connections from "./pages/MT5Connections";
 import MT5Dashboard from "./pages/MT5Dashboard";
 import RiskCalculator from "./pages/RiskCalculator";
-import ChallengeControl from "./pages/ChallengeControl";
+
 import SessionPlanner from "./pages/SessionPlanner";
 import PostSessionReview from "./pages/PostSessionReview";
 import NotFound from "./pages/NotFound";
