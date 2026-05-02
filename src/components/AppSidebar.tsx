@@ -1,4 +1,4 @@
-import { LayoutDashboard, ScrollText, PlusCircle, Settings, BarChart3, Shield, BookOpen, Archive, LogOut, Server, Calculator, Target, ClipboardList, FileCheck } from "lucide-react";
+import { LayoutDashboard, ScrollText, PlusCircle, Settings, BarChart3, Shield, BookOpen, Archive, LogOut, Server, Calculator, ClipboardList, FileCheck } from "lucide-react";
 import fortifyLogo from "@/assets/fortify-eagle.png";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -21,7 +21,7 @@ const groups = [
     items: [
       { title: "Risk Panel", url: "/", icon: LayoutDashboard },
       { title: "Calculadora", url: "/calculator", icon: Calculator },
-      { title: "Challenge", url: "/challenge", icon: Target },
+      
     ],
   },
   {

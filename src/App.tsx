@@ -22,7 +22,7 @@ import AccountHistory from "./pages/AccountHistory";
 import MT5Connections from "./pages/MT5Connections";
 import MT5Dashboard from "./pages/MT5Dashboard";
 import RiskCalculator from "./pages/RiskCalculator";
-import ChallengeControl from "./pages/ChallengeControl";
+
 import SessionPlanner from "./pages/SessionPlanner";
 import PostSessionReview from "./pages/PostSessionReview";
 import NotFound from "./pages/NotFound";
@@ -52,7 +52,7 @@ function ProtectedRoutes() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/calculator" element={<RiskCalculator />} />
-        <Route path="/challenge" element={<ChallengeControl />} />
+        
         <Route path="/planner" element={<SessionPlanner />} />
         <Route path="/review" element={<PostSessionReview />} />
         <Route path="/accounts" element={<Accounts />} />
