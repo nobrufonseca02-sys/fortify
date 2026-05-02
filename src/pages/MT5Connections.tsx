@@ -18,6 +18,7 @@ type Mt5ConnectionRow = {
   connectionName: string;
   mt5Login: string;
   serverName: string;
+  brokerName: string | null;
   connectionStatus: 'disconnected' | 'connecting' | 'connected' | 'auth_error' | 'syncing';
   lastSyncTime: string | null;
   latestSyncError: string | null;
@@ -38,6 +39,7 @@ export default function MT5Connections() {
   const userId = session?.user?.id;
 
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [rows, setRows] = useState<Mt5ConnectionRow[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -45,18 +47,22 @@ export default function MT5Connections() {
   const [connectionName, setConnectionName] = useState('');
   const [mt5Login, setMt5Login] = useState('');
   const [serverName, setServerName] = useState('');
+  const [brokerName, setBrokerName] = useState('');
 
   const canUse = Boolean(userId);
 
   const fetchRows = async () => {
     if (!userId) return;
     setLoading(true);
+    setLoadError(null);
+
     const { data, error } = await supabase
       .from('mt5_connections')
       .select('*')
       .order('createdAt', { ascending: false });
 
     if (error) {
+      setLoadError(error.message);
       toast({ title: 'Erro ao carregar conexões', description: error.message, variant: 'destructive' });
       setRows([]);
       setLoading(false);
@@ -83,7 +89,7 @@ export default function MT5Connections() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userId) return;
-    if (!connectionName || !mt5Login || !serverName) return;
+    if (!connectionName || !mt5Login || !serverName || !brokerName) return;
 
     setSaving(true);
     const { error } = await supabase.from('mt5_connections').insert({
@@ -91,6 +97,7 @@ export default function MT5Connections() {
       connectionName,
       mt5Login,
       serverName,
+      brokerName,
       connectionStatus: 'disconnected',
     });
     setSaving(false);
@@ -105,6 +112,7 @@ export default function MT5Connections() {
     setConnectionName('');
     setMt5Login('');
     setServerName('');
+    setBrokerName('');
     fetchRows();
   };
 
@@ -177,7 +185,7 @@ export default function MT5Connections() {
   if (!canUse) {
     return (
       <div className="p-6 max-w-5xl mx-auto space-y-3">
-        <h1 className="text-lg font-bold text-foreground">MT5</h1>
+        <h1 className="text-lg font-bold text-foreground">Integrações · MT5</h1>
         <p className="text-sm text-muted-foreground">Faça login para gerenciar suas integrações.</p>
       </div>
     );
@@ -192,7 +200,7 @@ export default function MT5Connections() {
         </div>
         <Button onClick={() => setShowForm(!showForm)} className="btn-glow">
           <Plus className="w-4 h-4" />
-          Nova conexão
+          Conectar nova conta
         </Button>
       </div>
 
@@ -213,8 +221,8 @@ export default function MT5Connections() {
           onSubmit={handleCreate}
           className="card-premium rounded-xl border border-border bg-card p-6 space-y-5"
         >
-          <h2 className="text-sm font-semibold text-foreground">Adicionar conexão</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <h2 className="text-sm font-semibold text-foreground">Conectar conta MT5</h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Nome da conexão</label>
               <Input value={connectionName} onChange={e => setConnectionName(e.target.value)} placeholder="Ex.: Conta principal" required />
@@ -226,6 +234,10 @@ export default function MT5Connections() {
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Servidor</label>
               <Input value={serverName} onChange={e => setServerName(e.target.value)} placeholder="Ex.: ICMarketsSC-Live" required />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Broker</label>
+              <Input value={brokerName} onChange={e => setBrokerName(e.target.value)} placeholder="Ex.: IC Markets" required />
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -242,6 +254,22 @@ export default function MT5Connections() {
         <div className="flex justify-center py-12">
           <Loader2 className="w-6 h-6 animate-spin text-primary" />
         </div>
+      ) : loadError ? (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-destructive mt-0.5" />
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-foreground">Falha ao carregar conexões</p>
+              <p className="text-xs text-muted-foreground">{loadError}</p>
+              <div className="flex items-center gap-2">
+                <Button size="sm" onClick={fetchRows}>
+                  <RefreshCw className="w-4 h-4" />
+                  Tentar novamente
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
       ) : formattedRows.length > 0 ? (
         <div className="rounded-xl border border-border bg-card overflow-hidden">
           <div className="overflow-auto">
@@ -251,6 +279,7 @@ export default function MT5Connections() {
                   <th className="px-4 py-3 font-medium">Nome</th>
                   <th className="px-4 py-3 font-medium">Login</th>
                   <th className="px-4 py-3 font-medium">Servidor</th>
+                  <th className="px-4 py-3 font-medium">Broker</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Último sync</th>
                   <th className="px-4 py-3 font-medium">Erro</th>
@@ -272,6 +301,7 @@ export default function MT5Connections() {
                       <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">{r.connectionName}</td>
                       <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{r.mt5Login}</td>
                       <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{r.serverName}</td>
+                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{r.brokerName || '—'}</td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span className={`inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full ${r.st.className}`}>
                           <StIcon className={`w-3 h-3 ${isAnimated ? 'animate-spin' : ''}`} />
@@ -347,8 +377,8 @@ export default function MT5Connections() {
       ) : (
         <div className="rounded-xl border border-dashed border-border p-10 text-center">
           <Server className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">Nenhuma conexão MT5 cadastrada.</p>
-          <p className="text-xs text-muted-foreground mt-1">Clique em "Nova conexão" para começar.</p>
+          <p className="text-sm text-muted-foreground">Nenhuma conta MT5 conectada.</p>
+          <p className="text-xs text-muted-foreground mt-1">Clique em "Conectar nova conta" para começar.</p>
         </div>
       )}
     </div>
