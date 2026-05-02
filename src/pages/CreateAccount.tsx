@@ -1,228 +1,944 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { ArrowLeft, Check, Wallet, Building2 } from 'lucide-react';
-import { useCreateAccount } from '@/hooks/useAccountsStore';
-import { PROP_FIRMS } from '@/data/propFirmsMVP';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useAccountsStore } from '@/pages/Accounts';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  ArrowLeft, ArrowRight, Check, Shield, AlertTriangle, Zap, TrendingUp,
+  Calculator, Brain, BarChart3, Target, Clock, Newspaper, Layers, Activity,
+  ChevronDown, ChevronUp, Wallet, Flame, Award, Building2, Globe,
+  ChevronRight, ExternalLink, BookOpen
+} from 'lucide-react';
+import { RuleType, type Mt5ConnectionStatus } from '@/types/fortify';
+import { type TemplateRule } from '@/data/propFirmLibrary';
+import { RuleExtractor } from '@/components/RuleExtractor';
+import {
+  usePropFirms, usePrograms, useProgramRules,
+  type PropFirm, type Program, type RuleInstance,
+} from '@/hooks/usePropFirmLibrary';
+import { useAuth } from '@/hooks/useAuth';
+import { createClient } from '@supabase/supabase-js';
 import { toast } from '@/hooks/use-toast';
 
-const fmt = (v: number) => `$${v.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`;
+const RISK_OPTIONS = [
+  { label: '0.25%', value: 0.25, desc: 'Ultra conservador' },
+  { label: '0.5%', value: 0.5, desc: 'Conservador' },
+  { label: '1%', value: 1, desc: 'Moderado' },
+  { label: '2%', value: 2, desc: 'Agressivo' },
+];
 
+const RULE_ICONS: Partial<Record<RuleType, React.ElementType>> = {
+  MAX_DAILY_LOSS: Flame,
+  MAX_TOTAL_LOSS: Shield,
+  TRAILING_MAX_LOSS: TrendingUp,
+  PROFIT_TARGET: Target,
+  MIN_TRADING_DAYS: Clock,
+  CONSISTENCY_BEST_DAY_CAP: BarChart3,
+  NEWS_RESTRICTION_WINDOW: Newspaper,
+  SCALPING_RULE: Zap,
+  MAX_STACKING_TRADES: Layers,
+  INACTIVITY_LIMIT: Activity,
+};
+
+const FIRM_LOGOS: Record<string, string> = {
+  ftmo: 'F', hantec: 'H', topstep: 'T', fundednext: 'FN',
+  the5ers: '5', apex: 'AT', e8markets: 'E8', fxify: 'FX',
+  fundscap: 'FC', custom: 'C',
+};
+
+// Map DB rule_definition key → local RuleType
+const DB_KEY_TO_RULE_TYPE: Record<string, RuleType> = {
+  max_daily_loss: 'MAX_DAILY_LOSS',
+  max_total_loss: 'MAX_TOTAL_LOSS',
+  trailing_drawdown: 'TRAILING_MAX_LOSS',
+  floating_loss_limit: 'MAX_TOTAL_LOSS',
+  profit_target: 'PROFIT_TARGET',
+  min_trading_days: 'MIN_TRADING_DAYS',
+  profitable_days: 'MIN_TRADING_DAYS',
+  consistency_best_day_cap: 'CONSISTENCY_BEST_DAY_CAP',
+  inactivity_limit: 'INACTIVITY_LIMIT',
+  news_restriction: 'NEWS_RESTRICTION_WINDOW',
+  scalping_restriction: 'SCALPING_RULE',
+  weekend_holding: 'SCALPING_RULE',
+  payout_eligibility: 'PROFIT_CAP_PAYOUT',
+  profit_split: 'PROFIT_CAP_PAYOUT',
+  payout_frequency: 'PROFIT_CAP_PAYOUT',
+  leverage_limit: 'MAX_STACKING_TRADES',
+};
+
+function mapDbRulesToTemplateRules(dbRules: RuleInstance[]): TemplateRule[] {
+  return dbRules.map(rule => {
+    const def = rule.rule_definition;
+    const key = def?.key || '';
+    const ruleType = DB_KEY_TO_RULE_TYPE[key] || 'MAX_DAILY_LOSS';
+    const unit: TemplateRule['unit'] = rule.mode === 'percent' ? '%'
+      : (key === 'min_trading_days' || key === 'profitable_days' || key === 'inactivity_limit' || key === 'payout_frequency') ? 'days'
+      : '$';
+    return {
+      type: ruleType,
+      name: def?.name || key,
+      severity: rule.severity === 'hard' ? 'hard' as const : 'soft' as const,
+      defaultValue: rule.limit_value,
+      unit,
+      editable: true,
+      enabled: rule.enabled,
+    };
+  });
+}
+
+const fmt = (v: number) => `$${v.toLocaleString('en-US', { minimumFractionDigits: 0 })}`;
+
+const getSupabaseUrl = () =>
+  (import.meta as any)?.env?.VITE_SUPABASE_URL ||
+  (import.meta as any)?.env?.VITE_PUBLIC_SUPABASE_URL ||
+  (window as any)?.__SUPABASE_URL__;
+
+const getSupabaseAnonKey = () =>
+  (import.meta as any)?.env?.VITE_SUPABASE_ANON_KEY ||
+  (import.meta as any)?.env?.VITE_PUBLIC_SUPABASE_ANON_KEY ||
+  (window as any)?.__SUPABASE_ANON_KEY__;
+
+// ─── Step indicator ───
+const StepIndicator = ({ current, total }: { current: number; total: number }) => (
+  <div className="flex items-center gap-2">
+    {Array.from({ length: total }).map((_, i) => (
+      <div key={i} className="flex items-center gap-2">
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+          i < current ? 'bg-primary text-primary-foreground' :
+          i === current ? 'bg-primary/20 text-primary border border-primary' :
+          'bg-muted text-muted-foreground'
+        }`}>
+          {i < current ? <Check className="w-4 h-4" /> : i + 1}
+        </div>
+        {i < total - 1 && <div className={`w-8 h-px ${i < current ? 'bg-primary' : 'bg-border'}`} />}
+      </div>
+    ))}
+  </div>
+);
+
+// ─── Main Page ───
 const CreateAccount = () => {
   const navigate = useNavigate();
-  const createMutation = useCreateAccount();
+  const location = useLocation();
+  const { addAccount } = useAccountsStore();
+  const { user } = useAuth();
+  const [step, setStep] = useState(0);
 
-  const [propFirmName, setPropFirmName] = useState<string>(PROP_FIRMS[0].name);
-  const [programName, setProgramName] = useState<string>(PROP_FIRMS[0].programs[0].name);
-  const [phaseName, setPhaseName] = useState<string>(PROP_FIRMS[0].programs[0].phases[0].name);
-  const [nickname, setNickname] = useState('');
+  const supabaseUrl = getSupabaseUrl();
+  const supabaseAnonKey = getSupabaseAnonKey();
+  const supabase = useMemo(() => {
+    if (!supabaseUrl || !supabaseAnonKey) return null;
+    return createClient(supabaseUrl, supabaseAnonKey, { auth: { persistSession: true } });
+  }, [supabaseUrl, supabaseAnonKey]);
+
+  // Step 0: Prop Firm + Program from DB
+  const [selectedFirmId, setSelectedFirmId] = useState<string | null>(null);
+  const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
+  const [firmStep, setFirmStep] = useState<'firm' | 'program'>('firm');
+
+  // DB queries
+  const { data: firms = [], isLoading: firmsLoading } = usePropFirms();
+  const { data: programs = [], isLoading: programsLoading } = usePrograms(selectedFirmId);
+  const { data: programData, isLoading: rulesLoading } = useProgramRules(selectedProgramId);
+
+  const selectedFirm = firms.find(f => f.id === selectedFirmId);
+  const selectedProgram = programs.find(p => p.id === selectedProgramId);
+
+  // Step 1: Account Info
+  const [accountName, setAccountName] = useState('');
   const [startBalance, setStartBalance] = useState('100000');
-  const [currentEquity, setCurrentEquity] = useState('100000');
   const [currency, setCurrency] = useState('USD');
+  const [accountType, setAccountType] = useState('');
 
-  const firm = useMemo(() => PROP_FIRMS.find(f => f.name === propFirmName)!, [propFirmName]);
-  const program = useMemo(() => firm.programs.find(p => p.name === programName) ?? firm.programs[0], [firm, programName]);
-  const phase = useMemo(() => program.phases.find(p => p.name === phaseName) ?? program.phases[0], [program, phaseName]);
+  // Step 2: Rules
+  const [rules, setRules] = useState<TemplateRule[]>([]);
 
-  // When firm/program changes, reset downstream selections
-  useEffect(() => {
-    if (!firm.programs.find(p => p.name === programName)) {
-      setProgramName(firm.programs[0].name);
-    }
-  }, [firm, programName]);
-  useEffect(() => {
-    if (!program.phases.find(p => p.name === phaseName)) {
-      setPhaseName(program.phases[0].name);
-    }
-  }, [program, phaseName]);
+  // Step 3: Risk
+  const [riskPerTrade, setRiskPerTrade] = useState<number | null>(null);
+  const [customRisk, setCustomRisk] = useState('');
+
+  // Step 4: MT5 Connection data (structural; conexão real via backend externo)
+  const [mt5Login, setMt5Login] = useState('');
+  const [mt5Server, setMt5Server] = useState('');
+  const [mt5Broker, setMt5Broker] = useState('');
+  const [mt5PropFirm, setMt5PropFirm] = useState('');
 
   const balance = parseFloat(startBalance) || 0;
-  const equity = parseFloat(currentEquity) || 0;
+  const effectiveRisk = riskPerTrade ?? (customRisk ? parseFloat(customRisk) : 0);
 
-  const limits = useMemo(() => ({
-    daily_loss_limit: balance * (phase.dailyLossPct / 100),
-    total_loss_limit: balance * (phase.totalLossPct / 100),
-    profit_target: balance * (phase.profitTargetPct / 100),
-    min_trading_days: phase.minTradingDays,
-  }), [balance, phase]);
+  // Handle incoming state from Library page
+  useEffect(() => {
+    const state = location.state as { firmId?: string; programId?: string; firmName?: string; programName?: string } | null;
+    if (state?.firmId) {
+      setSelectedFirmId(state.firmId);
+      if (state.programId) {
+        setSelectedProgramId(state.programId);
+        setFirmStep('program');
+      }
+    }
+  }, [location.state]);
 
-  const canSubmit = nickname.trim() && balance > 0 && equity >= 0;
+  // Auto-load rules when program data arrives
+  useEffect(() => {
+    if (programData?.rules && programData.rules.length > 0) {
+      const mapped = mapDbRulesToTemplateRules(programData.rules);
+      setRules(mapped);
+      if (selectedProgram) {
+        setAccountType(selectedProgram.account_type);
+        if (!accountName) {
+          setAccountName(`${selectedFirm?.name || ''} ${selectedProgram.name}`);
+        }
+      }
+    }
+  }, [programData]);
 
-  const handleSubmit = async () => {
-    if (!canSubmit) return;
-    try {
-      await createMutation.mutateAsync({
-        nickname: nickname.trim(),
-        prop_firm: propFirmName,
-        program: programName,
-        phase: phaseName,
-        base_currency: currency,
-        start_balance: balance,
-        current_equity: equity,
-        daily_loss_limit: limits.daily_loss_limit,
-        total_loss_limit: limits.total_loss_limit,
-        profit_target: limits.profit_target,
-        min_trading_days: limits.min_trading_days,
-      });
-      toast({ title: 'Conta criada', description: 'Sua conta foi adicionada.' });
-      navigate('/accounts');
-    } catch (e: any) {
-      toast({ title: 'Erro ao criar conta', description: e?.message || 'Tente novamente.', variant: 'destructive' });
+  const handleSelectFirm = (firm: PropFirm) => {
+    setSelectedFirmId(firm.id);
+    setSelectedProgramId(null);
+    setRules([]);
+    setFirmStep('program');
+  };
+
+  const handleSelectProgram = (program: Program) => {
+    setSelectedProgramId(program.id);
+  };
+
+  const goBackFirmStep = () => {
+    if (firmStep === 'program') {
+      setFirmStep('firm');
+      setSelectedFirmId(null);
+      setSelectedProgramId(null);
+      setRules([]);
     }
   };
 
+  const toggleRule = (idx: number) => {
+    setRules(prev => prev.map((r, i) => i === idx ? { ...r, enabled: !r.enabled } : r));
+  };
+
+  const updateRuleValue = (idx: number, val: number) => {
+    setRules(prev => prev.map((r, i) => i === idx ? { ...r, defaultValue: val } : r));
+  };
+
+  // Risk simulation
+  const riskSimulation = useMemo(() => {
+    if (!effectiveRisk || !balance) return null;
+    const riskPerTradeValue = balance * (effectiveRisk / 100);
+    const dailyLossRule = rules.find(r => r.type === 'MAX_DAILY_LOSS' && r.enabled);
+    const maxLossRule = rules.find(r => (r.type === 'MAX_TOTAL_LOSS' || r.type === 'TRAILING_MAX_LOSS') && r.enabled);
+
+    const dailyLimit = dailyLossRule
+      ? dailyLossRule.unit === '%' ? balance * (dailyLossRule.defaultValue / 100) : dailyLossRule.defaultValue
+      : 0;
+    const maxLimit = maxLossRule
+      ? maxLossRule.unit === '%' ? balance * (maxLossRule.defaultValue / 100) : maxLossRule.defaultValue
+      : 0;
+
+    const tradesUntilDaily = dailyLimit ? Math.floor(dailyLimit / riskPerTradeValue) : 0;
+    const tradesUntilMax = maxLimit ? Math.floor(maxLimit / riskPerTradeValue) : 0;
+
+    return { riskPerTradeValue, dailyLimit, maxLimit, tradesUntilDaily, tradesUntilMax };
+  }, [effectiveRisk, balance, rules]);
+
+  // Difficulty index
+  const difficultyIndex = useMemo(() => {
+    if (!rules.length) return null;
+    let score = 0;
+    const dailyLoss = rules.find(r => r.type === 'MAX_DAILY_LOSS' && r.enabled);
+    const maxLoss = rules.find(r => (r.type === 'MAX_TOTAL_LOSS' || r.type === 'TRAILING_MAX_LOSS') && r.enabled);
+    const profit = rules.find(r => r.type === 'PROFIT_TARGET' && r.enabled);
+
+    if (dailyLoss && dailyLoss.unit === '%') {
+      if (dailyLoss.defaultValue <= 3) score += 3;
+      else if (dailyLoss.defaultValue <= 5) score += 2;
+      else score += 1;
+    }
+    if (maxLoss && maxLoss.unit === '%') {
+      if (maxLoss.defaultValue <= 6) score += 3;
+      else if (maxLoss.defaultValue <= 10) score += 2;
+      else score += 1;
+    }
+    if (profit && profit.unit === '%') {
+      if (profit.defaultValue >= 10) score += 2;
+      else score += 1;
+    }
+    const trailing = rules.find(r => r.type === 'TRAILING_MAX_LOSS' && r.enabled);
+    if (trailing) score += 2;
+    const news = rules.find(r => r.type === 'NEWS_RESTRICTION_WINDOW' && r.enabled);
+    if (news) score += 1;
+    const scalp = rules.find(r => r.type === 'SCALPING_RULE' && r.enabled);
+    if (scalp) score += 1;
+
+    const maxScore = 12;
+    const pct = Math.min(100, Math.round((score / maxScore) * 100));
+    const label = pct >= 70 ? 'Difícil' : pct >= 40 ? 'Moderado' : 'Fácil';
+    const colorClass = pct >= 70 ? 'text-destructive' : pct >= 40 ? 'text-warning' : 'text-success';
+    return { pct, label, colorClass };
+  }, [rules]);
+
+  // Recovery calculator
+  const recoveryCalc = useMemo(() => {
+    if (!balance) return [];
+    const losses = [1, 2, 3, 5, 8, 10, 15, 20];
+    return losses.map(pct => {
+      const lostAmount = balance * (pct / 100);
+      const afterLoss = balance - lostAmount;
+      const recoveryNeeded = balance - afterLoss;
+      const recoveryPct = (recoveryNeeded / afterLoss) * 100;
+      return { lossPct: pct, lostAmount, afterLoss, recoveryNeeded, recoveryPct: recoveryPct.toFixed(2) };
+    });
+  }, [balance]);
+
+  const canNext = () => {
+    if (step === 0) return !!selectedProgramId && rules.length > 0;
+    if (step === 1) return !!accountName && balance > 0;
+    if (step === 2) return rules.some(r => r.enabled);
+    if (step === 3) return effectiveRisk > 0;
+    if (step === 4) return !!mt5Login && !!mt5Server;
+    return true;
+  };
+
+  const handleCreate = async () => {
+    const initialConnectionStatus: Mt5ConnectionStatus = 'disconnected';
+
+    if (supabase && user?.id) {
+      try {
+        const insertPayload = {
+          nickname: accountName || `${selectedFirm?.name || 'Custom'} ${balance / 1000}k`,
+          broker: mt5Broker.trim() || (selectedFirm?.name || 'Custom'),
+          mt5Server: mt5Server.trim(),
+          mt5Login: mt5Login.trim(),
+          accountType: accountType || null,
+          propFirm: (mt5PropFirm.trim() || selectedFirm?.name || '') || null,
+          startBalance: balance,
+          status: 'active',
+        };
+
+        const res = await supabase
+          .from('trading_accounts')
+          .insert({
+            user_id: user.id,
+            nickname: insertPayload.nickname,
+            broker: insertPayload.broker,
+            mt5_server: insertPayload.mt5Server,
+            mt5_login: insertPayload.mt5Login,
+            account_type: insertPayload.accountType,
+            prop_firm: insertPayload.propFirm,
+            start_balance: insertPayload.startBalance,
+            status: insertPayload.status,
+          })
+          .select('id,user_id,nickname,broker,mt5_server,mt5_login,account_type,prop_firm,start_balance,status,created_at,updated_at')
+          .single();
+
+        if (res.error) throw res.error;
+
+        addAccount({
+          id: String(res.data.id),
+          userId: String(res.data.user_id ?? user.id),
+          nickname: String(res.data.nickname),
+          broker: String(res.data.broker),
+          baseCurrency: currency,
+          startBalance: Number(res.data.start_balance ?? 0),
+          currentBalance: Number(res.data.start_balance ?? 0),
+          currentEquity: Number(res.data.start_balance ?? 0),
+          highestEquityAllTime: Number(res.data.start_balance ?? 0),
+          status: 'active' as const,
+          ruleSetId: selectedFirmId || 'custom',
+          createdAt: String((res.data.created_at ?? new Date().toISOString()).split('T')[0]),
+
+          mt5Login: res.data.mt5_login ?? undefined,
+          mt5Server: res.data.mt5_server ?? undefined,
+          accountType: res.data.account_type ?? undefined,
+          propFirm: res.data.prop_firm ?? undefined,
+          mt5ConnectionStatus: initialConnectionStatus,
+          mt5LastSyncAt: undefined,
+          mt5SyncError: undefined,
+        } as any);
+
+        toast({ title: 'Conta criada', description: 'Conta real salva em trading_accounts.' });
+        navigate('/accounts');
+        return;
+      } catch {
+        toast({ title: 'Erro ao criar conta', description: 'Falha ao salvar no Supabase. Usando fallback local.', variant: 'destructive' });
+      }
+    }
+
+    // Fallback (store local) - secundário/temporário
+    const newAccount = {
+      id: `acc-${Date.now()}`,
+      userId: user?.id || 'u1',
+      nickname: accountName || `${selectedFirm?.name || 'Custom'} ${balance / 1000}k`,
+      broker: `${selectedFirm?.name || 'Custom'} - ${accountType}`,
+      baseCurrency: currency,
+      startBalance: balance,
+      currentBalance: balance,
+      currentEquity: balance,
+      highestEquityAllTime: balance,
+      status: 'active' as const,
+      ruleSetId: selectedFirmId || 'custom',
+      createdAt: new Date().toISOString().split('T')[0],
+
+      mt5Login: mt5Login.trim() || undefined,
+      mt5Server: mt5Server.trim() || undefined,
+      accountType: accountType || undefined,
+      propFirm: (mt5PropFirm.trim() || selectedFirm?.name || '') || undefined,
+      mt5ConnectionStatus: initialConnectionStatus,
+      mt5LastSyncAt: undefined,
+      mt5SyncError: undefined,
+    };
+    addAccount(newAccount as any);
+    navigate('/accounts');
+  };
+
+  const STEPS = ['Firma & Programa', 'Conta', 'Regras', 'Risco', 'Conexão MT5', 'Revisão'];
+
   return (
-    <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center gap-3">
+    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-4">
         <button onClick={() => navigate('/accounts')} className="p-2 rounded-lg hover:bg-muted transition-colors">
           <ArrowLeft className="w-4 h-4 text-muted-foreground" />
         </button>
-        <div>
-          <h1 className="text-lg font-bold text-foreground">Nova Conta</h1>
-          <p className="text-xs text-muted-foreground">Cadastre sua conta de prop firm em segundos.</p>
+        <div className="flex-1">
+          <h1 className="text-lg font-bold text-foreground">Criar Nova Conta</h1>
+          <p className="text-xs text-muted-foreground">Configure sua conta de prop firm em menos de 1 minuto</p>
         </div>
+        <StepIndicator current={step} total={STEPS.length} />
       </div>
 
-      <motion.section
-        initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-        className="rounded-xl border border-border bg-card p-6 space-y-5"
-      >
-        <div className="flex items-center gap-2">
-          <Building2 className="w-4 h-4 text-primary" />
-          <h2 className="text-sm font-semibold text-foreground">Prop Firm e Programa</h2>
-        </div>
+      <AnimatePresence mode="wait">
+        {/* ─── STEP 0: Prop Firm & Program Selection (from DB) ─── */}
+        {step === 0 && (
+          <motion.div key="s0" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
+            {firmStep === 'firm' ? (
+              <>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-primary" />
+                    <h2 className="text-sm font-semibold text-foreground">Selecione sua Prop Firm</h2>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Escolha a empresa e o programa — as regras serão carregadas automaticamente</p>
+                </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Prop Firm</label>
-            <select
-              value={propFirmName}
-              onChange={e => setPropFirmName(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-            >
-              {PROP_FIRMS.map(f => <option key={f.name} value={f.name}>{f.name}</option>)}
-            </select>
-          </div>
+                {firmsLoading ? (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <div key={i} className="rounded-xl border border-border bg-card p-4 animate-pulse">
+                        <div className="w-10 h-10 rounded-lg bg-muted mb-3" />
+                        <div className="h-4 w-20 bg-muted rounded mb-1" />
+                        <div className="h-3 w-28 bg-muted rounded" />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {firms.map(firm => {
+                      const logo = FIRM_LOGOS[firm.slug] || firm.name.charAt(0);
+                      const firmColor = firm.color ? `hsl(${firm.color})` : 'hsl(var(--primary))';
+                      return (
+                        <button
+                          key={firm.id}
+                          onClick={() => handleSelectFirm(firm)}
+                          className="group relative rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5"
+                        >
+                          <div className="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold mb-2" style={{ background: `${firmColor}20`, color: firmColor }}>
+                            {logo}
+                          </div>
+                          <h3 className="font-semibold text-foreground text-sm">{firm.name}</h3>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground capitalize mt-1 inline-block">{firm.category.replace('_', ' ')}</span>
+                          <ChevronRight className="absolute top-1/2 right-3 -translate-y-1/2 w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Programa</label>
-            <select
-              value={programName}
-              onChange={e => setProgramName(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-            >
-              {firm.programs.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
-            </select>
-          </div>
+                {/* AI Rule Extraction fallback */}
+                <div className="pt-4 border-t border-border">
+                  <RuleExtractor
+                    onRulesExtracted={(extractedRules, firmName, accountTypes) => {
+                      setRules(extractedRules);
+                      setAccountName(`${firmName} Account`);
+                      if (accountTypes.length > 0) setAccountType(accountTypes[0]);
+                      setFirmStep('program');
+                    }}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Selected firm header + program selection */}
+                <div>
+                  <button onClick={goBackFirmStep} className="flex items-center gap-1 text-xs text-primary hover:underline mb-3">
+                    <ArrowLeft className="w-3 h-3" /> Voltar às Prop Firms
+                  </button>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Fase</label>
-            <select
-              value={phaseName}
-              onChange={e => setPhaseName(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-            >
-              {program.phases.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
-            </select>
-          </div>
-        </div>
+                  {selectedFirm && (
+                    <div className="rounded-xl border border-border bg-card p-4 mb-4 flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0" style={{ background: `hsl(${selectedFirm.color || 'var(--primary)'})20`, color: `hsl(${selectedFirm.color || 'var(--primary)'})` }}>
+                        {FIRM_LOGOS[selectedFirm.slug] || selectedFirm.name.charAt(0)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-foreground text-sm">{selectedFirm.name}</h3>
+                        <p className="text-[10px] text-muted-foreground capitalize">{selectedFirm.category.replace('_', ' ')}</p>
+                      </div>
+                      {selectedFirm.website && (
+                        <a href={selectedFirm.website} target="_blank" rel="noopener noreferrer" className="text-xs text-primary flex items-center gap-1 hover:underline">
+                          <ExternalLink className="w-3 h-3" /> Site
+                        </a>
+                      )}
+                    </div>
+                  )}
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-3 border-t border-border/50">
-          <Stat label="Perda Diária" value={`${phase.dailyLossPct}%`} />
-          <Stat label="Perda Total" value={`${phase.totalLossPct}%`} />
-          <Stat label="Meta de Lucro" value={phase.profitTargetPct > 0 ? `${phase.profitTargetPct}%` : '—'} />
-          <Stat label="Dias Mínimos" value={phase.minTradingDays > 0 ? String(phase.minTradingDays) : '—'} />
-        </div>
-      </motion.section>
+                  <h2 className="text-sm font-semibold text-foreground">Escolha o Programa</h2>
+                  <p className="text-xs text-muted-foreground mt-1">As regras serão carregadas automaticamente ao selecionar</p>
+                </div>
 
-      <motion.section
-        initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
-        className="rounded-xl border border-border bg-card p-6 space-y-5"
-      >
-        <div className="flex items-center gap-2">
-          <Wallet className="w-4 h-4 text-primary" />
-          <h2 className="text-sm font-semibold text-foreground">Dados da Conta</h2>
-        </div>
+                {programsLoading ? (
+                  <div className="space-y-3">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="rounded-xl border border-border bg-card p-4 animate-pulse">
+                        <div className="h-4 w-40 bg-muted rounded mb-2" />
+                        <div className="h-3 w-60 bg-muted rounded" />
+                      </div>
+                    ))}
+                  </div>
+                ) : programs.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Building2 className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">Nenhum programa encontrado</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {programs.map(prog => (
+                      <button
+                        key={prog.id}
+                        onClick={() => handleSelectProgram(prog)}
+                        className={`group rounded-xl border p-4 text-left transition-all hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 ${
+                          selectedProgramId === prog.id ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border bg-card'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="font-semibold text-foreground text-sm">{prog.name}</h3>
+                            <div className="flex items-center gap-2 mt-1.5">
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{prog.account_type.replace('_', ' ')}</span>
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">{prog.market_type}</span>
+                            </div>
+                            {prog.notes && <p className="text-[11px] text-muted-foreground mt-2">{prog.notes}</p>}
+                          </div>
+                          {selectedProgramId === prog.id ? (
+                            <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                              <Check className="w-3 h-3 text-primary-foreground" />
+                            </div>
+                          ) : (
+                            <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Apelido da Conta</label>
-            <Input
-              value={nickname}
-              onChange={e => setNickname(e.target.value)}
-              placeholder={`Ex.: ${propFirmName} 100k`}
-            />
-          </div>
+                {/* Rules preview when program is selected */}
+                {selectedProgramId && (
+                  <div className="rounded-xl border border-border bg-card p-4 mt-4">
+                    {rulesLoading ? (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        Carregando regras...
+                      </div>
+                    ) : rules.length > 0 ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Shield className="w-4 h-4 text-primary" />
+                          <h3 className="text-sm font-semibold text-foreground">
+                            {rules.length} regra{rules.length !== 1 ? 's' : ''} carregada{rules.length !== 1 ? 's' : ''}
+                          </h3>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-success/15 text-success ml-auto">Pronto</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {rules.filter(r => r.enabled).map((rule, i) => (
+                            <span key={i} className="text-[10px] px-2 py-1 rounded-lg bg-muted text-foreground flex items-center gap-1">
+                              {rule.name}: <span className="font-mono text-primary">{rule.defaultValue}{rule.unit}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Nenhuma regra encontrada para este programa</p>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </motion.div>
+        )}
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Moeda</label>
-            <select
-              value={currency}
-              onChange={e => setCurrency(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-            >
-              <option value="USD">USD</option>
-              <option value="EUR">EUR</option>
-              <option value="GBP">GBP</option>
-              <option value="BRL">BRL</option>
-            </select>
-          </div>
+        {/* ─── STEP 1: Account Info ─── */}
+        {step === 1 && (
+          <motion.div key="s1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
+            <h2 className="text-sm font-semibold text-foreground">Informações da Conta</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Nome da Conta</label>
+                <input value={accountName} onChange={e => setAccountName(e.target.value)} placeholder={`${selectedFirm?.name || ''} 100k Challenge`} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Saldo Inicial</label>
+                <input type="number" value={startBalance} onChange={e => setStartBalance(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary" min="0" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Moeda</label>
+                <select value={currency} onChange={e => setCurrency(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
+                  <option value="USD">USD ($)</option>
+                  <option value="EUR">EUR (€)</option>
+                  <option value="GBP">GBP (£)</option>
+                  <option value="BRL">BRL (R$)</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Tipo de Conta</label>
+                <input value={accountType} onChange={e => setAccountType(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex: Challenge Phase 1" />
+              </div>
+            </div>
+          </motion.div>
+        )}
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Saldo Inicial</label>
-            <Input
-              type="number"
-              value={startBalance}
-              onChange={e => {
-                setStartBalance(e.target.value);
-                if (!currentEquity || currentEquity === '0') setCurrentEquity(e.target.value);
-              }}
-              min="0" step="100"
-            />
-          </div>
+        {/* ─── STEP 2: Rules ─── */}
+        {step === 2 && (
+          <motion.div key="s2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-semibold text-foreground">Regras da Conta</h2>
+                <p className="text-xs text-muted-foreground mt-1">Edite os valores ou ative/desative regras</p>
+              </div>
+              {difficultyIndex && (
+                <div className="text-right">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Dificuldade</p>
+                  <p className={`text-sm font-bold ${difficultyIndex.colorClass}`}>{difficultyIndex.label} ({difficultyIndex.pct}%)</p>
+                </div>
+              )}
+            </div>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Equity Atual</label>
-            <Input
-              type="number"
-              value={currentEquity}
-              onChange={e => setCurrentEquity(e.target.value)}
-              min="0" step="100"
-            />
-          </div>
-        </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {rules.map((rule, idx) => {
+                const Icon = RULE_ICONS[rule.type] || Shield;
+                const computedValue = rule.unit === '%' ? balance * (rule.defaultValue / 100) : rule.defaultValue;
+                return (
+                  <div key={idx} className={`rounded-xl border p-4 transition-all ${rule.enabled ? 'border-border bg-card' : 'border-border/50 bg-muted/20 opacity-60'}`}>
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${rule.severity === 'hard' ? 'bg-destructive/10 text-destructive' : 'bg-warning/10 text-warning'}`}>
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h3 className="text-xs font-semibold text-foreground">{rule.name}</h3>
+                          <span className={`text-[9px] font-mono uppercase ${rule.severity === 'hard' ? 'text-destructive' : 'text-warning'}`}>{rule.severity}</span>
+                        </div>
+                      </div>
+                      <button onClick={() => toggleRule(idx)} className={`w-10 h-5 rounded-full transition-colors relative ${rule.enabled ? 'bg-primary' : 'bg-muted'}`}>
+                        <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-foreground transition-all ${rule.enabled ? 'left-5' : 'left-0.5'}`} />
+                      </button>
+                    </div>
+                    {rule.enabled && rule.editable && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            value={rule.defaultValue}
+                            onChange={e => updateRuleValue(idx, parseFloat(e.target.value) || 0)}
+                            className="w-20 rounded-lg border border-border bg-background px-2 py-1.5 text-sm font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                          />
+                          <span className="text-xs text-muted-foreground">{rule.unit}</span>
+                          {rule.unit === '%' && balance > 0 && (
+                            <span className="text-xs font-mono text-muted-foreground ml-auto">= {fmt(computedValue)}</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
 
-        <div className="rounded-lg bg-muted/30 border border-border/50 p-4 space-y-2">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Limites Calculados</p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Stat label="Perda Diária" value={fmt(limits.daily_loss_limit)} />
-            <Stat label="Perda Total" value={fmt(limits.total_loss_limit)} />
-            <Stat label="Meta" value={limits.profit_target > 0 ? fmt(limits.profit_target) : '—'} />
-            <Stat label="Dias Mín." value={limits.min_trading_days > 0 ? String(limits.min_trading_days) : '—'} />
-          </div>
-        </div>
-      </motion.section>
+        {/* ─── STEP 3: Risk Configuration ─── */}
+        {step === 3 && (
+          <motion.div key="s3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+            <h2 className="text-sm font-semibold text-foreground">Configuração de Risco por Trade</h2>
 
-      <div className="flex items-center justify-end gap-3">
-        <Button variant="outline" onClick={() => navigate('/accounts')}>Cancelar</Button>
-        <Button onClick={handleSubmit} disabled={!canSubmit || createMutation.isPending}>
-          <Check className="w-4 h-4 mr-1.5" />
-          {createMutation.isPending ? 'Criando...' : 'Criar Conta'}
-        </Button>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {RISK_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => { setRiskPerTrade(opt.value); setCustomRisk(''); }}
+                  className={`rounded-xl border p-4 text-center transition-all ${riskPerTrade === opt.value ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border bg-card hover:border-primary/30'}`}
+                >
+                  <p className="text-lg font-bold font-mono text-foreground">{opt.label}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">{opt.desc}</p>
+                  {balance > 0 && <p className="text-xs font-mono text-primary mt-2">{fmt(balance * (opt.value / 100))}/trade</p>}
+                </button>
+              ))}
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Ou digite um valor customizado (%)</label>
+              <input
+                type="number"
+                value={customRisk}
+                onChange={e => { setCustomRisk(e.target.value); setRiskPerTrade(null); }}
+                placeholder="Ex.: 0.75"
+                className="w-40 rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                min="0" max="100" step="0.01"
+              />
+            </div>
+
+            {/* Risk Simulator */}
+            {riskSimulation && (
+              <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Calculator className="w-4 h-4 text-primary" />
+                  <h3 className="text-sm font-semibold text-foreground">Simulação de Risco</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="rounded-lg bg-muted/30 p-3">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Risco por Trade</p>
+                    <p className="text-lg font-mono font-bold text-foreground">{fmt(riskSimulation.riskPerTradeValue)}</p>
+                  </div>
+                  {riskSimulation.dailyLimit > 0 && (
+                    <div className="rounded-lg bg-warning/5 border border-warning/20 p-3">
+                      <p className="text-[10px] uppercase tracking-wider text-warning">Trades até Perda Diária</p>
+                      <p className="text-lg font-mono font-bold text-warning">{riskSimulation.tradesUntilDaily} trades</p>
+                      <p className="text-[10px] text-muted-foreground">Limite: {fmt(riskSimulation.dailyLimit)}</p>
+                    </div>
+                  )}
+                  {riskSimulation.maxLimit > 0 && (
+                    <div className="rounded-lg bg-destructive/5 border border-destructive/20 p-3">
+                      <p className="text-[10px] uppercase tracking-wider text-destructive">Trades até Perda Máxima</p>
+                      <p className="text-lg font-mono font-bold text-destructive">{riskSimulation.tradesUntilMax} trades</p>
+                      <p className="text-[10px] text-muted-foreground">Limite: {fmt(riskSimulation.maxLimit)}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* AI Rule Coach */}
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Brain className="w-4 h-4 text-primary" />
+                    <h4 className="text-xs font-semibold text-primary">AI Rule Coach</h4>
+                  </div>
+                  <div className="space-y-1 text-xs text-foreground/80">
+                    {riskSimulation.tradesUntilDaily <= 2 && (
+                      <p>Com {effectiveRisk}% de risco, você só aguenta <strong>{riskSimulation.tradesUntilDaily} trades perdedores</strong> antes de atingir o limite diário. Considere reduzir o risco.</p>
+                    )}
+                    {riskSimulation.tradesUntilDaily > 2 && riskSimulation.tradesUntilDaily <= 5 && (
+                      <p>Você tem margem para <strong>{riskSimulation.tradesUntilDaily} trades perdedores consecutivos</strong> antes de atingir o limite diário de {fmt(riskSimulation.dailyLimit)}.</p>
+                    )}
+                    {riskSimulation.tradesUntilDaily > 5 && (
+                      <p>Boa margem de segurança: <strong>{riskSimulation.tradesUntilDaily} trades perdedores</strong> antes do limite diário. Risco bem calibrado.</p>
+                    )}
+                    {riskSimulation.tradesUntilMax > 0 && (
+                      <p>Para quebrar a conta, seria necessário perder <strong>{riskSimulation.tradesUntilMax} trades consecutivos</strong> ({fmt(riskSimulation.maxLimit)} de margem total).</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Recovery Calculator */}
+            <div className="rounded-xl border border-border bg-card p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">Recovery Calculator</h3>
+              </div>
+              <p className="text-xs text-muted-foreground">Quanto maior a perda, exponencialmente mais difícil é recuperar.</p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {recoveryCalc.slice(0, 8).map(r => (
+                  <div key={r.lossPct} className={`rounded-lg p-3 text-center ${r.lossPct >= 10 ? 'bg-destructive/10 border border-destructive/20' : r.lossPct >= 5 ? 'bg-warning/10 border border-warning/20' : 'bg-muted/30 border border-border'}`}>
+                    <p className="text-[10px] text-muted-foreground">Perda de {r.lossPct}%</p>
+                    <p className="text-xs font-mono font-bold text-foreground mt-1">{fmt(r.lostAmount)}</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Precisa recuperar</p>
+                    <p className={`text-xs font-mono font-bold ${r.lossPct >= 10 ? 'text-destructive' : r.lossPct >= 5 ? 'text-warning' : 'text-foreground'}`}>{fmt(r.recoveryNeeded)}</p>
+                    <p className="text-[9px] text-muted-foreground">({r.recoveryPct}% do saldo restante)</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ─── STEP 4: MT5 Connection ─── */}
+        {step === 4 && (
+          <motion.div key="s4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">Conexão MT5</h2>
+              <p className="text-xs text-muted-foreground mt-1">Preencha os dados da conta. A conexão real e sincronização ocorrerão via backend externo.</p>
+            </div>
+
+            <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Nome da Conta (exibição)</label>
+                  <input value={accountName} onChange={e => setAccountName(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: FTMO 100k Challenge" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Prop Firm</label>
+                  <input value={mt5PropFirm} onChange={e => setMt5PropFirm(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: FTMO" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Login MT5</label>
+                  <input value={mt5Login} onChange={e => setMt5Login(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: 12345678" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Servidor MT5</label>
+                  <input value={mt5Server} onChange={e => setMt5Server(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: Broker-Server01" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Broker</label>
+                  <input value={mt5Broker} onChange={e => setMt5Broker(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: IC Markets" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Tipo de Conta</label>
+                  <input value={accountType} onChange={e => setAccountType(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: Challenge Phase 1" />
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border bg-muted/20 p-4">
+                <p className="text-xs text-muted-foreground">
+                  Ao finalizar, a conta será criada como <strong>desconectada</strong>. Um serviço backend externo deverá validar credenciais, registrar a conexão no Supabase e sincronizar trades/posições/snapshots.
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ─── STEP 5: Review & Preview ─── */}
+        {step === 5 && (
+          <motion.div key="s5" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+            <h2 className="text-sm font-semibold text-foreground">Revisão e Preview</h2>
+
+            {/* Account preview card */}
+            <div className="rounded-xl border border-primary/30 bg-card p-5 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-primary/15 flex items-center justify-center">
+                  <Wallet className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground">{accountName || 'Minha Conta'}</h3>
+                  <p className="text-[10px] text-muted-foreground">{selectedFirm?.name || mt5PropFirm || 'Custom'} • {accountType} • {currency}</p>
+                </div>
+                <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full bg-muted text-muted-foreground">
+                  Desconectada
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Saldo Inicial</p>
+                  <p className="font-mono font-bold text-foreground">{fmt(balance)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Risco/Trade</p>
+                  <p className="font-mono font-bold text-primary">{effectiveRisk}% ({fmt(balance * (effectiveRisk / 100))})</p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Login MT5</p>
+                  <p className="font-mono font-bold text-foreground">{mt5Login || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Servidor MT5</p>
+                  <p className="font-mono font-bold text-foreground">{mt5Server || '—'}</p>
+                </div>
+              </div>
+
+              {/* Rules summary */}
+              <div className="border-t border-border pt-3 space-y-2">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Regras Configuradas</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {rules.filter(r => r.enabled).map((rule, i) => {
+                    const Icon = RULE_ICONS[rule.type] || Shield;
+                    const computedValue = rule.unit === '%' ? balance * (rule.defaultValue / 100) : rule.defaultValue;
+                    return (
+                      <div key={i} className="flex items-center gap-2 rounded-lg bg-muted/30 px-3 py-2">
+                        <Icon className="w-3.5 h-3.5 text-muted-foreground" />
+                        <span className="text-xs text-foreground flex-1">{rule.name}</span>
+                        <span className="text-xs font-mono text-primary">{rule.defaultValue}{rule.unit}</span>
+                        {rule.unit === '%' && <span className="text-[10px] font-mono text-muted-foreground">({fmt(computedValue)})</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Difficulty Index */}
+            {difficultyIndex && (
+              <div className="rounded-xl border border-border bg-card p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Award className="w-4 h-4 text-primary" />
+                  <h3 className="text-sm font-semibold text-foreground">Prop Firm Difficulty Index</h3>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="relative w-20 h-20">
+                    <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+                      <circle cx="18" cy="18" r="16" fill="none" stroke="hsl(var(--muted))" strokeWidth="3" />
+                      <circle cx="18" cy="18" r="16" fill="none" stroke={difficultyIndex.pct >= 70 ? 'hsl(var(--destructive))' : difficultyIndex.pct >= 40 ? 'hsl(var(--warning))' : 'hsl(var(--success))'} strokeWidth="3" strokeDasharray={`${difficultyIndex.pct} ${100 - difficultyIndex.pct}`} strokeLinecap="round" />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className={`text-sm font-bold font-mono ${difficultyIndex.colorClass}`}>{difficultyIndex.pct}%</span>
+                    </div>
+                  </div>
+                  <div>
+                    <p className={`text-lg font-bold ${difficultyIndex.colorClass}`}>{difficultyIndex.label}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Baseado nas regras configuradas, limites e restrições operacionais.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Navigation buttons */}
+      <div className="flex items-center justify-between pt-4 border-t border-border">
+        <button
+          onClick={() => {
+            if (step === 0 && firmStep === 'program') {
+              goBackFirmStep();
+            } else if (step > 0) {
+              setStep(step - 1);
+            } else {
+              navigate('/accounts');
+            }
+          }}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          {step === 0 && firmStep === 'firm' ? 'Voltar' : 'Anterior'}
+        </button>
+
+        {step < STEPS.length - 1 ? (
+          <button
+            onClick={() => setStep(step + 1)}
+            disabled={!canNext()}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+          >
+            Próximo
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        ) : (
+          <button
+            onClick={handleCreate}
+            className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors glow-primary"
+          >
+            <Check className="w-4 h-4" />
+            Criar Conta e Ativar Monitoramento
+          </button>
+        )}
       </div>
     </div>
   );
 };
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className="font-mono font-bold text-sm text-foreground">{value}</p>
-    </div>
-  );
-}
 
 export default CreateAccount;
