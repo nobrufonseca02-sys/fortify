@@ -93,6 +93,7 @@ const AccountDashboard = () => {
   const m = computeAccountMetrics(account);
   const sc = statusConfig[m.status];
   const StatusIcon = sc.icon;
+  const recommendedPerTrade = Math.max(0, m.dailyRemaining) * 0.01;
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
@@ -101,7 +102,7 @@ const AccountDashboard = () => {
           <ArrowLeft className="w-4 h-4 text-muted-foreground" />
         </button>
         <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-bold text-foreground truncate">{account.nickname}</h1>
+          <h1 className="text-lg font-black text-foreground truncate">{account.nickname}</h1>
           <p className="text-xs text-muted-foreground truncate">
             {account.prop_firm || '—'} {account.program ? `• ${account.program}` : ''} {account.phase ? `• ${account.phase}` : ''}
           </p>
@@ -114,12 +115,12 @@ const AccountDashboard = () => {
             <Button variant="outline" size="sm" onClick={() => setEditing(false)}>
               <X className="w-4 h-4 mr-1.5" /> Cancelar
             </Button>
-            <Button size="sm" onClick={saveEdit} disabled={updateMutation.isPending}>
+            <Button size="sm" onClick={saveEdit} disabled={updateMutation.isPending} className="btn-glow">
               <Save className="w-4 h-4 mr-1.5" /> Salvar
             </Button>
           </>
         ) : (
-          <Button size="sm" onClick={startEdit}>
+          <Button size="sm" onClick={startEdit} className="btn-glow">
             <Edit3 className="w-4 h-4 mr-1.5" /> Atualizar
           </Button>
         )}
@@ -128,7 +129,7 @@ const AccountDashboard = () => {
       {/* Status banner */}
       <motion.div
         initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-        className={`rounded-2xl border ${sc.border} ${sc.bg} p-5 flex items-start gap-4`}
+        className={`rounded-2xl border ${sc.border} ${sc.bg} p-5 flex items-start gap-4 card-premium`}
       >
         <div className={`w-11 h-11 rounded-xl flex items-center justify-center bg-card border ${sc.border}`}>
           <StatusIcon className={`w-5 h-5 ${sc.color}`} />
@@ -138,33 +139,48 @@ const AccountDashboard = () => {
             <span className={`text-xs font-bold uppercase tracking-wider ${sc.color}`}>{sc.label}</span>
           </div>
           <p className="text-sm text-foreground">{sc.msg}</p>
+          <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="rounded-xl border border-border/50 bg-background/30 p-3">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Perda diária restante</p>
+              <p className="font-mono font-black text-base text-foreground mt-1">{fmt(m.dailyRemaining)}</p>
+            </div>
+            <div className="rounded-xl border border-border/50 bg-background/30 p-3">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Perda total restante</p>
+              <p className="font-mono font-black text-base text-foreground mt-1">{fmt(m.totalRemaining)}</p>
+            </div>
+            <div className="rounded-xl border border-primary/15 bg-primary/5 p-3">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Risco recomendado/oper.</p>
+              <p className="font-mono font-black text-base text-primary mt-1">{fmt(recommendedPerTrade)}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">~1% do restante diário</p>
+            </div>
+          </div>
         </div>
       </motion.div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KPI label="Equity Atual" value={fmt(account.current_equity)}>
+        <KPI label="Equity atual" value={fmt(account.current_equity)}>
           {editing && <Input type="number" value={equity} onChange={e => setEquity(e.target.value)} className="mt-2 h-8 text-sm" />}
         </KPI>
-        <KPI label="Saldo Inicial" value={fmt(account.start_balance)} />
+        <KPI label="Saldo inicial" value={fmt(account.start_balance)} />
         <KPI
           label="P&L"
           value={`${m.profit >= 0 ? '+' : '-'}${fmt(m.profit)}`}
           valueClass={m.profit >= 0 ? 'text-success' : 'text-destructive'}
           icon={m.profit >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
         />
-        <KPI label="Pode perder hoje" value={fmt(m.dailyRemaining)} valueClass="text-warning" />
+        <KPI label="Dias operados" value={account.min_trading_days > 0 ? `${account.trading_days_count}/${account.min_trading_days}` : String(account.trading_days_count)} icon={<CalendarDays className="w-3.5 h-3.5" />} />
       </div>
 
       {/* Risk progress */}
       <motion.div
         initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
-        className="rounded-2xl border border-border bg-card p-6 space-y-5"
+        className="rounded-2xl border border-border bg-card p-6 space-y-5 card-premium"
       >
-        <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground">Limites de Risco</h2>
+        <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground">Limites de risco (operacional)</h2>
 
         <RiskRow
-          title="Perda Diária"
+          title="Perda diária"
           used={account.daily_loss_used}
           limit={account.daily_loss_limit}
           remaining={m.dailyRemaining}
@@ -174,7 +190,7 @@ const AccountDashboard = () => {
           onEdit={setDailyUsed}
         />
         <RiskRow
-          title="Perda Total"
+          title="Perda total"
           used={account.total_loss_used}
           limit={account.total_loss_limit}
           remaining={m.totalRemaining}
@@ -189,14 +205,14 @@ const AccountDashboard = () => {
       {(account.profit_target > 0 || account.min_trading_days > 0) && (
         <motion.div
           initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-          className="rounded-2xl border border-border bg-card p-6 space-y-5"
+          className="rounded-2xl border border-border bg-card p-6 space-y-5 card-premium"
         >
-          <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground">Progresso para Aprovação</h2>
+          <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground">Progresso para aprovação</h2>
 
           {account.profit_target > 0 && (
             <ProgressRow
               icon={<Target className="w-4 h-4 text-primary" />}
-              title="Meta de Lucro"
+              title="Meta de lucro"
               current={fmt(Math.max(0, m.profit))}
               target={fmt(account.profit_target)}
               pct={m.profitPct}
@@ -206,7 +222,7 @@ const AccountDashboard = () => {
           {account.min_trading_days > 0 && (
             <ProgressRow
               icon={<CalendarDays className="w-4 h-4 text-primary" />}
-              title="Dias de Trading"
+              title="Dias mínimos"
               current={String(account.trading_days_count)}
               target={String(account.min_trading_days)}
               pct={m.daysPct}
@@ -223,9 +239,9 @@ const AccountDashboard = () => {
 
 function KPI({ label, value, valueClass, icon, children }: { label: string; value: string; valueClass?: string; icon?: React.ReactNode; children?: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <div className="rounded-2xl border border-border bg-card p-4 card-premium">
       <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">{label}</p>
-      <p className={`font-mono text-xl font-bold flex items-center gap-1.5 ${valueClass || 'text-foreground'}`}>
+      <p className={`font-mono text-xl font-black flex items-center gap-1.5 ${valueClass || 'text-foreground'}`}>
         {icon}{value}
       </p>
       {children}
@@ -237,10 +253,12 @@ function RiskRow({ title, used, limit, remaining, pct, editing, editValue, onEdi
   title: string; used: number; limit: number; remaining: number; pct: number;
   editing?: boolean; editValue?: string; onEdit?: (v: string) => void;
 }) {
+  const remainingCls = remaining <= 0 ? 'text-destructive' : pct >= 80 ? 'text-warning' : 'text-success';
+
   return (
     <div className="space-y-2">
       <div className="flex justify-between items-center">
-        <span className="text-sm font-medium text-foreground">{title}</span>
+        <span className="text-sm font-semibold text-foreground">{title}</span>
         <span className="text-xs font-mono text-muted-foreground">{Math.round(pct)}%</span>
       </div>
       <Bar pct={pct} />
@@ -259,7 +277,7 @@ function RiskRow({ title, used, limit, remaining, pct, editing, editValue, onEdi
         </div>
         <div>
           <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Restante</p>
-          <p className="font-mono font-bold text-success">{fmt(remaining)}</p>
+          <p className={`font-mono font-bold ${remainingCls}`}>{fmt(remaining)}</p>
         </div>
       </div>
     </div>
@@ -273,7 +291,7 @@ function ProgressRow({ icon, title, current, target, pct, editing, editValue, on
   return (
     <div className="space-y-2">
       <div className="flex justify-between items-center">
-        <span className="text-sm font-medium text-foreground flex items-center gap-2">{icon}{title}</span>
+        <span className="text-sm font-semibold text-foreground flex items-center gap-2">{icon}{title}</span>
         <span className="text-xs font-mono text-muted-foreground">{Math.round(pct)}%</span>
       </div>
       <Bar pct={pct} variant="profit" />

@@ -135,9 +135,9 @@
     padding: 1px;
     background: linear-gradient(
       135deg,
-      hsl(var(--primary) / 0.15),
-      transparent 40%,
-      transparent 60%,
+      hsl(var(--primary) / 0.16),
+      transparent 42%,
+      transparent 62%,
       hsl(var(--primary) / 0.08)
     );
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
@@ -181,8 +181,10 @@
 
   /* Subtle grid background */
   .bg-grid {
-    background-image: linear-gradient(hsl(var(--border) / 0.3) 1px, transparent 1px),
-                      linear-gradient(90deg, hsl(var(--border) / 0.3) 1px, transparent 1px);
-    background-size: 60px 60px;
+    background-image: radial-gradient(circle at 30% -20%, hsl(var(--primary) / 0.08), transparent 45%),
+                      radial-gradient(circle at 120% 20%, hsl(var(--info) / 0.06), transparent 40%),
+                      linear-gradient(hsl(var(--border) / 0.28) 1px, transparent 1px),
+                      linear-gradient(90deg, hsl(var(--border) / 0.28) 1px, transparent 1px);
+    background-size: auto, auto, 60px 60px, 60px 60px;
   }
 }
