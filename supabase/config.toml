@@ -14,3 +14,9 @@ verify_jwt = true
 
 [functions.get-mt5-dashboard]
 verify_jwt = true
+
+[functions.metaapi-connect]
+verify_jwt = true
+
+[functions.metaapi-sync]
+verify_jwt = true
