@@ -6,7 +6,7 @@ import {
   ArrowLeft, ArrowRight, Check, Shield, AlertTriangle, Zap, TrendingUp,
   Calculator, Brain, BarChart3, Target, Clock, Newspaper, Layers, Activity,
   ChevronDown, ChevronUp, Wallet, Flame, Award, Building2, Globe,
-  ChevronRight, ExternalLink, BookOpen
+  ChevronRight, ExternalLink, BookOpen, Cloud, Cpu
 } from 'lucide-react';
 import { RuleType, type Mt5ConnectionStatus } from '@/types/fortify';
 import { type TemplateRule } from '@/data/propFirmLibrary';
