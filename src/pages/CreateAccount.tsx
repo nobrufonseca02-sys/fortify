@@ -370,7 +370,31 @@ const CreateAccount = () => {
           mt5SyncError: undefined,
         } as any);
 
-        toast({ title: 'Conta criada', description: 'Conta real salva em trading_accounts.' });
+        // If provider=metaapi, provision MetaApi account via edge function and link.
+        if (connectionProvider === 'metaapi' && mt5Login && mt5Server && mt5InvestorPassword) {
+          try {
+            const { data: connData, error: connErr } = await supabase.functions.invoke('metaapi-connect', {
+              body: {
+                accountName: insertPayload.nickname,
+                mt5Login: mt5Login.trim(),
+                mt5Server: mt5Server.trim(),
+                brokerName: (mt5Broker.trim() || selectedFirm?.name || 'Custom'),
+                mt5Password: mt5InvestorPassword,
+              },
+            });
+            if (connErr) throw connErr;
+            // Link the new mt5_connections row to this trading account
+            const newConnId = (connData as any)?.connection?.id;
+            if (newConnId) {
+              await supabase.from('mt5_connections').update({ trading_account_id: res.data.id }).eq('id', newConnId);
+            }
+            toast({ title: 'Conta + MetaApi conectada', description: 'Provisionamento iniciado. Use "Sync now" em Integrações para puxar os dados.' });
+          } catch (e: any) {
+            toast({ title: 'Conta criada, MetaApi falhou', description: e?.message || 'Você pode reconectar em Integrações · MT5.', variant: 'destructive' });
+          }
+        } else {
+          toast({ title: 'Conta criada', description: 'Conta salva. Configure a conexão em Integrações · MT5 quando desejar.' });
+        }
         navigate('/accounts');
         return;
       } catch {
