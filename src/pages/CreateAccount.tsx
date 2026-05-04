@@ -159,11 +159,13 @@ const CreateAccount = () => {
   const [riskPerTrade, setRiskPerTrade] = useState<number | null>(null);
   const [customRisk, setCustomRisk] = useState('');
 
-  // Step 4: MT5 Connection data (structural; conexão real via backend externo)
+  // Step 4: MT5 Connection data
   const [mt5Login, setMt5Login] = useState('');
   const [mt5Server, setMt5Server] = useState('');
   const [mt5Broker, setMt5Broker] = useState('');
   const [mt5PropFirm, setMt5PropFirm] = useState('');
+  const [connectionProvider, setConnectionProvider] = useState<'metaapi' | 'bridge' | 'manual'>('metaapi');
+  const [mt5InvestorPassword, setMt5InvestorPassword] = useState('');
 
   const balance = parseFloat(startBalance) || 0;
   const effectiveRisk = riskPerTrade ?? (customRisk ? parseFloat(customRisk) : 0);
