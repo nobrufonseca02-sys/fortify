@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RULE_SET_TEMPLATES, TEMPLATE_RULES, MOCK_EVALUATIONS } from '@/data/mockData';
-import { TradingAccount } from '@/types/fortify';
-import { Plus, Trash2, Wallet, ChevronRight, Shield, AlertTriangle, XCircle, BookOpen } from 'lucide-react';
+import { TradingAccount, type Mt5ConnectionStatus } from '@/types/fortify';
+import { Plus, Trash2, Wallet, ChevronRight, Shield, AlertTriangle, XCircle, BookOpen, Link2, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAccountsStore } from '@/hooks/useAccountsStore';
 import {
@@ -15,6 +15,14 @@ import { useAuth } from '@/hooks/useAuth';
 
 // Re-export for backward compatibility
 export { useAccountsStore } from '@/hooks/useAccountsStore';
+
+const mt5StatusConfig: Record<Mt5ConnectionStatus, { label: string; icon: typeof Link2; className: string }> = {
+  disconnected: { label: 'Desconectada', icon: XCircle, className: 'bg-muted text-muted-foreground' },
+  connecting: { label: 'Conectando', icon: RefreshCw, className: 'bg-warning/15 text-warning' },
+  connected: { label: 'Conectada', icon: Link2, className: 'bg-success/15 text-success' },
+  syncing: { label: 'Sincronizando', icon: RefreshCw, className: 'bg-primary/15 text-primary' },
+  authError: { label: 'Erro de autenticação', icon: AlertTriangle, className: 'bg-destructive/15 text-destructive' },
+};
 
 const StatusBadge = ({ status }: { status: 'SAFE' | 'WARNING' | 'VIOLATED' }) => {
   const config = {
@@ -38,6 +46,10 @@ const Accounts = () => {
   const { user } = useAuth();
   const [showForm, setShowForm] = useState(false);
 
+  // MT5 connections state
+  const [mt5Connections, setMt5Connections] = useState<any[]>([]);
+  const [loadingConnections, setLoadingConnections] = useState(false);
+
   // Form state
   const [nickname, setNickname] = useState('');
   const [broker, setBroker] = useState('');
@@ -47,6 +59,36 @@ const Accounts = () => {
   const [selectedRuleSetId, setSelectedRuleSetId] = useState(RULE_SET_TEMPLATES[0].id);
 
   const selectedRules = useMemo(() => TEMPLATE_RULES.filter(r => r.ruleSetId === selectedRuleSetId), [selectedRuleSetId]);
+
+  // Load MT5 connections from Supabase
+  useEffect(() => {
+    const loadMt5Connections = async () => {
+      const supabase = (window as any)?.supabase;
+      if (!supabase) return;
+
+      setLoadingConnections(true);
+      try {
+        const { data, error } = await supabase
+          .from('mt5_connections')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        setMt5Connections(data || []);
+      } catch (error) {
+        console.error('Failed to load MT5 connections:', error);
+      } finally {
+        setLoadingConnections(false);
+      }
+    };
+
+    loadMt5Connections();
+  }, []);
+
+  // Helper to get MT5 connection for an account
+  const getMt5Connection = (accountId: string) => {
+    return mt5Connections.find(conn => conn.trading_account_id === accountId);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -179,6 +221,13 @@ const Accounts = () => {
           const pnlPct = ((pnl / account.startBalance) * 100).toFixed(2);
           const isPositive = pnl >= 0;
           const ruleSet = RULE_SET_TEMPLATES.find(t => t.id === account.ruleSetId);
+          
+          // MT5 connection info
+          const mt5Connection = getMt5Connection(account.id);
+          const rawConnectionStatus = mt5Connection?.connection_status ?? 'disconnected';
+          const connectionStatus = (rawConnectionStatus || 'disconnected') as Mt5ConnectionStatus;
+          const mt5Status = mt5StatusConfig[connectionStatus] || mt5StatusConfig.disconnected;
+          const Mt5StatusIcon = mt5Status.icon;
 
           // Compute account health
           const hasViolation = evals.some(e => e.status === 'VIOLATED');
@@ -212,6 +261,17 @@ const Accounts = () => {
                 <div className="min-w-0 flex-1">
                   <h3 className="font-semibold text-foreground truncate">{account.nickname}</h3>
                   <p className="text-[10px] text-muted-foreground mt-0.5">{account.broker} • {ruleSet?.name || 'Personalizado'}</p>
+                  {mt5Connection && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`inline-flex items-center gap-1 text-[8px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${mt5Status.className}`}>
+                        <Mt5StatusIcon className={`w-2.5 h-2.5 ${connectionStatus === 'connecting' || connectionStatus === 'syncing' ? 'animate-spin' : ''}`} />
+                        {mt5Status.label}
+                      </span>
+                      <span className="text-[8px] text-muted-foreground">
+                        {mt5Connection.provider || 'mt5'} • {mt5Connection.last_sync_at ? new Date(mt5Connection.last_sync_at).toLocaleDateString('pt-BR') : 'sem sync'}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <StatusBadge status={healthStatus} />
               </div>

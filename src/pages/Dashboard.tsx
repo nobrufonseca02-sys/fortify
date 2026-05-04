@@ -1,13 +1,23 @@
 import { MOCK_EVALUATIONS, RULE_SET_TEMPLATES } from '@/data/mockData';
 import { useAccountsStore } from '@/hooks/useAccountsStore';
-import { TradingAccount } from '@/types/fortify';
+import { TradingAccount, type Mt5ConnectionStatus } from '@/types/fortify';
 import {
   Shield, ShieldAlert, ShieldX, Lightbulb,
-  TrendingUp, TrendingDown, Activity, Zap, ChevronRight, ArrowUpRight
+  TrendingUp, TrendingDown, Activity, Zap, ChevronRight, ArrowUpRight,
+  Link2, RefreshCw, XCircle, AlertTriangle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
+import { useMemo, useState, useEffect } from 'react';
+
+const mt5StatusConfig: Record<Mt5ConnectionStatus, { label: string; icon: typeof Link2; className: string }> = {
+  disconnected: { label: 'Desconectada', icon: XCircle, className: 'bg-muted text-muted-foreground' },
+  connecting: { label: 'Conectando', icon: RefreshCw, className: 'bg-warning/15 text-warning' },
+  connected: { label: 'Conectada', icon: Link2, className: 'bg-success/15 text-success' },
+  syncing: { label: 'Sincronizando', icon: RefreshCw, className: 'bg-primary/15 text-primary' },
+  authError: { label: 'Erro de autenticação', icon: AlertTriangle, className: 'bg-destructive/15 text-destructive' },
+};
 
 const fmt = (v: number) => `$${Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`;
 const pct = (v: number, t: number) => t > 0 ? Math.min(100, (v / t) * 100) : 0;
@@ -254,12 +264,18 @@ function DecisionCard() {
   );
 }
 
-function AccountCard({ account, index }: { account: TradingAccount; index: number }) {
+function AccountCard({ account, index, mt5Connection }: { account: TradingAccount; index: number; mt5Connection?: any }) {
   const navigate = useNavigate();
   const data = getAccountData(account);
   const sc = statusConfig[data.status];
   const StatusIcon = sc.icon;
   const brokerName = account.broker || '—';
+  
+  // MT5 connection info
+  const rawConnectionStatus = mt5Connection?.connection_status ?? 'disconnected';
+  const connectionStatus = (rawConnectionStatus || 'disconnected') as Mt5ConnectionStatus;
+  const mt5Status = mt5StatusConfig[connectionStatus] || mt5StatusConfig.disconnected;
+  const Mt5StatusIcon = mt5Status.icon;
 
   return (
     <motion.div
@@ -276,6 +292,17 @@ function AccountCard({ account, index }: { account: TradingAccount; index: numbe
           <div>
             <h3 className="font-bold text-foreground text-sm group-hover:text-primary transition-colors">{account.nickname}</h3>
             <p className="text-[10px] text-muted-foreground mt-0.5">{brokerName}</p>
+            {mt5Connection && (
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className={`inline-flex items-center gap-0.5 text-[7px] font-semibold uppercase tracking-wider px-1 py-0.5 rounded-full ${mt5Status.className}`}>
+                  <Mt5StatusIcon className={`w-2 h-2 ${connectionStatus === 'connecting' || connectionStatus === 'syncing' ? 'animate-spin' : ''}`} />
+                  {mt5Status.label}
+                </span>
+                <span className="text-[7px] text-muted-foreground">
+                  {mt5Connection.provider || 'mt5'} • {mt5Connection.last_sync_at ? new Date(mt5Connection.last_sync_at).toLocaleDateString('pt-BR') : 'sem sync'}
+                </span>
+              </div>
+            )}
           </div>
           <div className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 ${sc.bg} border ${sc.border}`}>
             <StatusIcon className={`w-3 h-3 ${sc.color}`} />
@@ -350,6 +377,40 @@ function AccountCard({ account, index }: { account: TradingAccount; index: numbe
 const Dashboard = () => {
   const { accounts } = useAccountsStore();
   const navigate = useNavigate();
+  
+  // MT5 connections state
+  const [mt5Connections, setMt5Connections] = useState<any[]>([]);
+  const [loadingConnections, setLoadingConnections] = useState(false);
+
+  // Load MT5 connections from Supabase
+  useEffect(() => {
+    const loadMt5Connections = async () => {
+      const supabase = (window as any)?.supabase;
+      if (!supabase) return;
+
+      setLoadingConnections(true);
+      try {
+        const { data, error } = await supabase
+          .from('mt5_connections')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        setMt5Connections(data || []);
+      } catch (error) {
+        console.error('Failed to load MT5 connections:', error);
+      } finally {
+        setLoadingConnections(false);
+      }
+    };
+
+    loadMt5Connections();
+  }, []);
+
+  // Helper to get MT5 connection for an account
+  const getMt5Connection = (accountId: string) => {
+    return mt5Connections.find(conn => conn.trading_account_id === accountId);
+  };
 
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
@@ -368,7 +429,7 @@ const Dashboard = () => {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {accounts.map((account, i) => (
-            <AccountCard key={account.id} account={account} index={i} />
+            <AccountCard key={account.id} account={account} index={i} mt5Connection={getMt5Connection(account.id)} />
           ))}
         </div>
       </section>

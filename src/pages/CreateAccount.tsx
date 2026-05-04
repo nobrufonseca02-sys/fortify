@@ -6,7 +6,7 @@ import {
   ArrowLeft, ArrowRight, Check, Shield, AlertTriangle, Zap, TrendingUp,
   Calculator, Brain, BarChart3, Target, Clock, Newspaper, Layers, Activity,
   ChevronDown, ChevronUp, Wallet, Flame, Award, Building2, Globe,
-  ChevronRight, ExternalLink, BookOpen
+  ChevronRight, ExternalLink, BookOpen, Cloud, Cpu
 } from 'lucide-react';
 import { RuleType, type Mt5ConnectionStatus } from '@/types/fortify';
 import { type TemplateRule } from '@/data/propFirmLibrary';
@@ -159,11 +159,15 @@ const CreateAccount = () => {
   const [riskPerTrade, setRiskPerTrade] = useState<number | null>(null);
   const [customRisk, setCustomRisk] = useState('');
 
-  // Step 4: MT5 Connection data (structural; conexão real via backend externo)
+  // Step 4: MT5 Connection data
   const [mt5Login, setMt5Login] = useState('');
   const [mt5Server, setMt5Server] = useState('');
   const [mt5Broker, setMt5Broker] = useState('');
   const [mt5PropFirm, setMt5PropFirm] = useState('');
+  const [mt5InvestorPassword, setMt5InvestorPassword] = useState('');
+  
+  // Internally preselect provider as 'metaapi'
+  const connectionProvider = 'metaapi' as const;
 
   const balance = parseFloat(startBalance) || 0;
   const effectiveRisk = riskPerTrade ?? (customRisk ? parseFloat(customRisk) : 0);
@@ -303,7 +307,10 @@ const CreateAccount = () => {
     if (step === 1) return !!accountName && balance > 0;
     if (step === 2) return rules.some(r => r.enabled);
     if (step === 3) return effectiveRisk > 0;
-    if (step === 4) return !!mt5Login && !!mt5Server;
+    if (step === 4) {
+      // Only MetaApi flow - validate required fields
+      return !!mt5Login && !!mt5Server && !!mt5InvestorPassword;
+    }
     return true;
   };
 
@@ -364,7 +371,59 @@ const CreateAccount = () => {
           mt5SyncError: undefined,
         } as any);
 
-        toast({ title: 'Conta criada', description: 'Conta real salva em trading_accounts.' });
+        // MetaApi provision - always enabled
+        if (mt5Login && mt5Server && mt5InvestorPassword) {
+          try {
+            const { data: connData, error: connErr } = await supabase.functions.invoke('metaapi-connect', {
+              body: {
+                accountName: insertPayload.nickname,
+                mt5Login: mt5Login.trim(),
+                mt5Server: mt5Server.trim(),
+                brokerName: (mt5Broker.trim() || selectedFirm?.name || 'Custom'),
+                mt5Password: mt5InvestorPassword,
+              },
+            });
+            if (connErr) throw connErr;
+            // Link new mt5_connections row to this trading account
+            const newConnId = (connData as any)?.connection?.id;
+            console.log('MetaApi connection created:', newConnId, 'for trading account:', res.data.id);
+            if (newConnId) {
+              const { error: linkError } = await supabase.from('mt5_connections').update({ trading_account_id: res.data.id }).eq('id', newConnId);
+              if (linkError) {
+                console.error('Failed to link MT5 connection:', linkError);
+                throw new Error(`Failed to link MT5 connection: ${linkError.message}`);
+              }
+              console.log('MT5 connection linked successfully');
+            }
+            toast({ title: 'Conta + MetaApi conectada', description: 'Provisionamento iniciado. Use "Sync now" em Integrações para puxar os dados.' });
+          } catch (e: any) {
+            console.error('MetaApi provisioning failed:', e);
+            let errorMessage = e?.message || 'Erro ao provisionar MetaApi';
+            
+            // Try to extract more specific error details if available
+            if (e?.details) {
+              if (typeof e.details === 'string') {
+                errorMessage = `Erro do MetaApi: ${e.details}`;
+              } else if (e.details.message) {
+                errorMessage = `Erro do MetaApi: ${e.details.message}`;
+              } else if (e.details.raw) {
+                // Handle specific non-2xx error case
+                if (e.details.raw.status >= 400 && e.details.raw.status < 500) {
+                  errorMessage = `Erro do MetaApi: HTTP ${e.details.raw.status} - ${e.details.raw.statusText || 'Erro desconhecido'}`;
+                } else {
+                  errorMessage = `Erro do MetaApi: ${e.details.raw?.status || 'desconhecido'}`;
+                }
+              }
+            } else if (e.status && e.status >= 400 && e.status < 500) {
+              // Handle client-side errors (4xx)
+              errorMessage = `Erro do MetaApi: HTTP ${e.status} - ${e.statusText || 'Erro desconhecido'}`;
+            }
+            
+            toast({ title: 'Conta criada, MetaApi falhou', description: errorMessage, variant: 'destructive' });
+          }
+        } else {
+          toast({ title: 'Conta criada', description: 'Configure a conexão MT5 em Integrações quando desejar.' });
+        }
         navigate('/accounts');
         return;
       } catch {
@@ -857,19 +916,16 @@ const CreateAccount = () => {
         {step === 4 && (
           <motion.div key="s4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
             <div>
-              <h2 className="text-sm font-semibold text-foreground">Conexão MT5</h2>
-              <p className="text-xs text-muted-foreground mt-1">Preencha os dados da conta. A conexão real e sincronização ocorrerão via backend externo.</p>
+              <h2 className="text-sm font-semibold text-foreground">Conectar conta MT5</h2>
+              <p className="text-xs text-muted-foreground mt-1">Preencha os dados da conta para sincronização automática.</p>
             </div>
 
+            {/* MetaApi Connection Form */}
             <div className="rounded-xl border border-border bg-card p-5 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Nome da Conta (exibição)</label>
                   <input value={accountName} onChange={e => setAccountName(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: FTMO 100k Challenge" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Prop Firm</label>
-                  <input value={mt5PropFirm} onChange={e => setMt5PropFirm(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: FTMO" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Login MT5</label>
@@ -879,19 +935,40 @@ const CreateAccount = () => {
                   <label className="text-xs font-medium text-muted-foreground">Servidor MT5</label>
                   <input value={mt5Server} onChange={e => setMt5Server(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: Broker-Server01" />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Broker</label>
-                  <input value={mt5Broker} onChange={e => setMt5Broker(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: IC Markets" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Tipo de Conta</label>
-                  <input value={accountType} onChange={e => setAccountType(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: Challenge Phase 1" />
+                <div className="space-y-1.5 md:col-span-2">
+                  <label className="text-xs font-medium text-muted-foreground">Senha MT5</label>
+                  <input
+                    type="password"
+                    value={mt5InvestorPassword}
+                    onChange={e => setMt5InvestorPassword(e.target.value)}
+                    autoComplete="off"
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="Digite a senha MT5"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Use a senha de acesso da conta MT5 fornecida pela mesa para sincronização via MetaApi.
+                  </p>
                 </div>
               </div>
 
+              {/* Selected Prop Firm Display */}
+              {selectedFirm && (
+                <div className="rounded-lg bg-muted/20 border border-border/40 p-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center text-sm font-bold flex-shrink-0" style={{ background: `hsl(${selectedFirm.color || 'var(--primary)'})20`, color: `hsl(${selectedFirm.color || 'var(--primary)'})` }}>
+                      {selectedFirm.name.charAt(0)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-sm font-semibold text-foreground">{selectedFirm.name}</h4>
+                      <p className="text-[10px] text-muted-foreground capitalize">{selectedFirm.category.replace('_', ' ')}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="rounded-lg border border-border bg-muted/20 p-4">
                 <p className="text-xs text-muted-foreground">
-                  Ao finalizar, a conta será criada como <strong>desconectada</strong>. Um serviço backend externo deverá validar credenciais, registrar a conexão no Supabase e sincronizar trades/posições/snapshots.
+                  Ao finalizar, sua conta ficará pronta para sincronização automática.
                 </p>
               </div>
             </div>

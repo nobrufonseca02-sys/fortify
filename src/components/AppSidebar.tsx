@@ -43,7 +43,7 @@ const groups = [
     label: "Recursos",
     items: [
       { title: "Prop Firm Library", url: "/library", icon: BookOpen },
-      { title: "Contas MT5", url: "/integrations/mt5", icon: Server },
+      { title: "Contas MT5", url: "/mt5", icon: Server },
       { title: "Histórico", url: "/history", icon: Archive },
       { title: "Configurações", url: "/settings", icon: Settings },
     ],

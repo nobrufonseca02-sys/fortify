@@ -63,6 +63,7 @@ function ProtectedRoutes() {
         <Route path="/rules/manage" element={<RuleManager />} />
         <Route path="/library" element={<PropFirmLibrary />} />
         <Route path="/history" element={<AccountHistory />} />
+        <Route path="/integrations/mt5" element={<Navigate to="/mt5" replace />} />
         <Route path="/mt5" element={<MT5Connections />} />
         <Route path="/mt5/:connectionId" element={<MT5Dashboard />} />
         <Route path="/settings" element={<SettingsPage />} />
