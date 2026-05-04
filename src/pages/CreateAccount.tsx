@@ -305,7 +305,11 @@ const CreateAccount = () => {
     if (step === 1) return !!accountName && balance > 0;
     if (step === 2) return rules.some(r => r.enabled);
     if (step === 3) return effectiveRisk > 0;
-    if (step === 4) return !!mt5Login && !!mt5Server;
+    if (step === 4) {
+      if (connectionProvider === 'manual') return true;
+      if (connectionProvider === 'metaapi') return !!mt5Login && !!mt5Server && !!mt5InvestorPassword;
+      return !!mt5Login && !!mt5Server; // bridge
+    }
     return true;
   };
 
