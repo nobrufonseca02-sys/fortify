@@ -6,7 +6,7 @@ import {
   ArrowLeft, ArrowRight, Check, Shield, AlertTriangle, Zap, TrendingUp,
   Calculator, Brain, BarChart3, Target, Clock, Newspaper, Layers, Activity,
   ChevronDown, ChevronUp, Wallet, Flame, Award, Building2, Globe,
-  ChevronRight, ExternalLink, BookOpen
+  ChevronRight, ExternalLink, BookOpen, Cloud, Cpu
 } from 'lucide-react';
 import { RuleType, type Mt5ConnectionStatus } from '@/types/fortify';
 import { type TemplateRule } from '@/data/propFirmLibrary';
@@ -159,11 +159,13 @@ const CreateAccount = () => {
   const [riskPerTrade, setRiskPerTrade] = useState<number | null>(null);
   const [customRisk, setCustomRisk] = useState('');
 
-  // Step 4: MT5 Connection data (structural; conexão real via backend externo)
+  // Step 4: MT5 Connection data
   const [mt5Login, setMt5Login] = useState('');
   const [mt5Server, setMt5Server] = useState('');
   const [mt5Broker, setMt5Broker] = useState('');
   const [mt5PropFirm, setMt5PropFirm] = useState('');
+  const [connectionProvider, setConnectionProvider] = useState<'metaapi' | 'bridge' | 'manual'>('metaapi');
+  const [mt5InvestorPassword, setMt5InvestorPassword] = useState('');
 
   const balance = parseFloat(startBalance) || 0;
   const effectiveRisk = riskPerTrade ?? (customRisk ? parseFloat(customRisk) : 0);
@@ -303,7 +305,11 @@ const CreateAccount = () => {
     if (step === 1) return !!accountName && balance > 0;
     if (step === 2) return rules.some(r => r.enabled);
     if (step === 3) return effectiveRisk > 0;
-    if (step === 4) return !!mt5Login && !!mt5Server;
+    if (step === 4) {
+      if (connectionProvider === 'manual') return true;
+      if (connectionProvider === 'metaapi') return !!mt5Login && !!mt5Server && !!mt5InvestorPassword;
+      return !!mt5Login && !!mt5Server; // bridge
+    }
     return true;
   };
 
@@ -364,7 +370,31 @@ const CreateAccount = () => {
           mt5SyncError: undefined,
         } as any);
 
-        toast({ title: 'Conta criada', description: 'Conta real salva em trading_accounts.' });
+        // If provider=metaapi, provision MetaApi account via edge function and link.
+        if (connectionProvider === 'metaapi' && mt5Login && mt5Server && mt5InvestorPassword) {
+          try {
+            const { data: connData, error: connErr } = await supabase.functions.invoke('metaapi-connect', {
+              body: {
+                accountName: insertPayload.nickname,
+                mt5Login: mt5Login.trim(),
+                mt5Server: mt5Server.trim(),
+                brokerName: (mt5Broker.trim() || selectedFirm?.name || 'Custom'),
+                mt5Password: mt5InvestorPassword,
+              },
+            });
+            if (connErr) throw connErr;
+            // Link the new mt5_connections row to this trading account
+            const newConnId = (connData as any)?.connection?.id;
+            if (newConnId) {
+              await supabase.from('mt5_connections').update({ trading_account_id: res.data.id }).eq('id', newConnId);
+            }
+            toast({ title: 'Conta + MetaApi conectada', description: 'Provisionamento iniciado. Use "Sync now" em Integrações para puxar os dados.' });
+          } catch (e: any) {
+            toast({ title: 'Conta criada, MetaApi falhou', description: e?.message || 'Você pode reconectar em Integrações · MT5.', variant: 'destructive' });
+          }
+        } else {
+          toast({ title: 'Conta criada', description: 'Conta salva. Configure a conexão em Integrações · MT5 quando desejar.' });
+        }
         navigate('/accounts');
         return;
       } catch {
@@ -857,44 +887,103 @@ const CreateAccount = () => {
         {step === 4 && (
           <motion.div key="s4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
             <div>
-              <h2 className="text-sm font-semibold text-foreground">Conexão MT5</h2>
-              <p className="text-xs text-muted-foreground mt-1">Preencha os dados da conta. A conexão real e sincronização ocorrerão via backend externo.</p>
+              <h2 className="text-sm font-semibold text-foreground">Conexão da Conta</h2>
+              <p className="text-xs text-muted-foreground mt-1">Escolha como o Fortify vai receber os dados da sua conta MT5.</p>
             </div>
 
-            <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Nome da Conta (exibição)</label>
-                  <input value={accountName} onChange={e => setAccountName(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: FTMO 100k Challenge" />
+            {/* Provider selector */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {([
+                { id: 'metaapi', label: 'MetaApi (cloud)', icon: Cloud, desc: 'Sincronização automática via cloud. Recomendado.' },
+                { id: 'bridge', label: 'FortifyBridge MQ5', icon: Cpu, desc: 'EA local envia dados ao Fortify. Fallback opcional.' },
+                { id: 'manual', label: 'Manual', icon: Wallet, desc: 'Sem integração agora — você atualiza saldo/equity à mão.' },
+              ] as const).map(opt => {
+                const Icon = opt.icon;
+                const active = connectionProvider === opt.id;
+                return (
+                  <button
+                    type="button"
+                    key={opt.id}
+                    onClick={() => setConnectionProvider(opt.id)}
+                    className={`text-left rounded-xl border p-4 transition-all ${active ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border bg-card hover:border-primary/30'}`}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <Icon className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-semibold text-foreground">{opt.label}</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">{opt.desc}</p>
+                  </button>
+                );
+              })}
+            </div>
+
+            {connectionProvider !== 'manual' && (
+              <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Nome da Conta (exibição)</label>
+                    <input value={accountName} onChange={e => setAccountName(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: FTMO 100k Challenge" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Prop Firm</label>
+                    <input value={mt5PropFirm} onChange={e => setMt5PropFirm(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: FTMO" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Login MT5</label>
+                    <input value={mt5Login} onChange={e => setMt5Login(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: 12345678" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Servidor MT5</label>
+                    <input value={mt5Server} onChange={e => setMt5Server(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: Broker-Server01" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Broker</label>
+                    <input value={mt5Broker} onChange={e => setMt5Broker(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: IC Markets" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Tipo de Conta</label>
+                    <input value={accountType} onChange={e => setAccountType(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: Challenge Phase 1" />
+                  </div>
+
+                  {connectionProvider === 'metaapi' && (
+                    <div className="space-y-1.5 md:col-span-2">
+                      <label className="text-xs font-medium text-muted-foreground">Senha do Investidor MT5 (read-only)</label>
+                      <input
+                        type="password"
+                        value={mt5InvestorPassword}
+                        onChange={e => setMt5InvestorPassword(e.target.value)}
+                        autoComplete="off"
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        placeholder="Investor password — nunca a senha master"
+                      />
+                      <p className="text-[11px] text-muted-foreground">
+                        Use sempre a investor password (somente leitura). Ela é enviada via backend ao MetaApi e nunca persistida no banco.
+                      </p>
+                    </div>
+                  )}
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Prop Firm</label>
-                  <input value={mt5PropFirm} onChange={e => setMt5PropFirm(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: FTMO" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Login MT5</label>
-                  <input value={mt5Login} onChange={e => setMt5Login(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: 12345678" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Servidor MT5</label>
-                  <input value={mt5Server} onChange={e => setMt5Server(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: Broker-Server01" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Broker</label>
-                  <input value={mt5Broker} onChange={e => setMt5Broker(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: IC Markets" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Tipo de Conta</label>
-                  <input value={accountType} onChange={e => setAccountType(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: Challenge Phase 1" />
+
+                <div className="rounded-lg border border-border bg-muted/20 p-4">
+                  <p className="text-xs text-muted-foreground">
+                    {connectionProvider === 'metaapi'
+                      ? 'Ao finalizar, a conta MetaApi será provisionada e a primeira sincronização poderá ser disparada em Integrações · MT5.'
+                      : 'A conexão Bridge ficará pronta para receber dados do EA FortifyBridge.mq5 instalado no terminal local.'}
+                  </p>
                 </div>
               </div>
+            )}
 
-              <div className="rounded-lg border border-border bg-muted/20 p-4">
+            {connectionProvider === 'manual' && (
+              <div className="rounded-xl border border-border bg-card p-5 space-y-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Nome da Conta</label>
+                  <input value={accountName} onChange={e => setAccountName(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex.: FTMO 100k" />
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  Ao finalizar, a conta será criada como <strong>desconectada</strong>. Um serviço backend externo deverá validar credenciais, registrar a conexão no Supabase e sincronizar trades/posições/snapshots.
+                  Sem integração: você atualizará balance / equity manualmente. Pode conectar MetaApi depois em Integrações · MT5.
                 </p>
               </div>
-            </div>
+            )}
           </motion.div>
         )}
 

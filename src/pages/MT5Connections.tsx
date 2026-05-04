@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle2, Loader2, AlertTriangle, RefreshCw, Unlink, PlugZap, Server, Plus } from 'lucide-react';
+import { CheckCircle2, Loader2, AlertTriangle, RefreshCw, Unlink, PlugZap, Server, Plus, Cloud, Cpu } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -11,27 +11,23 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import type { Tables } from '@/integrations/supabase/types';
 
-type Mt5ConnectionRow = {
-  id: string;
-  userId: string;
-  connectionName: string;
-  mt5Login: string;
-  serverName: string;
-  brokerName: string | null;
-  connectionStatus: 'disconnected' | 'connecting' | 'connected' | 'auth_error' | 'syncing';
-  lastSyncTime: string | null;
-  latestSyncError: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
+type Mt5ConnectionRow = Tables<'mt5_connections'>;
 
-const STATUS_MAP: Record<Mt5ConnectionRow['connectionStatus'], { label: string; icon: typeof CheckCircle2; className: string }> = {
+type ConnStatus = Mt5ConnectionRow['connection_status'];
+
+const STATUS_MAP: Record<string, { label: string; icon: typeof CheckCircle2; className: string }> = {
   connected: { label: 'Conectada', icon: CheckCircle2, className: 'text-success bg-success/10' },
   connecting: { label: 'Conectando', icon: Loader2, className: 'text-info bg-info/10' },
   syncing: { label: 'Sincronizando', icon: RefreshCw, className: 'text-info bg-info/10' },
   disconnected: { label: 'Desconectada', icon: Unlink, className: 'text-muted-foreground bg-muted' },
   auth_error: { label: 'Erro de autenticação', icon: AlertTriangle, className: 'text-destructive bg-destructive/10' },
+};
+
+const PROVIDER_META: Record<string, { label: string; icon: typeof Cloud; className: string }> = {
+  metaapi: { label: 'MetaApi', icon: Cloud, className: 'text-primary bg-primary/10' },
+  bridge: { label: 'Bridge MQ5', icon: Cpu, className: 'text-warning bg-warning/10' },
 };
 
 export default function MT5Connections() {
@@ -43,11 +39,14 @@ export default function MT5Connections() {
   const [rows, setRows] = useState<Mt5ConnectionRow[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
-  const [connectionName, setConnectionName] = useState('');
+  const [accountName, setAccountName] = useState('');
   const [mt5Login, setMt5Login] = useState('');
-  const [serverName, setServerName] = useState('');
+  const [mt5Server, setMt5Server] = useState('');
   const [brokerName, setBrokerName] = useState('');
+  const [provider, setProvider] = useState<'metaapi' | 'bridge'>('metaapi');
+  const [mt5Password, setMt5Password] = useState('');
 
   const canUse = Boolean(userId);
 
@@ -59,7 +58,7 @@ export default function MT5Connections() {
     const { data, error } = await supabase
       .from('mt5_connections')
       .select('*')
-      .order('createdAt', { ascending: false });
+      .order('created_at', { ascending: false });
 
     if (error) {
       setLoadError(error.message);
@@ -81,94 +80,86 @@ export default function MT5Connections() {
 
   const formattedRows = useMemo(() => {
     return rows.map((r) => {
-      const st = STATUS_MAP[r.connectionStatus] || STATUS_MAP.disconnected;
-      return { ...r, st };
+      const st = STATUS_MAP[r.connection_status] || STATUS_MAP.disconnected;
+      const pv = PROVIDER_META[(r as any).provider || 'metaapi'] || PROVIDER_META.metaapi;
+      return { ...r, st, pv };
     });
   }, [rows]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userId) return;
-    if (!connectionName || !mt5Login || !serverName || !brokerName) return;
+    if (!accountName || !mt5Login || !mt5Server || !brokerName) return;
 
     setSaving(true);
-    const { error } = await supabase.from('mt5_connections').insert({
-      userId,
-      connectionName,
-      mt5Login,
-      serverName,
-      brokerName,
-      connectionStatus: 'disconnected',
-    });
-    setSaving(false);
 
-    if (error) {
-      toast({ title: 'Erro ao adicionar conexão', description: error.message, variant: 'destructive' });
-      return;
+    if (provider === 'metaapi') {
+      // Use edge function so password never lands in the browser-bound DB row.
+      const { data, error } = await supabase.functions.invoke('metaapi-connect', {
+        body: {
+          accountName,
+          mt5Login,
+          mt5Server,
+          brokerName,
+          mt5Password,
+        },
+      });
+      setSaving(false);
+      if (error) {
+        toast({ title: 'Erro ao registrar conta', description: error.message, variant: 'destructive' });
+        return;
+      }
+      toast({ title: 'Conta MetaApi registrada', description: data?.message || 'Conexão criada.' });
+    } else {
+      // Bridge fallback: just save the descriptor row, ingestion happens via webhook
+      const { error } = await supabase.from('mt5_connections').insert({
+        user_id: userId,
+        account_name: accountName,
+        mt5_login: mt5Login,
+        mt5_server: mt5Server,
+        broker_name: brokerName,
+        provider: 'bridge',
+        api_mode: 'local',
+        connection_status: 'disconnected',
+      } as any);
+      setSaving(false);
+      if (error) {
+        toast({ title: 'Erro ao adicionar conexão', description: error.message, variant: 'destructive' });
+        return;
+      }
+      toast({ title: 'Conexão Bridge criada', description: 'Aponte o EA FortifyBridge.mq5 para esta conta.' });
     }
 
-    toast({ title: 'Conexão criada', description: 'Agora você pode conectar e sincronizar.' });
     setShowForm(false);
-    setConnectionName('');
-    setMt5Login('');
-    setServerName('');
-    setBrokerName('');
-    fetchRows();
-  };
-
-  const setStatus = async (id: string, patch: Partial<Mt5ConnectionRow>) => {
-    const { error } = await supabase.from('mt5_connections').update(patch).eq('id', id);
-    if (error) {
-      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
-      return false;
-    }
-    return true;
-  };
-
-  const handleConnect = async (r: Mt5ConnectionRow) => {
-    const ok1 = await setStatus(r.id, { connectionStatus: 'connecting', latestSyncError: null });
-    if (!ok1) return;
-
-    const ok2 = await setStatus(r.id, { connectionStatus: 'connected', latestSyncError: null });
-    if (!ok2) return;
-
-    toast({ title: 'Conectado', description: 'Conexão marcada como ativa.' });
+    setAccountName(''); setMt5Login(''); setMt5Server(''); setBrokerName(''); setMt5Password('');
     fetchRows();
   };
 
   const handleSyncNow = async (r: Mt5ConnectionRow) => {
-    const startedAt = new Date().toISOString();
-
-    const { data: run, error: runError } = await supabase
-      .from('mt5_sync_runs')
-      .insert({ connectionId: r.id, startedAt, status: 'running' })
-      .select('id')
-      .single();
-
-    if (runError) {
-      toast({ title: 'Erro ao iniciar sync', description: runError.message, variant: 'destructive' });
+    setBusyId(r.id);
+    const { data, error } = await supabase.functions.invoke('metaapi-sync', {
+      body: { connectionId: r.id },
+    });
+    setBusyId(null);
+    if (error) {
+      toast({ title: 'Erro ao sincronizar', description: error.message, variant: 'destructive' });
+      fetchRows();
       return;
     }
-
-    const ok1 = await setStatus(r.id, { connectionStatus: 'syncing', latestSyncError: null });
-    if (!ok1) return;
-
-    const finishedAt = new Date().toISOString();
-    const ok2 = await setStatus(r.id, { connectionStatus: 'connected', lastSyncTime: finishedAt, latestSyncError: null });
-
-    await supabase
-      .from('mt5_sync_runs')
-      .update({ finishedAt, status: ok2 ? 'success' : 'failed' })
-      .eq('id', run?.id);
-
-    toast({ title: 'Sincronização concluída', description: 'Última sincronização atualizada.' });
+    toast({ title: 'Sincronização concluída', description: data?.message || 'Dados atualizados.' });
     fetchRows();
   };
 
   const handleDisconnect = async (r: Mt5ConnectionRow) => {
-    const ok = await setStatus(r.id, { connectionStatus: 'disconnected' });
-    if (!ok) return;
-    toast({ title: 'Desconectado', description: 'Conexão marcada como desconectada.' });
+    const { error } = await supabase
+      .from('mt5_connections')
+      .update({ connection_status: 'disconnected' })
+      .eq('id', r.id);
+    if (error) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Desconectado' });
     fetchRows();
   };
 
@@ -178,7 +169,7 @@ export default function MT5Connections() {
       toast({ title: 'Erro ao remover', description: error.message, variant: 'destructive' });
       return;
     }
-    toast({ title: 'Conexão removida', description: `"${r.connectionName}" foi removida.` });
+    toast({ title: 'Conexão removida', description: `"${r.account_name}" foi removida.` });
     fetchRows();
   };
 
@@ -196,22 +187,12 @@ export default function MT5Connections() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-bold text-foreground">Integrações · MT5</h1>
-          <p className="text-xs text-muted-foreground">Gerencie conexões e sincronizações da sua conta MetaTrader 5.</p>
+          <p className="text-xs text-muted-foreground">MetaApi (cloud) como provedor principal. Bridge MQ5 como fallback opcional.</p>
         </div>
         <Button onClick={() => setShowForm(!showForm)} className="btn-glow">
           <Plus className="w-4 h-4" />
           Conectar nova conta
         </Button>
-      </div>
-
-      <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 flex gap-3 items-start">
-        <Server className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-foreground">Conexão e sync</p>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Esta página gerencia o cadastro e o estado da conexão. A sincronização real deve ser executada por um backend/worker.
-          </p>
-        </div>
       </div>
 
       {showForm && (
@@ -222,10 +203,37 @@ export default function MT5Connections() {
           className="card-premium rounded-xl border border-border bg-card p-6 space-y-5"
         >
           <h2 className="text-sm font-semibold text-foreground">Conectar conta MT5</h2>
+
+          <div className="grid grid-cols-2 gap-2">
+            {(['metaapi','bridge'] as const).map(p => {
+              const meta = PROVIDER_META[p];
+              const Icon = meta.icon;
+              const active = provider === p;
+              return (
+                <button
+                  type="button"
+                  key={p}
+                  onClick={() => setProvider(p)}
+                  className={`flex items-start gap-3 p-3 rounded-lg border text-left transition-all ${
+                    active ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'
+                  }`}
+                >
+                  <Icon className="w-4 h-4 mt-0.5 text-primary" />
+                  <div>
+                    <div className="text-sm font-medium text-foreground">{meta.label}</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {p === 'metaapi' ? 'Sincronização cloud automática (recomendado).' : 'Ingestão via EA FortifyBridge.mq5 no terminal local.'}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Nome da conexão</label>
-              <Input value={connectionName} onChange={e => setConnectionName(e.target.value)} placeholder="Ex.: Conta principal" required />
+              <Input value={accountName} onChange={e => setAccountName(e.target.value)} placeholder="Ex.: FTMO 100k" required />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Login MT5</label>
@@ -233,13 +241,29 @@ export default function MT5Connections() {
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Servidor</label>
-              <Input value={serverName} onChange={e => setServerName(e.target.value)} placeholder="Ex.: ICMarketsSC-Live" required />
+              <Input value={mt5Server} onChange={e => setMt5Server(e.target.value)} placeholder="Ex.: ICMarketsSC-Live" required />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Broker</label>
               <Input value={brokerName} onChange={e => setBrokerName(e.target.value)} placeholder="Ex.: IC Markets" required />
             </div>
+            {provider === 'metaapi' && (
+              <div className="space-y-1.5 md:col-span-4">
+                <label className="text-xs font-medium text-muted-foreground">Senha do investidor MT5 (read-only)</label>
+                <Input
+                  type="password"
+                  value={mt5Password}
+                  onChange={e => setMt5Password(e.target.value)}
+                  placeholder="Investor password — nunca a senha master"
+                  autoComplete="off"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Use sempre a investor password. Ela é enviada ao MetaApi via backend e nunca é armazenada no banco.
+                </p>
+              </div>
+            )}
           </div>
+
           <div className="flex items-center gap-3">
             <Button type="submit" disabled={saving}>
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
@@ -261,12 +285,10 @@ export default function MT5Connections() {
             <div className="space-y-2">
               <p className="text-sm font-semibold text-foreground">Falha ao carregar conexões</p>
               <p className="text-xs text-muted-foreground">{loadError}</p>
-              <div className="flex items-center gap-2">
-                <Button size="sm" onClick={fetchRows}>
-                  <RefreshCw className="w-4 h-4" />
-                  Tentar novamente
-                </Button>
-              </div>
+              <Button size="sm" onClick={fetchRows}>
+                <RefreshCw className="w-4 h-4" />
+                Tentar novamente
+              </Button>
             </div>
           </div>
         </div>
@@ -277,6 +299,7 @@ export default function MT5Connections() {
               <thead className="bg-muted/40">
                 <tr className="text-left text-xs text-muted-foreground">
                   <th className="px-4 py-3 font-medium">Nome</th>
+                  <th className="px-4 py-3 font-medium">Provider</th>
                   <th className="px-4 py-3 font-medium">Login</th>
                   <th className="px-4 py-3 font-medium">Servidor</th>
                   <th className="px-4 py-3 font-medium">Broker</th>
@@ -289,7 +312,8 @@ export default function MT5Connections() {
               <tbody>
                 {formattedRows.map((r, i) => {
                   const StIcon = r.st.icon;
-                  const isAnimated = r.connectionStatus === 'connecting' || r.connectionStatus === 'syncing';
+                  const PvIcon = r.pv.icon;
+                  const isAnimated = r.connection_status === 'connecting' || r.connection_status === 'syncing' || busyId === r.id;
                   return (
                     <motion.tr
                       key={r.id}
@@ -298,10 +322,16 @@ export default function MT5Connections() {
                       transition={{ delay: i * 0.03 }}
                       className="border-t border-border"
                     >
-                      <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">{r.connectionName}</td>
-                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{r.mt5Login}</td>
-                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{r.serverName}</td>
-                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{r.brokerName || '—'}</td>
+                      <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">{r.account_name}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full ${r.pv.className}`}>
+                          <PvIcon className="w-3 h-3" />
+                          {r.pv.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{r.mt5_login}</td>
+                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{r.mt5_server}</td>
+                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{r.broker_name || '—'}</td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span className={`inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full ${r.st.className}`}>
                           <StIcon className={`w-3 h-3 ${isAnimated ? 'animate-spin' : ''}`} />
@@ -309,38 +339,29 @@ export default function MT5Connections() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
-                        {r.lastSyncTime ? new Date(r.lastSyncTime).toLocaleString('pt-BR') : '—'}
+                        {r.last_sync_at ? new Date(r.last_sync_at).toLocaleString('pt-BR') : '—'}
                       </td>
-                      <td className="px-4 py-3 text-destructive max-w-[260px] truncate" title={r.latestSyncError || ''}>
-                        {r.latestSyncError || '—'}
+                      <td className="px-4 py-3 text-destructive max-w-[260px] truncate" title={r.sync_error || ''}>
+                        {r.sync_error || '—'}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           <Button
                             size="sm"
-                            variant="outline"
-                            onClick={() => handleConnect(r)}
-                            disabled={r.connectionStatus === 'connected' || r.connectionStatus === 'syncing' || r.connectionStatus === 'connecting'}
-                          >
-                            <PlugZap className="w-4 h-4" />
-                            Connect
-                          </Button>
-                          <Button
-                            size="sm"
                             onClick={() => handleSyncNow(r)}
-                            disabled={r.connectionStatus !== 'connected'}
+                            disabled={busyId === r.id || (r as any).provider === 'bridge'}
                           >
-                            <RefreshCw className="w-4 h-4" />
+                            {busyId === r.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                             Sync now
                           </Button>
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => handleDisconnect(r)}
-                            disabled={r.connectionStatus === 'disconnected' || r.connectionStatus === 'connecting' || r.connectionStatus === 'syncing'}
+                            disabled={r.connection_status === 'disconnected'}
                           >
                             <Unlink className="w-4 h-4" />
-                            Disconnect
+                            Desconectar
                           </Button>
 
                           <AlertDialog>
@@ -351,7 +372,7 @@ export default function MT5Connections() {
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Remover conexão?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  A conexão "{r.connectionName}" será removida permanentemente.
+                                  A conexão "{r.account_name}" será removida permanentemente.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>

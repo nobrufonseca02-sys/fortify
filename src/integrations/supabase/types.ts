@@ -121,6 +121,7 @@ export type Database = {
         Row: {
           account_name: string
           account_type: string
+          api_mode: string
           broker_name: string
           connection_status: Database["public"]["Enums"]["mt5_connection_status"]
           created_at: string
@@ -129,13 +130,18 @@ export type Database = {
           mt5_login: string
           mt5_server: string
           prop_firm: string | null
+          provider: string
+          provider_account_id: string | null
           sync_error: string | null
+          sync_status: string
+          trading_account_id: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           account_name: string
           account_type?: string
+          api_mode?: string
           broker_name: string
           connection_status?: Database["public"]["Enums"]["mt5_connection_status"]
           created_at?: string
@@ -144,13 +150,18 @@ export type Database = {
           mt5_login: string
           mt5_server: string
           prop_firm?: string | null
+          provider?: string
+          provider_account_id?: string | null
           sync_error?: string | null
+          sync_status?: string
+          trading_account_id?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           account_name?: string
           account_type?: string
+          api_mode?: string
           broker_name?: string
           connection_status?: Database["public"]["Enums"]["mt5_connection_status"]
           created_at?: string
@@ -159,7 +170,11 @@ export type Database = {
           mt5_login?: string
           mt5_server?: string
           prop_firm?: string | null
+          provider?: string
+          provider_account_id?: string | null
           sync_error?: string | null
+          sync_status?: string
+          trading_account_id?: string | null
           updated_at?: string
           user_id?: string
         }
