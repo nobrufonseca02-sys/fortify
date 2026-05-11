@@ -251,6 +251,21 @@ function DecisionCard() {
             <p className="text-sm font-bold text-foreground">{data.action}</p>
           </div>
         </div>
+
+        <div className="mt-7 pt-6 border-t border-border/40 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono mb-1">Trava de proteção</p>
+            <p className="text-xs text-foreground/80">Deslize para confirmar a meta de risco do dia.</p>
+          </div>
+          <div className="md:w-72">
+            <SlideToActivate
+              label="Deslize para travar dia"
+              activatedLabel="Dia travado"
+              variant={data.status === 'VIOLATED' ? 'destructive' : data.status === 'WARNING' ? 'primary' : 'success'}
+              onActivate={() => toast({ title: 'Risco do dia travado', description: 'Continue acompanhando o painel.' })}
+            />
+          </div>
+        </div>
       </div>
     </motion.div>
   );
