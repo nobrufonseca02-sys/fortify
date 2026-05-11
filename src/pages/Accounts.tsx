@@ -204,7 +204,7 @@ const Accounts = () => {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.06, duration: 0.3 }}
-              className="rounded-xl border border-border bg-card p-5 space-y-4 hover:border-primary/30 transition-colors cursor-pointer group"
+              className="card-soft lift p-5 space-y-4 cursor-pointer group"
               onClick={() => navigate(`/accounts/${account.id}`)}
             >
               {/* Header */}

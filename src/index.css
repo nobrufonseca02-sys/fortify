@@ -285,4 +285,103 @@
     border: 1px solid hsl(var(--border) / 0.7);
     border-radius: 10px;
   }
+
+  /* ============================================================
+     Premium minimal additions (presentation layer only)
+     ============================================================ */
+
+  /* Lighter, airier card — more whitespace, softer surface */
+  .card-soft {
+    background: linear-gradient(180deg, hsl(var(--surface-2) / 0.7), hsl(var(--surface-1) / 0.55));
+    border: 1px solid hsl(var(--border) / 0.55);
+    border-radius: 14px;
+    backdrop-filter: blur(14px) saturate(1.2);
+    -webkit-backdrop-filter: blur(14px) saturate(1.2);
+    transition: border-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  .card-soft:hover {
+    border-color: hsl(var(--primary) / 0.25);
+    box-shadow:
+      0 1px 0 0 hsl(var(--foreground) / 0.04) inset,
+      0 18px 40px -22px hsl(var(--primary) / 0.18);
+  }
+
+  /* Refined surface with no glow — for content density */
+  .surface-quiet {
+    background: hsl(var(--surface-1) / 0.65);
+    border: 1px solid hsl(var(--border) / 0.5);
+    border-radius: 12px;
+  }
+
+  /* Segmented pill (inspired by reference dashboards) */
+  .seg {
+    display: inline-flex;
+    padding: 3px;
+    border-radius: 999px;
+    background: hsl(var(--surface-2) / 0.7);
+    border: 1px solid hsl(var(--border) / 0.6);
+    backdrop-filter: blur(12px);
+  }
+  .seg > button {
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    color: hsl(var(--muted-foreground));
+    transition: all 0.25s ease;
+  }
+  .seg > button[data-active="true"] {
+    background: hsl(var(--surface-3));
+    color: hsl(var(--foreground));
+    box-shadow:
+      0 1px 0 0 hsl(var(--foreground) / 0.06) inset,
+      0 4px 12px -4px hsl(0 0% 0% / 0.5);
+  }
+
+  /* Status chip — subtle, refined */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border: 1px solid hsl(var(--border) / 0.6);
+    background: hsl(var(--surface-2) / 0.8);
+    color: hsl(var(--muted-foreground));
+  }
+  .chip-success { color: hsl(var(--success)); border-color: hsl(var(--success) / 0.3); background: hsl(var(--success) / 0.08); }
+  .chip-warning { color: hsl(var(--warning)); border-color: hsl(var(--warning) / 0.3); background: hsl(var(--warning) / 0.08); }
+  .chip-destructive { color: hsl(var(--destructive)); border-color: hsl(var(--destructive) / 0.3); background: hsl(var(--destructive) / 0.08); }
+
+  /* Big numeric display */
+  .num-xl {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(1.75rem, 3.2vw, 2.75rem);
+    letter-spacing: -0.025em;
+    line-height: 1;
+  }
+
+  /* Reveal on scroll utility (used with framer-motion or pure CSS) */
+  @keyframes reveal-up {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .reveal-up { animation: reveal-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+  /* Hover lift for interactive cards */
+  .lift { transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease; }
+  .lift:hover { transform: translateY(-2px); }
+
+  /* Soft focus ring */
+  .ring-soft:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.5), 0 0 0 4px hsl(var(--primary) / 0.12);
+  }
+
 }
