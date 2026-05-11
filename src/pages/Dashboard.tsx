@@ -283,7 +283,7 @@ function AccountCard({ account, index }: { account: TradingAccount; index: numbe
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.2 + index * 0.08, duration: 0.4 }}
-      className="group relative rounded-2xl border border-border bg-card hover:border-primary/30 transition-all duration-300 cursor-pointer overflow-hidden shadow-lg shadow-background/30 hover:shadow-primary/5"
+      className="group relative card-soft lift cursor-pointer overflow-hidden"
       onClick={() => navigate(`/accounts/${account.id}`)}
     >
       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br from-primary/[0.03] to-transparent pointer-events-none" />
