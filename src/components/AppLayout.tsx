@@ -1,5 +1,6 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { PageTransition } from "@/components/PageTransition";
 import { Activity } from "lucide-react";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -30,7 +31,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </header>
 
           <main className="flex-1 overflow-auto">
-            {children}
+            <PageTransition>{children}</PageTransition>
           </main>
         </div>
       </div>
