@@ -9,6 +9,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
+<<<<<<< HEAD
 import { useMemo, useState, useEffect } from 'react';
 
 const mt5StatusConfig: Record<Mt5ConnectionStatus, { label: string; icon: typeof Link2; className: string }> = {
@@ -18,6 +19,10 @@ const mt5StatusConfig: Record<Mt5ConnectionStatus, { label: string; icon: typeof
   syncing: { label: 'Sincronizando', icon: RefreshCw, className: 'bg-primary/15 text-primary' },
   authError: { label: 'Erro de autenticação', icon: AlertTriangle, className: 'bg-destructive/15 text-destructive' },
 };
+=======
+import { SlideToActivate } from '@/components/SlideToActivate';
+import { toast } from '@/hooks/use-toast';
+>>>>>>> 648fb76616b6f979b9a0b457b6baf2fbab43823c
 
 const fmt = (v: number) => `$${Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`;
 const pct = (v: number, t: number) => t > 0 ? Math.min(100, (v / t) * 100) : 0;
@@ -259,6 +264,21 @@ function DecisionCard() {
             <p className="text-sm font-bold text-foreground">{data.action}</p>
           </div>
         </div>
+
+        <div className="mt-7 pt-6 border-t border-border/40 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono mb-1">Trava de proteção</p>
+            <p className="text-xs text-foreground/80">Deslize para confirmar a meta de risco do dia.</p>
+          </div>
+          <div className="md:w-72">
+            <SlideToActivate
+              label="Deslize para travar dia"
+              activatedLabel="Dia travado"
+              variant={data.status === 'VIOLATED' ? 'destructive' : data.status === 'WARNING' ? 'primary' : 'success'}
+              onActivate={() => toast({ title: 'Risco do dia travado', description: 'Continue acompanhando o painel.' })}
+            />
+          </div>
+        </div>
       </div>
     </motion.div>
   );
@@ -282,7 +302,7 @@ function AccountCard({ account, index, mt5Connection }: { account: TradingAccoun
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.2 + index * 0.08, duration: 0.4 }}
-      className="group relative rounded-2xl border border-border bg-card hover:border-primary/30 transition-all duration-300 cursor-pointer overflow-hidden shadow-lg shadow-background/30 hover:shadow-primary/5"
+      className="group relative card-soft lift cursor-pointer overflow-hidden"
       onClick={() => navigate(`/accounts/${account.id}`)}
     >
       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br from-primary/[0.03] to-transparent pointer-events-none" />
