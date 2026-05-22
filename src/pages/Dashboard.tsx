@@ -9,8 +9,9 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
-<<<<<<< HEAD
 import { useMemo, useState, useEffect } from 'react';
+import { SlideToActivate } from '@/components/SlideToActivate';
+import { toast } from '@/hooks/use-toast';
 
 const mt5StatusConfig: Record<Mt5ConnectionStatus, { label: string; icon: typeof Link2; className: string }> = {
   disconnected: { label: 'Desconectada', icon: XCircle, className: 'bg-muted text-muted-foreground' },
@@ -19,10 +20,6 @@ const mt5StatusConfig: Record<Mt5ConnectionStatus, { label: string; icon: typeof
   syncing: { label: 'Sincronizando', icon: RefreshCw, className: 'bg-primary/15 text-primary' },
   authError: { label: 'Erro de autenticação', icon: AlertTriangle, className: 'bg-destructive/15 text-destructive' },
 };
-=======
-import { SlideToActivate } from '@/components/SlideToActivate';
-import { toast } from '@/hooks/use-toast';
->>>>>>> 648fb76616b6f979b9a0b457b6baf2fbab43823c
 
 const fmt = (v: number) => `$${Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`;
 const pct = (v: number, t: number) => t > 0 ? Math.min(100, (v / t) * 100) : 0;
@@ -156,18 +153,18 @@ function HeroCard() {
           </span>
         </div>
 
-        <div className="max-w-2xl mb-10">
-          <motion.p className="text-[11px] font-mono uppercase tracking-[0.22em] text-muted-foreground mb-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}>
+        <div className="max-w-3xl mb-10">
+          <motion.p className="eyebrow mb-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}>
             Bem-vindo, <span className="text-foreground/90">{firstName}</span>
           </motion.p>
           <motion.h1
-            className="text-3xl md:text-5xl font-bold leading-[1.05] tracking-tight text-gradient-steel"
+            className="display-editorial text-gradient-steel"
             initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
           >
-            <span className="text-gradient-primary">Proteja</span> a conta antes do próximo trade.
+            <span className="text-gradient-primary">Proteja</span> a conta<br/>antes do próximo trade.
           </motion.h1>
           <motion.p
-            className="mt-4 text-sm md:text-base text-muted-foreground leading-relaxed max-w-xl"
+            className="mt-6 text-base md:text-lg text-muted-foreground leading-relaxed max-w-xl"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
           >
             Painel de risco em tempo real para suas contas de prop firm — limites, drawdown e regras críticas em uma única superfície.

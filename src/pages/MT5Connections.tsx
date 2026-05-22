@@ -199,16 +199,21 @@ export default function MT5Connections() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-lg font-bold text-foreground">Integrações · MT5</h1>
-          <p className="text-xs text-muted-foreground">MetaApi (cloud) para sincronização automática de contas MT5.</p>
+    <div className="p-6 max-w-6xl mx-auto space-y-8">
+      <div className="rounded-2xl hero-surface edge-top p-7 md:p-10 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+        <div className="max-w-2xl">
+          <p className="eyebrow mb-4">Integrações · MetaTrader</p>
+          <h1 className="display-editorial-sm text-gradient-steel">
+            Contas <span className="text-gradient-primary">MT5</span>
+          </h1>
+          <p className="text-sm md:text-base text-muted-foreground mt-4 max-w-md leading-relaxed">
+            MetaApi cloud para sincronização automática de contas MT5 — sem servidor local.
+          </p>
         </div>
-        <Button onClick={() => setShowForm(!showForm)} className="btn-glow">
+        <button onClick={() => setShowForm(!showForm)} className="pill-btn pill-btn-primary">
           <Plus className="w-4 h-4" />
           Conectar nova conta
-        </Button>
+        </button>
       </div>
 
       {showForm && (
