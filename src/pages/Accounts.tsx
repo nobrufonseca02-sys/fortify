@@ -125,24 +125,20 @@ const Accounts = () => {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
-      <div className="rounded-2xl hero-surface edge-top p-7 md:p-9 flex items-end justify-between gap-6">
-        <div>
-          <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-muted-foreground mb-3">Portfolio · Contas</p>
-          <h1 className="text-3xl md:text-4xl font-bold text-gradient-steel tracking-tight">Minhas Contas</h1>
-          <p className="text-sm text-muted-foreground mt-3 max-w-md">Cadastre, monitore e proteja cada conta de prop firm em uma única superfície.</p>
+      <div className="rounded-2xl hero-surface edge-top p-7 md:p-10 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+        <div className="max-w-2xl">
+          <p className="eyebrow mb-4">Portfolio · Contas</p>
+          <h1 className="display-editorial-sm text-gradient-steel">Minhas <span className="text-gradient-primary">Contas</span></h1>
+          <p className="text-sm md:text-base text-muted-foreground mt-4 max-w-md leading-relaxed">
+            Cadastre, monitore e proteja cada conta de prop firm em uma única superfície.
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => navigate('/library')}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
-          >
+        <div className="flex items-center gap-2 flex-wrap">
+          <button onClick={() => navigate('/library')} className="pill-btn">
             <BookOpen className="w-4 h-4" />
             Prop Firm Library
           </button>
-          <button
-            onClick={() => navigate('/accounts/new')}
-            className="btn-glow flex items-center gap-2 px-5 py-2.5 rounded-lg text-primary-foreground text-sm font-semibold whitespace-nowrap"
-          >
+          <button onClick={() => navigate('/accounts/new')} className="pill-btn pill-btn-primary">
             <Plus className="w-4 h-4" />
             Nova Conta
           </button>
