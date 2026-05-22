@@ -286,6 +286,53 @@
     border-radius: 10px;
   }
 
+  /* ===== Editorial typography & components (Wise-inspired) ===== */
+  .display-editorial {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: clamp(2.25rem, 5.5vw, 4.25rem);
+    line-height: 0.96;
+    letter-spacing: -0.035em;
+    text-wrap: balance;
+  }
+  .display-editorial-sm {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: clamp(1.75rem, 3.8vw, 2.75rem);
+    line-height: 1;
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.24em;
+    color: hsl(var(--muted-foreground));
+  }
+  .pill-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px; border-radius: 999px;
+    font-size: 13px; font-weight: 600;
+    transition: all 0.25s ease;
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--surface-2));
+    color: hsl(var(--foreground));
+  }
+  .pill-btn:hover { border-color: hsl(var(--primary) / 0.45); background: hsl(var(--surface-3)); }
+  .pill-btn-primary {
+    background: linear-gradient(180deg, hsl(195 90% 58%), hsl(200 95% 48%));
+    color: hsl(var(--primary-foreground));
+    border-color: hsl(var(--primary) / 0.5);
+    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.4), inset 0 1px 0 hsl(0 0% 100% / 0.18);
+  }
+  .pill-btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.6), 0 8px 24px -8px hsl(var(--primary) / 0.5), inset 0 1px 0 hsl(0 0% 100% / 0.22);
+  }
+
+
   /* ============================================================
      Premium minimal additions (presentation layer only)
      ============================================================ */
