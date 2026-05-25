@@ -1,10 +1,17 @@
 import Fastify from 'fastify';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
+import cors from '@fastify/cors';
 
 dotenv.config();
 
 const fastify = Fastify({ logger: true });
+
+// Register CORS to allow requests from frontend
+fastify.register(cors, {
+  origin: ['http://localhost:8080', 'http://localhost:5173'],
+  credentials: true,
+});
 
 const PORT = Number(process.env.PORT || 3001);
 const SUPABASE_URL = process.env.SUPABASE_URL!;

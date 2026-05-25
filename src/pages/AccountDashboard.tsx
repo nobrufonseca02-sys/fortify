@@ -141,28 +141,37 @@ const AccountDashboard = () => {
 
     setSyncingNow(true);
     try {
-      const { data, error } = await supabase.functions.invoke('metaapi-sync', {
-        body: { connectionId: connection.id },
+      const gatewayUrl = (import.meta as any).env?.VITE_METAAPI_GATEWAY_URL || 'http://localhost:3001';
+      const res = await fetch(`${gatewayUrl}/metaapi/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          connectionId: connection.id,
+          userId: account?.userId || '',
+        }),
       });
-      
-      if (error) {
-        let errorMessage = 'Falha ao sincronizar dados.';
-        if (error.message?.includes('Connection not found')) {
+      const data = await res.json();
+
+      if (!res.ok) {
+        console.error('MetaApi sync failed:', data);
+        let errorMessage = data?.error || data?.details || 'Falha ao sincronizar dados.';
+        if (errorMessage?.includes('Connection not found')) {
           errorMessage = 'Nenhuma conexão MT5 encontrada para esta conta. Configure a conexão primeiro.';
-        } else if (error.message?.includes('Invalid credentials')) {
+        } else if (errorMessage?.includes('Invalid credentials')) {
           errorMessage = 'Credenciais inválidas. Verifique a configuração da conexão.';
-        } else if (error.message?.includes('Sync in progress')) {
+        } else if (errorMessage?.includes('Sync in progress')) {
           errorMessage = 'Sincronização já em andamento. Aguarde alguns minutos.';
-        } else if (error.message?.includes('Rate limit exceeded')) {
+        } else if (errorMessage?.includes('Rate limit exceeded')) {
           errorMessage = 'Limite de requisições excedido. Tente novamente mais tarde.';
         }
-        toast.error(errorMessage || error.message || 'Erro ao sincronizar. Tente novamente.');
+        toast.error(errorMessage || 'Erro ao sincronizar. Tente novamente.');
         return;
       }
 
       toast.success('Sincronização concluída.');
       await reloadAccountData();
     } catch (e: any) {
+      console.error('MetaApi sync error:', e);
       toast.error('Erro ao sincronizar. Tente novamente.');
     } finally {
       setSyncingNow(false);

@@ -9,8 +9,8 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
-<<<<<<< HEAD
 import { useMemo, useState, useEffect } from 'react';
+import { SlideToActivate } from '@/components/SlideToActivate';
 
 const mt5StatusConfig: Record<Mt5ConnectionStatus, { label: string; icon: typeof Link2; className: string }> = {
   disconnected: { label: 'Desconectada', icon: XCircle, className: 'bg-muted text-muted-foreground' },
@@ -19,10 +19,6 @@ const mt5StatusConfig: Record<Mt5ConnectionStatus, { label: string; icon: typeof
   syncing: { label: 'Sincronizando', icon: RefreshCw, className: 'bg-primary/15 text-primary' },
   authError: { label: 'Erro de autenticação', icon: AlertTriangle, className: 'bg-destructive/15 text-destructive' },
 };
-=======
-import { SlideToActivate } from '@/components/SlideToActivate';
-import { toast } from '@/hooks/use-toast';
->>>>>>> 648fb76616b6f979b9a0b457b6baf2fbab43823c
 
 const fmt = (v: number) => `$${Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`;
 const pct = (v: number, t: number) => t > 0 ? Math.min(100, (v / t) * 100) : 0;

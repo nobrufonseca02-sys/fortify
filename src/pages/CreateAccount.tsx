@@ -374,16 +374,27 @@ const CreateAccount = () => {
         // MetaApi provision - always enabled
         if (mt5Login && mt5Server && mt5InvestorPassword) {
           try {
-            const { data: connData, error: connErr } = await supabase.functions.invoke('metaapi-connect', {
-              body: {
+            const gatewayUrl = (import.meta as any).env?.VITE_METAAPI_GATEWAY_URL || 'http://localhost:3001';
+            const gatewayRes = await fetch(`${gatewayUrl}/metaapi/connect`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
                 accountName: insertPayload.nickname,
                 mt5Login: mt5Login.trim(),
                 mt5Server: mt5Server.trim(),
                 brokerName: (mt5Broker.trim() || selectedFirm?.name || 'Custom'),
                 mt5Password: mt5InvestorPassword,
-              },
+                tradingAccountId: res.data.id,
+                userId: user.id,
+              }),
             });
-            if (connErr) throw connErr;
+            const connData = await gatewayRes.json();
+            
+            if (!gatewayRes.ok) {
+              console.error('MetaApi connection failed:', connData);
+              throw new Error(connData?.error || connData?.details || 'Erro ao conectar com MetaApi');
+            }
+            
             // Link new mt5_connections row to this trading account
             const newConnId = (connData as any)?.connection?.id;
             console.log('MetaApi connection created:', newConnId, 'for trading account:', res.data.id);
@@ -398,28 +409,7 @@ const CreateAccount = () => {
             toast({ title: 'Conta + MetaApi conectada', description: 'Provisionamento iniciado. Use "Sync now" em Integrações para puxar os dados.' });
           } catch (e: any) {
             console.error('MetaApi provisioning failed:', e);
-            let errorMessage = e?.message || 'Erro ao provisionar MetaApi';
-            
-            // Try to extract more specific error details if available
-            if (e?.details) {
-              if (typeof e.details === 'string') {
-                errorMessage = `Erro do MetaApi: ${e.details}`;
-              } else if (e.details.message) {
-                errorMessage = `Erro do MetaApi: ${e.details.message}`;
-              } else if (e.details.raw) {
-                // Handle specific non-2xx error case
-                if (e.details.raw.status >= 400 && e.details.raw.status < 500) {
-                  errorMessage = `Erro do MetaApi: HTTP ${e.details.raw.status} - ${e.details.raw.statusText || 'Erro desconhecido'}`;
-                } else {
-                  errorMessage = `Erro do MetaApi: ${e.details.raw?.status || 'desconhecido'}`;
-                }
-              }
-            } else if (e.status && e.status >= 400 && e.status < 500) {
-              // Handle client-side errors (4xx)
-              errorMessage = `Erro do MetaApi: HTTP ${e.status} - ${e.statusText || 'Erro desconhecido'}`;
-            }
-            
-            toast({ title: 'Conta criada, MetaApi falhou', description: errorMessage, variant: 'destructive' });
+            toast({ title: 'Conta criada, MetaApi falhou', description: e?.message || 'Erro ao provisionar MetaApi', variant: 'destructive' });
           }
         } else {
           toast({ title: 'Conta criada', description: 'Configure a conexão MT5 em Integrações quando desejar.' });

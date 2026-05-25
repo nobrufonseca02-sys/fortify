@@ -15,11 +15,17 @@ export function useUserRole() {
     }
 
     const checkRole = async () => {
-      const { data } = await supabase.rpc("has_role", {
-        _user_id: user.id,
-        _role: "admin",
-      });
-      setIsAdmin(!!data);
+      try {
+        const { data } = await supabase.rpc("has_role", {
+          _user_id: user.id,
+          _role: "admin",
+        });
+        setIsAdmin(!!data);
+      } catch (error) {
+        // Safe fallback: if has_role function doesn't exist, assume not admin
+        console.warn('has_role RPC not available, defaulting to non-admin:', error);
+        setIsAdmin(false);
+      }
       setLoading(false);
     };
 

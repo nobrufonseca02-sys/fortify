@@ -93,57 +93,39 @@ export default function MT5Connections() {
     setSaving(true);
 
     if (provider === 'metaapi') {
-      // Use edge function so password never lands in the browser-bound DB row.
-      const { data, error } = await supabase.functions.invoke('metaapi-connect', {
-        body: {
-          accountName,
-          mt5Login,
-          mt5Server,
-          brokerName,
-          mt5Password,
-        },
-      });
-      setSaving(false);
-      if (error) {
-        console.error('MetaApi connection failed - Full error object:', JSON.stringify(error, null, 2));
-        console.error('MetaApi connection failed - Error details field:', error.details);
-        console.error('MetaApi connection failed - Error context:', error.context);
-        
-        let errorMessage = error.message;
-        
-        // Show specific error details from backend - check all possible fields
-        if (error.details) {
-          if (typeof error.details === 'string') {
-            errorMessage = `Erro do MetaApi: ${error.details}`;
-          } else if (error.details.message) {
-            errorMessage = `Erro do MetaApi: ${error.details.message}`;
-          } else if (error.details.error) {
-            errorMessage = `Erro do MetaApi: ${error.details.error}`;
-          } else if (error.context?.json?.error) {
-            errorMessage = `Erro do MetaApi: ${error.context.json.error}`;
-          } else if (error.context?.json?.details?.message) {
-            errorMessage = `Erro do MetaApi: ${error.context.json.details.message}`;
-          } else if (error.details.raw) {
-            // Handle the specific non-2xx error case
-            if (error.details.raw.status >= 400 && error.details.raw.status < 500) {
-              errorMessage = `Erro do MetaApi: HTTP ${error.details.raw.status} - ${error.details.raw.statusText || 'Erro desconhecido'}`;
-            } else {
-              errorMessage = `Erro do MetaApi: ${error.details.raw?.status || 'desconhecido'}`;
-            }
-          } else {
-            errorMessage = `Erro do MetaApi: ${JSON.stringify(error.details)}`;
-          }
-        } else if (error.context?.json?.details?.message) {
-          errorMessage = `Erro do MetaApi: ${error.context.json.details.message}`;
-        } else if (error.status && error.status >= 400 && error.status < 500) {
-          // Handle client-side errors (4xx)
-          errorMessage = `Erro do MetaApi: HTTP ${error.status} - ${error.statusText || 'Erro desconhecido'}`;
+      // Use local backend instead of Supabase Edge Function
+      const gatewayUrl = import.meta.env.VITE_METAAPI_GATEWAY_URL || 'http://localhost:3001';
+      try {
+        const res = await fetch(`${gatewayUrl}/metaapi/connect`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            accountName,
+            mt5Login,
+            mt5Server,
+            brokerName,
+            mt5Password,
+            tradingAccountId: null,
+            userId,
+          }),
+        });
+        const data = await res.json();
+        setSaving(false);
+
+        if (!res.ok) {
+          console.error('MetaApi connection failed:', data);
+          const errorMessage = data?.error || data?.details || 'Erro ao conectar com MetaApi';
+          toast({ title: 'Erro ao registrar conta', description: errorMessage, variant: 'destructive' });
+          return;
         }
-        
-        toast({ title: 'Erro ao registrar conta', description: errorMessage, variant: 'destructive' });
+
+        toast({ title: 'Conta MetaApi registrada', description: 'Conexão criada com sucesso.' });
+      } catch (err: any) {
+        setSaving(false);
+        console.error('MetaApi connection error:', err);
+        toast({ title: 'Erro ao registrar conta', description: err?.message || 'Erro de conexão com o backend', variant: 'destructive' });
         return;
       }
-      toast({ title: 'Conta MetaApi registrada', description: data?.message || 'Conexão criada.' });
     }
 
     setShowForm(false);
@@ -153,17 +135,35 @@ export default function MT5Connections() {
 
   const handleSyncNow = async (r: Mt5ConnectionRow) => {
     setBusyId(r.id);
-    const { data, error } = await supabase.functions.invoke('metaapi-sync', {
-      body: { connectionId: r.id },
-    });
-    setBusyId(null);
-    if (error) {
-      toast({ title: 'Erro ao sincronizar', description: error.message, variant: 'destructive' });
+    const gatewayUrl = import.meta.env.VITE_METAAPI_GATEWAY_URL || 'http://localhost:3001';
+    try {
+      const res = await fetch(`${gatewayUrl}/metaapi/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          connectionId: r.id,
+          userId,
+        }),
+      });
+      const data = await res.json();
+      setBusyId(null);
+
+      if (!res.ok) {
+        console.error('MetaApi sync failed:', data);
+        const errorMessage = data?.error || data?.details || 'Erro ao sincronizar com MetaApi';
+        toast({ title: 'Erro ao sincronizar', description: errorMessage, variant: 'destructive' });
+        fetchRows();
+        return;
+      }
+
+      toast({ title: 'Sincronização concluída', description: 'Dados atualizados com sucesso.' });
       fetchRows();
-      return;
+    } catch (err: any) {
+      setBusyId(null);
+      console.error('MetaApi sync error:', err);
+      toast({ title: 'Erro ao sincronizar', description: err?.message || 'Erro de conexão com o backend', variant: 'destructive' });
+      fetchRows();
     }
-    toast({ title: 'Sincronização concluída', description: data?.message || 'Dados atualizados.' });
-    fetchRows();
   };
 
   const handleDisconnect = async (r: Mt5ConnectionRow) => {
