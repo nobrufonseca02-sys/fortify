@@ -90,6 +90,40 @@ export function useRuleEvaluations(tradingAccountId: string | undefined) {
   });
 }
 
+export function useAllRuleEvaluations() {
+  const { session } = useAuth();
+
+  return useQuery({
+    queryKey: ['rule_evaluations', session?.user?.id, 'all'],
+    queryFn: async () => {
+      const { data, error } = await (supabase
+        .from('rule_evaluations' as any)
+        .select(`
+          *,
+          rule_instances (
+            *,
+            rule_definitions (*)
+          )
+        `)
+        .order('computed_at', { ascending: false }) as any);
+
+      if (error) throw error;
+
+      const deduplicated = new Map<string, RuleEvaluationRow>();
+      (data as RuleEvaluationRow[]).forEach((row) => {
+        const key = `${row.trading_account_id}-${row.rule_instance_id}-${row.reference_date || 'null'}`;
+        if (!deduplicated.has(key)) {
+          deduplicated.set(key, row);
+        }
+      });
+
+      return Array.from(deduplicated.values());
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled: !!session?.user?.id,
+  });
+}
+
 export interface AccountRulesSummary {
   total: number;
   violated: number;
@@ -171,6 +205,7 @@ export function useSyncAndEvaluate() {
       queryClient.invalidateQueries({ queryKey: ['mt5_account_snapshots'] });
       queryClient.invalidateQueries({ queryKey: ['mt5_trades'] });
       queryClient.invalidateQueries({ queryKey: ['mt5_positions'] });
+      queryClient.invalidateQueries({ queryKey: ['account_daily_snapshots'] });
       queryClient.invalidateQueries({ queryKey: ['trading_accounts'] });
     },
   });

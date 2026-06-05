@@ -343,6 +343,8 @@ const CreateAccount = () => {
             account_type: insertPayload.accountType,
             prop_firm: insertPayload.propFirm,
             start_balance: insertPayload.startBalance,
+            rule_set_id: programData?.version?.id || null,
+            program: selectedProgram?.name || null,
             status: insertPayload.status,
           })
           .select('id,user_id,nickname,broker,mt5_server,mt5_login,account_type,prop_firm,start_balance,status,created_at,updated_at')

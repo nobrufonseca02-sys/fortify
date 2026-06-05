@@ -81,7 +81,7 @@ export function useMT5Snapshots(connectionId: string | undefined) {
         .from('mt5_account_snapshots')
         .select('*')
         .eq('connection_id', connectionId!)
-        .order('created_at', { ascending: true })
+        .order('date', { ascending: true })
         .limit(365);
       if (error) throw error;
       return data as MT5Snapshot[];

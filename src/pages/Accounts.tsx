@@ -1,10 +1,13 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { RULE_SET_TEMPLATES, TEMPLATE_RULES, MOCK_EVALUATIONS } from '@/data/mockData';
+import { RULE_SET_TEMPLATES, TEMPLATE_RULES } from '@/data/mockData';
 import { TradingAccount, type Mt5ConnectionStatus } from '@/types/fortify';
 import { Plus, Trash2, Wallet, ChevronRight, Shield, AlertTriangle, XCircle, BookOpen, Link2, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAccountsStore } from '@/hooks/useAccountsStore';
+import { useAllRuleEvaluations } from '@/hooks/useRuleEvaluations';
+import { mapRowsForAccount } from '@/lib/ruleEvaluationView';
+import { supabase } from '@/integrations/supabase/client';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -43,6 +46,7 @@ const StatusBadge = ({ status }: { status: 'SAFE' | 'WARNING' | 'VIOLATED' }) =>
 const Accounts = () => {
   const navigate = useNavigate();
   const { accounts, addAccount, removeAccount } = useAccountsStore();
+  const { data: ruleRows = [] } = useAllRuleEvaluations();
   const { user } = useAuth();
   const [showForm, setShowForm] = useState(false);
 
@@ -63,9 +67,6 @@ const Accounts = () => {
   // Load MT5 connections from Supabase
   useEffect(() => {
     const loadMt5Connections = async () => {
-      const supabase = (window as any)?.supabase;
-      if (!supabase) return;
-
       setLoadingConnections(true);
       try {
         const { data, error } = await supabase
@@ -212,7 +213,7 @@ const Accounts = () => {
       {/* Account Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {accounts.map((account, i) => {
-          const evals = MOCK_EVALUATIONS.filter(e => e.tradingAccountId === account.id);
+          const evals = mapRowsForAccount(ruleRows, account.id);
           const pnl = account.currentBalance - account.startBalance;
           const pnlPct = ((pnl / account.startBalance) * 100).toFixed(2);
           const isPositive = pnl >= 0;

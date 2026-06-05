@@ -1,5 +1,7 @@
-import { MOCK_EVALUATIONS, RULE_SET_TEMPLATES } from '@/data/mockData';
 import { useAccountsStore } from '@/hooks/useAccountsStore';
+import { useAllRuleEvaluations, type RuleEvaluationRow } from '@/hooks/useRuleEvaluations';
+import { getAccountEvaluationSummary } from '@/lib/ruleEvaluationView';
+import { supabase } from '@/integrations/supabase/client';
 import { TradingAccount, type Mt5ConnectionStatus } from '@/types/fortify';
 import {
   Shield, ShieldAlert, ShieldX, Lightbulb,
@@ -24,21 +26,9 @@ const mt5StatusConfig: Record<Mt5ConnectionStatus, { label: string; icon: typeof
 const fmt = (v: number) => `$${Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`;
 const pct = (v: number, t: number) => t > 0 ? Math.min(100, (v / t) * 100) : 0;
 
-function getAccountData(account: TradingAccount) {
-  const evals = MOCK_EVALUATIONS.filter(e => e.tradingAccountId === account.id);
-  const ruleSet = RULE_SET_TEMPLATES.find(r => r.id === account.ruleSetId);
-  const dailyLoss = evals.find(e => e.rule.type === 'MAX_DAILY_LOSS');
-  const totalLoss = evals.find(e => e.rule.type === 'MAX_TOTAL_LOSS') || evals.find(e => e.rule.type === 'TRAILING_MAX_LOSS');
-  const profitTarget = evals.find(e => e.rule.type === 'PROFIT_TARGET');
-  const dailyRemaining = dailyLoss ? Math.max(0, dailyLoss.limitValue - dailyLoss.currentValue) : 0;
-  const maxLossRemaining = totalLoss ? Math.max(0, totalLoss.limitValue - totalLoss.currentValue) : 0;
-  const riskEvals = evals.filter(e => ['MAX_DAILY_LOSS', 'MAX_TOTAL_LOSS', 'TRAILING_MAX_LOSS'].includes(e.rule.type));
-  const closestRule = riskEvals.length > 0 ? riskEvals.reduce((a, b) => a.progressPct > b.progressPct ? a : b) : null;
-  const hasViolation = evals.some(e => e.status === 'VIOLATED');
-  const hasWarning = evals.some(e => e.status === 'WARNING');
-  const status = hasViolation ? 'VIOLATED' as const : hasWarning ? 'WARNING' as const : 'SAFE' as const;
-  const avgRisk = riskEvals.length > 0 ? riskEvals.reduce((s, e) => s + e.progressPct, 0) / riskEvals.length : 0;
-  const healthScore = Math.max(0, Math.round(100 - avgRisk));
+function getAccountData(account: TradingAccount, ruleRows: RuleEvaluationRow[] = []) {
+  const summary = getAccountEvaluationSummary(account, ruleRows || []);
+  const { dailyLoss, totalLoss, profitTarget, dailyRemaining, closestRule, status, healthScore, avgRisk } = summary;
 
   let action = 'Manter risco atual';
   if (avgRisk > 85) action = 'Parar de operar imediatamente';
@@ -56,10 +46,10 @@ function getAccountData(account: TradingAccount) {
   } else if (profitTarget) {
     insight = `Faltam ${fmt(profitTarget.limitValue - Math.max(0, profitTarget.currentValue))} para a meta de lucro`;
   } else {
-    insight = 'Conta dentro dos limites seguros';
+    insight = summary.evals.length > 0 ? 'Conta dentro dos limites seguros' : 'Sincronize a conta MT5 para calcular regras reais';
   }
 
-  return { evals, ruleSet, dailyLoss, totalLoss, profitTarget, dailyRemaining, maxLossRemaining, closestRule, status, healthScore, action, insight, avgRisk };
+  return { ...summary, dailyLoss, totalLoss, profitTarget, dailyRemaining, closestRule, status, healthScore, action, insight, avgRisk };
 }
 
 type AccountStatus = 'SAFE' | 'WARNING' | 'VIOLATED';
@@ -118,13 +108,14 @@ function GlowBar({ value, max, variant = 'risk' }: { value: number; max: number;
 
 function HeroCard() {
   const { accounts } = useAccountsStore();
+  const { data: ruleRows = [] } = useAllRuleEvaluations();
   const { user } = useAuth();
   const totalEquity = accounts.reduce((s, a) => s + a.currentEquity, 0);
   const totalInitial = accounts.reduce((s, a) => s + a.startBalance, 0);
   const pnl = totalEquity - totalInitial;
   const pnlPct = totalInitial > 0 ? ((pnl / totalInitial) * 100).toFixed(1) : '0.0';
   const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 'Trader';
-  const allData = accounts.map(a => getAccountData(a));
+  const allData = accounts.map(a => getAccountData(a, ruleRows));
   const activeAccounts = accounts.length;
   const warnings = allData.filter(d => d.status === 'WARNING').length;
   const violations = allData.filter(d => d.status === 'VIOLATED').length;
@@ -197,9 +188,10 @@ function HeroCard() {
 
 function DecisionCard() {
   const { accounts } = useAccountsStore();
+  const { data: ruleRows = [] } = useAllRuleEvaluations();
   const primary = accounts[0];
   if (!primary) return null;
-  const data = getAccountData(primary);
+  const data = getAccountData(primary, ruleRows);
   const sc = statusConfig[data.status];
   const StatusIcon = sc.icon;
 
@@ -283,7 +275,8 @@ function DecisionCard() {
 
 function AccountCard({ account, index, mt5Connection }: { account: TradingAccount; index: number; mt5Connection?: any }) {
   const navigate = useNavigate();
-  const data = getAccountData(account);
+  const { data: ruleRows = [] } = useAllRuleEvaluations();
+  const data = getAccountData(account, ruleRows);
   const sc = statusConfig[data.status];
   const StatusIcon = sc.icon;
   const brokerName = account.broker || '—';
@@ -402,9 +395,6 @@ const Dashboard = () => {
   // Load MT5 connections from Supabase
   useEffect(() => {
     const loadMt5Connections = async () => {
-      const supabase = (window as any)?.supabase;
-      if (!supabase) return;
-
       setLoadingConnections(true);
       try {
         const { data, error } = await supabase

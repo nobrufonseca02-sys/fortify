@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { MOCK_EVALUATIONS, RULE_SET_TEMPLATES } from '@/data/mockData';
+import { RULE_SET_TEMPLATES } from '@/data/mockData';
 import { AccountSelector } from '@/components/AccountSelector';
 import { TradingAccount, RuleEvaluation, STATUS_CONFIG, RULE_TYPE_DESCRIPTIONS, RuleType } from '@/types/fortify';
 import { useAccountsStore } from '@/hooks/useAccountsStore';
+import { useRuleEvaluations } from '@/hooks/useRuleEvaluations';
+import { mapRuleEvaluationRow } from '@/lib/ruleEvaluationView';
 import { Shield, ShieldAlert, ShieldX, AlertTriangle, CheckCircle2, XCircle, Info, Lightbulb, ChevronRight } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
@@ -405,9 +407,24 @@ function OperationalRuleCard({ evaluation, index }: { evaluation: RuleEvaluation
 
 const AccountRules = () => {
   const { accounts } = useAccountsStore();
-  const [selectedAccount, setSelectedAccount] = useState<TradingAccount>(accounts[0]);
+  const [selectedAccount, setSelectedAccount] = useState<TradingAccount | undefined>(accounts[0]);
+  const { data: ruleRows = [] } = useRuleEvaluations(selectedAccount?.id);
 
-  const evals = MOCK_EVALUATIONS.filter(e => e.tradingAccountId === selectedAccount.id);
+  useEffect(() => {
+    if (!selectedAccount && accounts.length > 0) {
+      setSelectedAccount(accounts[0]);
+      return;
+    }
+    if (selectedAccount && accounts.length > 0 && !accounts.some(account => account.id === selectedAccount.id)) {
+      setSelectedAccount(accounts[0]);
+    }
+  }, [accounts, selectedAccount]);
+
+  if (!selectedAccount) {
+    return <div className="p-6 text-center text-muted-foreground">Nenhuma conta cadastrada.</div>;
+  }
+
+  const evals = ruleRows.map(mapRuleEvaluationRow);
   const ruleSet = RULE_SET_TEMPLATES.find(r => r.id === selectedAccount.ruleSetId);
 
   const criticalEvals = evals.filter(e => CRITICAL_TYPES.includes(e.rule.type));

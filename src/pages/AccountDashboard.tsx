@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAccountsStore } from '@/pages/Accounts';
+import { useAccountsStore } from '@/hooks/useAccountsStore';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, RefreshCw, Link2, XCircle, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
 import type { Mt5ConnectionStatus } from '@/types/fortify';
+import { supabase } from '@/integrations/supabase/client';
 
 const mt5StatusConfig: Record<Mt5ConnectionStatus, { label: string; icon: typeof Link2; className: string }> = {
   disconnected: { label: 'Desconectada', icon: XCircle, className: 'bg-muted text-muted-foreground' },
@@ -30,8 +31,6 @@ const AccountDashboard = () => {
   const [positions, setPositions] = useState<any[]>([]);
   const [trades, setTrades] = useState<any[]>([]);
 
-  const supabase = (window as any)?.supabase;
-
   useEffect(() => {
     if (id) {
       reloadAccountData();
@@ -39,7 +38,7 @@ const AccountDashboard = () => {
   }, [id]);
 
   const reloadAccountData = async () => {
-    if (!supabase || !id) return;
+    if (!id) return;
     
     setLoadingMt5Data(true);
     setMt5DataError(null);
@@ -74,14 +73,14 @@ const AccountDashboard = () => {
             .from('mt5_account_snapshots')
             .select('*')
             .eq('connection_id', connRes.data.id)
-            .order('updated_at', { ascending: false })
+            .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle(),
           supabase
             .from('mt5_positions')
             .select('*')
             .eq('connection_id', connRes.data.id)
-            .order('created_at', { ascending: false }),
+            .order('updated_at', { ascending: false }),
           supabase
             .from('mt5_trades')
             .select('*')
@@ -310,20 +309,22 @@ const AccountDashboard = () => {
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                       <p className="text-sm text-muted-foreground">Balance</p>
-                      <p className="font-semibold">${snapshot.account_balance?.toLocaleString() || '0'}</p>
+                      <p className="font-semibold">${snapshot.balance?.toLocaleString() || '0'}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Equity</p>
                       <p className="font-semibold">${snapshot.equity?.toLocaleString() || '0'}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Free Margin</p>
-                      <p className="font-semibold">${snapshot.free_margin?.toLocaleString() || '0'}</p>
+                      <p className="text-sm text-muted-foreground">Daily PnL</p>
+                      <p className={`font-semibold ${snapshot.daily_pnl >= 0 ? 'text-success' : 'text-destructive'}`}>
+                        ${snapshot.daily_pnl?.toLocaleString() || '0'}
+                      </p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Profit</p>
-                      <p className={`font-semibold ${snapshot.profit >= 0 ? 'text-success' : 'text-destructive'}`}>
-                        ${snapshot.profit?.toLocaleString() || '0'}
+                      <p className="text-sm text-muted-foreground">Floating PnL</p>
+                      <p className={`font-semibold ${snapshot.floating_pnl >= 0 ? 'text-success' : 'text-destructive'}`}>
+                        ${snapshot.floating_pnl?.toLocaleString() || '0'}
                       </p>
                     </div>
                   </div>
@@ -347,14 +348,14 @@ const AccountDashboard = () => {
                       <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/40">
                         <div className="flex items-center gap-4">
                           <span className="font-semibold text-sm">{pos.symbol}</span>
-                          <span className={`text-xs px-2 py-1 rounded ${pos.side === 'buy' ? 'bg-success/15 text-success' : 'bg-destructive/15 text-destructive'}`}>
-                            {pos.side?.toUpperCase()}
+                          <span className="text-xs px-2 py-1 rounded bg-primary/15 text-primary">
+                            OPEN
                           </span>
                         </div>
                         <div className="flex items-center gap-4">
                           <span className="text-sm text-muted-foreground">{pos.volume}</span>
-                          <span className={`font-semibold ${pos.profit >= 0 ? 'text-success' : 'text-destructive'}`}>
-                            ${pos.profit?.toFixed(2) || '0.00'}
+                          <span className={`font-semibold ${pos.floating_pnl >= 0 ? 'text-success' : 'text-destructive'}`}>
+                            ${pos.floating_pnl?.toFixed(2) || '0.00'}
                           </span>
                         </div>
                       </div>

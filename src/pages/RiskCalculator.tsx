@@ -1,9 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Calculator, Shield, AlertTriangle, TrendingDown, Lightbulb } from 'lucide-react';
 import { AccountSelector } from '@/components/AccountSelector';
 import { useAccountsStore } from '@/hooks/useAccountsStore';
-import { MOCK_EVALUATIONS } from '@/data/mockData';
+import { useRuleEvaluations } from '@/hooks/useRuleEvaluations';
 import { TradingAccount } from '@/types/fortify';
 import { Input } from '@/components/ui/input';
 
@@ -11,18 +11,31 @@ const fmt = (v: number) => `$${Math.abs(v).toLocaleString('pt-BR', { minimumFrac
 
 const RiskCalculator = () => {
   const { accounts } = useAccountsStore();
-  const [selectedAccount, setSelectedAccount] = useState<TradingAccount>(accounts[0]);
+  const [selectedAccount, setSelectedAccount] = useState<TradingAccount | undefined>(accounts[0]);
+  const { data: ruleEvaluations = [] } = useRuleEvaluations(selectedAccount?.id);
 
-  const evals = MOCK_EVALUATIONS.filter(e => e.tradingAccountId === selectedAccount?.id);
-  const dailyLossEval = evals.find(e => e.rule.type === 'MAX_DAILY_LOSS');
-  const maxLossEval = evals.find(e => e.rule.type === 'MAX_TOTAL_LOSS') || evals.find(e => e.rule.type === 'TRAILING_MAX_LOSS');
+  useEffect(() => {
+    if (!selectedAccount && accounts.length > 0) {
+      setSelectedAccount(accounts[0]);
+      return;
+    }
+    if (selectedAccount && accounts.length > 0 && !accounts.some(account => account.id === selectedAccount.id)) {
+      setSelectedAccount(accounts[0]);
+    }
+  }, [accounts, selectedAccount]);
 
-  const dailyLossLimit = dailyLossEval?.limitValue ?? 0;
-  const dailyLossUsed = dailyLossEval?.currentValue ?? 0;
+  const findEvaluation = (keys: string[]) =>
+    ruleEvaluations.find(evaluation => keys.includes(evaluation.rule_instances?.rule_definitions?.key));
+
+  const dailyLossEval = findEvaluation(['max_daily_loss']);
+  const maxLossEval = findEvaluation(['max_total_loss', 'trailing_drawdown']);
+
+  const dailyLossLimit = dailyLossEval?.limit_value ?? 0;
+  const dailyLossUsed = dailyLossEval?.current_value ?? 0;
   const dailyRemaining = Math.max(0, dailyLossLimit - dailyLossUsed);
 
-  const maxLossLimit = maxLossEval?.limitValue ?? 0;
-  const maxLossUsed = maxLossEval?.currentValue ?? 0;
+  const maxLossLimit = maxLossEval?.limit_value ?? 0;
+  const maxLossUsed = maxLossEval?.current_value ?? 0;
   const maxRemaining = Math.max(0, maxLossLimit - maxLossUsed);
 
   const equity = selectedAccount?.currentEquity ?? 0;
@@ -42,6 +55,7 @@ const RiskCalculator = () => {
   const ptVal = parseFloat(pointValue) || 0;
 
   const calc = useMemo(() => {
+    if (!dailyLossEval && !maxLossEval) return null;
     if (!riskValue || !stopVal || !ptVal) return null;
     const maxLot = riskValue / (stopVal * ptVal);
     const stopsInDay = dailyRemaining > 0 ? Math.floor(dailyRemaining / riskValue) : 0;
@@ -54,7 +68,7 @@ const RiskCalculator = () => {
     else if (riskPctOfDaily > 30 || stopsInDay <= 2) severity = 'warning';
 
     return { maxLot, stopsInDay, stopsInAccount, riskPctOfDaily, riskPctOfMax, severity };
-  }, [riskValue, stopVal, ptVal, dailyRemaining, maxRemaining]);
+  }, [dailyLossEval, maxLossEval, riskValue, stopVal, ptVal, dailyRemaining, maxRemaining]);
 
   const getMessage = () => {
     if (!calc) return null;

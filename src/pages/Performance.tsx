@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
-import { MOCK_EVALUATIONS } from '@/data/mockData';
+import { useEffect, useState, useMemo } from 'react';
 import { AccountSelector } from '@/components/AccountSelector';
 import { TradingAccount } from '@/types/fortify';
 import { useAccountsStore } from '@/hooks/useAccountsStore';
+import { useRuleEvaluations } from '@/hooks/useRuleEvaluations';
+import { mapRuleEvaluationRow } from '@/lib/ruleEvaluationView';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -27,18 +28,13 @@ interface DayData {
   dailyPnl: number;
 }
 
-function generateMockData(account: TradingAccount): DayData[] {
+function generateMockData(account: TradingAccount, maxLossLimit: number): DayData[] {
   const days = 25;
   const data: DayData[] = [];
   let balance = account.startBalance;
   let equity = account.startBalance;
   let highWater = account.startBalance;
 
-  const evals = MOCK_EVALUATIONS.filter(e => e.tradingAccountId === account.id);
-  const maxLossEval = evals.find(e =>
-    e.rule.type === 'MAX_TOTAL_LOSS' || e.rule.type === 'TRAILING_MAX_LOSS'
-  );
-  const maxLossLimit = maxLossEval ? maxLossEval.limitValue : account.startBalance * 0.1;
   const drawdownFloor = account.startBalance - maxLossLimit;
 
   const now = new Date();
@@ -163,10 +159,32 @@ const tooltipStyle = {
 /* ── main page ───────────────────────────────────────────── */
 const Performance = () => {
   const { accounts } = useAccountsStore();
-  const [selectedAccount, setSelectedAccount] = useState<TradingAccount>(accounts[0]);
-  const data = useMemo(() => generateMockData(selectedAccount), [selectedAccount]);
+  const [selectedAccount, setSelectedAccount] = useState<TradingAccount | undefined>(accounts[0]);
+  const { data: ruleRows = [] } = useRuleEvaluations(selectedAccount?.id);
+
+  useEffect(() => {
+    if (!selectedAccount && accounts.length > 0) {
+      setSelectedAccount(accounts[0]);
+      return;
+    }
+    if (selectedAccount && accounts.length > 0 && !accounts.some(account => account.id === selectedAccount.id)) {
+      setSelectedAccount(accounts[0]);
+    }
+  }, [accounts, selectedAccount]);
 
   const account = selectedAccount;
+  const evals = ruleRows.map(mapRuleEvaluationRow);
+  const maxLossEval = evals.find(e =>
+    e.rule.type === 'MAX_TOTAL_LOSS' || e.rule.type === 'TRAILING_MAX_LOSS'
+  );
+  const dailyLossEval = evals.find(e => e.rule.type === 'MAX_DAILY_LOSS');
+  const maxLossLimit = maxLossEval?.limitValue ?? (account ? account.startBalance * 0.1 : 0);
+  const dailyLossLimit = dailyLossEval?.limitValue ?? (account ? account.startBalance * 0.05 : 0);
+  const data = useMemo(() => account ? generateMockData(account, maxLossLimit) : [], [account, maxLossLimit]);
+
+  if (!account) {
+    return <div className="p-6 text-center text-muted-foreground">Nenhuma conta cadastrada.</div>;
+  }
   const totalPnl = account.currentEquity - account.startBalance;
   const returnPct = (totalPnl / account.startBalance) * 100;
   const maxDrawdownValue = Math.max(...data.map(d => d.drawdown));
@@ -174,14 +192,6 @@ const Performance = () => {
   const tradingDays = data.filter(d => d.dailyPnl !== 0).length;
   const totalTrades = tradingDays * Math.floor(Math.random() * 3 + 2); // mock
 
-  // Drawdown limits from evaluations
-  const evals = MOCK_EVALUATIONS.filter(e => e.tradingAccountId === account.id);
-  const maxLossEval = evals.find(e =>
-    e.rule.type === 'MAX_TOTAL_LOSS' || e.rule.type === 'TRAILING_MAX_LOSS'
-  );
-  const dailyLossEval = evals.find(e => e.rule.type === 'MAX_DAILY_LOSS');
-  const maxLossLimit = maxLossEval?.limitValue ?? account.startBalance * 0.1;
-  const dailyLossLimit = dailyLossEval?.limitValue ?? account.startBalance * 0.05;
   const drawdownRemaining = maxLossLimit - currentDrawdown;
 
   // Recovery
