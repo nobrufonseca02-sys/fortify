@@ -32,6 +32,19 @@ function asErrorMessage(err: unknown) {
   return 'Erro ao carregar dados.';
 }
 
+function numeric(value: unknown, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function snapshotTime(snapshot: any) {
+  return snapshot?.snapshot_time || snapshot?.created_at || snapshot?.updated_at || snapshot?.date || new Date().toISOString();
+}
+
+function tradeTime(trade: any) {
+  return trade?.created_at || trade?.open_time || trade?.close_time || new Date().toISOString();
+}
+
 const MT5Dashboard = () => {
   const { connectionId } = useParams<{ connectionId: string }>();
   const navigate = useNavigate();
@@ -56,14 +69,14 @@ const MT5Dashboard = () => {
 
   const latestSnap = snapshots && snapshots.length > 0 ? snapshots[snapshots.length - 1] : null;
 
-  const balance = latestSnap?.balance ?? 0;
-  const equity = latestSnap?.equity ?? 0;
-  const dailyPnl = latestSnap?.daily_pnl ?? 0;
-  const floatingPnl = latestSnap?.floating_pnl ?? 0;
-  const drawdown = latestSnap?.drawdown ?? 0;
-  const maxBalance = latestSnap?.max_balance ?? balance;
+  const balance = numeric((latestSnap as any)?.account_balance ?? (latestSnap as any)?.balance);
+  const equity = numeric((latestSnap as any)?.equity);
+  const dailyPnl = numeric((latestSnap as any)?.profit ?? (latestSnap as any)?.daily_pnl);
+  const floatingPnl = numeric((latestSnap as any)?.profit ?? (latestSnap as any)?.floating_pnl);
+  const drawdown = numeric((latestSnap as any)?.drawdown);
+  const maxBalance = numeric((latestSnap as any)?.max_balance, balance);
 
-  const totalPnl = snapshots ? snapshots.reduce((sum, s) => sum + (s.daily_pnl ?? 0), 0) : 0;
+  const totalPnl = snapshots ? snapshots.reduce((sum, s: any) => sum + numeric(s.profit ?? s.daily_pnl), 0) : 0;
   const tradingDays = snapshots?.length ?? 0;
   const totalTrades = trades?.length ?? 0;
   const openPositionCount = positions?.length ?? 0;
@@ -76,14 +89,14 @@ const MT5Dashboard = () => {
   const profitFactor = totalLoss > 0 ? totalProfit / totalLoss : totalProfit > 0 ? Infinity : 0;
 
   const equityCurve = snapshots?.map(s => ({
-    date: new Date(s.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-    equity: Number(s.equity),
-    balance: Number(s.balance),
+    date: new Date(snapshotTime(s)).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+    equity: numeric((s as any).equity),
+    balance: numeric((s as any).account_balance ?? (s as any).balance),
   })) ?? [];
 
   const drawdownCurve = snapshots?.map(s => ({
-    date: new Date(s.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-    drawdown: -Number(s.drawdown),
+    date: new Date(snapshotTime(s)).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+    drawdown: -numeric((s as any).drawdown),
   })) ?? [];
 
   const timelineItems = useMemo(() => {
@@ -95,7 +108,7 @@ const MT5Dashboard = () => {
 
     const status = (connection as any).connection_status || (connection as any).connectionStatus;
     const lastSyncAt = (connection as any).last_sync_at || (connection as any).lastSyncTime;
-    const err = (connection as any).latest_sync_error || (connection as any).latestSyncError;
+    const err = (connection as any).sync_error || (connection as any).latest_sync_error || (connection as any).latestSyncError;
 
     if (status === 'connected') items.push({ label: 'Sessão autenticada', at: (connection as any).updated_at || (connection as any).updatedAt || null, tone: 'good' });
     if (status === 'connecting' || status === 'syncing') items.push({ label: status === 'syncing' ? 'Sincronização em andamento' : 'Conectando ao servidor', at: null, tone: 'info' });
@@ -110,7 +123,7 @@ const MT5Dashboard = () => {
 
   const statusUi = useMemo(() => {
     const status = (connection as any)?.connection_status || (connection as any)?.connectionStatus;
-    const latestErr = (connection as any)?.latest_sync_error || (connection as any)?.latestSyncError;
+    const latestErr = (connection as any)?.sync_error || (connection as any)?.latest_sync_error || (connection as any)?.latestSyncError;
 
     if (!connection) {
       return { label: 'Indisponível', className: 'text-muted-foreground bg-muted', icon: WifiOff, pulse: false, sub: 'Sem contexto de conexão.' };
@@ -454,13 +467,13 @@ const MT5Dashboard = () => {
                           <tr key={pos.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                             <td className="py-2 px-2 font-mono">{pos.ticket}</td>
                             <td className="py-2 px-2 font-semibold text-foreground">{pos.symbol}</td>
-                            <td className="py-2 px-2 text-right font-mono">{Number(pos.volume).toFixed(2)}</td>
-                            <td className="py-2 px-2 text-right font-mono">{Number(pos.open_price).toFixed(5)}</td>
-                            <td className="py-2 px-2 text-right font-mono">{Number(pos.current_price).toFixed(5)}</td>
-                            <td className="py-2 px-2 text-right font-mono text-muted-foreground">{pos.stop_loss ? Number(pos.stop_loss).toFixed(5) : '—'}</td>
-                            <td className="py-2 px-2 text-right font-mono text-muted-foreground">{pos.take_profit ? Number(pos.take_profit).toFixed(5) : '—'}</td>
-                            <td className={`py-2 px-2 text-right font-mono font-semibold ${Number(pos.floating_pnl) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                              {fmt(Number(pos.floating_pnl))}
+                            <td className="py-2 px-2 text-right font-mono">{numeric(pos.volume).toFixed(2)}</td>
+                            <td className="py-2 px-2 text-right font-mono">{numeric((pos as any).price ?? (pos as any).open_price).toFixed(5)}</td>
+                            <td className="py-2 px-2 text-right font-mono">{numeric((pos as any).current_price ?? (pos as any).price).toFixed(5)}</td>
+                            <td className="py-2 px-2 text-right font-mono text-muted-foreground">{(pos as any).stop_loss ? numeric((pos as any).stop_loss).toFixed(5) : '—'}</td>
+                            <td className="py-2 px-2 text-right font-mono text-muted-foreground">{(pos as any).take_profit ? numeric((pos as any).take_profit).toFixed(5) : '—'}</td>
+                            <td className={`py-2 px-2 text-right font-mono font-semibold ${numeric((pos as any).profit ?? (pos as any).floating_pnl) >= 0 ? 'text-success' : 'text-destructive'}`}>
+                              {fmt(numeric((pos as any).profit ?? (pos as any).floating_pnl))}
                             </td>
                           </tr>
                         ))}
@@ -507,16 +520,16 @@ const MT5Dashboard = () => {
                                 {trade.side}
                               </span>
                             </td>
-                            <td className="py-2 px-2 text-right font-mono">{Number(trade.volume).toFixed(2)}</td>
-                            <td className="py-2 px-2 text-right font-mono">{Number(trade.open_price).toFixed(5)}</td>
-                            <td className="py-2 px-2 text-right font-mono">{trade.close_price ? Number(trade.close_price).toFixed(5) : '—'}</td>
-                            <td className={`py-2 px-2 text-right font-mono font-semibold ${Number(trade.profit) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                              {fmt(Number(trade.profit))}
+                            <td className="py-2 px-2 text-right font-mono">{numeric(trade.volume).toFixed(2)}</td>
+                            <td className="py-2 px-2 text-right font-mono">{numeric((trade as any).price ?? (trade as any).open_price).toFixed(5)}</td>
+                            <td className="py-2 px-2 text-right font-mono">{(trade as any).close_price ? numeric((trade as any).close_price).toFixed(5) : '—'}</td>
+                            <td className={`py-2 px-2 text-right font-mono font-semibold ${numeric(trade.profit) >= 0 ? 'text-success' : 'text-destructive'}`}>
+                              {fmt(numeric(trade.profit))}
                             </td>
-                            <td className="py-2 px-2 text-right font-mono text-muted-foreground">{fmt(Number(trade.swap))}</td>
-                            <td className="py-2 px-2 text-right font-mono text-muted-foreground">{fmt(Number(trade.commission))}</td>
+                            <td className="py-2 px-2 text-right font-mono text-muted-foreground">{fmt(numeric(trade.swap))}</td>
+                            <td className="py-2 px-2 text-right font-mono text-muted-foreground">{fmt(numeric(trade.commission))}</td>
                             <td className="py-2 px-2 text-muted-foreground">
-                              {new Date(trade.open_time).toLocaleDateString('pt-BR')}
+                              {new Date(tradeTime(trade)).toLocaleDateString('pt-BR')}
                             </td>
                           </tr>
                         ))}

@@ -21,7 +21,7 @@ export type RuleStatus = 'APPROVING' | 'WARNING' | 'VIOLATED' | 'NOT_MET';
 export type RuleSetOrigin = 'template' | 'custom';
 export type AccountStatus = 'active' | 'violated' | 'passed';
 
-export type Mt5ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'syncing' | 'authError';
+export type Mt5ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'syncing' | 'auth_error';
 
 export interface TradingAccount {
   id: string;

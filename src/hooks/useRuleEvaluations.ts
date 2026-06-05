@@ -148,17 +148,15 @@ export function useSyncAndEvaluate() {
 
   return useMutation({
     mutationFn: async (connectionId: string) => {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sync-and-evaluate`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${session?.access_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ connectionId }),
-        },
-      );
+      const userId = session?.user?.id;
+      if (!userId) throw new Error('User session is required');
+
+      const gatewayUrl = import.meta.env.VITE_METAAPI_GATEWAY_URL || 'http://localhost:3001';
+      const response = await fetch(`${gatewayUrl}/metaapi/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ connectionId, userId }),
+      });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));

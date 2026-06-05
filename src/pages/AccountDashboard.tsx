@@ -12,7 +12,7 @@ const mt5StatusConfig: Record<Mt5ConnectionStatus, { label: string; icon: typeof
   connecting: { label: 'Conectando', icon: RefreshCw, className: 'bg-warning/15 text-warning' },
   connected: { label: 'Conectada', icon: Link2, className: 'bg-success/15 text-success' },
   syncing: { label: 'Sincronizando', icon: RefreshCw, className: 'bg-primary/15 text-primary' },
-  authError: { label: 'Erro de autenticação', icon: AlertTriangle, className: 'bg-destructive/15 text-destructive' },
+  auth_error: { label: 'Erro de autenticação', icon: AlertTriangle, className: 'bg-destructive/15 text-destructive' },
 };
 
 const AccountDashboard = () => {
@@ -147,7 +147,7 @@ const AccountDashboard = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           connectionId: connection.id,
-          userId: account?.userId || '',
+          userId: account?.userId || connection?.user_id || '',
         }),
       });
       const data = await res.json();

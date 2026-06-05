@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAccountsStore } from '@/pages/Accounts';
+import { useQueryClient } from '@tanstack/react-query';
+import { useAccountsStore } from '@/hooks/useAccountsStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, ArrowRight, Check, Shield, AlertTriangle, Zap, TrendingUp,
@@ -119,6 +120,7 @@ const StepIndicator = ({ current, total }: { current: number; total: number }) =
 const CreateAccount = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const { addAccount } = useAccountsStore();
   const { user } = useAuth();
   const [step, setStep] = useState(0);
@@ -348,28 +350,7 @@ const CreateAccount = () => {
 
         if (res.error) throw res.error;
 
-        addAccount({
-          id: String(res.data.id),
-          userId: String(res.data.user_id ?? user.id),
-          nickname: String(res.data.nickname),
-          broker: String(res.data.broker),
-          baseCurrency: currency,
-          startBalance: Number(res.data.start_balance ?? 0),
-          currentBalance: Number(res.data.start_balance ?? 0),
-          currentEquity: Number(res.data.start_balance ?? 0),
-          highestEquityAllTime: Number(res.data.start_balance ?? 0),
-          status: 'active' as const,
-          ruleSetId: selectedFirmId || 'custom',
-          createdAt: String((res.data.created_at ?? new Date().toISOString()).split('T')[0]),
-
-          mt5Login: res.data.mt5_login ?? undefined,
-          mt5Server: res.data.mt5_server ?? undefined,
-          accountType: res.data.account_type ?? undefined,
-          propFirm: res.data.prop_firm ?? undefined,
-          mt5ConnectionStatus: initialConnectionStatus,
-          mt5LastSyncAt: undefined,
-          mt5SyncError: undefined,
-        } as any);
+        queryClient.invalidateQueries({ queryKey: ['trading_accounts'] });
 
         // MetaApi provision - always enabled
         if (mt5Login && mt5Server && mt5InvestorPassword) {
@@ -395,17 +376,8 @@ const CreateAccount = () => {
               throw new Error(connData?.error || connData?.details || 'Erro ao conectar com MetaApi');
             }
             
-            // Link new mt5_connections row to this trading account
             const newConnId = (connData as any)?.connection?.id;
             console.log('MetaApi connection created:', newConnId, 'for trading account:', res.data.id);
-            if (newConnId) {
-              const { error: linkError } = await supabase.from('mt5_connections').update({ trading_account_id: res.data.id }).eq('id', newConnId);
-              if (linkError) {
-                console.error('Failed to link MT5 connection:', linkError);
-                throw new Error(`Failed to link MT5 connection: ${linkError.message}`);
-              }
-              console.log('MT5 connection linked successfully');
-            }
             toast({ title: 'Conta + MetaApi conectada', description: 'Provisionamento iniciado. Use "Sync now" em Integrações para puxar os dados.' });
           } catch (e: any) {
             console.error('MetaApi provisioning failed:', e);

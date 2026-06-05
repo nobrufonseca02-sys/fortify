@@ -2,21 +2,3 @@ project_id = "czwwhnxncilefptyctdv"
 
 [functions.extract-rules]
 verify_jwt = false
-
-[functions.create-mt5-connection]
-verify_jwt = true
-
-[functions.request-mt5-sync]
-verify_jwt = true
-
-[functions.sync-mt5-webhook]
-verify_jwt = true
-
-[functions.get-mt5-dashboard]
-verify_jwt = true
-
-[functions.metaapi-connect]
-verify_jwt = true
-
-[functions.metaapi-sync]
-verify_jwt = true

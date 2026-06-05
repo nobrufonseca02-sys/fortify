@@ -88,7 +88,7 @@ export default function MT5Connections() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userId) return;
-    if (!accountName || !mt5Login || !mt5Server || !brokerName) return;
+    if (!accountName || !mt5Login || !mt5Server || !brokerName || !mt5Password) return;
 
     setSaving(true);
 
@@ -277,6 +277,7 @@ export default function MT5Connections() {
                   onChange={e => setMt5Password(e.target.value)}
                   placeholder="Digite a senha MT5"
                   autoComplete="off"
+                  required
                 />
                 <p className="text-[11px] text-muted-foreground">
                   Use a senha de acesso da conta MT5 fornecida pela mesa para sincronização via MetaApi.
