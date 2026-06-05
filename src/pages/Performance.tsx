@@ -4,6 +4,8 @@ import { TradingAccount } from '@/types/fortify';
 import { useAccountsStore } from '@/hooks/useAccountsStore';
 import { useRuleEvaluations } from '@/hooks/useRuleEvaluations';
 import { mapRuleEvaluationRow } from '@/lib/ruleEvaluationView';
+import { supabase } from '@/integrations/supabase/client';
+import type { Tables } from '@/integrations/supabase/types';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -26,6 +28,28 @@ interface DayData {
   drawdownLimit: number;
   drawdown: number;
   dailyPnl: number;
+}
+
+type MT5Snapshot = Tables<'mt5_account_snapshots'>;
+type MT5Trade = Pick<Tables<'mt5_trades'>, 'id'>;
+
+function formatDayLabel(dateStr: string): string {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const dt = new Date(year, (month || 1) - 1, day || 1);
+  return `${dt.getDate()}/${dt.getMonth() + 1}`;
+}
+
+function mapSnapshotData(account: TradingAccount, snapshots: MT5Snapshot[], maxLossLimit: number): DayData[] {
+  const drawdownFloor = account.startBalance - maxLossLimit;
+  return snapshots.map(snapshot => ({
+    day: formatDayLabel(snapshot.date),
+    date: snapshot.date,
+    balance: Number(snapshot.balance ?? 0),
+    equity: Number(snapshot.equity ?? 0),
+    drawdownLimit: Math.round(drawdownFloor),
+    drawdown: Number(snapshot.drawdown ?? 0),
+    dailyPnl: Number(snapshot.daily_pnl ?? 0),
+  }));
 }
 
 function generateMockData(account: TradingAccount, maxLossLimit: number): DayData[] {
@@ -160,6 +184,8 @@ const tooltipStyle = {
 const Performance = () => {
   const { accounts } = useAccountsStore();
   const [selectedAccount, setSelectedAccount] = useState<TradingAccount | undefined>(accounts[0]);
+  const [snapshots, setSnapshots] = useState<MT5Snapshot[]>([]);
+  const [trades, setTrades] = useState<MT5Trade[]>([]);
   const { data: ruleRows = [] } = useRuleEvaluations(selectedAccount?.id);
 
   useEffect(() => {
@@ -172,6 +198,59 @@ const Performance = () => {
     }
   }, [accounts, selectedAccount]);
 
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadPerformanceData() {
+      if (!selectedAccount?.id) {
+        if (isActive) {
+          setSnapshots([]);
+          setTrades([]);
+        }
+        return;
+      }
+
+      const { data: connection, error: connectionError } = await supabase
+        .from('mt5_connections')
+        .select('id')
+        .eq('trading_account_id', selectedAccount.id)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!isActive) return;
+
+      if (connectionError || !connection?.id) {
+        setSnapshots([]);
+        setTrades([]);
+        return;
+      }
+
+      const [snapshotsResult, tradesResult] = await Promise.all([
+        supabase
+          .from('mt5_account_snapshots')
+          .select('*')
+          .eq('connection_id', connection.id)
+          .order('date', { ascending: true }),
+        supabase
+          .from('mt5_trades')
+          .select('id')
+          .eq('connection_id', connection.id),
+      ]);
+
+      if (!isActive) return;
+
+      setSnapshots(snapshotsResult.error ? [] : snapshotsResult.data ?? []);
+      setTrades(tradesResult.error ? [] : tradesResult.data ?? []);
+    }
+
+    loadPerformanceData();
+
+    return () => {
+      isActive = false;
+    };
+  }, [selectedAccount?.id]);
+
   const account = selectedAccount;
   const evals = ruleRows.map(mapRuleEvaluationRow);
   const maxLossEval = evals.find(e =>
@@ -180,7 +259,12 @@ const Performance = () => {
   const dailyLossEval = evals.find(e => e.rule.type === 'MAX_DAILY_LOSS');
   const maxLossLimit = maxLossEval?.limitValue ?? (account ? account.startBalance * 0.1 : 0);
   const dailyLossLimit = dailyLossEval?.limitValue ?? (account ? account.startBalance * 0.05 : 0);
-  const data = useMemo(() => account ? generateMockData(account, maxLossLimit) : [], [account, maxLossLimit]);
+  const data = useMemo(() => {
+    if (!account) return [];
+    return snapshots.length > 0
+      ? mapSnapshotData(account, snapshots, maxLossLimit)
+      : generateMockData(account, maxLossLimit);
+  }, [account, maxLossLimit, snapshots]);
 
   if (!account) {
     return <div className="p-6 text-center text-muted-foreground">Nenhuma conta cadastrada.</div>;
@@ -190,7 +274,7 @@ const Performance = () => {
   const maxDrawdownValue = Math.max(...data.map(d => d.drawdown));
   const currentDrawdown = data[data.length - 1]?.drawdown ?? 0;
   const tradingDays = data.filter(d => d.dailyPnl !== 0).length;
-  const totalTrades = tradingDays * Math.floor(Math.random() * 3 + 2); // mock
+  const totalTrades = trades.length;
 
   const drawdownRemaining = maxLossLimit - currentDrawdown;
 
