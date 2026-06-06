@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, RefreshCw, Link2, XCircle, AlertTriangle, TrendingUp, TrendingDown, Shield } from 'lucide-react';
-import type { Mt5ConnectionStatus } from '@/types/fortify';
+import type { Mt5ConnectionStatus, TradingAccount } from '@/types/fortify';
 import { supabase } from '@/integrations/supabase/client';
 
 const mt5StatusConfig: Record<Mt5ConnectionStatus, { label: string; icon: typeof Link2; className: string }> = {
@@ -19,9 +19,10 @@ const mt5StatusConfig: Record<Mt5ConnectionStatus, { label: string; icon: typeof
 const AccountDashboard = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { accounts, addAccount } = useAccountsStore();
+  const { accounts } = useAccountsStore();
+  const [fallbackAccount, setFallbackAccount] = useState<TradingAccount | null>(null);
 
-  const account = accounts.find(a => a.id === id);
+  const account = accounts.find(a => a.id === id) || fallbackAccount;
 
   const [loadingMt5Data, setLoadingMt5Data] = useState(false);
   const [mt5DataError, setMt5DataError] = useState<string | null>(null);
@@ -47,7 +48,7 @@ const AccountDashboard = () => {
       const [accRes, connRes] = await Promise.all([
         supabase
           .from('trading_accounts')
-          .select('id,user_id,nickname,broker,start_balance,current_balance,current_equity,highest_equity,status,created_at,updated_at')
+          .select('*')
           .eq('id', id)
           .maybeSingle(),
         supabase
@@ -62,8 +63,6 @@ const AccountDashboard = () => {
       if (accRes.error) throw accRes.error;
       if (connRes.error) throw connRes.error;
 
-      console.log('AccountDashboard - Querying MT5 connections for trading_account_id:', id);
-      console.log('AccountDashboard - Found connection:', connRes.data);
       setConnection(connRes.data ?? null);
 
       // Load synced MT5 data if connection exists
@@ -103,26 +102,31 @@ const AccountDashboard = () => {
         setTrades([]);
       }
 
-      if (accRes.data && !account) {
+      if (accRes.data) {
         const r = accRes.data as any;
         const startBalance = Number(r.start_balance ?? 0);
         const currentBalance = Number(r.current_balance ?? startBalance);
         const currentEquity = Number(r.current_equity ?? currentBalance);
         const highestEquityAllTime = Number(r.highest_equity ?? currentEquity);
-        addAccount({
+        setFallbackAccount({
           id: String(r.id),
           userId: String(r.user_id ?? ''),
           nickname: String(r.nickname ?? ''),
           broker: String(r.broker ?? ''),
-          baseCurrency: 'USD',
+          baseCurrency: String(r.base_currency ?? 'USD'),
           startBalance,
           currentBalance,
           currentEquity,
           highestEquityAllTime,
           status: (r.status as any) ?? 'active',
-          ruleSetId: 'custom',
+          ruleSetId: String(r.rule_set_id ?? ''),
           createdAt: String((r.created_at ?? new Date().toISOString()).split('T')[0]),
-        } as any);
+          mt5Server: r.mt5_server || undefined,
+          mt5Login: r.mt5_login || undefined,
+          mt5ConnectionStatus: r.mt5_connection_status || undefined,
+          mt5LastSyncAt: r.mt5_last_sync_at || undefined,
+          mt5SyncError: r.mt5_sync_error || undefined,
+        });
       }
     } catch (e: any) {
       const msg = e?.message || 'Falha ao carregar dados do MT5 via Supabase.';

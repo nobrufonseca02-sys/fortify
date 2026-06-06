@@ -516,55 +516,6 @@ async function listProvisioningAccounts(url: string) {
   return { res, text, body, accounts };
 }
 
-async function getDefaultBrokerRuleSetVersionId(): Promise<string | null> {
-  const { data: firm, error: firmError } = await supabase
-    .from('prop_firms')
-    .select('id')
-    .eq('slug', 'generic-mt5-broker')
-    .maybeSingle();
-
-  if (firmError || !firm?.id) {
-    fastify.log.warn({
-      event: 'default_broker_rule_set_firm_missing',
-      error: firmError?.message,
-    });
-    return null;
-  }
-
-  const { data: program, error: programError } = await supabase
-    .from('programs')
-    .select('id')
-    .eq('prop_firm_id', firm.id)
-    .eq('name', 'Broker-only / Custom $10k')
-    .maybeSingle();
-
-  if (programError || !program?.id) {
-    fastify.log.warn({
-      event: 'default_broker_rule_set_program_missing',
-      error: programError?.message,
-    });
-    return null;
-  }
-
-  const { data: version, error: versionError } = await supabase
-    .from('rule_set_versions')
-    .select('id')
-    .eq('program_id', program.id)
-    .eq('status', 'active')
-    .eq('name', 'Generic Broker-only $10k Risk Template')
-    .maybeSingle();
-
-  if (versionError || !version?.id) {
-    fastify.log.warn({
-      event: 'default_broker_rule_set_version_missing',
-      error: versionError?.message,
-    });
-    return null;
-  }
-
-  return version.id;
-}
-
 function findMatchingProvisioningAccount(
   accounts: MetaApiProvisioningAccount[],
   mt5Login: string,
@@ -1111,8 +1062,8 @@ async function loadRuleInstances(tradingAccount: TradingAccount): Promise<{ rule
       rules: customRules,
       warning:
         customRules.length > 0
-          ? 'Trading account has custom account rules but no library rule set version'
-          : 'Trading account has no resolvable active rule set version',
+          ? 'Trading account has custom rules but no library rule set version. Confirm whether this account should use Custom-only monitoring.'
+          : 'Trading account has no active rule set. Select a prop firm/program or explicitly choose Generic Broker-only before relying on evaluations.',
     };
   }
 
@@ -1571,13 +1522,13 @@ fastify.post('/metaapi/connect', async (request, reply) => {
 
     const connectionStatus = existingMetaApiAccount?.connectionStatus === 'CONNECTED' ? 'connected' : 'connecting';
     let effectiveTradingAccountId = tradingAccountId;
-    const defaultRuleSetId = await getDefaultBrokerRuleSetVersionId();
-    let shouldAttachDefaultRuleSet = false;
+    let existingRuleSetId: string | null = null;
+    let existingRuleSelectionStatus: string | null = null;
 
     if (!effectiveTradingAccountId) {
       const { data: existingTradingAccount, error: existingTradingAccountError } = await supabase
         .from('trading_accounts')
-        .select('id,rule_set_id')
+        .select('id,rule_set_id,rule_selection_status')
         .eq('user_id', userId)
         .eq('mt5_login', mt5Login)
         .eq('mt5_server', mt5Server)
@@ -1599,7 +1550,8 @@ fastify.post('/metaapi/connect', async (request, reply) => {
       }
 
       effectiveTradingAccountId = existingTradingAccount?.id ?? null;
-      shouldAttachDefaultRuleSet = !existingTradingAccount?.rule_set_id && !!defaultRuleSetId;
+      existingRuleSetId = existingTradingAccount?.rule_set_id ?? null;
+      existingRuleSelectionStatus = existingTradingAccount?.rule_selection_status ?? null;
 
       if (!effectiveTradingAccountId) {
         const { data: createdTradingAccount, error: createTradingAccountError } = await supabase
@@ -1618,10 +1570,8 @@ fastify.post('/metaapi/connect', async (request, reply) => {
             detected_prop_firm: detection.detected_prop_firm,
             detection_confidence: detection.detection_confidence,
             detection_notes: detection.detection_notes,
-            rule_set_id: defaultRuleSetId,
-            rule_selection_status: defaultRuleSetId ? 'auto_generic' : 'unconfigured',
+            rule_selection_status: 'unconfigured',
             account_size: 10000,
-            phase: 'broker_only',
             base_currency: 'USD',
             start_balance: 0,
             current_balance: 0,
@@ -1646,12 +1596,13 @@ fastify.post('/metaapi/connect', async (request, reply) => {
         }
 
         effectiveTradingAccountId = createdTradingAccount.id;
-        shouldAttachDefaultRuleSet = !!defaultRuleSetId;
+        existingRuleSetId = null;
+        existingRuleSelectionStatus = 'unconfigured';
       }
     } else {
       const { data: selectedTradingAccount, error: selectedTradingAccountError } = await supabase
         .from('trading_accounts')
-        .select('id,rule_set_id')
+        .select('id,rule_set_id,rule_selection_status')
         .eq('id', effectiveTradingAccountId)
         .eq('user_id', userId)
         .maybeSingle();
@@ -1669,8 +1620,15 @@ fastify.post('/metaapi/connect', async (request, reply) => {
         });
       }
 
-      shouldAttachDefaultRuleSet = !selectedTradingAccount?.rule_set_id && !!defaultRuleSetId;
+      existingRuleSetId = selectedTradingAccount?.rule_set_id ?? null;
+      existingRuleSelectionStatus = selectedTradingAccount?.rule_selection_status ?? null;
     }
+
+    const requiresRuleConfiguration =
+      !isUuid(existingRuleSetId) ||
+      !existingRuleSelectionStatus ||
+      existingRuleSelectionStatus === 'unconfigured' ||
+      existingRuleSelectionStatus === 'auto_generic';
 
     const connectionPayload = {
       user_id: userId,
@@ -1767,11 +1725,9 @@ fastify.post('/metaapi/connect', async (request, reply) => {
       detection_notes: detection.detection_notes,
     };
 
-    if (shouldAttachDefaultRuleSet) {
-      accountUpdatePayload.rule_set_id = defaultRuleSetId;
-      accountUpdatePayload.rule_selection_status = 'auto_generic';
+    if (!isUuid(existingRuleSetId) && existingRuleSelectionStatus !== 'configured') {
+      accountUpdatePayload.rule_selection_status = 'unconfigured';
       accountUpdatePayload.account_size = 10000;
-      accountUpdatePayload.phase = 'broker_only';
     }
 
     const { error: accountUpdateError } = await supabase
@@ -1793,6 +1749,8 @@ fastify.post('/metaapi/connect', async (request, reply) => {
       connection: data,
       providerAccountId,
       tradingAccountId: effectiveTradingAccountId,
+      detection,
+      requiresRuleConfiguration,
       reusedExistingMetaApiAccount: !!existingMetaApiAccount,
       transactionId: provisioning?.transactionId ?? null,
     };
@@ -2177,8 +2135,6 @@ fastify.post('/metaapi/sync', async (request, reply) => {
       const dailyLossLimit = toNumber((tradingAccount as any).daily_loss_limit);
       const dailyLossPct = dailyLossLimit > 0 ? (dailyLossUsed / dailyLossLimit) * 100 : null;
       const syncDetection = detectAccountSource(conn.mt5_server, conn.broker_name);
-      const defaultRuleSetId = await getDefaultBrokerRuleSetVersionId();
-      const shouldAttachDefaultRuleSet = !isUuid((tradingAccount as any).rule_set_id) && !!defaultRuleSetId;
 
       const { error: accountSnapshotErr } = await supabase
         .from('account_daily_snapshots')
@@ -2238,12 +2194,10 @@ fastify.post('/metaapi/sync', async (request, reply) => {
           detected_prop_firm: syncDetection.detected_prop_firm,
           detection_confidence: syncDetection.detection_confidence,
           detection_notes: syncDetection.detection_notes,
-          ...(shouldAttachDefaultRuleSet
+          ...(!isUuid((tradingAccount as any).rule_set_id)
             ? {
-                rule_set_id: defaultRuleSetId,
-                rule_selection_status: 'auto_generic',
+                rule_selection_status: 'unconfigured',
                 account_size: startBalance,
-                phase: 'broker_only',
               }
             : {}),
         })

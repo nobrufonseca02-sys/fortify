@@ -80,7 +80,7 @@ const AccountHistory = () => {
             {deletedAccounts.map((entry, i) => {
               const { account, deletedAt } = entry;
               const pnl = account.currentBalance - account.startBalance;
-              const pnlPct = ((pnl / account.startBalance) * 100).toFixed(2);
+              const pnlPct = account.startBalance > 0 ? ((pnl / account.startBalance) * 100).toFixed(2) : '0.00';
               const isPositive = pnl >= 0;
 
               return (

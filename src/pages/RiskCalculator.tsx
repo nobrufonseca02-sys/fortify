@@ -128,6 +128,15 @@ const RiskCalculator = () => {
         </div>
       </motion.div>
 
+      {!dailyLossEval && !maxLossEval && (
+        <div className="rounded-xl border border-warning/30 bg-warning/5 p-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-foreground">
+            Nenhum limite de regra foi avaliado para esta conta. Configure um rule set e execute sync antes de usar a calculadora para sizing real.
+          </p>
+        </div>
+      )}
+
       {/* Input Card */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="rounded-xl border border-border bg-card p-5 space-y-5">
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Parâmetros da Operação</p>

@@ -52,40 +52,6 @@ function mapSnapshotData(account: TradingAccount, snapshots: MT5Snapshot[], maxL
   }));
 }
 
-function generateMockData(account: TradingAccount, maxLossLimit: number): DayData[] {
-  const days = 25;
-  const data: DayData[] = [];
-  let balance = account.startBalance;
-  let equity = account.startBalance;
-  let highWater = account.startBalance;
-
-  const drawdownFloor = account.startBalance - maxLossLimit;
-
-  const now = new Date();
-  for (let i = 0; i < days; i++) {
-    const dailyPnl = Math.round((Math.random() - 0.38) * account.startBalance * 0.012);
-    balance += dailyPnl;
-    equity = balance + Math.round((Math.random() - 0.5) * account.startBalance * 0.004);
-    highWater = Math.max(highWater, equity);
-
-    const date = new Date(now);
-    date.setDate(date.getDate() - (days - 1 - i));
-    const dateStr = date.toISOString().slice(0, 10);
-    const dayLabel = `${date.getDate()}/${date.getMonth() + 1}`;
-
-    data.push({
-      day: dayLabel,
-      date: dateStr,
-      balance: Math.round(balance),
-      equity: Math.round(equity),
-      drawdownLimit: Math.round(drawdownFloor),
-      drawdown: Math.round(highWater - equity),
-      dailyPnl,
-    });
-  }
-  return data;
-}
-
 /* ── sub-components ──────────────────────────────────────── */
 function StatCard({ icon: Icon, label, value, sub, color }: {
   icon: React.ElementType; label: string; value: string; sub?: string; color?: string;
@@ -103,7 +69,7 @@ function StatCard({ icon: Icon, label, value, sub, color }: {
 }
 
 function ProgressBar({ value, max, color }: { value: number; max: number; color: string }) {
-  const pct = Math.min(Math.max((value / max) * 100, 0), 100);
+  const pct = max > 0 ? Math.min(Math.max((value / max) * 100, 0), 100) : 0;
   return (
     <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
       <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: color }} />
@@ -261,16 +227,32 @@ const Performance = () => {
   const dailyLossLimit = dailyLossEval?.limitValue ?? (account ? account.startBalance * 0.05 : 0);
   const data = useMemo(() => {
     if (!account) return [];
-    return snapshots.length > 0
-      ? mapSnapshotData(account, snapshots, maxLossLimit)
-      : generateMockData(account, maxLossLimit);
+    return mapSnapshotData(account, snapshots, maxLossLimit);
   }, [account, maxLossLimit, snapshots]);
 
   if (!account) {
     return <div className="p-6 text-center text-muted-foreground">Nenhuma conta cadastrada.</div>;
   }
+
+  if (data.length === 0) {
+    return (
+      <div className="p-6 max-w-6xl mx-auto space-y-6">
+        <div>
+          <h1 className="text-lg font-bold text-foreground">Performance</h1>
+          <p className="text-xs text-muted-foreground">Análise completa de desempenho e risco da conta.</p>
+        </div>
+
+        <AccountSelector accounts={accounts} selected={selectedAccount} onSelect={setSelectedAccount} />
+
+        <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
+          Nenhum snapshot real encontrado para esta conta. Execute um sync MT5 antes de analisar performance.
+        </div>
+      </div>
+    );
+  }
+
   const totalPnl = account.currentEquity - account.startBalance;
-  const returnPct = (totalPnl / account.startBalance) * 100;
+  const returnPct = account.startBalance > 0 ? (totalPnl / account.startBalance) * 100 : 0;
   const maxDrawdownValue = Math.max(...data.map(d => d.drawdown));
   const currentDrawdown = data[data.length - 1]?.drawdown ?? 0;
   const tradingDays = data.filter(d => d.dailyPnl !== 0).length;

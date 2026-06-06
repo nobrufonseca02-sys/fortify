@@ -13,7 +13,7 @@ export function AccountSelector({ accounts, selected, onSelect }: AccountSelecto
   const [open, setOpen] = useState(false);
 
   const pnl = selected.currentBalance - selected.startBalance;
-  const pnlPct = ((pnl / selected.startBalance) * 100).toFixed(2);
+  const pnlPct = selected.startBalance > 0 ? ((pnl / selected.startBalance) * 100).toFixed(2) : '0.00';
   const isPositive = pnl >= 0;
 
   return (
@@ -54,7 +54,7 @@ export function AccountSelector({ accounts, selected, onSelect }: AccountSelecto
           >
             {accounts.map((account) => {
               const accPnl = account.currentBalance - account.startBalance;
-              const accPnlPct = ((accPnl / account.startBalance) * 100).toFixed(2);
+              const accPnlPct = account.startBalance > 0 ? ((accPnl / account.startBalance) * 100).toFixed(2) : '0.00';
               const accPositive = accPnl >= 0;
               const isActive = account.id === selected.id;
 

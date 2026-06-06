@@ -43,6 +43,14 @@ function nextBestAction(rows: any[], account: any) {
   return 'Continue with controlled risk and keep syncing after trading sessions.';
 }
 
+function ruleSetReviewLabel(ruleSet: any) {
+  if (!ruleSet) return 'No rule set selected';
+  if (ruleSet.review_status === 'needs_review') return 'Needs manual review';
+  if (ruleSet.review_status === 'user_custom' || ruleSet.is_user_custom) return 'User/custom template';
+  if (ruleSet.review_status === 'verified') return 'Verified template';
+  return ruleSet.review_status || 'Unreviewed template';
+}
+
 export default function AccountRuleManagement() {
   const { accountId } = useParams<{ accountId: string }>();
   const navigate = useNavigate();
@@ -130,6 +138,21 @@ export default function AccountRuleManagement() {
   }, [accountId]);
 
   const currentRuleSet = useMemo(() => ruleSets.find((ruleSet) => ruleSet.id === account?.rule_set_id), [account, ruleSets]);
+  const suggestedRuleSets = useMemo(() => {
+    const accountSize = Number(account?.account_size ?? account?.start_balance ?? account?.current_balance ?? 0);
+    return ruleSets
+      .filter((ruleSet) => {
+        const firmSlug = String(ruleSet.programs?.prop_firms?.slug ?? '');
+        const size = Number(ruleSet.account_size ?? 0);
+        const sizeMatch = !size || !accountSize || Math.abs(size - accountSize) <= 1000;
+        const brokerMatch =
+          firmSlug === 'generic-mt5-broker' ||
+          (String(account?.detected_broker ?? '').toLowerCase().includes('easy') && firmSlug === 'easymarkets-broker-only') ||
+          (account?.detected_prop_firm && String(ruleSet.programs?.prop_firms?.name ?? '').toLowerCase().includes(String(account.detected_prop_firm).toLowerCase()));
+        return sizeMatch && brokerMatch;
+      })
+      .slice(0, 4);
+  }, [account, ruleSets]);
   const groupedEvaluations = useMemo(() => {
     return evaluations.reduce<Record<string, any[]>>((groups, row) => {
       const category = categoryLabel(row.rule_instances?.rule_definitions?.category);
@@ -300,6 +323,9 @@ export default function AccountRuleManagement() {
         : evaluations.length === 0
           ? 'attention'
           : 'safe';
+  const isMissingRuleSet = !account.rule_set_id || account.rule_selection_status === 'unconfigured';
+  const isAutoGeneric = account.rule_selection_status === 'auto_generic';
+  const needsReview = currentRuleSet?.review_status === 'needs_review';
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -349,6 +375,24 @@ export default function AccountRuleManagement() {
         </div>
       </section>
 
+      {(isMissingRuleSet || isAutoGeneric || needsReview) && (
+        <section className="rounded-xl border border-warning/30 bg-warning/5 p-4 flex items-start gap-3">
+          <AlertTriangle className="w-4 h-4 text-warning mt-0.5" />
+          <div className="space-y-1">
+            <p className="text-sm font-semibold text-foreground">
+              {isMissingRuleSet ? 'Rule set required' : isAutoGeneric ? 'Generic fallback needs confirmation' : 'Rule set needs review'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {isMissingRuleSet
+                ? 'Select the prop firm/program or choose Generic Broker-only as an explicit fallback before relying on evaluations.'
+                : isAutoGeneric
+                  ? 'Generic Broker-only is a risk template, not an official prop-firm rule set. Confirm it with Save rules or choose the real prop firm/program.'
+                  : 'This template is marked needs_review. Verify official prop-firm rules or add account-specific custom rules before using it with beta users.'}
+            </p>
+          </div>
+        </section>
+      )}
+
       <section className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-5">
         <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <div className="flex items-center gap-2">
@@ -375,7 +419,26 @@ export default function AccountRuleManagement() {
           </div>
           <p className="text-xs text-muted-foreground">
             Selected: {currentRuleSet ? `${currentRuleSet.programs?.prop_firms?.name || 'Library'} / ${currentRuleSet.name}` : 'No active rule set'}
+            {' · '}
+            {ruleSetReviewLabel(currentRuleSet)}
           </p>
+          {suggestedRuleSets.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Suggested templates</p>
+              <div className="flex flex-wrap gap-2">
+                {suggestedRuleSets.map((ruleSet) => (
+                  <button
+                    key={ruleSet.id}
+                    type="button"
+                    onClick={() => setSelectedRuleSetId(ruleSet.id)}
+                    className="rounded-md border border-border px-2 py-1 text-[11px] text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
+                  >
+                    {ruleSet.programs?.prop_firms?.name || 'Library'} · {ruleSet.review_status || 'unreviewed'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="rounded-xl border border-border bg-card p-5 space-y-3">

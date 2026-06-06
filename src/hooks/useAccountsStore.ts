@@ -27,6 +27,44 @@ function getDeletedSnapshot() {
   return deletedAccounts;
 }
 
+function toNumeric(value: unknown, fallback = 0): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function accountScore(account: TradingAccount): number {
+  return (
+    (account.mt5ConnectionStatus === 'connected' ? 100 : 0) +
+    (account.startBalance > 0 ? 20 : 0) +
+    (account.currentEquity > 0 ? 10 : 0) +
+    (account.ruleSetId ? 5 : 0) +
+    ((Date.parse(account.createdAt) || 0) / 1_000_000_000_000)
+  );
+}
+
+function dedupeTradingAccounts(accounts: TradingAccount[]): TradingAccount[] {
+  const byKey = new Map<string, TradingAccount>();
+
+  for (const account of accounts) {
+    const labelKey = account.nickname && account.broker
+      ? `label:${account.nickname.trim().toLowerCase()}:${account.broker.trim().toLowerCase()}`
+      : null;
+    const mt5Key = account.mt5Login && account.mt5Server ? `mt5:${account.mt5Login}:${account.mt5Server}` : null;
+    const key = labelKey || mt5Key || `id:${account.id}`;
+    const existing = byKey.get(key);
+
+    if (!existing || accountScore(account) >= accountScore(existing)) {
+      byKey.set(key, account);
+    }
+  }
+
+  return Array.from(byKey.values()).sort((a, b) => {
+    const aTime = Date.parse(a.createdAt) || 0;
+    const bTime = Date.parse(b.createdAt) || 0;
+    return bTime - aTime;
+  });
+}
+
 // Map Supabase snake_case to TradingAccount camelCase
 function mapSupabaseToTradingAccount(row: any): TradingAccount {
   return {
@@ -35,10 +73,10 @@ function mapSupabaseToTradingAccount(row: any): TradingAccount {
     nickname: row.nickname || '',
     broker: row.broker || '',
     baseCurrency: row.base_currency || 'USD',
-    startBalance: typeof row.start_balance === 'number' ? row.start_balance : 0,
-    currentBalance: typeof row.current_balance === 'number' ? row.current_balance : 0,
-    currentEquity: typeof row.current_equity === 'number' ? row.current_equity : 0,
-    highestEquityAllTime: typeof row.highest_equity === 'number' ? row.highest_equity : 0,
+    startBalance: toNumeric(row.start_balance),
+    currentBalance: toNumeric(row.current_balance),
+    currentEquity: toNumeric(row.current_equity),
+    highestEquityAllTime: toNumeric(row.highest_equity),
     status: row.status || 'active',
     ruleSetId: row.rule_set_id || '',
     createdAt: row.created_at || new Date().toISOString(),
@@ -77,7 +115,7 @@ export function useAccountsStore() {
 
       if (error) throw error;
 
-      return (data || []).map(mapSupabaseToTradingAccount);
+      return dedupeTradingAccounts((data || []).map(mapSupabaseToTradingAccount));
     },
     enabled: !!session?.user?.id,
   });

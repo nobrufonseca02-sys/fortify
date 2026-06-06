@@ -30,6 +30,35 @@ const PROVIDER_META: Record<string, { label: string; icon: typeof Cloud; classNa
   metaapi: { label: 'MetaApi', icon: Cloud, className: 'text-primary bg-primary/10' },
 };
 
+const connectErrorMessage = (data: any) => {
+  const fallback = data?.error || data?.details || 'Erro ao conectar com MetaApi';
+  const messages: Record<string, string> = {
+    wrong_mt5_server: 'Servidor MT5 não aceito pela MetaApi. Confirme o nome exato do servidor no terminal MT5 e tente novamente.',
+    wrong_mt5_credentials: 'Login ou senha MT5 inválidos. Confirme login, senha master/investor e servidor antes de tentar de novo.',
+    mt5_password_required: 'Informe a senha MT5 para provisionar a conta na MetaApi.',
+    metaapi_provisioning_pending: 'A MetaApi ainda está provisionando a conta. Aguarde alguns instantes e tente sincronizar novamente.',
+    metaapi_provisioning_failed: 'A MetaApi recusou o provisionamento. Revise servidor, login, senha e permissões da conta.',
+    metaapi_provisioning_fetch_failed: 'Não foi possível alcançar a API da MetaApi. Verifique conexão local e tente novamente.',
+    invalid_metaapi_token: 'Token MetaApi inválido no backend local. Atualize o token no gateway antes de conectar contas.',
+    supabase_insert_failed: 'A conta conectou, mas o Fortify não conseguiu gravar no Supabase. Verifique permissões e schema.',
+    supabase_update_failed: 'A conta conectou, mas o Fortify não conseguiu atualizar o Supabase. Verifique permissões e schema.',
+    supabase_lookup_failed: 'O Fortify não conseguiu localizar os registros no Supabase. Recarregue a sessão e tente novamente.',
+  };
+  return messages[data?.code] || fallback;
+};
+
+const syncErrorMessage = (data: any) => {
+  const fallback = data?.error || data?.details || 'Erro ao sincronizar com MetaApi';
+  const messages: Record<string, string> = {
+    supabase_update_failed: 'Sync recebido, mas falhou ao atualizar status no Supabase. Tente novamente e verifique permissões.',
+    supabase_upsert_failed: 'Sync recebido, mas falhou ao gravar snapshots no Supabase. Verifique schema e permissões.',
+    supabase_insert_failed: 'Sync recebido, mas falhou ao gravar trades/posições no Supabase. Verifique schema e permissões.',
+    supabase_delete_failed: 'Sync recebido, mas falhou ao limpar posições antigas. Tente novamente.',
+    rule_evaluation_failed: 'Sync concluído parcialmente, mas as regras não foram recalculadas. Abra a conta e revise o rule set.',
+  };
+  return messages[data?.code] || fallback;
+};
+
 export default function MT5Connections() {
   const { session } = useAuth();
   const navigate = useNavigate();
@@ -93,6 +122,7 @@ export default function MT5Connections() {
     if (!accountName || !mt5Login || !mt5Server || !brokerName || !mt5Password) return;
 
     setSaving(true);
+    let routeToRules: string | null = null;
 
     if (provider === 'metaapi') {
       // Use local backend instead of Supabase Edge Function
@@ -116,12 +146,17 @@ export default function MT5Connections() {
 
         if (!res.ok) {
           console.error('MetaApi connection failed:', data);
-          const errorMessage = data?.error || data?.details || 'Erro ao conectar com MetaApi';
+          const errorMessage = connectErrorMessage(data);
           toast({ title: 'Erro ao registrar conta', description: errorMessage, variant: 'destructive' });
           return;
         }
 
-        toast({ title: 'Conta MetaApi registrada', description: 'Conexão criada com sucesso.' });
+        if (data?.requiresRuleConfiguration && data?.tradingAccountId) {
+          routeToRules = `/accounts/${data.tradingAccountId}/rules`;
+          toast({ title: 'Conta MetaApi registrada', description: 'Configure a prop firm, programa e regras antes de operar.' });
+        } else {
+          toast({ title: 'Conta MetaApi registrada', description: 'Conexão criada com sucesso.' });
+        }
       } catch (err: any) {
         setSaving(false);
         console.error('MetaApi connection error:', err);
@@ -133,6 +168,7 @@ export default function MT5Connections() {
     setShowForm(false);
     setAccountName(''); setMt5Login(''); setMt5Server(''); setBrokerName(''); setMt5Password('');
     fetchRows();
+    if (routeToRules) navigate(routeToRules);
   };
 
   const handleSyncNow = async (r: Mt5ConnectionRow) => {
@@ -152,7 +188,7 @@ export default function MT5Connections() {
 
       if (!res.ok) {
         console.error('MetaApi sync failed:', data);
-        const errorMessage = data?.error || data?.details || 'Erro ao sincronizar com MetaApi';
+        const errorMessage = syncErrorMessage(data);
         toast({ title: 'Erro ao sincronizar', description: errorMessage, variant: 'destructive' });
         fetchRows();
         return;
