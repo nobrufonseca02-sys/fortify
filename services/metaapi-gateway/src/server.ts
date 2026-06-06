@@ -186,6 +186,13 @@ function clampProgress(value: number | null): number | null {
   return Math.max(0, Math.min(100, value));
 }
 
+function maskForLog(value: unknown): string | null {
+  if (value === null || value === undefined || value === '') return null;
+  const text = String(value);
+  if (text.length <= 4) return '*'.repeat(text.length);
+  return `${text.slice(0, 2)}***${text.slice(-2)}`;
+}
+
 function isUuid(value: unknown): value is string {
   return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
@@ -918,11 +925,11 @@ fastify.post('/metaapi/connect', async (request, reply) => {
       url,
       tokenPresent: !!METAAPI_TOKEN,
       accountName,
-      mt5Login,
+      mt5Login: maskForLog(mt5Login),
       mt5Server,
       brokerName,
-      tradingAccountId,
-      userId,
+      tradingAccountId: maskForLog(tradingAccountId),
+      userId: maskForLog(userId),
     });
 
     let provisioning: Awaited<ReturnType<typeof postProvisioningAccount>>;
@@ -1115,8 +1122,8 @@ fastify.post('/metaapi/sync', async (request, reply) => {
 
     fastify.log.info({
       event: 'metaapi_sync_request',
-      connectionId,
-      userId,
+      connectionId: maskForLog(connectionId),
+      userId: maskForLog(userId),
     });
 
     if (!connectionId || !userId) {
