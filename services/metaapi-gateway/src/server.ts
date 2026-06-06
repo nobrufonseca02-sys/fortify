@@ -83,8 +83,14 @@ type RuleEvaluationResult = {
   status: RuleEvaluationStatus;
   current_value: number | null;
   limit_value: number | null;
+  remaining_value?: number | null;
   progress_pct: number | null;
   message: string;
+  explanation?: string;
+  recommended_action?: string;
+  severity?: string;
+  next_best_action?: string;
+  data_status?: 'ok' | 'insufficient_data' | 'pending';
   computation_window: ComputationWindow;
   reference_date: string | null;
 };
@@ -122,6 +128,15 @@ type TradingAccount = {
   total_loss_limit: number | null;
   profit_target: number | null;
   status: string;
+};
+
+type DetectionResult = {
+  detected_broker: string | null;
+  detected_server: string | null;
+  detected_platform: string;
+  detected_prop_firm: string | null;
+  detection_confidence: 'high' | 'medium' | 'low';
+  detection_notes: string;
 };
 
 type CanonicalSnapshot = {
@@ -216,6 +231,128 @@ function maskForLog(value: unknown): string | null {
   const text = String(value);
   if (text.length <= 4) return '*'.repeat(text.length);
   return `${text.slice(0, 2)}***${text.slice(-2)}`;
+}
+
+function detectAccountSource(mt5Server: string, brokerName?: string | null): DetectionResult {
+  const server = String(mt5Server || '').trim();
+  const broker = String(brokerName || '').trim();
+  const text = `${server} ${broker}`.toLowerCase();
+
+  const result: DetectionResult = {
+    detected_broker: broker || null,
+    detected_server: server || null,
+    detected_platform: 'mt5',
+    detected_prop_firm: null,
+    detection_confidence: 'low',
+    detection_notes: 'Broker/server captured from MT5 connection. Prop firm requires user selection.',
+  };
+
+  if (text.includes('easymarkets')) {
+    return {
+      ...result,
+      detected_broker: 'EasyMarkets',
+      detection_confidence: 'high',
+      detection_notes: 'Detected EasyMarkets from MT5 server. This is treated as broker/server only, not as a prop firm.',
+    };
+  }
+
+  if (text.includes('ftmo')) {
+    return {
+      ...result,
+      detected_broker: 'FTMO',
+      detected_prop_firm: 'FTMO',
+      detection_confidence: 'medium',
+      detection_notes: 'FTMO-like server/broker pattern detected. User should confirm program, phase and account size.',
+    };
+  }
+
+  if (text.includes('hantec') || text.includes('hmarkets')) {
+    return {
+      ...result,
+      detected_broker: broker || 'Hantec Markets',
+      detected_prop_firm: 'Hantec Trader',
+      detection_confidence: 'medium',
+      detection_notes: 'Hantec-like server/broker pattern detected. User should confirm Hantec Trader program details.',
+    };
+  }
+
+  if (text.includes('fundscap') || text.includes('funds cap')) {
+    return {
+      ...result,
+      detected_broker: broker || 'Fundscap',
+      detected_prop_firm: 'Fundscap',
+      detection_confidence: 'medium',
+      detection_notes: 'Fundscap-like pattern detected. User should confirm modality and funded/evaluation phase.',
+    };
+  }
+
+  if (text.includes('topstep')) {
+    return {
+      ...result,
+      detected_broker: broker || 'Topstep',
+      detected_prop_firm: 'Topstep',
+      detection_confidence: 'medium',
+      detection_notes: 'Topstep-like pattern detected. User should confirm futures program and drawdown model.',
+    };
+  }
+
+  if (broker) {
+    return {
+      ...result,
+      detected_broker: broker,
+      detection_confidence: 'medium',
+      detection_notes: 'Broker name provided by user. Prop firm was not inferred from server.',
+    };
+  }
+
+  return result;
+}
+
+function buildManagementAdvice(result: RuleEvaluationResult, rule: RuleInstance): RuleEvaluationResult {
+  const key = rule.rule_definitions?.key || '';
+  const limit = result.limit_value ?? 0;
+  const current = result.current_value ?? 0;
+  const remaining = result.remaining_value ?? (limit > 0 ? Math.max(0, limit - current) : null);
+  const progress = result.progress_pct ?? 0;
+
+  let recommended = 'Keep risk controlled and follow the account plan.';
+  let next = 'continue';
+
+  if (result.data_status === 'insufficient_data') {
+    recommended = 'Sync more account history before relying on this rule.';
+    next = 'wait_for_more_data';
+  } else if (result.status === 'VIOLATED') {
+    recommended = 'Stop trading and review the rule violation immediately.';
+    next = 'stop_trading';
+  } else if (result.status === 'WARNING' || progress >= 80) {
+    recommended = 'Reduce risk and avoid new exposure until the buffer improves.';
+    next = 'reduce_risk';
+  } else if (key.includes('profit_target')) {
+    recommended = `You need ${remaining !== null ? `$${remaining.toFixed(2)}` : 'more profit'} to reach the target.`;
+    next = 'continue';
+  } else if (key.includes('daily_loss')) {
+    recommended = `Daily loss buffer remaining: ${remaining !== null ? `$${remaining.toFixed(2)}` : 'unknown'}.`;
+    next = progress >= 60 ? 'reduce_risk' : 'continue';
+  } else if (key.includes('total_loss') || key.includes('drawdown') || key.includes('floating')) {
+    recommended = `Drawdown/loss buffer remaining: ${remaining !== null ? `$${remaining.toFixed(2)}` : 'unknown'}.`;
+    next = progress >= 60 ? 'reduce_risk' : 'continue';
+  } else if (key.includes('trading_days') || key.includes('profitable_days')) {
+    recommended = `Eligible days remaining: ${remaining !== null ? remaining.toFixed(0) : 'unknown'}.`;
+    next = 'continue';
+  } else if (key.includes('average_lot') || key.includes('max_lot')) {
+    recommended = 'Keep lot size below the configured account limit.';
+    next = progress >= 60 ? 'reduce_lot_size' : 'continue';
+  }
+
+  return {
+    ...result,
+    remaining_value: remaining,
+    explanation: result.explanation ?? result.message,
+    recommended_action: result.recommended_action ?? recommended,
+    severity: result.severity ?? rule.severity,
+    next_best_action: result.next_best_action ?? next,
+    data_status: result.data_status ?? 'ok',
+  };
 }
 
 function isUuid(value: unknown): value is string {
@@ -377,6 +514,55 @@ async function listProvisioningAccounts(url: string) {
   });
 
   return { res, text, body, accounts };
+}
+
+async function getDefaultBrokerRuleSetVersionId(): Promise<string | null> {
+  const { data: firm, error: firmError } = await supabase
+    .from('prop_firms')
+    .select('id')
+    .eq('slug', 'generic-mt5-broker')
+    .maybeSingle();
+
+  if (firmError || !firm?.id) {
+    fastify.log.warn({
+      event: 'default_broker_rule_set_firm_missing',
+      error: firmError?.message,
+    });
+    return null;
+  }
+
+  const { data: program, error: programError } = await supabase
+    .from('programs')
+    .select('id')
+    .eq('prop_firm_id', firm.id)
+    .eq('name', 'Broker-only / Custom $10k')
+    .maybeSingle();
+
+  if (programError || !program?.id) {
+    fastify.log.warn({
+      event: 'default_broker_rule_set_program_missing',
+      error: programError?.message,
+    });
+    return null;
+  }
+
+  const { data: version, error: versionError } = await supabase
+    .from('rule_set_versions')
+    .select('id')
+    .eq('program_id', program.id)
+    .eq('status', 'active')
+    .eq('name', 'Generic Broker-only $10k Risk Template')
+    .maybeSingle();
+
+  if (versionError || !version?.id) {
+    fastify.log.warn({
+      event: 'default_broker_rule_set_version_missing',
+      error: versionError?.message,
+    });
+    return null;
+  }
+
+  return version.id;
 }
 
 function findMatchingProvisioningAccount(
@@ -756,6 +942,95 @@ function calcFloatingLossLimit(positions: CanonicalPosition[], tradingAccount: T
   };
 }
 
+function insufficientRuleData(rule: RuleInstance, message: string, window: ComputationWindow = 'total'): RuleEvaluationResult {
+  return {
+    status: 'NOT_MET',
+    current_value: null,
+    limit_value: toNumber(rule.limit_value),
+    remaining_value: null,
+    progress_pct: null,
+    message,
+    explanation: message,
+    recommended_action: 'Sync more MT5 history or configure this rule manually before relying on it.',
+    next_best_action: 'wait_for_more_data',
+    data_status: 'insufficient_data',
+    computation_window: window,
+    reference_date: window === 'daily' ? todayDate() : null,
+  };
+}
+
+function calcAverageLotLimit(trades: CanonicalTrade[], rule: RuleInstance): RuleEvaluationResult {
+  if (trades.length === 0) return insufficientRuleData(rule, 'No closed trades available to calculate average lot.');
+  const averageLot = trades.reduce((sum, trade) => sum + Math.abs(trade.volume), 0) / trades.length;
+  const limit = toNumber(rule.limit_value);
+  const progress = limit > 0 ? (averageLot / limit) * 100 : null;
+
+  return {
+    status: averageLot > limit && limit > 0 ? 'VIOLATED' : progress !== null && progress >= 75 ? 'WARNING' : 'APPROVING',
+    current_value: averageLot,
+    limit_value: limit,
+    progress_pct: clampProgress(progress),
+    message: `Average lot: ${averageLot.toFixed(2)} of ${limit.toFixed(2)}`,
+    computation_window: 'total',
+    reference_date: null,
+  };
+}
+
+function calcMaxLotLimit(trades: CanonicalTrade[], positions: CanonicalPosition[], rule: RuleInstance): RuleEvaluationResult {
+  const lots = [...trades.map((trade) => Math.abs(trade.volume)), ...positions.map((position) => Math.abs(position.volume))];
+  if (lots.length === 0) return insufficientRuleData(rule, 'No trades or open positions available to calculate max lot.');
+  const maxLot = Math.max(...lots);
+  const limit = toNumber(rule.limit_value);
+  const progress = limit > 0 ? (maxLot / limit) * 100 : null;
+
+  return {
+    status: maxLot > limit && limit > 0 ? 'VIOLATED' : progress !== null && progress >= 75 ? 'WARNING' : 'APPROVING',
+    current_value: maxLot,
+    limit_value: limit,
+    progress_pct: clampProgress(progress),
+    message: `Max lot used: ${maxLot.toFixed(2)} of ${limit.toFixed(2)}`,
+    computation_window: 'total',
+    reference_date: null,
+  };
+}
+
+function calcTradeValueScore(trades: CanonicalTrade[], snapshots: CanonicalSnapshot[], rule: RuleInstance): RuleEvaluationResult {
+  const tradeProfits = trades.map((trade) => Math.max(0, dealNetProfit(trade))).filter((profit) => profit > 0);
+  const dailyProfits = snapshots.map((snapshot) => Math.max(0, snapshot.daily_pnl)).filter((profit) => profit > 0);
+  const profits = tradeProfits.length > 0 ? tradeProfits : dailyProfits;
+  if (profits.length === 0) return insufficientRuleData(rule, 'No profitable trades or days available to calculate concentration score.');
+
+  const totalProfit = profits.reduce((sum, profit) => sum + profit, 0);
+  const largest = Math.max(...profits);
+  const score = totalProfit > 0 ? (largest / totalProfit) * 100 : 0;
+  const limit = toNumber(rule.limit_value);
+
+  return {
+    status: score > limit && limit > 0 ? 'VIOLATED' : score >= limit * 0.8 && limit > 0 ? 'WARNING' : 'APPROVING',
+    current_value: score,
+    limit_value: limit,
+    progress_pct: clampProgress(score),
+    message: `Largest profit concentration: ${score.toFixed(1)}% of profitable total`,
+    computation_window: 'payoutWindow',
+    reference_date: null,
+  };
+}
+
+function calcStopLossRequired(positions: CanonicalPosition[], rule: RuleInstance): RuleEvaluationResult {
+  if (positions.length === 0) return insufficientRuleData(rule, 'No open positions available to verify stop-loss usage.', 'daily');
+  const missingStops = positions.filter((position) => position.stop_loss === null).length;
+  return {
+    status: missingStops > 0 ? 'VIOLATED' : 'APPROVING',
+    current_value: missingStops,
+    limit_value: 0,
+    remaining_value: missingStops > 0 ? 0 : null,
+    progress_pct: missingStops > 0 ? 100 : 0,
+    message: missingStops > 0 ? `${missingStops} open position(s) without stop loss` : 'All open positions have stop loss',
+    computation_window: 'daily',
+    reference_date: todayDate(),
+  };
+}
+
 async function resolveRuleSetVersionId(tradingAccount: TradingAccount): Promise<string | null> {
   const ruleSetId = tradingAccount.rule_set_id;
   if (!isUuid(ruleSetId)) return null;
@@ -800,10 +1075,44 @@ async function resolveRuleSetVersionId(tradingAccount: TradingAccount): Promise<
 
 async function loadRuleInstances(tradingAccount: TradingAccount): Promise<{ rules: RuleInstance[]; warning: string | null }> {
   const ruleSetVersionId = await resolveRuleSetVersionId(tradingAccount);
+
+  const { data: customRows, error: customErr } = await supabase
+    .from('account_rule_overrides' as any)
+    .select('*, rule_definitions (*)')
+    .eq('trading_account_id', tradingAccount.id)
+    .eq('enabled', true);
+
+  if (customErr) {
+    throw new Error(`Failed to load custom account rules: ${customErr.message}`);
+  }
+
+  const customRules = ((customRows ?? []) as any[]).map((row) => ({
+    id: row.id,
+    rule_set_version_id: ruleSetVersionId ?? tradingAccount.id,
+    rule_definition_id: row.rule_definition_id,
+    mode: row.mode,
+    base_calculation: row.base_calculation,
+    includes_floating: row.includes_floating,
+    daily_reset: row.daily_reset,
+    limit_value: row.limit_value,
+    severity: row.severity,
+    enabled: row.enabled,
+    params: {
+      ...(row.params ?? {}),
+      is_custom: true,
+      review_status: row.review_status,
+      source_notes: row.source_notes,
+    },
+    rule_definitions: row.rule_definitions,
+  })) as RuleInstance[];
+
   if (!ruleSetVersionId) {
     return {
-      rules: [],
-      warning: 'Trading account has no resolvable active rule set version',
+      rules: customRules,
+      warning:
+        customRules.length > 0
+          ? 'Trading account has custom account rules but no library rule set version'
+          : 'Trading account has no resolvable active rule set version',
     };
   }
 
@@ -818,7 +1127,7 @@ async function loadRuleInstances(tradingAccount: TradingAccount): Promise<{ rule
   }
 
   return {
-    rules: (data ?? []) as RuleInstance[],
+    rules: [...((data ?? []) as RuleInstance[]), ...customRules],
     warning: data && data.length > 0 ? null : 'Resolved rule set version has no enabled rules',
   };
 }
@@ -832,28 +1141,68 @@ function evaluateRule(
   tradingAccount: TradingAccount,
 ): RuleEvaluationResult | null {
   const key = rule.rule_definitions?.key;
+  let result: RuleEvaluationResult | null = null;
   switch (key) {
     case 'max_daily_loss':
-      return calcMaxDailyLoss(snapshot, tradingAccount, rule);
+      result = calcMaxDailyLoss(snapshot, tradingAccount, rule);
+      break;
     case 'max_total_loss':
-      return calcMaxTotalLoss(snapshot, tradingAccount, rule);
+    case 'static_drawdown':
+      result = calcMaxTotalLoss(snapshot, tradingAccount, rule);
+      break;
     case 'trailing_drawdown':
-      return calcTrailingDrawdown(snapshot, snapshots, tradingAccount, rule);
+    case 'end_of_day_trailing_drawdown':
+    case 'intraday_equity_drawdown':
+      result = calcTrailingDrawdown(snapshot, snapshots, tradingAccount, rule);
+      break;
     case 'floating_loss_limit':
-      return calcFloatingLossLimit(positions, tradingAccount, rule);
+      result = calcFloatingLossLimit(positions, tradingAccount, rule);
+      break;
     case 'profit_target':
-      return calcProfitTarget(snapshot, tradingAccount, rule);
+      result = calcProfitTarget(snapshot, tradingAccount, rule);
+      break;
     case 'min_trading_days':
-      return calcMinTradingDays(trades, rule);
+    case 'payout_min_days':
+      result = calcMinTradingDays(trades, rule);
+      break;
     case 'profitable_days':
-      return calcProfitableDays(snapshots, rule);
+      result = calcProfitableDays(snapshots, rule);
+      break;
     case 'consistency_best_day_cap':
-      return calcConsistencyBestDayCap(snapshots, rule);
+      result = calcConsistencyBestDayCap(snapshots, rule);
+      break;
+    case 'trade_value_score_max_percent':
+      result = calcTradeValueScore(trades, snapshots, rule);
+      break;
+    case 'average_lot_limit':
+      result = calcAverageLotLimit(trades, rule);
+      break;
+    case 'max_lot':
+      result = calcMaxLotLimit(trades, positions, rule);
+      break;
+    case 'stop_loss_required':
+      result = calcStopLossRequired(positions, rule);
+      break;
     case 'inactivity_limit':
-      return calcInactivity(trades, rule);
+      result = calcInactivity(trades, rule);
+      break;
+    case 'news_restriction':
+    case 'scalping_restriction':
+    case 'weekend_holding':
+    case 'leverage_limit':
+    case 'payout_eligibility':
+    case 'profit_split':
+    case 'payout_frequency':
+    case 'custom_boolean':
+    case 'custom_numeric_threshold':
+    case 'custom_text_rule':
+      result = insufficientRuleData(rule, `Rule "${key}" is tracked but needs manual data or account-specific configuration.`);
+      break;
     default:
       return null;
   }
+
+  return result ? buildManagementAdvice(result, rule) : null;
 }
 
 async function evaluateRulesForConnection(
@@ -964,8 +1313,14 @@ async function evaluateRulesForConnection(
           status: result.status,
           current_value: result.current_value,
           limit_value: result.limit_value,
+          remaining_value: result.remaining_value,
           progress_pct: result.progress_pct,
           message: result.message,
+          explanation: result.explanation,
+          recommended_action: result.recommended_action,
+          severity: result.severity ?? rule.severity,
+          next_best_action: result.next_best_action,
+          data_status: result.data_status ?? 'ok',
           computation_window: result.computation_window,
           reference_date: result.reference_date,
           computed_at: new Date().toISOString(),
@@ -1043,6 +1398,7 @@ fastify.post('/metaapi/connect', async (request, reply) => {
     }
 
     const url = `${provisioningBaseUrl}/users/current/accounts`;
+    const detection = detectAccountSource(mt5Server, brokerName);
 
     fastify.log.info({
       event: 'metaapi_connect_request',
@@ -1052,6 +1408,9 @@ fastify.post('/metaapi/connect', async (request, reply) => {
       mt5Login: maskForLog(mt5Login),
       mt5Server,
       brokerName,
+      detectedBroker: detection.detected_broker,
+      detectedPropFirm: detection.detected_prop_firm,
+      detectionConfidence: detection.detection_confidence,
       tradingAccountId: maskForLog(tradingAccountId),
       userId: maskForLog(userId),
     });
@@ -1212,11 +1571,13 @@ fastify.post('/metaapi/connect', async (request, reply) => {
 
     const connectionStatus = existingMetaApiAccount?.connectionStatus === 'CONNECTED' ? 'connected' : 'connecting';
     let effectiveTradingAccountId = tradingAccountId;
+    const defaultRuleSetId = await getDefaultBrokerRuleSetVersionId();
+    let shouldAttachDefaultRuleSet = false;
 
     if (!effectiveTradingAccountId) {
       const { data: existingTradingAccount, error: existingTradingAccountError } = await supabase
         .from('trading_accounts')
-        .select('id')
+        .select('id,rule_set_id')
         .eq('user_id', userId)
         .eq('mt5_login', mt5Login)
         .eq('mt5_server', mt5Server)
@@ -1238,6 +1599,7 @@ fastify.post('/metaapi/connect', async (request, reply) => {
       }
 
       effectiveTradingAccountId = existingTradingAccount?.id ?? null;
+      shouldAttachDefaultRuleSet = !existingTradingAccount?.rule_set_id && !!defaultRuleSetId;
 
       if (!effectiveTradingAccountId) {
         const { data: createdTradingAccount, error: createTradingAccountError } = await supabase
@@ -1250,6 +1612,16 @@ fastify.post('/metaapi/connect', async (request, reply) => {
             mt5_server: mt5Server,
             mt5_connection_status: connectionStatus,
             mt5_sync_error: null,
+            detected_broker: detection.detected_broker,
+            detected_server: detection.detected_server,
+            detected_platform: detection.detected_platform,
+            detected_prop_firm: detection.detected_prop_firm,
+            detection_confidence: detection.detection_confidence,
+            detection_notes: detection.detection_notes,
+            rule_set_id: defaultRuleSetId,
+            rule_selection_status: defaultRuleSetId ? 'auto_generic' : 'unconfigured',
+            account_size: 10000,
+            phase: 'broker_only',
             base_currency: 'USD',
             start_balance: 0,
             current_balance: 0,
@@ -1274,7 +1646,30 @@ fastify.post('/metaapi/connect', async (request, reply) => {
         }
 
         effectiveTradingAccountId = createdTradingAccount.id;
+        shouldAttachDefaultRuleSet = !!defaultRuleSetId;
       }
+    } else {
+      const { data: selectedTradingAccount, error: selectedTradingAccountError } = await supabase
+        .from('trading_accounts')
+        .select('id,rule_set_id')
+        .eq('id', effectiveTradingAccountId)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (selectedTradingAccountError) {
+        fastify.log.error({
+          event: 'metaapi_connect_selected_trading_account_lookup_failed',
+          tradingAccountId: maskForLog(effectiveTradingAccountId),
+          error: selectedTradingAccountError.message,
+        });
+        return reply.status(500).send({
+          error: 'Supabase lookup failed while checking selected trading account',
+          code: 'supabase_lookup_failed',
+          details: selectedTradingAccountError.message,
+        });
+      }
+
+      shouldAttachDefaultRuleSet = !selectedTradingAccount?.rule_set_id && !!defaultRuleSetId;
     }
 
     const connectionPayload = {
@@ -1359,14 +1754,29 @@ fastify.post('/metaapi/connect', async (request, reply) => {
       });
     }
 
+    const accountUpdatePayload: JsonRecord = {
+      mt5_connection_status: connectionStatus,
+      mt5_login: mt5Login,
+      mt5_server: mt5Server,
+      mt5_sync_error: null,
+      detected_broker: detection.detected_broker,
+      detected_server: detection.detected_server,
+      detected_platform: detection.detected_platform,
+      detected_prop_firm: detection.detected_prop_firm,
+      detection_confidence: detection.detection_confidence,
+      detection_notes: detection.detection_notes,
+    };
+
+    if (shouldAttachDefaultRuleSet) {
+      accountUpdatePayload.rule_set_id = defaultRuleSetId;
+      accountUpdatePayload.rule_selection_status = 'auto_generic';
+      accountUpdatePayload.account_size = 10000;
+      accountUpdatePayload.phase = 'broker_only';
+    }
+
     const { error: accountUpdateError } = await supabase
       .from('trading_accounts')
-      .update({
-        mt5_connection_status: connectionStatus,
-        mt5_login: mt5Login,
-        mt5_server: mt5Server,
-        mt5_sync_error: null,
-      })
+      .update(accountUpdatePayload)
       .eq('id', effectiveTradingAccountId)
       .eq('user_id', userId);
 
@@ -1759,12 +2169,16 @@ fastify.post('/metaapi/sync', async (request, reply) => {
     }, null);
 
     if (conn.trading_account_id && tradingAccount) {
-      const startBalance = toNumber((tradingAccount as any).start_balance, snapshot.balance);
+      const existingStartBalance = toNumber((tradingAccount as any).start_balance, 0);
+      const startBalance = existingStartBalance > 0 ? existingStartBalance : snapshot.balance;
       const totalLossUsed = Math.max(0, startBalance - snapshot.equity);
       const dailyLossUsed = Math.max(0, -snapshot.daily_pnl);
       const totalLossPct = startBalance > 0 ? (totalLossUsed / startBalance) * 100 : null;
       const dailyLossLimit = toNumber((tradingAccount as any).daily_loss_limit);
       const dailyLossPct = dailyLossLimit > 0 ? (dailyLossUsed / dailyLossLimit) * 100 : null;
+      const syncDetection = detectAccountSource(conn.mt5_server, conn.broker_name);
+      const defaultRuleSetId = await getDefaultBrokerRuleSetVersionId();
+      const shouldAttachDefaultRuleSet = !isUuid((tradingAccount as any).rule_set_id) && !!defaultRuleSetId;
 
       const { error: accountSnapshotErr } = await supabase
         .from('account_daily_snapshots')
@@ -1805,6 +2219,7 @@ fastify.post('/metaapi/sync', async (request, reply) => {
       const { error: accountUpdateErr } = await supabase
         .from('trading_accounts')
         .update({
+          start_balance: startBalance,
           current_balance: snapshot.balance,
           current_equity: snapshot.equity,
           highest_equity: Math.max(toNumber((tradingAccount as any).highest_equity), snapshot.max_balance),
@@ -1817,6 +2232,20 @@ fastify.post('/metaapi/sync', async (request, reply) => {
           mt5_login: conn.mt5_login,
           mt5_server: conn.mt5_server,
           mt5_sync_error: null,
+          detected_broker: syncDetection.detected_broker,
+          detected_server: syncDetection.detected_server,
+          detected_platform: syncDetection.detected_platform,
+          detected_prop_firm: syncDetection.detected_prop_firm,
+          detection_confidence: syncDetection.detection_confidence,
+          detection_notes: syncDetection.detection_notes,
+          ...(shouldAttachDefaultRuleSet
+            ? {
+                rule_set_id: defaultRuleSetId,
+                rule_selection_status: 'auto_generic',
+                account_size: startBalance,
+                phase: 'broker_only',
+              }
+            : {}),
         })
         .eq('id', conn.trading_account_id)
         .eq('user_id', userId);

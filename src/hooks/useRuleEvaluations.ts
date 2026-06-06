@@ -12,10 +12,52 @@ export interface RuleEvaluationRow {
   limit_value: number | null;
   progress_pct: number | null;
   message: string | null;
+  remaining_value?: number | null;
+  explanation?: string | null;
+  recommended_action?: string | null;
+  severity?: string | null;
+  next_best_action?: string | null;
+  data_status?: string | null;
   computation_window: 'daily' | 'total' | 'phase' | 'payoutWindow';
   reference_date: string | null;
   computed_at: string;
   rule_instances: any;
+}
+
+export async function hydrateRuleEvaluationRows(rows: RuleEvaluationRow[]): Promise<RuleEvaluationRow[]> {
+  const ruleInstanceIds = Array.from(new Set(rows.map((row) => row.rule_instance_id).filter(Boolean)));
+  if (ruleInstanceIds.length === 0) return rows;
+
+  const { data: instances, error: instanceError } = await (supabase
+    .from('rule_instances' as any)
+    .select('*')
+    .in('id', ruleInstanceIds) as any);
+
+  if (instanceError) throw instanceError;
+
+  const definitionIds = Array.from(new Set((instances || []).map((instance: any) => instance.rule_definition_id).filter(Boolean)));
+  const { data: definitions, error: definitionError } = definitionIds.length > 0
+    ? await (supabase
+      .from('rule_definitions')
+      .select('*')
+      .in('id', definitionIds) as any)
+    : { data: [], error: null };
+
+  if (definitionError) throw definitionError;
+
+  const definitionsById = new Map((definitions || []).map((definition: any) => [definition.id, definition]));
+  const instancesById = new Map((instances || []).map((instance: any) => [
+    instance.id,
+    {
+      ...instance,
+      rule_definitions: definitionsById.get(instance.rule_definition_id) || null,
+    },
+  ]));
+
+  return rows.map((row) => ({
+    ...row,
+    rule_instances: instancesById.get(row.rule_instance_id) || null,
+  }));
 }
 
 export interface RuleStatusConfig {
@@ -62,21 +104,16 @@ export function useRuleEvaluations(tradingAccountId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await (supabase
         .from('rule_evaluations' as any)
-        .select(`
-          *,
-          rule_instances (
-            *,
-            rule_definitions (*)
-          )
-        `)
+        .select('*')
         .eq('trading_account_id', tradingAccountId!)
         .order('computed_at', { ascending: false }) as any);
 
       if (error) throw error;
+      const rows = await hydrateRuleEvaluationRows(data as RuleEvaluationRow[]);
 
       // Deduplicate: keep only the most recent entry per (rule_instance_id + reference_date)
       const deduplicated = new Map<string, RuleEvaluationRow>();
-      (data as RuleEvaluationRow[]).forEach((row) => {
+      rows.forEach((row) => {
         const key = `${row.rule_instance_id}-${row.reference_date || 'null'}`;
         if (!deduplicated.has(key)) {
           deduplicated.set(key, row);
@@ -98,19 +135,14 @@ export function useAllRuleEvaluations() {
     queryFn: async () => {
       const { data, error } = await (supabase
         .from('rule_evaluations' as any)
-        .select(`
-          *,
-          rule_instances (
-            *,
-            rule_definitions (*)
-          )
-        `)
+        .select('*')
         .order('computed_at', { ascending: false }) as any);
 
       if (error) throw error;
+      const rows = await hydrateRuleEvaluationRows(data as RuleEvaluationRow[]);
 
       const deduplicated = new Map<string, RuleEvaluationRow>();
-      (data as RuleEvaluationRow[]).forEach((row) => {
+      rows.forEach((row) => {
         const key = `${row.trading_account_id}-${row.rule_instance_id}-${row.reference_date || 'null'}`;
         if (!deduplicated.has(key)) {
           deduplicated.set(key, row);

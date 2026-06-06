@@ -4,7 +4,7 @@ import { useAccountsStore } from '@/hooks/useAccountsStore';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, RefreshCw, Link2, XCircle, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Link2, XCircle, AlertTriangle, TrendingUp, TrendingDown, Shield } from 'lucide-react';
 import type { Mt5ConnectionStatus } from '@/types/fortify';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -191,6 +191,10 @@ const AccountDashboard = () => {
           <h1 className="text-lg font-bold text-foreground">Account Dashboard</h1>
           <p className="text-xs text-muted-foreground">Monitor your trading account performance</p>
         </div>
+        <Button onClick={() => navigate(`/accounts/${id}/rules`)} variant="outline">
+          <Shield className="w-4 h-4 mr-2" />
+          Rules / Risk Plan
+        </Button>
       </div>
 
       {loadingMt5Data ? (

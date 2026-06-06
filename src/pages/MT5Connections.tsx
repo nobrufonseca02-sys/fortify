@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CheckCircle2, Loader2, AlertTriangle, RefreshCw, Unlink, PlugZap, Server, Plus, Cloud } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,6 +32,7 @@ const PROVIDER_META: Record<string, { label: string; icon: typeof Cloud; classNa
 
 export default function MT5Connections() {
   const { session } = useAuth();
+  const navigate = useNavigate();
   const userId = session?.user?.id;
 
   const [loading, setLoading] = useState(true);
@@ -380,6 +382,15 @@ export default function MT5Connections() {
                             {busyId === r.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                             Sync now
                           </Button>
+                          {(r as any).trading_account_id ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => navigate(`/accounts/${(r as any).trading_account_id}/rules`)}
+                            >
+                              Regras
+                            </Button>
+                          ) : null}
                           <Button
                             size="sm"
                             variant="outline"

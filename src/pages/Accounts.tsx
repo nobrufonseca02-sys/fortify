@@ -330,7 +330,7 @@ const Accounts = () => {
                 </div>
               )}
 
-              <div className="flex items-center justify-between pt-1">
+              <div className="flex items-center justify-between gap-2 pt-1">
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <button
@@ -363,9 +363,22 @@ const Accounts = () => {
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
-                <span className="text-[10px] text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                  Abrir Painel <ChevronRight className="w-3 h-3" />
-                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/accounts/${account.id}/rules`);
+                    }}
+                    className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
+                  >
+                    <Shield className="w-3 h-3" />
+                    Regras
+                  </button>
+                  <span className="text-[10px] text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                    Abrir Painel <ChevronRight className="w-3 h-3" />
+                  </span>
+                </div>
               </div>
             </motion.div>
           );
