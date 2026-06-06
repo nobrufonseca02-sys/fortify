@@ -5,13 +5,13 @@ import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import cors from '@fastify/cors';
 
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
-dotenv.config();
+const gatewayEnvPath = path.resolve(__dirname, '../.env');
+const gatewayEnvResult = dotenv.config({ path: gatewayEnvPath, override: true });
 
 const fastify = Fastify({ logger: true });
 
 fastify.register(cors, {
-  origin: ['http://localhost:8080', 'http://localhost:5173'],
+  origin: ['http://localhost:8080', 'http://localhost:8081', 'http://localhost:5173'],
   credentials: true,
 });
 
@@ -38,11 +38,23 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 const provisioningBaseUrl = 'https://mt-provisioning-api-v1.agiliumtrade.agiliumtrade.ai';
 const clientBaseUrl = `https://mt-client-api-v1.${METAAPI_REGION}.agiliumtrade.ai`;
 
+fastify.log.info({
+  event: 'metaapi_gateway_env_loaded',
+  envPath: gatewayEnvPath,
+  envLoaded: !gatewayEnvResult.error,
+  envError: gatewayEnvResult.error?.message,
+  metaapiTokenPresent: !!METAAPI_TOKEN,
+  metaapiTokenLength: METAAPI_TOKEN.length,
+  metaapiRegion: METAAPI_REGION,
+  supabaseUrlHost: hostOnly(SUPABASE_URL),
+});
+
 type JsonRecord = Record<string, any>;
 
 type ProvisioningFailure = {
   code:
     | 'invalid_metaapi_token'
+    | 'metaapi_permission_denied'
     | 'wrong_mt5_server'
     | 'wrong_mt5_credentials'
     | 'metaapi_provisioning_pending'
@@ -214,13 +226,36 @@ function extractMetaApiMessage(body: JsonRecord, fallback: string): string {
   return fallback;
 }
 
+function hostOnly(url: string | undefined): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+}
+
 function classifyProvisioningFailure(status: number, body: JsonRecord): ProvisioningFailure {
   const message = extractMetaApiMessage(body, `MetaApi provisioning failed (HTTP ${status})`);
   const normalized = message.toLowerCase();
 
   if (
+    status === 403 &&
+    (normalized.includes('do not have access') ||
+      normalized.includes('forbidden') ||
+      normalized.includes('methodid') ||
+      normalized.includes('createaccount') ||
+      normalized.includes('account-management:createaccount'))
+  ) {
+    return {
+      code: 'metaapi_permission_denied',
+      error: 'MetaApi token lacks account provisioning permission',
+      httpStatus: 403,
+    };
+  }
+
+  if (
     status === 401 ||
-    status === 403 ||
     normalized.includes('auth-token') ||
     normalized.includes('auth token') ||
     normalized.includes('unauthorized')
@@ -356,6 +391,36 @@ async function postProvisioningAccount(url: string, payload: JsonRecord) {
     attempts: METAAPI_PROVISIONING_MAX_ATTEMPTS,
     pending: lastRes.status === 202,
   };
+}
+
+async function validateLoadedMetaApiToken() {
+  const url = `${provisioningBaseUrl}/users/current/accounts`;
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'auth-token': METAAPI_TOKEN,
+      },
+    });
+
+    fastify.log.info({
+      event: 'metaapi_startup_token_validation',
+      url,
+      status: res.status,
+      tokenPresent: !!METAAPI_TOKEN,
+      tokenLength: METAAPI_TOKEN.length,
+    });
+  } catch (error: any) {
+    fastify.log.error({
+      event: 'metaapi_startup_token_validation_failed',
+      url,
+      tokenPresent: !!METAAPI_TOKEN,
+      tokenLength: METAAPI_TOKEN.length,
+      error: error?.message || String(error),
+      name: error?.name,
+      cause: error?.cause,
+    });
+  }
 }
 
 function mapPositions(raw: unknown[]): CanonicalPosition[] {
@@ -1621,8 +1686,9 @@ fastify.post('/metaapi/sync', async (request, reply) => {
 
 fastify
   .listen({ port: PORT, host: '0.0.0.0' })
-  .then(() => {
+  .then(async () => {
     fastify.log.info(`MetaApi gateway running on port ${PORT}`);
+    await validateLoadedMetaApiToken();
   })
   .catch((err) => {
     fastify.log.error(err);
