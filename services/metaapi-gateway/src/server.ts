@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import dotenv from 'dotenv';
 import path from 'node:path';
+import { existsSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import cors from '@fastify/cors';
@@ -41,15 +42,27 @@ const clientBaseUrl = `https://mt-client-api-v1.${METAAPI_REGION}.agiliumtrade.a
 fastify.log.info({
   event: 'metaapi_gateway_env_loaded',
   envPath: gatewayEnvPath,
+  envExists: existsSync(gatewayEnvPath),
   envLoaded: !gatewayEnvResult.error,
   envError: gatewayEnvResult.error?.message,
   metaapiTokenPresent: !!METAAPI_TOKEN,
   metaapiTokenLength: METAAPI_TOKEN.length,
   metaapiRegion: METAAPI_REGION,
   supabaseUrlHost: hostOnly(SUPABASE_URL),
+  port: PORT,
 });
 
 type JsonRecord = Record<string, any>;
+
+type MetaApiProvisioningAccount = JsonRecord & {
+  id?: string;
+  _id?: string;
+  login?: string | number;
+  server?: string;
+  region?: string;
+  state?: string;
+  connectionStatus?: string;
+};
 
 type ProvisioningFailure = {
   code:
@@ -329,6 +342,52 @@ function getProviderAccountId(body: JsonRecord): string | null {
   if (typeof body?.id === 'string' && body.id.trim()) return body.id;
   if (typeof body?._id === 'string' && body._id.trim()) return body._id;
   return null;
+}
+
+function getMetaApiAccountId(account: MetaApiProvisioningAccount): string | null {
+  if (typeof account?._id === 'string' && account._id.trim()) return account._id;
+  if (typeof account?.id === 'string' && account.id.trim()) return account.id;
+  return null;
+}
+
+function getProvisioningAccounts(body: JsonRecord): MetaApiProvisioningAccount[] {
+  if (Array.isArray(body)) return body as MetaApiProvisioningAccount[];
+  if (Array.isArray(body?.items)) return body.items as MetaApiProvisioningAccount[];
+  if (Array.isArray(body?.accounts)) return body.accounts as MetaApiProvisioningAccount[];
+  return [];
+}
+
+async function listProvisioningAccounts(url: string) {
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'auth-token': METAAPI_TOKEN,
+    },
+  });
+
+  const text = await res.text();
+  const body = parseJsonText(text);
+  const accounts = getProvisioningAccounts(body);
+
+  fastify.log.info({
+    event: 'metaapi_accounts_list_response',
+    url,
+    status: res.status,
+    accountCount: accounts.length,
+  });
+
+  return { res, text, body, accounts };
+}
+
+function findMatchingProvisioningAccount(
+  accounts: MetaApiProvisioningAccount[],
+  mt5Login: string,
+  mt5Server: string,
+): MetaApiProvisioningAccount | null {
+  return (
+    accounts.find((account) => String(account.login ?? '').trim() === mt5Login && String(account.server ?? '').trim() === mt5Server) ??
+    null
+  );
 }
 
 async function postProvisioningAccount(url: string, payload: JsonRecord) {
@@ -977,9 +1036,9 @@ fastify.post('/metaapi/connect', async (request, reply) => {
         : null;
     const userId = String(body?.userId ?? '').trim();
 
-    if (!accountName || !mt5Login || !mt5Server || !mt5Password || !userId) {
+    if (!accountName || !mt5Login || !mt5Server || !userId) {
       return reply.status(400).send({
-        error: 'accountName, mt5Login, mt5Server, mt5Password and userId are required',
+        error: 'accountName, mt5Login, mt5Server and userId are required',
       });
     }
 
@@ -997,19 +1056,60 @@ fastify.post('/metaapi/connect', async (request, reply) => {
       userId: maskForLog(userId),
     });
 
-    let provisioning: Awaited<ReturnType<typeof postProvisioningAccount>>;
+    let existingMetaApiAccount: MetaApiProvisioningAccount | null = null;
+    let provisioning: Awaited<ReturnType<typeof postProvisioningAccount>> | null = null;
+    let providerAccountId: string | null = null;
+
     try {
-      provisioning = await postProvisioningAccount(url, {
-        name: accountName,
-        type: 'cloud',
-        login: mt5Login,
-        password: mt5Password,
-        server: mt5Server,
-        platform: 'mt5',
-        application: 'MetaApi',
-        magic: 0,
-        tags: ['fortify', `user:${userId}`],
+      const listed = await listProvisioningAccounts(url);
+      if (!listed.res.ok) {
+        const failure = classifyProvisioningFailure(listed.res.status, listed.body);
+        fastify.log.error({
+          event: 'metaapi_accounts_list_failed',
+          url,
+          status: listed.res.status,
+          code: failure.code,
+          body: listed.text,
+        });
+        return reply.status(failure.httpStatus).send({
+          error: failure.error,
+          code: failure.code,
+          details: listed.body,
+        });
+      }
+
+      existingMetaApiAccount = findMatchingProvisioningAccount(listed.accounts, mt5Login, mt5Server);
+      providerAccountId = existingMetaApiAccount ? getMetaApiAccountId(existingMetaApiAccount) : null;
+
+      fastify.log.info({
+        event: 'metaapi_existing_account_lookup',
+        found: !!existingMetaApiAccount,
+        providerAccountId: maskForLog(providerAccountId),
+        state: existingMetaApiAccount?.state,
+        connectionStatus: existingMetaApiAccount?.connectionStatus,
+        region: existingMetaApiAccount?.region,
       });
+
+      if (!providerAccountId) {
+        if (!mt5Password) {
+          return reply.status(400).send({
+            error: 'mt5Password is required when provisioning a new MetaApi account',
+            code: 'mt5_password_required',
+          });
+        }
+
+        provisioning = await postProvisioningAccount(url, {
+          name: accountName,
+          type: 'cloud',
+          login: mt5Login,
+          password: mt5Password,
+          server: mt5Server,
+          platform: 'mt5',
+          application: 'MetaApi',
+          magic: 0,
+          tags: ['fortify', `user:${userId}`],
+        });
+      }
     } catch (fetchError: any) {
       fastify.log.error({
         event: 'metaapi_connect_fetch_error',
@@ -1025,7 +1125,7 @@ fastify.post('/metaapi/connect', async (request, reply) => {
       });
     }
 
-    if (provisioning.pending) {
+    if (provisioning?.pending) {
       fastify.log.error({
         event: 'metaapi_connect_provisioning_pending_timeout',
         url,
@@ -1043,7 +1143,7 @@ fastify.post('/metaapi/connect', async (request, reply) => {
       });
     }
 
-    if (!provisioning.res.ok) {
+    if (provisioning && !provisioning.res.ok) {
       const failure = classifyProvisioningFailure(provisioning.res.status, provisioning.body);
 
       fastify.log.error({
@@ -1092,80 +1192,199 @@ fastify.post('/metaapi/connect', async (request, reply) => {
       });
     }
 
-    const providerAccountId = getProviderAccountId(provisioning.body);
+    if (!providerAccountId && provisioning) {
+      providerAccountId = getProviderAccountId(provisioning.body);
+    }
 
     if (!providerAccountId) {
       fastify.log.error({
         event: 'metaapi_connect_missing_provider_account_id',
-        status: provisioning.res.status,
-        transactionId: provisioning.transactionId,
-        body: provisioning.body,
+        status: provisioning?.res.status,
+        transactionId: provisioning?.transactionId,
+        body: provisioning?.body,
       });
       return reply.status(502).send({
         error: 'MetaApi provisioning response did not include an account id',
         code: 'metaapi_provisioning_failed',
-        details: provisioning.body,
+        details: provisioning?.body,
       });
     }
 
-    const { data, error } = await supabase
+    const connectionStatus = existingMetaApiAccount?.connectionStatus === 'CONNECTED' ? 'connected' : 'connecting';
+    let effectiveTradingAccountId = tradingAccountId;
+
+    if (!effectiveTradingAccountId) {
+      const { data: existingTradingAccount, error: existingTradingAccountError } = await supabase
+        .from('trading_accounts')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('mt5_login', mt5Login)
+        .eq('mt5_server', mt5Server)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingTradingAccountError) {
+        fastify.log.error({
+          event: 'metaapi_connect_trading_account_lookup_failed',
+          userId: maskForLog(userId),
+          error: existingTradingAccountError.message,
+        });
+        return reply.status(500).send({
+          error: 'Supabase lookup failed while finding trading account',
+          code: 'supabase_lookup_failed',
+          details: existingTradingAccountError.message,
+        });
+      }
+
+      effectiveTradingAccountId = existingTradingAccount?.id ?? null;
+
+      if (!effectiveTradingAccountId) {
+        const { data: createdTradingAccount, error: createTradingAccountError } = await supabase
+          .from('trading_accounts')
+          .insert({
+            user_id: userId,
+            nickname: accountName,
+            broker: brokerName,
+            mt5_login: mt5Login,
+            mt5_server: mt5Server,
+            mt5_connection_status: connectionStatus,
+            mt5_sync_error: null,
+            base_currency: 'USD',
+            start_balance: 0,
+            current_balance: 0,
+            current_equity: 0,
+            highest_equity: 0,
+            status: 'active',
+          })
+          .select('id')
+          .single();
+
+        if (createTradingAccountError) {
+          fastify.log.error({
+            event: 'metaapi_connect_trading_account_insert_failed',
+            userId: maskForLog(userId),
+            error: createTradingAccountError.message,
+          });
+          return reply.status(500).send({
+            error: 'Supabase insert failed while creating trading account',
+            code: 'supabase_insert_failed',
+            details: createTradingAccountError.message,
+          });
+        }
+
+        effectiveTradingAccountId = createdTradingAccount.id;
+      }
+    }
+
+    const connectionPayload = {
+      user_id: userId,
+      trading_account_id: effectiveTradingAccountId,
+      account_name: accountName,
+      mt5_login: mt5Login,
+      mt5_server: mt5Server,
+      broker_name: brokerName,
+      provider: 'metaapi',
+      provider_account_id: providerAccountId,
+      api_mode: 'cloud',
+      connection_status: connectionStatus,
+      sync_status: 'queued',
+      sync_error: null,
+      last_sync_at: null,
+    };
+
+    let existingConnection: JsonRecord | null = null;
+
+    const { data: providerConnection, error: providerConnectionError } = await supabase
       .from('mt5_connections')
-      .insert({
-        user_id: userId,
-        trading_account_id: tradingAccountId,
-        account_name: accountName,
-        mt5_login: mt5Login,
-        mt5_server: mt5Server,
-        broker_name: brokerName,
-        provider: 'metaapi',
-        provider_account_id: providerAccountId,
-        api_mode: 'cloud',
-        connection_status: 'connecting',
-        sync_status: 'queued',
-        sync_error: null,
-        last_sync_at: null,
-      })
       .select('*')
-      .single();
+      .eq('user_id', userId)
+      .eq('provider', 'metaapi')
+      .eq('provider_account_id', providerAccountId)
+      .maybeSingle();
+
+    if (providerConnectionError) {
+      fastify.log.error({
+        event: 'metaapi_connect_existing_connection_lookup_failed',
+        error: providerConnectionError.message,
+      });
+      return reply.status(500).send({
+        error: 'Supabase lookup failed while finding existing MT5 connection',
+        code: 'supabase_lookup_failed',
+        details: providerConnectionError.message,
+      });
+    }
+
+    existingConnection = providerConnection;
+
+    if (!existingConnection && effectiveTradingAccountId) {
+      const { data: accountConnection, error: accountConnectionError } = await supabase
+        .from('mt5_connections')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('provider', 'metaapi')
+        .eq('trading_account_id', effectiveTradingAccountId)
+        .maybeSingle();
+
+      if (accountConnectionError) {
+        fastify.log.error({
+          event: 'metaapi_connect_account_connection_lookup_failed',
+          error: accountConnectionError.message,
+        });
+        return reply.status(500).send({
+          error: 'Supabase lookup failed while finding account MT5 connection',
+          code: 'supabase_lookup_failed',
+          details: accountConnectionError.message,
+        });
+      }
+
+      existingConnection = accountConnection;
+    }
+
+    const { data, error } = existingConnection
+      ? await supabase.from('mt5_connections').update(connectionPayload).eq('id', existingConnection.id).select('*').single()
+      : await supabase.from('mt5_connections').insert(connectionPayload).select('*').single();
 
     if (error) {
       fastify.log.error({
-        event: 'metaapi_connect_insert_failed',
+        event: existingConnection ? 'metaapi_connect_update_failed' : 'metaapi_connect_insert_failed',
         error: error.message,
       });
       return reply.status(500).send({
-        error: 'Supabase insert failed while saving MT5 connection',
-        code: 'supabase_insert_failed',
+        error: existingConnection
+          ? 'Supabase update failed while saving MT5 connection'
+          : 'Supabase insert failed while saving MT5 connection',
+        code: existingConnection ? 'supabase_update_failed' : 'supabase_insert_failed',
         details: error.message,
       });
     }
 
-    if (tradingAccountId) {
-      const { error: accountUpdateError } = await supabase
-        .from('trading_accounts')
-        .update({
-          mt5_connection_status: 'connecting',
-          mt5_login: mt5Login,
-          mt5_server: mt5Server,
-          mt5_sync_error: null,
-        })
-        .eq('id', tradingAccountId)
-        .eq('user_id', userId);
+    const { error: accountUpdateError } = await supabase
+      .from('trading_accounts')
+      .update({
+        mt5_connection_status: connectionStatus,
+        mt5_login: mt5Login,
+        mt5_server: mt5Server,
+        mt5_sync_error: null,
+      })
+      .eq('id', effectiveTradingAccountId)
+      .eq('user_id', userId);
 
-      if (accountUpdateError) {
-        fastify.log.error({
-          event: 'metaapi_connect_trading_account_update_failed',
-          tradingAccountId,
-          error: accountUpdateError.message,
-        });
-      }
+    if (accountUpdateError) {
+      fastify.log.error({
+        event: 'metaapi_connect_trading_account_update_failed',
+        tradingAccountId: maskForLog(effectiveTradingAccountId),
+        error: accountUpdateError.message,
+      });
     }
 
     return {
       success: true,
       connection: data,
       providerAccountId,
-      transactionId: provisioning.transactionId,
+      tradingAccountId: effectiveTradingAccountId,
+      reusedExistingMetaApiAccount: !!existingMetaApiAccount,
+      transactionId: provisioning?.transactionId ?? null,
     };
   } catch (error) {
     fastify.log.error(error);
