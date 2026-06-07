@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,7 @@ import { Shield, Lock, Mail, User, ArrowRight, Eye, EyeOff, ChevronRight, CheckC
 type AuthMode = "login" | "signup" | "forgot";
 
 export default function AuthPage() {
+  const navigate = useNavigate();
   const [mode, setMode] = useState<AuthMode>("login");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -70,6 +72,15 @@ export default function AuthPage() {
     if (mode === "login") handleLogin();
     else if (mode === "signup") handleSignup();
     else handleForgot();
+  };
+
+  const choosePaidPlan = () => {
+    window.sessionStorage.setItem("fortify_intended_plan", "monthly");
+    setMode("signup");
+  };
+
+  const openPlans = () => {
+    navigate("/pricing");
   };
 
   const bullets = [
@@ -286,20 +297,32 @@ export default function AuthPage() {
 
                 <div className="pt-4 text-center">
                   {mode === "login" && (
-                    <p className="text-sm text-muted-foreground">
-                      Não tem conta?{" "}
-                      <button onClick={() => setMode("signup")} className="text-primary font-semibold hover:text-primary/80 transition-colors">
-                        Criar conta
-                      </button>
-                    </p>
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        Não tem conta?{" "}
+                        <button onClick={() => setMode("signup")} className="text-primary font-semibold hover:text-primary/80 transition-colors">
+                          Criar conta grátis
+                        </button>
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button type="button" variant="outline" size="sm" onClick={choosePaidPlan}>Assinar Fortify</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={openPlans}>Ver planos</Button>
+                      </div>
+                    </div>
                   )}
                   {mode === "signup" && (
-                    <p className="text-sm text-muted-foreground">
-                      Já tem conta?{" "}
-                      <button onClick={() => setMode("login")} className="text-primary font-semibold hover:text-primary/80 transition-colors">
-                        Entrar
-                      </button>
-                    </p>
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        Já tem conta?{" "}
+                        <button onClick={() => setMode("login")} className="text-primary font-semibold hover:text-primary/80 transition-colors">
+                          Já tenho conta
+                        </button>
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button type="button" variant="outline" size="sm" onClick={() => setMode("signup")}>Começar pelo beta</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={openPlans}>Ver planos</Button>
+                      </div>
+                    </div>
                   )}
                   {mode === "forgot" && (
                     <button onClick={() => setMode("login")} className="text-sm text-primary font-semibold hover:text-primary/80 transition-colors flex items-center gap-1 mx-auto">

@@ -46,10 +46,11 @@ const METAAPI_PROVISIONING_MAX_WAIT_MS = Number(process.env.METAAPI_PROVISIONING
 const FORTIFY_ALLOW_BETA_FALLBACK = process.env.FORTIFY_ALLOW_BETA_FALLBACK === 'true';
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
-const STRIPE_SUCCESS_URL = process.env.STRIPE_SUCCESS_URL || 'http://localhost:8081/settings?billing=success';
+const STRIPE_SUCCESS_URL = process.env.STRIPE_SUCCESS_URL || 'http://localhost:8081/dashboard?checkout=success';
 const STRIPE_CANCEL_URL = process.env.STRIPE_CANCEL_URL || 'http://localhost:8081/pricing?billing=cancelled';
 const STRIPE_CUSTOMER_PORTAL_RETURN_URL = process.env.STRIPE_CUSTOMER_PORTAL_RETURN_URL || 'http://localhost:8081/settings';
 const STRIPE_API_BASE_URL = 'https://api.stripe.com/v1';
+const OWNER_ADMIN_EMAIL = 'nobrufonseca01@hotmail.com';
 
 if (!SUPABASE_URL) {
   throw new Error('Missing required environment variable: SUPABASE_URL');
@@ -190,6 +191,8 @@ type BillingPlan = {
   price_amount?: number | null;
   price_cents?: number | null;
 };
+
+type AdminAuthResult = AuthenticatedUser & { isOwnerEmail: boolean };
 
 type DetectionResult = {
   detected_broker: string | null;
@@ -397,6 +400,108 @@ async function verifyBearerUser(request: FastifyRequest): Promise<AuthenticatedU
   };
 }
 
+async function ensureOwnerAdminRole(user: AuthenticatedUser) {
+  const isOwnerEmail = String(user.email || '').toLowerCase() === OWNER_ADMIN_EMAIL;
+  if (!isOwnerEmail) return false;
+
+  const { error } = await (supabase
+    .from('user_roles' as any)
+    .upsert({ user_id: user.id, role: 'admin' }, { onConflict: 'user_id,role' }) as any);
+
+  if (error) {
+    fastify.log.error({
+      event: 'admin_owner_bootstrap_failed',
+      userId: maskForLog(user.id),
+      error: error.message,
+    });
+    return false;
+  }
+
+  return true;
+}
+
+async function verifyAdminRequest(request: FastifyRequest): Promise<AdminAuthResult | { error: JsonRecord; status: number }> {
+  const authResult = await verifyBearerUser(request);
+  if (isAuthError(authResult)) return authResult;
+
+  const isOwnerEmail = await ensureOwnerAdminRole(authResult);
+  const { data: role, error } = await (supabase
+    .from('user_roles' as any)
+    .select('role')
+    .eq('user_id', authResult.id)
+    .eq('role', 'admin')
+    .maybeSingle() as any);
+
+  if (error) {
+    fastify.log.error({
+      event: 'admin_role_lookup_failed',
+      userId: maskForLog(authResult.id),
+      error: error.message,
+    });
+    return {
+      status: 500,
+      error: {
+        error: 'Failed to verify admin role',
+        code: 'admin_role_lookup_failed',
+      },
+    };
+  }
+
+  if (!role) {
+    fastify.log.warn({
+      event: 'admin_access_denied',
+      userId: maskForLog(authResult.id),
+      email: authResult.email ? maskForLog(authResult.email) : null,
+    });
+    return {
+      status: 403,
+      error: {
+        error: 'Admin access required',
+        code: 'admin_forbidden',
+      },
+    };
+  }
+
+  return {
+    ...authResult,
+    isOwnerEmail,
+  };
+}
+
+async function verifyRequestUserOrAdmin(request: FastifyRequest, requestedUserId: string): Promise<AuthenticatedUser | { error: JsonRecord; status: number }> {
+  if (!isUuid(requestedUserId)) {
+    return {
+      status: 400,
+      error: {
+        error: 'A valid userId is required',
+        code: 'invalid_user_id',
+      },
+    };
+  }
+
+  const authResult = await verifyBearerUser(request);
+  if (isAuthError(authResult)) return authResult;
+  if (authResult.id === requestedUserId) return authResult;
+
+  const adminResult = await verifyAdminRequest(request);
+  if (!isAuthError(adminResult)) {
+    fastify.log.info({
+      event: 'admin_cross_user_sync_authorized',
+      adminUserId: maskForLog(adminResult.id),
+      targetUserId: maskForLog(requestedUserId),
+    });
+    return authResult;
+  }
+
+  return {
+    status: 403,
+    error: {
+      error: 'User session does not match requested userId',
+      code: 'user_mismatch',
+    },
+  };
+}
+
 function isAuthError(result: AuthenticatedUser | { error: JsonRecord; status: number }): result is { error: JsonRecord; status: number } {
   return 'error' in result;
 }
@@ -447,6 +552,19 @@ async function findBillingPlanBySelector(selector: string): Promise<BillingPlan 
     .eq('status', 'active')
     .eq('active', true) as any);
 
+  const { data, error } = clean.startsWith('price_')
+    ? await query.eq('stripe_price_id', clean).maybeSingle()
+    : await query.or(`id.eq.${clean},slug.eq.${clean}`).maybeSingle();
+
+  if (error) throw error;
+  return data ? normalizeBillingPlan(data) : null;
+}
+
+async function findAdminPlanBySelector(selector: string): Promise<BillingPlan | null> {
+  const clean = selector.trim();
+  if (!clean || !isSafePlanSelector(clean)) return null;
+
+  const query = supabase.from('plans' as any).select('*') as any;
   const { data, error } = clean.startsWith('price_')
     ? await query.eq('stripe_price_id', clean).maybeSingle()
     : await query.or(`id.eq.${clean},slug.eq.${clean}`).maybeSingle();
@@ -634,6 +752,288 @@ async function upsertSubscriptionFromStripe(subscription: JsonRecord, fallbackUs
 async function syncSubscriptionById(subscriptionId: string, fallbackUserId?: string | null) {
   const subscription = await stripeGet(`/subscriptions/${encodeURIComponent(subscriptionId)}`);
   return upsertSubscriptionFromStripe(subscription, fallbackUserId);
+}
+
+function toPositiveInteger(value: unknown, fallback: number, max = 100) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.min(max, Math.floor(parsed));
+}
+
+function getQueryParam(request: FastifyRequest, key: string) {
+  return String((request.query as JsonRecord | undefined)?.[key] ?? '').trim();
+}
+
+function maskExternalId(value: unknown) {
+  return maskForLog(value);
+}
+
+function sanitizePlan(plan: JsonRecord | null | undefined) {
+  if (!plan) return null;
+  return {
+    id: plan.id,
+    name: plan.name ?? plan.plan_name,
+    slug: plan.slug ?? plan.id,
+    plan_name: plan.plan_name ?? plan.name,
+    status: plan.status,
+    active: plan.active ?? plan.status === 'active',
+    account_limit: plan.account_limit,
+    billing_interval: plan.billing_interval,
+    price_amount: plan.price_amount ?? plan.price_cents ?? null,
+    stripe_price_id: maskExternalId(plan.stripe_price_id),
+    has_stripe_price: Boolean(plan.stripe_price_id),
+    created_at: plan.created_at,
+    updated_at: plan.updated_at,
+  };
+}
+
+function sanitizeSubscription(subscription: JsonRecord | null | undefined) {
+  if (!subscription) return null;
+  return {
+    id: subscription.id,
+    user_id: subscription.user_id,
+    plan_id: subscription.plan_id,
+    plan_name: subscription.plan_name,
+    status: subscription.status,
+    account_limit: subscription.account_limit,
+    current_period_start: subscription.current_period_start,
+    current_period_end: subscription.current_period_end,
+    cancel_at_period_end: subscription.cancel_at_period_end,
+    stripe_customer_id: maskExternalId(subscription.stripe_customer_id),
+    stripe_subscription_id: maskExternalId(subscription.stripe_subscription_id),
+    has_stripe_customer: Boolean(subscription.stripe_customer_id),
+    has_stripe_subscription: Boolean(subscription.stripe_subscription_id),
+    created_at: subscription.created_at,
+    updated_at: subscription.updated_at,
+  };
+}
+
+function sanitizeConnection(connection: JsonRecord, email?: string | null) {
+  return {
+    id: connection.id,
+    trading_account_id: connection.trading_account_id,
+    user_id: connection.user_id,
+    user_email: email ?? null,
+    account_name: connection.account_name,
+    mt5_login: maskForLog(connection.mt5_login),
+    mt5_server: connection.mt5_server,
+    broker_name: connection.broker_name,
+    provider: connection.provider,
+    provider_account_id: maskExternalId(connection.provider_account_id),
+    connection_status: connection.connection_status,
+    sync_status: connection.sync_status,
+    sync_error: connection.sync_error,
+    last_sync_at: connection.last_sync_at,
+    created_at: connection.created_at,
+    updated_at: connection.updated_at,
+  };
+}
+
+function sanitizeTradingAccount(account: JsonRecord | null | undefined) {
+  if (!account) return null;
+  return {
+    id: account.id,
+    user_id: account.user_id,
+    nickname: account.nickname,
+    broker: account.broker,
+    prop_firm: account.prop_firm,
+    status: account.status,
+    rule_set_id: account.rule_set_id,
+    rule_selection_status: account.rule_selection_status,
+    mt5_login: maskForLog(account.mt5_login),
+    mt5_server: account.mt5_server,
+    mt5_connection_status: account.mt5_connection_status,
+    mt5_last_sync_at: account.mt5_last_sync_at,
+    mt5_sync_error: account.mt5_sync_error,
+    detected_broker: account.detected_broker,
+    detected_prop_firm: account.detected_prop_firm,
+    detection_confidence: account.detection_confidence,
+    created_at: account.created_at,
+    updated_at: account.updated_at,
+  };
+}
+
+async function listAuthUsersForAdmin() {
+  const { data, error } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  if (error) throw error;
+  return (data.users || []).map((user: any) => ({
+    id: user.id,
+    email: user.email || '',
+    created_at: user.created_at,
+    last_sign_in_at: user.last_sign_in_at,
+    banned_until: user.banned_until,
+    email_confirmed_at: user.email_confirmed_at,
+    user_metadata: user.user_metadata || {},
+  }));
+}
+
+async function getAuthUserForAdmin(userId: string) {
+  const { data, error } = await supabase.auth.admin.getUserById(userId);
+  if (error) throw error;
+  const user = data.user as any;
+  if (!user) return null;
+  return {
+    id: user.id,
+    email: user.email || '',
+    created_at: user.created_at,
+    last_sign_in_at: user.last_sign_in_at,
+    banned_until: user.banned_until,
+    email_confirmed_at: user.email_confirmed_at,
+    user_metadata: user.user_metadata || {},
+  };
+}
+
+function buildUserEmailMap(users: Array<{ id: string; email: string }>) {
+  return new Map(users.map((user) => [user.id, user.email]));
+}
+
+async function getAdminUserRows() {
+  const [users, subscriptionsRes, connectionsRes] = await Promise.all([
+    listAuthUsersForAdmin(),
+    (supabase.from('user_subscriptions' as any).select('*') as any),
+    supabase.from('mt5_connections').select('id,user_id,last_sync_at,connection_status,sync_status,sync_error'),
+  ]);
+
+  if (subscriptionsRes.error) throw subscriptionsRes.error;
+  if (connectionsRes.error) throw connectionsRes.error;
+
+  const subByUser = new Map((subscriptionsRes.data || []).map((sub: JsonRecord) => [sub.user_id, sub]));
+  const connectionsByUser = new Map<string, JsonRecord[]>();
+  for (const connection of connectionsRes.data || []) {
+    const list = connectionsByUser.get(connection.user_id) || [];
+    list.push(connection);
+    connectionsByUser.set(connection.user_id, list);
+  }
+
+  return users.map((user) => {
+    const subscription = subByUser.get(user.id) as JsonRecord | undefined;
+    const userConnections = connectionsByUser.get(user.id) || [];
+    const lastSync = userConnections
+      .map((connection) => connection.last_sync_at)
+      .filter(Boolean)
+      .sort()
+      .at(-1) || null;
+
+    return {
+      user_id: user.id,
+      email: user.email,
+      created_at: user.created_at,
+      last_sign_in_at: user.last_sign_in_at,
+      blocked: Boolean(user.banned_until),
+      subscription_status: subscription?.status || null,
+      plan: subscription?.plan_id || null,
+      plan_name: subscription?.plan_name || null,
+      account_limit: subscription?.account_limit || 0,
+      connected_accounts_count: userConnections.filter((connection) => ['connected', 'connecting', 'syncing'].includes(String(connection.connection_status))).length,
+      sync_error_count: userConnections.filter((connection) => connection.sync_error || ['error', 'failed'].includes(String(connection.sync_status))).length,
+      last_sync_at: lastSync,
+      subscription: sanitizeSubscription(subscription),
+    };
+  });
+}
+
+function filterAndPaginateRows<T extends JsonRecord>(rows: T[], input: { search?: string; status?: string; plan?: string; page?: number; limit?: number }) {
+  const search = String(input.search || '').toLowerCase();
+  const status = String(input.status || '').toLowerCase();
+  const plan = String(input.plan || '').toLowerCase();
+  const page = input.page || 1;
+  const limit = input.limit || 25;
+
+  const filtered = rows.filter((row) => {
+    const matchesSearch = !search || JSON.stringify(row).toLowerCase().includes(search);
+    const matchesStatus = !status || String(row.subscription_status || row.status || '').toLowerCase() === status;
+    const matchesPlan = !plan || String(row.plan || row.plan_id || '').toLowerCase() === plan;
+    return matchesSearch && matchesStatus && matchesPlan;
+  });
+
+  const start = (page - 1) * limit;
+  return {
+    rows: filtered.slice(start, start + limit),
+    pagination: {
+      page,
+      limit,
+      total: filtered.length,
+      totalPages: Math.max(1, Math.ceil(filtered.length / limit)),
+    },
+  };
+}
+
+function paginateRows<T>(rows: T[], page: number, limit: number) {
+  const start = (page - 1) * limit;
+  return {
+    rows: rows.slice(start, start + limit),
+    pagination: {
+      page,
+      limit,
+      total: rows.length,
+      totalPages: Math.max(1, Math.ceil(rows.length / limit)),
+    },
+  };
+}
+
+function normalizeAdminStatus(value: unknown, fallback = 'active') {
+  const status = String(value || fallback).trim().toLowerCase();
+  const allowed = new Set(['active', 'trialing', 'inactive', 'canceled', 'past_due', 'suspended', 'incomplete']);
+  return allowed.has(status) ? status : fallback;
+}
+
+function parsePeriodEnd(value: unknown, fallbackIso: string | null) {
+  if (value === null || value === undefined || value === '') return fallbackIso;
+  const parsed = Date.parse(String(value));
+  return Number.isFinite(parsed) ? new Date(parsed).toISOString() : fallbackIso;
+}
+
+function defaultPeriodEndForPlan(plan: BillingPlan) {
+  const days = plan.id === 'beta_free' ? 90 : plan.billing_interval === 'year' ? 365 : 30;
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+}
+
+async function loadTradingAccountMap() {
+  const { data, error } = await supabase
+    .from('trading_accounts')
+    .select('id,user_id,nickname,broker,prop_firm,status,rule_set_id,rule_selection_status,mt5_connection_status,mt5_last_sync_at,mt5_sync_error');
+
+  if (error) throw error;
+  return new Map((data || []).map((account: JsonRecord) => [account.id, account]));
+}
+
+async function loadRuleEvaluationSummary(tradingAccountIds: string[]) {
+  if (tradingAccountIds.length === 0) return new Map<string, JsonRecord>();
+
+  const { data, error } = await (supabase
+    .from('rule_evaluations' as any)
+    .select('trading_account_id,status,data_status,computed_at')
+    .in('trading_account_id', tradingAccountIds) as any);
+
+  if (error) throw error;
+
+  const summaries = new Map<string, JsonRecord>();
+  for (const evaluation of data || []) {
+    const accountId = evaluation.trading_account_id;
+    const current = summaries.get(accountId) || {
+      total: 0,
+      approving: 0,
+      warning: 0,
+      violated: 0,
+      notMet: 0,
+      insufficientData: 0,
+      lastComputedAt: null,
+    };
+
+    current.total += 1;
+    if (evaluation.status === 'APPROVING') current.approving += 1;
+    if (evaluation.status === 'WARNING') current.warning += 1;
+    if (evaluation.status === 'VIOLATED') current.violated += 1;
+    if (evaluation.status === 'NOT_MET') current.notMet += 1;
+    if (evaluation.data_status === 'insufficient_data') current.insufficientData += 1;
+    if (evaluation.computed_at && (!current.lastComputedAt || evaluation.computed_at > current.lastComputedAt)) {
+      current.lastComputedAt = evaluation.computed_at;
+    }
+
+    summaries.set(accountId, current);
+  }
+
+  return summaries;
 }
 
 async function getActiveAccountLimit(userId: string): Promise<AccountLimitCheck> {
@@ -1926,6 +2326,671 @@ fastify.get('/health', async () => {
   };
 });
 
+fastify.get('/admin/summary', async (request, reply) => {
+  try {
+    const adminResult = await verifyAdminRequest(request);
+    if (isAuthError(adminResult)) return reply.status(adminResult.status).send(adminResult.error);
+
+    const users = await listAuthUsersForAdmin();
+    const emailMap = buildUserEmailMap(users);
+    const [subscriptionsRes, connectionsRes] = await Promise.all([
+      supabase.from('user_subscriptions' as any).select('*') as any,
+      supabase.from('mt5_connections').select('*').order('created_at', { ascending: false }),
+    ]);
+
+    if (subscriptionsRes.error) throw subscriptionsRes.error;
+    if (connectionsRes.error) throw connectionsRes.error;
+
+    const subscriptions = subscriptionsRes.data || [];
+    const connections = connectionsRes.data || [];
+    const activeSubscriptions = subscriptions.filter((sub: JsonRecord) => ['active', 'trialing'].includes(String(sub.status))).length;
+    const betaUsers = subscriptions.filter((sub: JsonRecord) => sub.plan_id === 'beta_free' && ['active', 'trialing'].includes(String(sub.status))).length;
+    const connectedAccounts = connections.filter((conn: JsonRecord) => ['connected', 'connecting', 'syncing'].includes(String(conn.connection_status))).length;
+    const syncErrors = connections.filter((conn: JsonRecord) => conn.sync_error || ['error', 'failed'].includes(String(conn.sync_status))).length;
+    const accountsByPlan = subscriptions.reduce((acc: Record<string, number>, sub: JsonRecord) => {
+      const key = String(sub.plan_id || sub.plan_name || 'unknown');
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+
+    const recentUsers = [...users]
+      .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+      .slice(0, 10);
+    const recentConnections = connections
+      .slice(0, 10)
+      .map((connection: JsonRecord) => sanitizeConnection(connection, emailMap.get(connection.user_id) || null));
+
+    return reply.send({
+      totalUsers: users.length,
+      activeSubscriptions,
+      betaUsers,
+      connectedAccounts,
+      syncErrors,
+      accountsByPlan,
+      recentUsers,
+      recentConnections,
+    });
+  } catch (error: any) {
+    fastify.log.error({ event: 'admin_summary_failed', error: error?.message });
+    return reply.status(500).send({
+      error: 'Failed to load admin summary',
+      code: 'admin_summary_failed',
+      details: error?.message,
+    });
+  }
+});
+
+fastify.get('/admin/users', async (request, reply) => {
+  try {
+    const adminResult = await verifyAdminRequest(request);
+    if (isAuthError(adminResult)) return reply.status(adminResult.status).send(adminResult.error);
+
+    const rows = await getAdminUserRows();
+    const page = toPositiveInteger(getQueryParam(request, 'page'), 1, 1000);
+    const limit = toPositiveInteger(getQueryParam(request, 'limit'), 25, 100);
+    const result = filterAndPaginateRows(rows, {
+      search: getQueryParam(request, 'search'),
+      status: getQueryParam(request, 'status'),
+      plan: getQueryParam(request, 'plan'),
+      page,
+      limit,
+    });
+
+    return reply.send({ users: result.rows, pagination: result.pagination });
+  } catch (error: any) {
+    fastify.log.error({ event: 'admin_users_failed', error: error?.message });
+    return reply.status(500).send({
+      error: 'Failed to load admin users',
+      code: 'admin_users_failed',
+      details: error?.message,
+    });
+  }
+});
+
+fastify.get('/admin/users/:userId', async (request, reply) => {
+  try {
+    const adminResult = await verifyAdminRequest(request);
+    if (isAuthError(adminResult)) return reply.status(adminResult.status).send(adminResult.error);
+
+    const { userId } = request.params as { userId?: string };
+    if (!isUuid(userId)) {
+      return reply.status(400).send({ error: 'A valid userId is required', code: 'invalid_user_id' });
+    }
+
+    const [profile, subscriptionRes, connectionsRes, accountsRes] = await Promise.all([
+      getAuthUserForAdmin(userId),
+      (supabase.from('user_subscriptions' as any).select('*').eq('user_id', userId).maybeSingle() as any),
+      supabase.from('mt5_connections').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+      supabase.from('trading_accounts').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+    ]);
+
+    if (!profile) return reply.status(404).send({ error: 'User not found', code: 'user_not_found' });
+    if (subscriptionRes.error) throw subscriptionRes.error;
+    if (connectionsRes.error) throw connectionsRes.error;
+    if (accountsRes.error) throw accountsRes.error;
+
+    const accountIds = (accountsRes.data || []).map((account: JsonRecord) => account.id).filter(Boolean);
+    const ruleSummaries = await loadRuleEvaluationSummary(accountIds);
+    const recentSync = (connectionsRes.data || [])
+      .map((conn: JsonRecord) => conn.last_sync_at)
+      .filter(Boolean)
+      .sort()
+      .at(-1) || null;
+
+    return reply.send({
+      profile,
+      subscription: sanitizeSubscription(subscriptionRes.data),
+      connectedAccounts: (connectionsRes.data || []).map((connection: JsonRecord) => sanitizeConnection(connection, profile.email)),
+      tradingAccounts: (accountsRes.data || []).map((account: JsonRecord) => ({
+        ...sanitizeTradingAccount(account),
+        ruleStatusSummary: ruleSummaries.get(account.id) || null,
+      })),
+      recentSyncStatus: {
+        last_sync_at: recentSync,
+        sync_error_count: (connectionsRes.data || []).filter((connection: JsonRecord) => connection.sync_error || ['error', 'failed'].includes(String(connection.sync_status))).length,
+      },
+    });
+  } catch (error: any) {
+    fastify.log.error({ event: 'admin_user_detail_failed', error: error?.message });
+    return reply.status(500).send({
+      error: 'Failed to load admin user detail',
+      code: 'admin_user_detail_failed',
+      details: error?.message,
+    });
+  }
+});
+
+fastify.post('/admin/users/:userId/subscription', async (request, reply) => {
+  try {
+    const adminResult = await verifyAdminRequest(request);
+    if (isAuthError(adminResult)) return reply.status(adminResult.status).send(adminResult.error);
+
+    const { userId } = request.params as { userId?: string };
+    if (!isUuid(userId)) {
+      return reply.status(400).send({ error: 'A valid userId is required', code: 'invalid_user_id' });
+    }
+
+    const body = request.body as JsonRecord;
+    const selector = String(body?.planId || body?.planSlug || body?.plan || '').trim();
+    if (!selector) {
+      return reply.status(400).send({ error: 'planId or planSlug is required', code: 'admin_plan_required' });
+    }
+
+    const plan = await findAdminPlanBySelector(selector);
+    if (!plan) {
+      return reply.status(400).send({ error: 'Selected plan was not found', code: 'admin_plan_not_found' });
+    }
+
+    const status = normalizeAdminStatus(body?.status, 'active');
+    const accountLimit = Math.max(0, Math.floor(toNumber(body?.accountLimit, plan.account_limit)));
+    const currentPeriodEnd = parsePeriodEnd(body?.currentPeriodEnd, defaultPeriodEndForPlan(plan));
+
+    const { data, error } = await (supabase
+      .from('user_subscriptions' as any)
+      .upsert({
+        user_id: userId,
+        plan_id: plan.id,
+        plan_name: plan.plan_name,
+        status,
+        account_limit: accountLimit,
+        current_period_start: new Date().toISOString(),
+        current_period_end: currentPeriodEnd,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' })
+      .select('*')
+      .single() as any);
+
+    if (error) throw error;
+
+    fastify.log.info({
+      event: 'admin_subscription_updated',
+      adminUserId: maskForLog(adminResult.id),
+      targetUserId: maskForLog(userId),
+      planId: plan.id,
+      status,
+    });
+
+    return reply.send({ subscription: sanitizeSubscription(data) });
+  } catch (error: any) {
+    fastify.log.error({ event: 'admin_subscription_update_failed', error: error?.message });
+    return reply.status(500).send({
+      error: 'Failed to update user subscription',
+      code: 'admin_subscription_update_failed',
+      details: error?.message,
+    });
+  }
+});
+
+fastify.post('/admin/users/:userId/block', async (request, reply) => {
+  try {
+    const adminResult = await verifyAdminRequest(request);
+    if (isAuthError(adminResult)) return reply.status(adminResult.status).send(adminResult.error);
+
+    const { userId } = request.params as { userId?: string };
+    if (!isUuid(userId)) {
+      return reply.status(400).send({ error: 'A valid userId is required', code: 'invalid_user_id' });
+    }
+
+    const body = request.body as JsonRecord;
+    const blocked = body?.blocked !== false;
+
+    const { data: existing, error: existingError } = await (supabase
+      .from('user_subscriptions' as any)
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle() as any);
+
+    if (existingError) throw existingError;
+
+    const plan = existing?.plan_id
+      ? await findAdminPlanBySelector(existing.plan_id)
+      : await findAdminPlanBySelector('beta_free');
+    if (!plan) {
+      return reply.status(409).send({ error: 'No plan available for block operation', code: 'admin_plan_not_found' });
+    }
+
+    const nextStatus = blocked ? 'suspended' : 'active';
+    const { data, error } = await (supabase
+      .from('user_subscriptions' as any)
+      .upsert({
+        user_id: userId,
+        plan_id: existing?.plan_id || plan.id,
+        plan_name: existing?.plan_name || plan.plan_name,
+        status: nextStatus,
+        account_limit: Number(existing?.account_limit ?? plan.account_limit),
+        current_period_start: existing?.current_period_start || new Date().toISOString(),
+        current_period_end: existing?.current_period_end || defaultPeriodEndForPlan(plan),
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' })
+      .select('*')
+      .single() as any);
+
+    if (error) throw error;
+
+    fastify.log.info({
+      event: 'admin_user_block_status_updated',
+      adminUserId: maskForLog(adminResult.id),
+      targetUserId: maskForLog(userId),
+      blocked,
+    });
+
+    return reply.send({ blocked, subscription: sanitizeSubscription(data) });
+  } catch (error: any) {
+    fastify.log.error({ event: 'admin_user_block_failed', error: error?.message });
+    return reply.status(500).send({
+      error: 'Failed to update user block status',
+      code: 'admin_user_block_failed',
+      details: error?.message,
+    });
+  }
+});
+
+fastify.get('/admin/plans', async (request, reply) => {
+  try {
+    const adminResult = await verifyAdminRequest(request);
+    if (isAuthError(adminResult)) return reply.status(adminResult.status).send(adminResult.error);
+
+    const { data, error } = await (supabase
+      .from('plans' as any)
+      .select('*')
+      .order('account_limit', { ascending: true }) as any);
+
+    if (error) throw error;
+    return reply.send({ plans: (data || []).map(sanitizePlan) });
+  } catch (error: any) {
+    fastify.log.error({ event: 'admin_plans_failed', error: error?.message });
+    return reply.status(500).send({
+      error: 'Failed to load plans',
+      code: 'admin_plans_failed',
+      details: error?.message,
+    });
+  }
+});
+
+fastify.post('/admin/plans', async (request, reply) => {
+  try {
+    const adminResult = await verifyAdminRequest(request);
+    if (isAuthError(adminResult)) return reply.status(adminResult.status).send(adminResult.error);
+
+    const body = request.body as JsonRecord;
+    const slug = String(body?.slug || body?.id || '').trim().toLowerCase();
+    const name = String(body?.name || body?.plan_name || '').trim();
+    if (!slug || !name || !isSafePlanSelector(slug)) {
+      return reply.status(400).send({
+        error: 'A safe slug and name are required',
+        code: 'admin_invalid_plan_payload',
+      });
+    }
+
+    const active = body?.active !== false && String(body?.status || 'active') !== 'inactive';
+    const priceAmount = body?.price_amount ?? body?.priceAmount ?? body?.price_cents ?? null;
+    const stripePriceId = String(body?.stripe_price_id || body?.stripePriceId || '').trim() || null;
+    const accountLimit = Math.max(0, Math.floor(toNumber(body?.account_limit ?? body?.accountLimit, 0)));
+
+    const { data, error } = await (supabase
+      .from('plans' as any)
+      .upsert({
+        id: String(body?.id || slug),
+        plan_name: name,
+        name,
+        slug,
+        status: active ? 'active' : 'inactive',
+        active,
+        account_limit: accountLimit,
+        billing_interval: body?.billing_interval || body?.billingInterval || null,
+        price_cents: toNullableNumber(priceAmount),
+        price_amount: toNullableNumber(priceAmount),
+        stripe_price_id: stripePriceId,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' })
+      .select('*')
+      .single() as any);
+
+    if (error) throw error;
+
+    fastify.log.info({
+      event: 'admin_plan_upserted',
+      adminUserId: maskForLog(adminResult.id),
+      planId: data.id,
+      hasStripePrice: Boolean(stripePriceId),
+    });
+
+    return reply.send({ plan: sanitizePlan(data) });
+  } catch (error: any) {
+    fastify.log.error({ event: 'admin_plan_upsert_failed', error: error?.message });
+    return reply.status(500).send({
+      error: 'Failed to save plan',
+      code: 'admin_plan_upsert_failed',
+      details: error?.message,
+    });
+  }
+});
+
+fastify.get('/admin/accounts', async (request, reply) => {
+  try {
+    const adminResult = await verifyAdminRequest(request);
+    if (isAuthError(adminResult)) return reply.status(adminResult.status).send(adminResult.error);
+
+    const page = toPositiveInteger(getQueryParam(request, 'page'), 1, 1000);
+    const limit = toPositiveInteger(getQueryParam(request, 'limit'), 25, 100);
+    const search = getQueryParam(request, 'search').toLowerCase();
+    const status = getQueryParam(request, 'status').toLowerCase();
+    const syncStatus = getQueryParam(request, 'sync_status').toLowerCase();
+
+    const [users, accountMap, connectionsRes] = await Promise.all([
+      listAuthUsersForAdmin(),
+      loadTradingAccountMap(),
+      supabase.from('mt5_connections').select('*').order('created_at', { ascending: false }),
+    ]);
+
+    if (connectionsRes.error) throw connectionsRes.error;
+    const emailMap = buildUserEmailMap(users);
+    const accounts = (connectionsRes.data || []).map((connection: JsonRecord) => {
+      const tradingAccount = accountMap.get(connection.trading_account_id) as JsonRecord | undefined;
+      return {
+        ...sanitizeConnection(connection, emailMap.get(connection.user_id) || null),
+        trading_account_nickname: tradingAccount?.nickname || null,
+        rule_status: tradingAccount?.rule_selection_status || null,
+        trading_account_status: tradingAccount?.status || null,
+      };
+    }).filter((row: JsonRecord) => {
+      const haystack = JSON.stringify(row).toLowerCase();
+      const matchesSearch = !search || haystack.includes(search);
+      const matchesStatus = !status || String(row.connection_status || '').toLowerCase() === status;
+      const matchesSync = !syncStatus || String(row.sync_status || '').toLowerCase() === syncStatus;
+      return matchesSearch && matchesStatus && matchesSync;
+    });
+
+    const result = paginateRows(accounts, page, limit);
+    return reply.send({ accounts: result.rows, pagination: result.pagination });
+  } catch (error: any) {
+    fastify.log.error({ event: 'admin_accounts_failed', error: error?.message });
+    return reply.status(500).send({
+      error: 'Failed to load MT5 accounts',
+      code: 'admin_accounts_failed',
+      details: error?.message,
+    });
+  }
+});
+
+fastify.post('/admin/accounts/:accountId/force-sync', async (request, reply) => {
+  try {
+    const adminResult = await verifyAdminRequest(request);
+    if (isAuthError(adminResult)) return reply.status(adminResult.status).send(adminResult.error);
+
+    const { accountId } = request.params as { accountId?: string };
+    if (!isUuid(accountId)) {
+      return reply.status(400).send({ error: 'A valid accountId is required', code: 'invalid_account_id' });
+    }
+
+    const { data: connection, error } = await supabase
+      .from('mt5_connections')
+      .select('id,user_id')
+      .eq('id', accountId)
+      .single();
+
+    if (error || !connection) {
+      return reply.status(404).send({ error: 'MT5 connection not found', code: 'mt5_connection_not_found' });
+    }
+
+    const authHeader = Array.isArray(request.headers.authorization)
+      ? request.headers.authorization[0]
+      : request.headers.authorization;
+    const syncResponse = await fetch(`http://127.0.0.1:${PORT}/metaapi/sync`, {
+      method: 'POST',
+      headers: {
+        Authorization: authHeader || '',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        connectionId: connection.id,
+        userId: connection.user_id,
+      }),
+    });
+    const text = await syncResponse.text();
+    const body = parseJsonText(text);
+
+    fastify.log.info({
+      event: 'admin_force_sync_completed',
+      adminUserId: maskForLog(adminResult.id),
+      connectionId: maskForLog(connection.id),
+      status: syncResponse.status,
+    });
+
+    return reply.status(syncResponse.status).send(body || { raw: text });
+  } catch (error: any) {
+    fastify.log.error({ event: 'admin_force_sync_failed', error: error?.message });
+    return reply.status(500).send({
+      error: 'Failed to force MT5 sync',
+      code: 'admin_force_sync_failed',
+      details: error?.message,
+    });
+  }
+});
+
+fastify.post('/admin/accounts/:accountId/soft-remove', async (request, reply) => {
+  try {
+    const adminResult = await verifyAdminRequest(request);
+    if (isAuthError(adminResult)) return reply.status(adminResult.status).send(adminResult.error);
+
+    const { accountId } = request.params as { accountId?: string };
+    if (!isUuid(accountId)) {
+      return reply.status(400).send({ error: 'A valid accountId is required', code: 'invalid_account_id' });
+    }
+
+    const { data: connection, error: readError } = await supabase
+      .from('mt5_connections')
+      .select('*')
+      .eq('id', accountId)
+      .single();
+
+    if (readError || !connection) {
+      return reply.status(404).send({ error: 'MT5 connection not found', code: 'mt5_connection_not_found' });
+    }
+
+    const { data, error } = await supabase
+      .from('mt5_connections')
+      .update({
+        connection_status: 'disconnected',
+        sync_status: 'removed',
+        sync_error: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', accountId)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+
+    if (connection.trading_account_id) {
+      const { error: accountError } = await supabase
+        .from('trading_accounts')
+        .update({
+          status: 'inactive',
+          mt5_connection_status: 'disconnected',
+          mt5_sync_error: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', connection.trading_account_id)
+        .eq('user_id', connection.user_id);
+
+      if (accountError) throw accountError;
+    }
+
+    fastify.log.info({
+      event: 'admin_connection_soft_removed',
+      adminUserId: maskForLog(adminResult.id),
+      connectionId: maskForLog(accountId),
+    });
+
+    return reply.send({ connection: sanitizeConnection(data) });
+  } catch (error: any) {
+    fastify.log.error({ event: 'admin_connection_soft_remove_failed', error: error?.message });
+    return reply.status(500).send({
+      error: 'Failed to soft remove MT5 account',
+      code: 'admin_connection_soft_remove_failed',
+      details: error?.message,
+    });
+  }
+});
+
+fastify.get('/admin/rules', async (request, reply) => {
+  try {
+    const adminResult = await verifyAdminRequest(request);
+    if (isAuthError(adminResult)) return reply.status(adminResult.status).send(adminResult.error);
+
+    const [firmsRes, programsRes, ruleSetsRes, instancesRes, definitionsRes] = await Promise.all([
+      supabase.from('prop_firms').select('*').order('name', { ascending: true }),
+      supabase.from('programs').select('*').order('name', { ascending: true }),
+      supabase.from('rule_set_versions').select('*').order('created_at', { ascending: false }),
+      supabase.from('rule_instances').select('id,rule_set_version_id,enabled,review_status'),
+      supabase.from('rule_definitions').select('id,key,name,category').order('name', { ascending: true }),
+    ]);
+
+    if (firmsRes.error) throw firmsRes.error;
+    if (programsRes.error) throw programsRes.error;
+    if (ruleSetsRes.error) throw ruleSetsRes.error;
+    if (instancesRes.error) throw instancesRes.error;
+    if (definitionsRes.error) throw definitionsRes.error;
+
+    const firmsById = new Map((firmsRes.data || []).map((firm: JsonRecord) => [firm.id, firm]));
+    const programsById = new Map((programsRes.data || []).map((program: JsonRecord) => [program.id, program]));
+    const instanceCounts = new Map<string, number>();
+    for (const instance of instancesRes.data || []) {
+      instanceCounts.set(instance.rule_set_version_id, (instanceCounts.get(instance.rule_set_version_id) || 0) + 1);
+    }
+
+    const ruleSets = (ruleSetsRes.data || []).map((ruleSet: JsonRecord) => {
+      const program = programsById.get(ruleSet.program_id) as JsonRecord | undefined;
+      const firm = program ? firmsById.get(program.prop_firm_id) as JsonRecord | undefined : undefined;
+      return {
+        id: ruleSet.id,
+        name: ruleSet.name,
+        status: ruleSet.status,
+        review_status: ruleSet.review_status,
+        verified_at: ruleSet.verified_at,
+        source_url: ruleSet.source_url,
+        source_notes: ruleSet.source_notes,
+        is_user_custom: ruleSet.is_user_custom,
+        rule_count: instanceCounts.get(ruleSet.id) || 0,
+        program: program ? {
+          id: program.id,
+          name: program.name,
+          review_status: program.review_status,
+          account_size: program.account_size,
+          phase: program.phase,
+        } : null,
+        prop_firm: firm ? {
+          id: firm.id,
+          name: firm.name,
+          slug: firm.slug,
+        } : null,
+      };
+    });
+
+    const needsReviewCount = ruleSets.filter((ruleSet: JsonRecord) => ruleSet.review_status === 'needs_review').length;
+
+    return reply.send({
+      propFirms: firmsRes.data || [],
+      programs: programsRes.data || [],
+      ruleSets,
+      ruleDefinitions: definitionsRes.data || [],
+      needsReviewCount,
+    });
+  } catch (error: any) {
+    fastify.log.error({ event: 'admin_rules_failed', error: error?.message });
+    return reply.status(500).send({
+      error: 'Failed to load rules library',
+      code: 'admin_rules_failed',
+      details: error?.message,
+    });
+  }
+});
+
+fastify.post('/admin/rules/:id/review', async (request, reply) => {
+  try {
+    const adminResult = await verifyAdminRequest(request);
+    if (isAuthError(adminResult)) return reply.status(adminResult.status).send(adminResult.error);
+
+    const { id } = request.params as { id?: string };
+    if (!isUuid(id)) {
+      return reply.status(400).send({ error: 'A valid rule set id is required', code: 'invalid_rule_set_id' });
+    }
+
+    const body = request.body as JsonRecord;
+    const reviewStatus = String(body?.reviewStatus || body?.review_status || '').trim();
+    if (!['verified', 'needs_review', 'deprecated'].includes(reviewStatus)) {
+      return reply.status(400).send({
+        error: 'reviewStatus must be verified, needs_review or deprecated',
+        code: 'invalid_review_status',
+      });
+    }
+
+    const { data, error } = await supabase
+      .from('rule_set_versions')
+      .update({
+        review_status: reviewStatus,
+        source_url: body?.sourceUrl ?? body?.source_url ?? null,
+        source_notes: body?.sourceNotes ?? body?.source_notes ?? null,
+        verified_at: reviewStatus === 'verified' ? new Date().toISOString() : null,
+      })
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+
+    fastify.log.info({
+      event: 'admin_rule_review_updated',
+      adminUserId: maskForLog(adminResult.id),
+      ruleSetId: maskForLog(id),
+      reviewStatus,
+    });
+
+    return reply.send({ ruleSet: data });
+  } catch (error: any) {
+    fastify.log.error({ event: 'admin_rule_review_failed', error: error?.message });
+    return reply.status(500).send({
+      error: 'Failed to update rule review status',
+      code: 'admin_rule_review_failed',
+      details: error?.message,
+    });
+  }
+});
+
+fastify.get('/admin/system', async (request, reply) => {
+  try {
+    const adminResult = await verifyAdminRequest(request);
+    if (isAuthError(adminResult)) return reply.status(adminResult.status).send(adminResult.error);
+
+    const { error: supabaseError } = await supabase.from('plans' as any).select('id', { count: 'exact', head: true } as any);
+    return reply.send({
+      gateway: {
+        ok: true,
+        region: METAAPI_REGION,
+        port: PORT,
+      },
+      stripeConfigured: Boolean(STRIPE_SECRET_KEY),
+      stripeWebhookConfigured: Boolean(STRIPE_WEBHOOK_SECRET),
+      metaapiTokenConfigured: Boolean(METAAPI_TOKEN),
+      supabaseConnected: !supabaseError,
+      supabaseError: supabaseError?.message || null,
+      env: {
+        allowBetaFallback: FORTIFY_ALLOW_BETA_FALLBACK,
+        successUrlConfigured: Boolean(STRIPE_SUCCESS_URL),
+        cancelUrlConfigured: Boolean(STRIPE_CANCEL_URL),
+      },
+    });
+  } catch (error: any) {
+    fastify.log.error({ event: 'admin_system_failed', error: error?.message });
+    return reply.status(500).send({
+      error: 'Failed to load system status',
+      code: 'admin_system_failed',
+      details: error?.message,
+    });
+  }
+});
+
 fastify.post('/billing/create-checkout-session', async (request, reply) => {
   try {
     const authResult = await verifyBearerUser(request);
@@ -2708,7 +3773,7 @@ fastify.post('/metaapi/sync', async (request, reply) => {
       });
     }
 
-    const authResult = await verifyRequestUser(request, userId);
+    const authResult = await verifyRequestUserOrAdmin(request, userId);
     if (isAuthError(authResult)) {
       return reply.status(authResult.status).send(authResult.error);
     }

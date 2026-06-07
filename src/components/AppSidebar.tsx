@@ -112,7 +112,7 @@ export function AppSidebar() {
                 <SidebarMenu>
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild>
-                      <NavLink to="/admin" activeClassName="">
+                      <NavLink to="/adm" activeClassName="">
                         <Shield className="mr-2 h-4 w-4" />
                         {!collapsed && <span className="text-[12px] font-medium tracking-wide">Admin</span>}
                       </NavLink>

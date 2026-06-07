@@ -44,36 +44,49 @@ export function useSubscriptionPlan() {
 
   const query = useQuery({
     queryKey: ['fortify_subscription_plan', userId],
-    enabled: !!userId,
+    enabled: true,
     queryFn: async () => {
-      const [subscriptionRes, plansRes, connectionCountRes] = await Promise.all([
-        (supabase
-          .from('user_subscriptions' as any)
-          .select('*')
-          .eq('user_id', userId!)
-          .in('status', ['active', 'trialing'])
-          .order('current_period_end', { ascending: false })
-          .limit(5) as any),
-        (supabase
+      const plansRes = await (supabase
           .from('plans' as any)
           .select('*')
           .eq('status', 'active')
           .eq('active', true)
-          .order('account_limit', { ascending: true }) as any),
+          .order('account_limit', { ascending: true }) as any);
+
+      if (plansRes.error) throw plansRes.error;
+      const plans = (plansRes.data ?? []) as FortifyPlan[];
+
+      if (!userId) {
+        return {
+          subscription: null,
+          plans,
+          activeAccountCount: 0,
+          accountLimit: 0,
+          remainingAccounts: 0,
+          hasActivePlan: false,
+        };
+      }
+
+      const [subscriptionRes, connectionCountRes] = await Promise.all([
+        (supabase
+          .from('user_subscriptions' as any)
+          .select('*')
+          .eq('user_id', userId)
+          .in('status', ['active', 'trialing'])
+          .order('current_period_end', { ascending: false })
+          .limit(5) as any),
         supabase
           .from('mt5_connections')
           .select('id', { count: 'exact', head: true })
-          .eq('user_id', userId!)
+          .eq('user_id', userId)
           .in('connection_status', ['connected', 'connecting', 'syncing'] as any),
       ]);
 
       if (subscriptionRes.error) throw subscriptionRes.error;
-      if (plansRes.error) throw plansRes.error;
       if (connectionCountRes.error) throw connectionCountRes.error;
 
       const subscriptions = (subscriptionRes.data ?? []) as FortifySubscription[];
       const activeSubscription = subscriptions.find(isSubscriptionUsable) ?? null;
-      const plans = (plansRes.data ?? []) as FortifyPlan[];
       const activeAccountCount = Number(connectionCountRes.count ?? 0);
       const accountLimit = Number(activeSubscription?.account_limit ?? 0);
 

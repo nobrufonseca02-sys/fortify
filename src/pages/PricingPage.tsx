@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, CreditCard, Loader2, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscriptionPlan, type FortifyPlan } from '@/hooks/useSubscriptionPlan';
@@ -13,13 +13,28 @@ function formatPrice(plan: FortifyPlan) {
   return `${(amount / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'USD' })}/${plan.billing_interval || 'mês'}`;
 }
 
+function planUseCase(plan: FortifyPlan) {
+  const id = String(plan.slug || plan.id).toLowerCase();
+  if (id.includes('annual')) return 'Melhor para traders que ja validaram o fluxo e querem operar varias contas.';
+  if (id.includes('vip')) return 'Melhor para clientes com operacao multi-conta e acompanhamento mais amplo.';
+  if (id.includes('monthly')) return 'Melhor para comecar com monitoramento profissional sem compromisso anual.';
+  if (id.includes('beta')) return 'Acesso inicial controlado para testar MT5, regras e sync real.';
+  return 'Monitoramento Fortify com limite de contas definido pelo plano.';
+}
+
 export default function PricingPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { session } = useAuth();
   const { plans, subscription, isLoading } = useSubscriptionPlan();
   const [busyPlan, setBusyPlan] = useState<string | null>(null);
+  const [resumeAttempted, setResumeAttempted] = useState(false);
   const billingEnabled = isBillingEnabled();
   const currentPlanId = subscription?.plan_id;
+  const intendedPlan = useMemo(
+    () => searchParams.get('checkoutPlan') || window.sessionStorage.getItem('fortify_intended_plan'),
+    [searchParams],
+  );
 
   const startCheckout = async (plan: FortifyPlan) => {
     if (plan.id === 'beta_free') {
@@ -31,7 +46,9 @@ export default function PricingPage() {
       return;
     }
     if (!session?.access_token) {
-      toast({ title: 'Sessão necessária', description: 'Faça login novamente antes de assinar.', variant: 'destructive' });
+      window.sessionStorage.setItem('fortify_intended_plan', plan.slug || plan.id);
+      toast({ title: 'Sessao necessaria', description: 'Entre ou crie sua conta para continuar o checkout.' });
+      navigate('/auth');
       return;
     }
 
@@ -46,6 +63,19 @@ export default function PricingPage() {
     }
   };
 
+  useEffect(() => {
+    if (resumeAttempted || !session?.access_token || !intendedPlan || plans.length === 0) return;
+    const plan = plans.find((item) => item.id === intendedPlan || item.slug === intendedPlan);
+    if (!plan || plan.id === currentPlanId) {
+      window.sessionStorage.removeItem('fortify_intended_plan');
+      return;
+    }
+
+    setResumeAttempted(true);
+    window.sessionStorage.removeItem('fortify_intended_plan');
+    startCheckout(plan);
+  }, [currentPlanId, intendedPlan, plans, resumeAttempted, session?.access_token]);
+
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
       <div className="rounded-2xl hero-surface edge-top p-7 md:p-10 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
@@ -56,9 +86,9 @@ export default function PricingPage() {
             Escolha o limite de contas MT5 que cada cliente pode monitorar. O checkout é processado pelo Stripe pelo backend seguro do Fortify.
           </p>
         </div>
-        <button onClick={() => navigate('/settings')} className="pill-btn">
+        <button onClick={() => (session ? navigate('/settings') : navigate('/auth'))} className="pill-btn">
           <CreditCard className="w-4 h-4" />
-          Billing
+          {session ? 'Billing' : 'Entrar'}
         </button>
       </div>
 
@@ -94,6 +124,7 @@ export default function PricingPage() {
                 <p>Conexão MT5 via MetaApi</p>
                 <p>Sync de snapshots, posições e trades</p>
                 <p>Regras e plano de risco por conta</p>
+                <p>{planUseCase(plan)}</p>
               </div>
 
               <button

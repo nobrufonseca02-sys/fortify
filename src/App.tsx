@@ -53,6 +53,7 @@ function ProtectedRoutes() {
     <AppLayout>
       <Routes>
         <Route path="/" element={<Dashboard />} />
+        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/calculator" element={<RiskCalculator />} />
         
         <Route path="/planner" element={<SessionPlanner />} />
@@ -71,17 +72,37 @@ function ProtectedRoutes() {
         <Route path="/mt5/:connectionId" element={<MT5Dashboard />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/pricing" element={<PricingPage />} />
-        <Route path="/admin" element={<AdminPage />} />
+        <Route path="/adm" element={<AdminPage />} />
+        <Route path="/admin" element={<Navigate to="/adm" replace />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AppLayout>
   );
 }
 
+function PricingRoute() {
+  const { session, loading } = useAuth();
+  if (loading) return null;
+  if (session) {
+    return (
+      <AppLayout>
+        <PricingPage />
+      </AppLayout>
+    );
+  }
+  return <PricingPage />;
+}
+
 function AuthGuard() {
   const { session, loading } = useAuth();
   if (loading) return null;
-  if (session) return <Navigate to="/" replace />;
+  if (session) {
+    const intendedPlan = window.sessionStorage.getItem('fortify_intended_plan');
+    if (intendedPlan) {
+      return <Navigate to={`/pricing?checkoutPlan=${encodeURIComponent(intendedPlan)}`} replace />;
+    }
+    return <Navigate to="/" replace />;
+  }
   return <AuthPage />;
 }
 
@@ -92,6 +113,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          <Route path="/pricing" element={<PricingRoute />} />
           <Route path="/auth" element={<AuthGuard />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/*" element={<ProtectedRoutes />} />

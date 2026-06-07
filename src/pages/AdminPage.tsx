@@ -1,231 +1,438 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
-  Users, Shield, ScrollText, Activity, Settings2, AlertTriangle,
-  FileText, Plus, Pencil, Trash2, Search, Eye, Ban, CheckCircle2, ShieldOff
+  Activity,
+  AlertTriangle,
+  Ban,
+  CheckCircle2,
+  CreditCard,
+  Database,
+  Loader2,
+  RefreshCw,
+  Search,
+  Server,
+  Shield,
+  ShieldOff,
+  Users,
+  type LucideIcon,
 } from 'lucide-react';
-import { RULE_SET_TEMPLATES, TEMPLATE_RULES, MOCK_ACCOUNTS, MOCK_EVALUATIONS } from '@/data/mockData';
-import { RULE_TYPE_LABELS, type RuleType } from '@/types/fortify';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
+import { gatewayJsonHeaders } from '@/lib/gateway';
 
-// ─── Mock Admin Data ───
-const MOCK_USERS = [
-  { id: 'u1', name: 'Carlos Souza', email: 'carlos@email.com', plan: 'pro', active: true, accounts: 3, joinedAt: '2026-01-15' },
-  { id: 'u2', name: 'Ana Lima', email: 'ana@email.com', plan: 'free', active: true, accounts: 1, joinedAt: '2026-02-02' },
-  { id: 'u3', name: 'Pedro Ramos', email: 'pedro@email.com', plan: 'pro', active: false, accounts: 2, joinedAt: '2026-01-20' },
-  { id: 'u4', name: 'Julia Costa', email: 'julia@email.com', plan: 'enterprise', active: true, accounts: 5, joinedAt: '2025-12-10' },
-  { id: 'u5', name: 'Marcos Dias', email: 'marcos@email.com', plan: 'free', active: true, accounts: 0, joinedAt: '2026-03-01' },
-];
+const gatewayUrl = () => import.meta.env.VITE_METAAPI_GATEWAY_URL || 'http://localhost:3001';
 
-const MOCK_LOGS = [
-  { id: 'l1', timestamp: '2026-03-08 09:12', user: 'Carlos Souza', action: 'Conta criada', detail: 'FTMO 100k Challenge' },
-  { id: 'l2', timestamp: '2026-03-08 08:45', user: 'Sistema', action: 'Regra violada', detail: 'Hantec 50k — Daily Loss' },
-  { id: 'l3', timestamp: '2026-03-07 22:10', user: 'Ana Lima', action: 'Login', detail: 'IP 189.44.x.x' },
-  { id: 'l4', timestamp: '2026-03-07 18:30', user: 'Admin', action: 'Template editado', detail: 'FTMO Challenge v2' },
-  { id: 'l5', timestamp: '2026-03-07 14:00', user: 'Pedro Ramos', action: 'Conta desativada', detail: 'Topstep 100k' },
-  { id: 'l6', timestamp: '2026-03-06 11:20', user: 'Sistema', action: 'Warning emitido', detail: 'FTMO 100k — Max Loss 72%' },
-];
-
-const PLAN_COLORS: Record<string, string> = {
-  free: 'bg-muted text-muted-foreground',
-  pro: 'bg-primary/15 text-primary',
-  enterprise: 'bg-warning/15 text-warning',
+type AdminUser = {
+  user_id: string;
+  email: string;
+  created_at: string;
+  subscription_status: string | null;
+  plan: string | null;
+  plan_name: string | null;
+  account_limit: number;
+  connected_accounts_count: number;
+  sync_error_count: number;
+  last_sync_at: string | null;
+  subscription?: AdminSubscription | null;
 };
 
-const fmt = (v: number) => v.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 });
-
-// ─── Global Config Mock ───
-const DEFAULT_GLOBAL_CONFIG = {
-  appName: 'FORTIFY',
-  tagline: 'Controle de Risco para Prop Firms',
-  maxAccountsPerUser: '10',
-  defaultRiskPercent: '1',
-  maintenanceMode: false,
-  signupEnabled: true,
+type AdminPlan = {
+  id: string;
+  name?: string | null;
+  plan_name?: string | null;
+  slug?: string | null;
+  status?: string | null;
+  active?: boolean | null;
+  account_limit: number;
+  billing_interval?: string | null;
+  price_amount?: number | null;
+  stripe_price_id?: string | null;
+  has_stripe_price?: boolean;
 };
+
+type AdminSubscription = {
+  id: string;
+  user_id: string;
+  plan_id: string;
+  plan_name: string;
+  status: string;
+  account_limit: number;
+  current_period_end: string | null;
+  stripe_customer_id?: string | null;
+  stripe_subscription_id?: string | null;
+  has_stripe_customer?: boolean;
+  has_stripe_subscription?: boolean;
+};
+
+type AdminAccount = {
+  id: string;
+  user_email: string | null;
+  account_name: string | null;
+  mt5_login: string | null;
+  mt5_server: string | null;
+  broker_name: string | null;
+  connection_status: string | null;
+  sync_status: string | null;
+  sync_error: string | null;
+  last_sync_at: string | null;
+  rule_status: string | null;
+  trading_account_nickname?: string | null;
+};
+
+type AdminRuleSet = {
+  id: string;
+  name: string;
+  status: string;
+  review_status: string;
+  verified_at: string | null;
+  source_url: string | null;
+  source_notes: string | null;
+  is_user_custom: boolean;
+  rule_count: number;
+  program?: { name: string; review_status?: string | null; account_size?: number | null; phase?: string | null } | null;
+  prop_firm?: { name: string; slug?: string | null } | null;
+};
+
+type AdminSystemStatus = {
+  gateway?: { ok: boolean; region: string; port: number };
+  stripeConfigured?: boolean;
+  stripeWebhookConfigured?: boolean;
+  metaapiTokenConfigured?: boolean;
+  supabaseConnected?: boolean;
+  supabaseError?: string | null;
+  env?: Record<string, boolean>;
+};
+
+const statusClass = (status?: string | null) => {
+  const normalized = String(status || '').toLowerCase();
+  if (['active', 'trialing', 'connected', 'success', 'verified'].includes(normalized)) return 'bg-success/15 text-success border-0';
+  if (['pending', 'running', 'connecting', 'syncing', 'needs_review', 'incomplete'].includes(normalized)) return 'bg-warning/15 text-warning border-0';
+  if (['error', 'failed', 'auth_error', 'suspended', 'canceled', 'deprecated'].includes(normalized)) return 'bg-destructive/15 text-destructive border-0';
+  return 'bg-muted text-muted-foreground border-0';
+};
+
+const fmtDate = (value?: string | null) => {
+  if (!value) return 'sem data';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'sem data';
+  return date.toLocaleString('pt-BR');
+};
+
+const fmtPrice = (value?: number | null) => {
+  if (!value) return 'Sem preco';
+  return (value / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'USD' });
+};
+
+async function adminFetch(path: string, token: string, options: RequestInit = {}) {
+  const response = await fetch(`${gatewayUrl()}${path}`, {
+    ...options,
+    headers: {
+      ...gatewayJsonHeaders(token),
+      ...(options.headers || {}),
+    },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(body?.details || body?.error || `Admin request failed (${response.status})`) as Error & {
+      status?: number;
+      body?: any;
+    };
+    error.status = response.status;
+    error.body = body;
+    throw error;
+  }
+  return body;
+}
 
 export default function AdminPage() {
-  const { isAdmin, loading: roleLoading } = useUserRole();
-  const [activeTab, setActiveTab] = useState('users');
-  const [users, setUsers] = useState(MOCK_USERS);
-  const [searchUser, setSearchUser] = useState('');
-  const [templateModal, setTemplateModal] = useState<{ open: boolean; mode: 'create' | 'edit'; templateId?: string }>({ open: false, mode: 'create' });
-  const [templateForm, setTemplateForm] = useState({ name: '', firmName: '' });
-  const [globalConfig, setGlobalConfig] = useState(DEFAULT_GLOBAL_CONFIG);
+  const { session } = useAuth();
+  const { loading: roleLoading } = useUserRole();
+  const token = session?.access_token || '';
+  const [loading, setLoading] = useState(true);
+  const [forbidden, setForbidden] = useState(false);
+  const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [summary, setSummary] = useState<any>(null);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [plans, setPlans] = useState<AdminPlan[]>([]);
+  const [accounts, setAccounts] = useState<AdminAccount[]>([]);
+  const [rules, setRules] = useState<AdminRuleSet[]>([]);
+  const [system, setSystem] = useState<AdminSystemStatus | null>(null);
+  const [search, setSearch] = useState('');
+  const [selectedPlans, setSelectedPlans] = useState<Record<string, string>>({});
+  const [planForm, setPlanForm] = useState({
+    id: '',
+    name: '',
+    slug: '',
+    account_limit: '1',
+    price_amount: '',
+    billing_interval: 'month',
+    stripe_price_id: '',
+    active: 'true',
+  });
+  const [ruleReview, setRuleReview] = useState<Record<string, { reviewStatus: string; sourceUrl: string; sourceNotes: string }>>({});
 
-  if (roleLoading) {
-    return (
-      <div className="p-6 flex items-center justify-center min-h-[60vh]">
-        <p className="text-sm text-muted-foreground">Verificando permissões...</p>
-      </div>
-    );
-  }
+  const visibleUsers = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter((user) => JSON.stringify(user).toLowerCase().includes(q));
+  }, [search, users]);
 
-  if (!isAdmin) {
-    return (
-      <div className="p-6 flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center">
-          <ShieldOff className="h-8 w-8 text-destructive" />
-        </div>
-        <h2 className="text-lg font-bold text-foreground">Acesso Restrito</h2>
-        <p className="text-sm text-muted-foreground text-center max-w-sm">
-          Esta área é exclusiva para administradores. Você não tem permissão para acessar este painel.
-        </p>
-      </div>
-    );
-  }
+  const loadAdminData = useCallback(async () => {
+    if (!token) return;
+    setLoading(true);
+    setForbidden(false);
+    try {
+      const [summaryBody, usersBody, plansBody, accountsBody, rulesBody, systemBody] = await Promise.all([
+        adminFetch('/admin/summary', token),
+        adminFetch('/admin/users?limit=100', token),
+        adminFetch('/admin/plans', token),
+        adminFetch('/admin/accounts?limit=100', token),
+        adminFetch('/admin/rules', token),
+        adminFetch('/admin/system', token),
+      ]);
+      setSummary(summaryBody);
+      setUsers(usersBody.users || []);
+      setPlans(plansBody.plans || []);
+      setAccounts(accountsBody.accounts || []);
+      setRules(rulesBody.ruleSets || []);
+      setSystem(systemBody);
+      setSelectedPlans((usersBody.users || []).reduce((acc: Record<string, string>, user: AdminUser) => {
+        acc[user.user_id] = user.plan || 'beta_free';
+        return acc;
+      }, {}));
+    } catch (error: any) {
+      if (error?.status === 401 || error?.status === 403) {
+        setForbidden(true);
+      } else {
+        toast({ title: 'Admin indisponivel', description: error?.message || 'Falha ao carregar dados administrativos.', variant: 'destructive' });
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
 
-  // ─── Users ───
-  const filteredUsers = users.filter(u =>
-    u.name.toLowerCase().includes(searchUser.toLowerCase()) ||
-    u.email.toLowerCase().includes(searchUser.toLowerCase())
-  );
+  useEffect(() => {
+    loadAdminData();
+  }, [loadAdminData]);
 
-  const toggleUserActive = (userId: string) => {
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, active: !u.active } : u));
-    toast({ title: 'Usuário atualizado' });
+  const runAction = async (label: string, action: () => Promise<void>) => {
+    setBusyAction(label);
+    try {
+      await action();
+      await loadAdminData();
+    } catch (error: any) {
+      toast({ title: 'Acao nao concluida', description: error?.message || 'Revise os dados e tente novamente.', variant: 'destructive' });
+    } finally {
+      setBusyAction(null);
+    }
   };
 
-  const setUserPlan = (userId: string, plan: string) => {
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, plan } : u));
-    toast({ title: 'Plano atualizado' });
-  };
-
-  // ─── Risk Accounts ───
-  const riskAccounts = MOCK_ACCOUNTS.filter(acc => {
-    const evals = MOCK_EVALUATIONS.filter(e => e.tradingAccountId === acc.id);
-    return evals.some(e => e.status === 'WARNING' || e.status === 'VIOLATED');
+  const assignPlan = (user: AdminUser, status = 'active') => runAction(`plan-${user.user_id}`, async () => {
+    const planId = selectedPlans[user.user_id] || user.plan || 'beta_free';
+    await adminFetch(`/admin/users/${user.user_id}/subscription`, token, {
+      method: 'POST',
+      body: JSON.stringify({ planId, status }),
+    });
+    toast({ title: 'Assinatura atualizada', description: user.email });
   });
 
-  // ─── Stats ───
-  const totalUsers = users.length;
-  const activeUsers = users.filter(u => u.active).length;
-  const totalAccounts = MOCK_ACCOUNTS.length;
-  const riskCount = riskAccounts.length;
+  const blockUser = (user: AdminUser, blocked: boolean) => runAction(`block-${user.user_id}`, async () => {
+    await adminFetch(`/admin/users/${user.user_id}/block`, token, {
+      method: 'POST',
+      body: JSON.stringify({ blocked }),
+    });
+    toast({ title: blocked ? 'Usuario suspenso' : 'Usuario reativado', description: user.email });
+  });
 
-  const openTemplateEditor = (mode: 'create' | 'edit', templateId?: string) => {
-    if (mode === 'edit' && templateId) {
-      const t = RULE_SET_TEMPLATES.find(t => t.id === templateId);
-      if (t) setTemplateForm({ name: t.name, firmName: t.firmName || '' });
-    } else {
-      setTemplateForm({ name: '', firmName: '' });
-    }
-    setTemplateModal({ open: true, mode, templateId });
-  };
+  const savePlan = () => runAction('plan-save', async () => {
+    await adminFetch('/admin/plans', token, {
+      method: 'POST',
+      body: JSON.stringify({
+        id: planForm.id || planForm.slug,
+        name: planForm.name,
+        slug: planForm.slug || planForm.id,
+        account_limit: Number(planForm.account_limit),
+        price_amount: planForm.price_amount ? Number(planForm.price_amount) : null,
+        billing_interval: planForm.billing_interval || null,
+        stripe_price_id: planForm.stripe_price_id || null,
+        active: planForm.active === 'true',
+      }),
+    });
+    toast({ title: 'Plano salvo' });
+    setPlanForm({ id: '', name: '', slug: '', account_limit: '1', price_amount: '', billing_interval: 'month', stripe_price_id: '', active: 'true' });
+  });
 
-  const saveTemplate = () => {
-    toast({ title: templateModal.mode === 'create' ? 'Template criado' : 'Template atualizado', description: templateForm.name });
-    setTemplateModal({ open: false, mode: 'create' });
-  };
+  const forceSync = (account: AdminAccount) => runAction(`sync-${account.id}`, async () => {
+    const body = await adminFetch(`/admin/accounts/${account.id}/force-sync`, token, { method: 'POST', body: JSON.stringify({}) });
+    toast({ title: 'Sync executado', description: body?.success ? 'Conta sincronizada.' : 'Resposta recebida do gateway.' });
+  });
 
-  const saveGlobalConfig = () => {
-    toast({ title: 'Configurações globais salvas' });
-  };
+  const softRemove = (account: AdminAccount) => runAction(`remove-${account.id}`, async () => {
+    await adminFetch(`/admin/accounts/${account.id}/soft-remove`, token, { method: 'POST', body: JSON.stringify({}) });
+    toast({ title: 'Conta removida do monitoramento' });
+  });
+
+  const reviewRule = (rule: AdminRuleSet) => runAction(`rule-${rule.id}`, async () => {
+    const form = ruleReview[rule.id] || {
+      reviewStatus: rule.review_status || 'needs_review',
+      sourceUrl: rule.source_url || '',
+      sourceNotes: rule.source_notes || '',
+    };
+    await adminFetch(`/admin/rules/${rule.id}/review`, token, {
+      method: 'POST',
+      body: JSON.stringify(form),
+    });
+    toast({ title: 'Revisao de regras atualizada', description: rule.name });
+  });
+
+  if (loading || roleLoading) {
+    return (
+      <div className="p-6 flex min-h-[60vh] items-center justify-center">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Carregando painel administrativo...
+        </div>
+      </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <div className="p-6 flex min-h-[60vh] flex-col items-center justify-center gap-4">
+        <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-destructive/10">
+          <ShieldOff className="h-7 w-7 text-destructive" />
+        </div>
+        <div className="max-w-md text-center">
+          <h1 className="text-lg font-bold text-foreground">Acesso restrito</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Esta area exige sessao autenticada e role admin validada pelo backend.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold text-foreground tracking-tight flex items-center gap-2">
-          <Shield className="h-5 w-5 text-primary" /> Painel Administrativo
-        </h1>
-        <p className="text-sm text-muted-foreground">Gerencie usuários, templates, contas em risco e configurações globais.</p>
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="eyebrow mb-2">Fortify Admin</p>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight flex items-center gap-2">
+            <Shield className="h-5 w-5 text-primary" />
+            Area administrativa
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Usuarios, assinaturas, planos, contas MT5, regras e saude do gateway.
+          </p>
+        </div>
+        <Button variant="outline" onClick={loadAdminData} className="gap-2">
+          <RefreshCw className="h-4 w-4" />
+          Atualizar
+        </Button>
       </div>
 
-      {/* Stats Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {[
-          { label: 'Usuários', value: totalUsers, icon: Users, accent: 'text-primary' },
-          { label: 'Ativos', value: activeUsers, icon: CheckCircle2, accent: 'text-success' },
-          { label: 'Contas', value: totalAccounts, icon: Activity, accent: 'text-info' },
-          { label: 'Em Risco', value: riskCount, icon: AlertTriangle, accent: 'text-warning' },
-        ].map(s => (
-          <Card key={s.label} className="bg-card border-border">
+          { label: 'Usuarios', value: summary?.totalUsers ?? 0, icon: Users },
+          { label: 'Assinaturas', value: summary?.activeSubscriptions ?? 0, icon: CreditCard },
+          { label: 'Beta', value: summary?.betaUsers ?? 0, icon: CheckCircle2 },
+          { label: 'MT5 conectadas', value: summary?.connectedAccounts ?? 0, icon: Server },
+          { label: 'Erros de sync', value: summary?.syncErrors ?? 0, icon: AlertTriangle },
+        ].map((item) => (
+          <Card key={item.label}>
             <CardContent className="p-4 flex items-center gap-3">
-              <div className={`p-2 rounded-lg bg-muted ${s.accent}`}>
-                <s.icon className="h-4 w-4" />
+              <div className="rounded-lg bg-muted p-2 text-primary">
+                <item.icon className="h-4 w-4" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">{s.value}</p>
-                <p className="text-xs text-muted-foreground">{s.label}</p>
+                <p className="text-2xl font-bold text-foreground">{item.value}</p>
+                <p className="text-xs text-muted-foreground">{item.label}</p>
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-muted border border-border grid grid-cols-5 w-full md:w-auto md:inline-grid">
-          <TabsTrigger value="users" className="text-xs gap-1"><Users className="h-3 w-3" /> Usuários</TabsTrigger>
-          <TabsTrigger value="templates" className="text-xs gap-1"><ScrollText className="h-3 w-3" /> Templates</TabsTrigger>
-          <TabsTrigger value="risk" className="text-xs gap-1"><AlertTriangle className="h-3 w-3" /> Risco</TabsTrigger>
-          <TabsTrigger value="logs" className="text-xs gap-1"><FileText className="h-3 w-3" /> Logs</TabsTrigger>
-          <TabsTrigger value="settings" className="text-xs gap-1"><Settings2 className="h-3 w-3" /> Config</TabsTrigger>
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-7">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
+          <TabsTrigger value="plans">Plans</TabsTrigger>
+          <TabsTrigger value="accounts">MT5</TabsTrigger>
+          <TabsTrigger value="rules">Rules</TabsTrigger>
+          <TabsTrigger value="system">System</TabsTrigger>
         </TabsList>
 
-        {/* ── TAB: USERS ── */}
-        <TabsContent value="users" className="space-y-4 mt-4">
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Buscar usuário..." value={searchUser} onChange={e => setSearchUser(e.target.value)} className="pl-9 bg-card border-border" />
-            </div>
-          </div>
+        <TabsContent value="overview" className="grid gap-4 lg:grid-cols-2">
+          <AdminCard title="Usuarios recentes">
+            <SimpleTable
+              headers={['Email', 'Criado em']}
+              rows={(summary?.recentUsers || []).map((user: any) => [user.email || 'sem email', fmtDate(user.created_at)])}
+            />
+          </AdminCard>
+          <AdminCard title="Conexoes recentes">
+            <SimpleTable
+              headers={['Conta', 'Usuario', 'Status']}
+              rows={(summary?.recentConnections || []).map((connection: AdminAccount) => [
+                connection.account_name || connection.mt5_server || 'MT5',
+                connection.user_email || 'sem email',
+                <Badge key={connection.id} className={statusClass(connection.connection_status)}>{connection.connection_status || 'unknown'}</Badge>,
+              ])}
+            />
+          </AdminCard>
+        </TabsContent>
 
-          <Card className="bg-card border-border overflow-hidden">
+        <TabsContent value="users" className="space-y-4">
+          <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por email, plano ou status" className="pl-9" />
+          </div>
+          <AdminCard title="Usuarios">
             <Table>
               <TableHeader>
-                <TableRow className="border-border hover:bg-transparent">
-                  <TableHead className="text-muted-foreground">Nome</TableHead>
-                  <TableHead className="text-muted-foreground">Email</TableHead>
-                  <TableHead className="text-muted-foreground">Plano</TableHead>
-                  <TableHead className="text-muted-foreground text-center">Contas</TableHead>
-                  <TableHead className="text-muted-foreground text-center">Status</TableHead>
-                  <TableHead className="text-muted-foreground text-right">Ações</TableHead>
+                <TableRow>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Plano</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Contas</TableHead>
+                  <TableHead>Ultimo sync</TableHead>
+                  <TableHead className="text-right">Acoes</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredUsers.map(u => (
-                  <TableRow key={u.id} className="border-border">
-                    <TableCell className="font-medium text-foreground">{u.name}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{u.email}</TableCell>
+                {visibleUsers.map((user) => (
+                  <TableRow key={user.user_id}>
+                    <TableCell className="font-medium">{user.email}</TableCell>
                     <TableCell>
-                      <Select value={u.plan} onValueChange={v => setUserPlan(u.id, v)}>
-                        <SelectTrigger className="w-28 h-7 text-xs bg-transparent border-border">
+                      <Select value={selectedPlans[user.user_id] || user.plan || 'beta_free'} onValueChange={(value) => setSelectedPlans((prev) => ({ ...prev, [user.user_id]: value }))}>
+                        <SelectTrigger className="h-8 w-36">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="free">Free</SelectItem>
-                          <SelectItem value="pro">Pro</SelectItem>
-                          <SelectItem value="enterprise">Enterprise</SelectItem>
+                          {plans.map((plan) => (
+                            <SelectItem key={plan.id} value={plan.id}>{plan.name || plan.plan_name || plan.id}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell className="text-center text-foreground">{u.accounts}</TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={u.active ? 'bg-success/15 text-success border-0' : 'bg-destructive/15 text-destructive border-0'}>
-                        {u.active ? 'Ativo' : 'Inativo'}
-                      </Badge>
-                    </TableCell>
+                    <TableCell><Badge className={statusClass(user.subscription_status)}>{user.subscription_status || 'sem plano'}</Badge></TableCell>
+                    <TableCell>{user.connected_accounts_count}/{user.account_limit}</TableCell>
+                    <TableCell>{fmtDate(user.last_sync_at)}</TableCell>
                     <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => toggleUserActive(u.id)}>
-                          {u.active ? <Ban className="h-3.5 w-3.5 text-destructive" /> : <CheckCircle2 className="h-3.5 w-3.5 text-success" />}
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7">
-                          <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                      <div className="flex justify-end gap-2">
+                        <Button size="sm" variant="outline" onClick={() => assignPlan(user)} disabled={busyAction === `plan-${user.user_id}`}>Ativar</Button>
+                        <Button size="sm" variant="outline" onClick={() => blockUser(user, user.subscription_status !== 'suspended')} disabled={busyAction === `block-${user.user_id}`}>
+                          <Ban className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </TableCell>
@@ -233,202 +440,237 @@ export default function AdminPage() {
                 ))}
               </TableBody>
             </Table>
-          </Card>
+          </AdminCard>
         </TabsContent>
 
-        {/* ── TAB: TEMPLATES ── */}
-        <TabsContent value="templates" className="space-y-4 mt-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">Templates de regras para prop firms</p>
-            <Button size="sm" onClick={() => openTemplateEditor('create')} className="gap-1">
-              <Plus className="h-3.5 w-3.5" /> Novo Template
-            </Button>
-          </div>
-
-          <div className="grid gap-3">
-            {RULE_SET_TEMPLATES.map(tpl => {
-              const rules = TEMPLATE_RULES.filter(r => r.ruleSetId === tpl.id);
-              return (
-                <Card key={tpl.id} className="bg-card border-border">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <h3 className="text-sm font-semibold text-foreground">{tpl.name}</h3>
-                        <p className="text-xs text-muted-foreground">{tpl.firmName} · v{tpl.version} · {rules.length} regras</p>
-                      </div>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openTemplateEditor('edit', tpl.id)}>
-                          <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7">
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {rules.map(r => (
-                        <Badge key={r.id} variant="secondary" className="text-xs bg-muted border-0 text-muted-foreground">
-                          {RULE_TYPE_LABELS[r.type as RuleType] || r.type}
-                        </Badge>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </TabsContent>
-
-        {/* ── TAB: RISK ── */}
-        <TabsContent value="risk" className="space-y-4 mt-4">
-          <p className="text-sm text-muted-foreground">Contas com regras em Warning ou Violadas</p>
-          {riskAccounts.length === 0 ? (
-            <Card className="bg-card border-border"><CardContent className="p-6 text-center text-muted-foreground text-sm">Nenhuma conta em risco no momento.</CardContent></Card>
-          ) : (
-            <div className="grid gap-3">
-              {riskAccounts.map(acc => {
-                const evals = MOCK_EVALUATIONS.filter(e => e.tradingAccountId === acc.id);
-                const warnings = evals.filter(e => e.status === 'WARNING');
-                const violations = evals.filter(e => e.status === 'VIOLATED');
-                const user = MOCK_USERS.find(u => u.id === acc.userId);
-                return (
-                  <Card key={acc.id} className="bg-card border-border">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <div>
-                          <h3 className="text-sm font-semibold text-foreground">{acc.nickname}</h3>
-                          <p className="text-xs text-muted-foreground">{user?.name || acc.userId} · {acc.broker}</p>
-                        </div>
-                        <div className="flex gap-2">
-                          {warnings.length > 0 && (
-                            <Badge className="bg-warning/15 text-warning border-0 text-xs">{warnings.length} Warning</Badge>
-                          )}
-                          {violations.length > 0 && (
-                            <Badge className="bg-destructive/15 text-destructive border-0 text-xs">{violations.length} Violada</Badge>
-                          )}
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-3 gap-3 text-xs mt-2">
-                        <div><span className="text-muted-foreground">Saldo Inicial</span><p className="text-foreground font-medium">{fmt(acc.startBalance)}</p></div>
-                        <div><span className="text-muted-foreground">Saldo Atual</span><p className="text-foreground font-medium">{fmt(acc.currentBalance)}</p></div>
-                        <div><span className="text-muted-foreground">Equity</span><p className="text-foreground font-medium">{fmt(acc.currentEquity)}</p></div>
-                      </div>
-                      <div className="mt-3 space-y-1">
-                        {evals.filter(e => e.status === 'WARNING' || e.status === 'VIOLATED').map(e => (
-                          <div key={e.id} className="flex items-center justify-between text-xs px-2 py-1.5 rounded bg-muted">
-                            <span className="text-foreground">{e.rule.name}</span>
-                            <span className={e.status === 'VIOLATED' ? 'text-destructive' : 'text-warning'}>{e.message}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* ── TAB: LOGS ── */}
-        <TabsContent value="logs" className="space-y-4 mt-4">
-          <Card className="bg-card border-border overflow-hidden">
+        <TabsContent value="subscriptions">
+          <AdminCard title="Assinaturas">
             <Table>
               <TableHeader>
-                <TableRow className="border-border hover:bg-transparent">
-                  <TableHead className="text-muted-foreground">Timestamp</TableHead>
-                  <TableHead className="text-muted-foreground">Usuário</TableHead>
-                  <TableHead className="text-muted-foreground">Ação</TableHead>
-                  <TableHead className="text-muted-foreground">Detalhe</TableHead>
+                <TableRow>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Plano</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Limite</TableHead>
+                  <TableHead>Renovacao/fim</TableHead>
+                  <TableHead>Stripe</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {MOCK_LOGS.map(log => (
-                  <TableRow key={log.id} className="border-border">
-                    <TableCell className="text-xs text-muted-foreground font-mono">{log.timestamp}</TableCell>
-                    <TableCell className="text-sm text-foreground">{log.user}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="text-xs bg-muted border-0">{log.action}</Badge>
+                {users.map((user) => (
+                  <TableRow key={user.user_id}>
+                    <TableCell>{user.email}</TableCell>
+                    <TableCell>{user.plan_name || user.plan || 'sem plano'}</TableCell>
+                    <TableCell><Badge className={statusClass(user.subscription_status)}>{user.subscription_status || 'none'}</Badge></TableCell>
+                    <TableCell>{user.account_limit}</TableCell>
+                    <TableCell>{fmtDate(user.subscription?.current_period_end)}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {user.subscription?.has_stripe_customer ? 'customer ok' : 'sem customer'} · {user.subscription?.has_stripe_subscription ? 'subscription ok' : 'sem subscription'}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{log.detail}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-          </Card>
+          </AdminCard>
         </TabsContent>
 
-        {/* ── TAB: SETTINGS ── */}
-        <TabsContent value="settings" className="space-y-4 mt-4">
-          <Card className="bg-card border-border">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold text-foreground">Configurações Globais</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Nome da Plataforma</Label>
-                  <Input value={globalConfig.appName} onChange={e => setGlobalConfig(p => ({ ...p, appName: e.target.value }))} className="bg-muted border-border" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Tagline</Label>
-                  <Input value={globalConfig.tagline} onChange={e => setGlobalConfig(p => ({ ...p, tagline: e.target.value }))} className="bg-muted border-border" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Máx. Contas por Usuário</Label>
-                  <Input type="number" value={globalConfig.maxAccountsPerUser} onChange={e => setGlobalConfig(p => ({ ...p, maxAccountsPerUser: e.target.value }))} className="bg-muted border-border" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Risco Padrão por Trade (%)</Label>
-                  <Input type="number" value={globalConfig.defaultRiskPercent} onChange={e => setGlobalConfig(p => ({ ...p, defaultRiskPercent: e.target.value }))} className="bg-muted border-border" />
-                </div>
-              </div>
+        <TabsContent value="plans" className="grid gap-4 lg:grid-cols-[1fr_360px]">
+          <AdminCard title="Planos">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Plano</TableHead>
+                  <TableHead>Slug</TableHead>
+                  <TableHead>Limite</TableHead>
+                  <TableHead>Preco</TableHead>
+                  <TableHead>Stripe</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {plans.map((plan) => (
+                  <TableRow key={plan.id}>
+                    <TableCell className="font-medium">{plan.name || plan.plan_name}</TableCell>
+                    <TableCell>{plan.slug || plan.id}</TableCell>
+                    <TableCell>{plan.account_limit}</TableCell>
+                    <TableCell>{fmtPrice(plan.price_amount)}</TableCell>
+                    <TableCell>{plan.has_stripe_price ? 'configurado' : 'pendente'}</TableCell>
+                    <TableCell><Badge className={statusClass(plan.active ? 'active' : 'inactive')}>{plan.active ? 'active' : 'inactive'}</Badge></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </AdminCard>
+          <AdminCard title="Criar/atualizar plano">
+            <div className="space-y-3">
+              <Field label="ID"><Input value={planForm.id} onChange={(e) => setPlanForm((p) => ({ ...p, id: e.target.value }))} placeholder="monthly" /></Field>
+              <Field label="Nome"><Input value={planForm.name} onChange={(e) => setPlanForm((p) => ({ ...p, name: e.target.value }))} placeholder="Monthly" /></Field>
+              <Field label="Slug"><Input value={planForm.slug} onChange={(e) => setPlanForm((p) => ({ ...p, slug: e.target.value }))} placeholder="monthly" /></Field>
+              <Field label="Limite de contas"><Input value={planForm.account_limit} onChange={(e) => setPlanForm((p) => ({ ...p, account_limit: e.target.value }))} type="number" min="0" /></Field>
+              <Field label="Preco em centavos"><Input value={planForm.price_amount} onChange={(e) => setPlanForm((p) => ({ ...p, price_amount: e.target.value }))} type="number" min="0" placeholder="4900" /></Field>
+              <Field label="Stripe price ID"><Input value={planForm.stripe_price_id} onChange={(e) => setPlanForm((p) => ({ ...p, stripe_price_id: e.target.value }))} placeholder="price_..." /></Field>
+              <Button onClick={savePlan} disabled={busyAction === 'plan-save'} className="w-full">Salvar plano</Button>
+            </div>
+          </AdminCard>
+        </TabsContent>
 
-              <div className="flex flex-col gap-3 pt-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-foreground">Modo Manutenção</p>
-                    <p className="text-xs text-muted-foreground">Desabilita acesso de usuários</p>
-                  </div>
-                  <Switch checked={globalConfig.maintenanceMode} onCheckedChange={v => setGlobalConfig(p => ({ ...p, maintenanceMode: v }))} />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-foreground">Cadastro Habilitado</p>
-                    <p className="text-xs text-muted-foreground">Permite novos registros</p>
-                  </div>
-                  <Switch checked={globalConfig.signupEnabled} onCheckedChange={v => setGlobalConfig(p => ({ ...p, signupEnabled: v }))} />
-                </div>
-              </div>
+        <TabsContent value="accounts">
+          <AdminCard title="Contas MT5 conectadas">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Conta</TableHead>
+                  <TableHead>Usuario</TableHead>
+                  <TableHead>Servidor</TableHead>
+                  <TableHead>Login</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Sync</TableHead>
+                  <TableHead>Regra</TableHead>
+                  <TableHead className="text-right">Acoes</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {accounts.map((account) => (
+                  <TableRow key={account.id}>
+                    <TableCell className="font-medium">{account.trading_account_nickname || account.account_name || 'MT5'}</TableCell>
+                    <TableCell>{account.user_email || 'sem email'}</TableCell>
+                    <TableCell>{account.mt5_server}</TableCell>
+                    <TableCell>{account.mt5_login}</TableCell>
+                    <TableCell><Badge className={statusClass(account.connection_status)}>{account.connection_status || 'unknown'}</Badge></TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <Badge className={statusClass(account.sync_status)}>{account.sync_status || 'none'}</Badge>
+                        {account.sync_error && <p className="max-w-[220px] truncate text-xs text-destructive">{account.sync_error}</p>}
+                      </div>
+                    </TableCell>
+                    <TableCell>{account.rule_status || 'unconfigured'}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button size="sm" variant="outline" onClick={() => forceSync(account)} disabled={busyAction === `sync-${account.id}`}>Sync</Button>
+                        <Button size="sm" variant="outline" onClick={() => softRemove(account)} disabled={busyAction === `remove-${account.id}`}>Remover</Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </AdminCard>
+        </TabsContent>
 
-              <Button onClick={saveGlobalConfig} className="mt-2">Salvar Configurações</Button>
-            </CardContent>
-          </Card>
+        <TabsContent value="rules">
+          <AdminCard title="Rules Library">
+            <div className="space-y-3">
+              {rules.map((rule) => {
+                const form = ruleReview[rule.id] || {
+                  reviewStatus: rule.review_status || 'needs_review',
+                  sourceUrl: rule.source_url || '',
+                  sourceNotes: rule.source_notes || '',
+                };
+                return (
+                  <div key={rule.id} className="rounded-lg border border-border p-4 space-y-3">
+                    <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                      <div>
+                        <p className="font-semibold text-foreground">{rule.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {rule.prop_firm?.name || 'Generic'} · {rule.program?.name || 'Sem programa'} · {rule.rule_count} regras
+                        </p>
+                      </div>
+                      <Badge className={statusClass(rule.review_status)}>
+                        {rule.is_user_custom ? 'custom' : rule.review_status}
+                      </Badge>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-[180px_1fr_1fr_auto]">
+                      <Select value={form.reviewStatus} onValueChange={(value) => setRuleReview((prev) => ({ ...prev, [rule.id]: { ...form, reviewStatus: value } }))}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="verified">verified</SelectItem>
+                          <SelectItem value="needs_review">needs_review</SelectItem>
+                          <SelectItem value="deprecated">deprecated</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input value={form.sourceUrl} onChange={(e) => setRuleReview((prev) => ({ ...prev, [rule.id]: { ...form, sourceUrl: e.target.value } }))} placeholder="Source URL" />
+                      <Textarea value={form.sourceNotes} onChange={(e) => setRuleReview((prev) => ({ ...prev, [rule.id]: { ...form, sourceNotes: e.target.value } }))} placeholder="Notas de revisao" className="min-h-10" />
+                      <Button onClick={() => reviewRule(rule)} disabled={busyAction === `rule-${rule.id}`}>Salvar</Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </AdminCard>
+        </TabsContent>
+
+        <TabsContent value="system">
+          <AdminCard title="System Status">
+            <div className="grid gap-3 md:grid-cols-2">
+              <StatusLine icon={Activity} label="Gateway" ok={Boolean(system?.gateway?.ok)} detail={`region ${system?.gateway?.region || 'unknown'} · port ${system?.gateway?.port || '-'}`} />
+              <StatusLine icon={Database} label="Supabase" ok={Boolean(system?.supabaseConnected)} detail={system?.supabaseError || 'connected'} />
+              <StatusLine icon={CreditCard} label="Stripe secret" ok={Boolean(system?.stripeConfigured)} detail={system?.stripeConfigured ? 'configured' : 'missing'} />
+              <StatusLine icon={CreditCard} label="Stripe webhook" ok={Boolean(system?.stripeWebhookConfigured)} detail={system?.stripeWebhookConfigured ? 'configured' : 'missing'} />
+              <StatusLine icon={Server} label="MetaApi token" ok={Boolean(system?.metaapiTokenConfigured)} detail={system?.metaapiTokenConfigured ? 'configured' : 'missing'} />
+            </div>
+          </AdminCard>
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
 
-      {/* Template Editor Modal */}
-      <Dialog open={templateModal.open} onOpenChange={o => setTemplateModal(p => ({ ...p, open: o }))}>
-        <DialogContent className="bg-card border-border">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">{templateModal.mode === 'create' ? 'Novo Template' : 'Editar Template'}</DialogTitle>
-            <DialogDescription className="text-muted-foreground">Configure o nome e a prop firm do template de regras.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Nome do Template</Label>
-              <Input value={templateForm.name} onChange={e => setTemplateForm(p => ({ ...p, name: e.target.value }))} placeholder="Ex: FTMO Challenge Phase 1" className="bg-muted border-border" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Prop Firm</Label>
-              <Input value={templateForm.firmName} onChange={e => setTemplateForm(p => ({ ...p, firmName: e.target.value }))} placeholder="Ex: FTMO" className="bg-muted border-border" />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setTemplateModal(p => ({ ...p, open: false }))}>Cancelar</Button>
-            <Button onClick={saveTemplate}>{templateModal.mode === 'create' ? 'Criar' : 'Salvar'}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+function AdminCard({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-semibold">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>{children}</CardContent>
+    </Card>
+  );
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      {children}
+    </div>
+  );
+}
+
+function SimpleTable({ headers, rows }: { headers: string[]; rows: ReactNode[][] }) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          {headers.map((header) => <TableHead key={header}>{header}</TableHead>)}
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((row, index) => (
+          <TableRow key={index}>
+            {row.map((cell, cellIndex) => <TableCell key={cellIndex}>{cell}</TableCell>)}
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+function StatusLine({ icon: Icon, label, ok, detail }: { icon: LucideIcon; label: string; ok: boolean; detail: string }) {
+  return (
+    <div className="flex items-center justify-between rounded-lg border border-border p-4">
+      <div className="flex items-center gap-3">
+        <div className="rounded-lg bg-muted p-2 text-primary">
+          <Icon className="h-4 w-4" />
+        </div>
+        <div>
+          <p className="text-sm font-medium text-foreground">{label}</p>
+          <p className="text-xs text-muted-foreground">{detail}</p>
+        </div>
+      </div>
+      <Badge className={ok ? 'bg-success/15 text-success border-0' : 'bg-destructive/15 text-destructive border-0'}>
+        {ok ? 'ok' : 'acao'}
+      </Badge>
     </div>
   );
 }

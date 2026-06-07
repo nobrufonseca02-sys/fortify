@@ -8,7 +8,7 @@ import {
   TrendingUp, TrendingDown, Activity, Zap, ChevronRight, ArrowUpRight,
   Link2, RefreshCw, XCircle, AlertTriangle
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { useMemo, useState, useEffect } from 'react';
@@ -393,6 +393,8 @@ const Dashboard = () => {
   const { data: ruleRows = [] } = useAllRuleEvaluations();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const checkoutSuccess = new URLSearchParams(location.search).get('checkout') === 'success';
   
   // MT5 connections state
   const [mt5Connections, setMt5Connections] = useState<any[]>([]);
@@ -436,6 +438,14 @@ const Dashboard = () => {
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
       <HeroCard />
+      {checkoutSuccess && (
+        <div className="rounded-xl border border-success/25 bg-success/10 p-4">
+          <p className="text-sm font-semibold text-foreground">Pagamento recebido. Seu plano sera ativado em instantes.</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Se o webhook ainda estiver processando, o status pode aparecer como pendente por alguns segundos.
+          </p>
+        </div>
+      )}
       <PlanStatusPanel compact />
       <SaaSOnboardingChecklist />
       <DecisionCard />
