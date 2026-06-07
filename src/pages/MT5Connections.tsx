@@ -267,7 +267,7 @@ export default function MT5Connections() {
             if (!canConnectNewAccount) {
               toast({
                 title: 'Plano Fortify necessário',
-                description: plan.hasActivePlan ? 'Você atingiu o limite de contas do seu plano.' : 'Escolha um plano ou solicite acesso beta em Configurações.',
+                description: plan.hasActivePlan ? 'Você atingiu o limite de contas do seu plano.' : 'Escolha um plano ou solicite acesso beta em Planos.',
                 variant: 'destructive',
               });
               return;
@@ -519,7 +519,7 @@ export default function MT5Connections() {
             if (!canConnectNewAccount) {
               toast({
                 title: 'Plano Fortify necessário',
-                description: plan.hasActivePlan ? 'Você atingiu o limite de contas do seu plano.' : 'Escolha um plano ou solicite acesso beta em Configurações.',
+                description: plan.hasActivePlan ? 'Você atingiu o limite de contas do seu plano.' : 'Escolha um plano ou solicite acesso beta em Planos.',
                 variant: 'destructive',
               });
               return;

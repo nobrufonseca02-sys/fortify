@@ -2,7 +2,8 @@ import Fastify, { type FastifyRequest } from 'fastify';
 import dotenv from 'dotenv';
 import path from 'node:path';
 import { existsSync } from 'node:fs';
-import { randomUUID } from 'node:crypto';
+import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
+import { Readable } from 'node:stream';
 import { createClient } from '@supabase/supabase-js';
 import cors from '@fastify/cors';
 
@@ -16,6 +17,25 @@ fastify.register(cors, {
   credentials: true,
 });
 
+fastify.addHook('preParsing', (request, _reply, payload, done) => {
+  const pathname = request.url.split('?')[0];
+  if (pathname !== '/billing/webhook') {
+    done(null, payload);
+    return;
+  }
+
+  const chunks: Buffer[] = [];
+  payload.on('data', (chunk) => {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  });
+  payload.on('end', () => {
+    const rawBody = Buffer.concat(chunks);
+    (request as any).rawBody = rawBody;
+    done(null, Readable.from(rawBody));
+  });
+  payload.on('error', (error) => done(error));
+});
+
 const PORT = Number(process.env.PORT || 3001);
 const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -24,6 +44,12 @@ const METAAPI_REGION = process.env.METAAPI_REGION || 'new-york';
 const METAAPI_PROVISIONING_MAX_ATTEMPTS = Number(process.env.METAAPI_PROVISIONING_MAX_ATTEMPTS || 4);
 const METAAPI_PROVISIONING_MAX_WAIT_MS = Number(process.env.METAAPI_PROVISIONING_MAX_WAIT_MS || 30000);
 const FORTIFY_ALLOW_BETA_FALLBACK = process.env.FORTIFY_ALLOW_BETA_FALLBACK === 'true';
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
+const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
+const STRIPE_SUCCESS_URL = process.env.STRIPE_SUCCESS_URL || 'http://localhost:8081/settings?billing=success';
+const STRIPE_CANCEL_URL = process.env.STRIPE_CANCEL_URL || 'http://localhost:8081/pricing?billing=cancelled';
+const STRIPE_CUSTOMER_PORTAL_RETURN_URL = process.env.STRIPE_CUSTOMER_PORTAL_RETURN_URL || 'http://localhost:8081/settings';
+const STRIPE_API_BASE_URL = 'https://api.stripe.com/v1';
 
 if (!SUPABASE_URL) {
   throw new Error('Missing required environment variable: SUPABASE_URL');
@@ -50,6 +76,8 @@ fastify.log.info({
   metaapiTokenLength: METAAPI_TOKEN.length,
   metaapiRegion: METAAPI_REGION,
   betaFallbackEnabled: FORTIFY_ALLOW_BETA_FALLBACK,
+  stripeConfigured: !!STRIPE_SECRET_KEY,
+  stripeWebhookConfigured: !!STRIPE_WEBHOOK_SECRET,
   supabaseUrlHost: hostOnly(SUPABASE_URL),
   port: PORT,
 });
@@ -147,6 +175,20 @@ type AccountLimitCheck = {
   error?: string;
   code?: string;
   httpStatus?: number;
+};
+
+type BillingPlan = {
+  id: string;
+  plan_name: string;
+  name?: string | null;
+  slug?: string | null;
+  status?: string | null;
+  active?: boolean | null;
+  stripe_price_id?: string | null;
+  account_limit: number;
+  billing_interval?: string | null;
+  price_amount?: number | null;
+  price_cents?: number | null;
 };
 
 type DetectionResult = {
@@ -321,8 +363,277 @@ async function verifyRequestUser(request: FastifyRequest, requestedUserId: strin
   };
 }
 
+async function verifyBearerUser(request: FastifyRequest): Promise<AuthenticatedUser | { error: JsonRecord; status: number }> {
+  const token = getBearerToken(request);
+  if (!token) {
+    return {
+      status: 401,
+      error: {
+        error: 'Missing user session token',
+        code: 'missing_user_session',
+      },
+    };
+  }
+
+  const { data, error } = await supabase.auth.getUser(token);
+  const authUser = data?.user;
+  if (error || !authUser) {
+    fastify.log.warn({
+      event: 'fortify_billing_user_token_invalid',
+      error: error?.message,
+    });
+    return {
+      status: 401,
+      error: {
+        error: 'Invalid or expired user session',
+        code: 'invalid_user_session',
+      },
+    };
+  }
+
+  return {
+    id: authUser.id,
+    email: authUser.email,
+  };
+}
+
 function isAuthError(result: AuthenticatedUser | { error: JsonRecord; status: number }): result is { error: JsonRecord; status: number } {
   return 'error' in result;
+}
+
+function stripeConfigError() {
+  return {
+    error: 'Stripe billing is not configured on this gateway',
+    code: 'stripe_config_missing',
+    details: 'Set STRIPE_SECRET_KEY in services/metaapi-gateway/.env to create billing sessions.',
+  };
+}
+
+function stripeWebhookConfigError() {
+  return {
+    error: 'Stripe webhook secret is not configured on this gateway',
+    code: 'stripe_webhook_config_missing',
+    details: 'Set STRIPE_WEBHOOK_SECRET before accepting Stripe webhooks.',
+  };
+}
+
+function normalizeBillingPlan(plan: JsonRecord): BillingPlan {
+  return {
+    id: String(plan.id),
+    plan_name: String(plan.plan_name ?? plan.name ?? plan.id),
+    name: plan.name ?? null,
+    slug: plan.slug ?? plan.id,
+    status: plan.status ?? 'active',
+    active: plan.active ?? true,
+    stripe_price_id: plan.stripe_price_id ?? null,
+    account_limit: Number(plan.account_limit ?? 0),
+    billing_interval: plan.billing_interval ?? null,
+    price_amount: plan.price_amount ?? plan.price_cents ?? null,
+    price_cents: plan.price_cents ?? plan.price_amount ?? null,
+  };
+}
+
+function isSafePlanSelector(value: string) {
+  return /^[A-Za-z0-9_-]+$/.test(value);
+}
+
+async function findBillingPlanBySelector(selector: string): Promise<BillingPlan | null> {
+  const clean = selector.trim();
+  if (!clean || !isSafePlanSelector(clean)) return null;
+
+  const query = (supabase
+    .from('plans' as any)
+    .select('*')
+    .eq('status', 'active')
+    .eq('active', true) as any);
+
+  const { data, error } = clean.startsWith('price_')
+    ? await query.eq('stripe_price_id', clean).maybeSingle()
+    : await query.or(`id.eq.${clean},slug.eq.${clean}`).maybeSingle();
+
+  if (error) throw error;
+  return data ? normalizeBillingPlan(data) : null;
+}
+
+async function findBillingPlanByStripePriceId(priceId: string): Promise<BillingPlan | null> {
+  if (!priceId) return null;
+  const { data, error } = await (supabase
+    .from('plans' as any)
+    .select('*')
+    .eq('stripe_price_id', priceId)
+    .eq('status', 'active')
+    .eq('active', true)
+    .maybeSingle() as any);
+
+  if (error) throw error;
+  return data ? normalizeBillingPlan(data) : null;
+}
+
+function appendStripeParam(params: URLSearchParams, key: string, value: unknown) {
+  if (value === null || value === undefined || value === '') return;
+  params.append(key, String(value));
+}
+
+async function stripeRequest(pathname: string, params: Record<string, unknown>) {
+  const form = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => appendStripeParam(form, key, value));
+
+  const res = await fetch(`${STRIPE_API_BASE_URL}${pathname}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: form,
+  });
+
+  const text = await res.text();
+  const body = text ? JSON.parse(text) : {};
+  if (!res.ok) {
+    const error = new Error(body?.error?.message || `Stripe request failed with ${res.status}`) as Error & { status?: number; body?: JsonRecord };
+    error.status = res.status;
+    error.body = body;
+    throw error;
+  }
+
+  return body;
+}
+
+async function stripeGet(pathname: string) {
+  const res = await fetch(`${STRIPE_API_BASE_URL}${pathname}`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
+    },
+  });
+
+  const text = await res.text();
+  const body = text ? JSON.parse(text) : {};
+  if (!res.ok) {
+    const error = new Error(body?.error?.message || `Stripe request failed with ${res.status}`) as Error & { status?: number; body?: JsonRecord };
+    error.status = res.status;
+    error.body = body;
+    throw error;
+  }
+
+  return body;
+}
+
+function getStripeEventSignature(signatureHeader: string | undefined): { timestamp: string; signature: string } | null {
+  if (!signatureHeader) return null;
+  const parts = signatureHeader.split(',').reduce<Record<string, string>>((acc, part) => {
+    const [key, value] = part.split('=');
+    if (key && value) acc[key.trim()] = value.trim();
+    return acc;
+  }, {});
+  if (!parts.t || !parts.v1) return null;
+  return { timestamp: parts.t, signature: parts.v1 };
+}
+
+function verifyStripeWebhookSignature(rawBody: Buffer, signatureHeader: string | undefined): boolean {
+  const parsed = getStripeEventSignature(signatureHeader);
+  if (!parsed || !STRIPE_WEBHOOK_SECRET) return false;
+
+  const timestamp = Number(parsed.timestamp);
+  if (!Number.isFinite(timestamp)) return false;
+  const ageSeconds = Math.abs(Date.now() / 1000 - timestamp);
+  if (ageSeconds > 5 * 60) return false;
+
+  const signedPayload = `${parsed.timestamp}.${rawBody.toString('utf8')}`;
+  const expected = createHmac('sha256', STRIPE_WEBHOOK_SECRET).update(signedPayload).digest('hex');
+  const expectedBuffer = Buffer.from(expected, 'hex');
+  const receivedBuffer = Buffer.from(parsed.signature, 'hex');
+  return expectedBuffer.length === receivedBuffer.length && timingSafeEqual(expectedBuffer, receivedBuffer);
+}
+
+function stripeEpochToIso(value: unknown): string | null {
+  const seconds = Number(value);
+  if (!Number.isFinite(seconds) || seconds <= 0) return null;
+  return new Date(seconds * 1000).toISOString();
+}
+
+function getStripePriceId(subscription: JsonRecord): string | null {
+  return (
+    subscription.items?.data?.[0]?.price?.id ||
+    subscription.plan?.id ||
+    null
+  );
+}
+
+function getStripeId(value: unknown): string | null {
+  if (!value) return null;
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object' && value && 'id' in value) return String((value as JsonRecord).id);
+  return null;
+}
+
+async function upsertSubscriptionFromStripe(subscription: JsonRecord, fallbackUserId?: string | null) {
+  const stripeSubscriptionId = getStripeId(subscription.id);
+  const stripeCustomerId = getStripeId(subscription.customer);
+  const priceId = getStripePriceId(subscription);
+  const userId = String(subscription.metadata?.user_id || fallbackUserId || '').trim();
+
+  if (!stripeSubscriptionId || !stripeCustomerId || !priceId || !isUuid(userId)) {
+    fastify.log.warn({
+      event: 'stripe_subscription_sync_skipped_missing_metadata',
+      subscriptionId: maskForLog(stripeSubscriptionId),
+      customerId: maskForLog(stripeCustomerId),
+      priceId: maskForLog(priceId),
+      userId: maskForLog(userId),
+    });
+    return { updated: false, reason: 'missing_metadata' };
+  }
+
+  const plan = await findBillingPlanByStripePriceId(priceId);
+  if (!plan) {
+    fastify.log.warn({
+      event: 'stripe_subscription_sync_skipped_plan_not_found',
+      subscriptionId: maskForLog(stripeSubscriptionId),
+      priceId: maskForLog(priceId),
+      userId: maskForLog(userId),
+    });
+    return { updated: false, reason: 'plan_not_found' };
+  }
+
+  const currentPeriodStart =
+    stripeEpochToIso(subscription.current_period_start) ||
+    stripeEpochToIso(subscription.items?.data?.[0]?.current_period_start);
+  const currentPeriodEnd =
+    stripeEpochToIso(subscription.current_period_end) ||
+    stripeEpochToIso(subscription.items?.data?.[0]?.current_period_end);
+
+  const { error } = await (supabase
+    .from('user_subscriptions' as any)
+    .upsert({
+      user_id: userId,
+      plan_id: plan.id,
+      plan_name: plan.plan_name,
+      status: String(subscription.status || 'incomplete'),
+      account_limit: plan.account_limit,
+      current_period_start: currentPeriodStart,
+      current_period_end: currentPeriodEnd,
+      cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
+      stripe_customer_id: stripeCustomerId,
+      stripe_subscription_id: stripeSubscriptionId,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id' }) as any);
+
+  if (error) throw error;
+
+  fastify.log.info({
+    event: 'stripe_subscription_synced',
+    userId: maskForLog(userId),
+    planId: plan.id,
+    status: subscription.status,
+    subscriptionId: maskForLog(stripeSubscriptionId),
+  });
+
+  return { updated: true, planId: plan.id };
+}
+
+async function syncSubscriptionById(subscriptionId: string, fallbackUserId?: string | null) {
+  const subscription = await stripeGet(`/subscriptions/${encodeURIComponent(subscriptionId)}`);
+  return upsertSubscriptionFromStripe(subscription, fallbackUserId);
 }
 
 async function getActiveAccountLimit(userId: string): Promise<AccountLimitCheck> {
@@ -1613,6 +1924,243 @@ fastify.get('/health', async () => {
     service: 'metaapi-gateway',
     region: METAAPI_REGION,
   };
+});
+
+fastify.post('/billing/create-checkout-session', async (request, reply) => {
+  try {
+    const authResult = await verifyBearerUser(request);
+    if (isAuthError(authResult)) {
+      return reply.status(authResult.status).send(authResult.error);
+    }
+
+    const body = request.body as {
+      planSlug?: string;
+      planId?: string;
+      priceId?: string;
+    };
+    const selector = String(body?.planSlug || body?.planId || body?.priceId || '').trim();
+    if (!selector) {
+      return reply.status(400).send({
+        error: 'planSlug, planId or priceId is required',
+        code: 'billing_plan_required',
+      });
+    }
+
+    const plan = await findBillingPlanBySelector(selector);
+    if (!plan) {
+      return reply.status(400).send({
+        error: 'Selected Fortify plan was not found',
+        code: 'invalid_billing_plan',
+      });
+    }
+
+    if (plan.id === 'beta_free') {
+      return reply.status(400).send({
+        error: 'Beta Free does not use Stripe checkout',
+        code: 'beta_plan_not_checkoutable',
+      });
+    }
+
+    if (!STRIPE_SECRET_KEY) {
+      return reply.status(503).send(stripeConfigError());
+    }
+
+    if (!plan.stripe_price_id) {
+      return reply.status(400).send({
+        error: 'Selected Fortify plan is missing stripe_price_id',
+        code: 'stripe_price_missing',
+        details: 'Add the real Stripe price id to public.plans.stripe_price_id before enabling checkout for this plan.',
+      });
+    }
+
+    const { data: subscription } = await (supabase
+      .from('user_subscriptions' as any)
+      .select('stripe_customer_id')
+      .eq('user_id', authResult.id)
+      .maybeSingle() as any);
+
+    const params: Record<string, unknown> = {
+      mode: 'subscription',
+      success_url: STRIPE_SUCCESS_URL,
+      cancel_url: STRIPE_CANCEL_URL,
+      client_reference_id: authResult.id,
+      'line_items[0][price]': plan.stripe_price_id,
+      'line_items[0][quantity]': 1,
+      'metadata[user_id]': authResult.id,
+      'metadata[plan_id]': plan.id,
+      'metadata[plan_slug]': plan.slug || plan.id,
+      'subscription_data[metadata][user_id]': authResult.id,
+      'subscription_data[metadata][plan_id]': plan.id,
+      'subscription_data[metadata][plan_slug]': plan.slug || plan.id,
+      allow_promotion_codes: true,
+    };
+
+    if (subscription?.stripe_customer_id) {
+      params.customer = subscription.stripe_customer_id;
+    } else if (authResult.email) {
+      params.customer_email = authResult.email;
+    }
+
+    const checkoutSession = await stripeRequest('/checkout/sessions', params);
+
+    fastify.log.info({
+      event: 'stripe_checkout_session_created',
+      userId: maskForLog(authResult.id),
+      planId: plan.id,
+      sessionId: maskForLog(checkoutSession.id),
+    });
+
+    return reply.send({
+      checkout_url: checkoutSession.url,
+      session_id: checkoutSession.id,
+    });
+  } catch (error: any) {
+    fastify.log.error({
+      event: 'stripe_checkout_session_failed',
+      error: error?.message,
+      status: error?.status,
+      stripeCode: error?.body?.error?.code,
+    });
+    return reply.status(error?.status && error.status < 500 ? 400 : 500).send({
+      error: error?.message || 'Failed to create Stripe checkout session',
+      code: 'stripe_checkout_failed',
+      details: error?.body?.error?.code,
+    });
+  }
+});
+
+fastify.post('/billing/create-portal-session', async (request, reply) => {
+  try {
+    const authResult = await verifyBearerUser(request);
+    if (isAuthError(authResult)) {
+      return reply.status(authResult.status).send(authResult.error);
+    }
+
+    const { data: subscription, error } = await (supabase
+      .from('user_subscriptions' as any)
+      .select('stripe_customer_id')
+      .eq('user_id', authResult.id)
+      .maybeSingle() as any);
+
+    if (error) {
+      return reply.status(500).send({
+        error: 'Failed to load user subscription',
+        code: 'subscription_lookup_failed',
+        details: error.message,
+      });
+    }
+
+    if (!subscription?.stripe_customer_id) {
+      return reply.status(404).send({
+        error: 'Stripe customer was not found for this Fortify user',
+        code: 'stripe_customer_missing',
+        details: 'Subscribe to a paid plan before opening the Stripe customer portal.',
+      });
+    }
+
+    if (!STRIPE_SECRET_KEY) {
+      return reply.status(503).send(stripeConfigError());
+    }
+
+    const portalSession = await stripeRequest('/billing_portal/sessions', {
+      customer: subscription.stripe_customer_id,
+      return_url: STRIPE_CUSTOMER_PORTAL_RETURN_URL,
+    });
+
+    fastify.log.info({
+      event: 'stripe_portal_session_created',
+      userId: maskForLog(authResult.id),
+      customerId: maskForLog(subscription.stripe_customer_id),
+    });
+
+    return reply.send({
+      portal_url: portalSession.url,
+    });
+  } catch (error: any) {
+    fastify.log.error({
+      event: 'stripe_portal_session_failed',
+      error: error?.message,
+      status: error?.status,
+      stripeCode: error?.body?.error?.code,
+    });
+    return reply.status(error?.status && error.status < 500 ? 400 : 500).send({
+      error: error?.message || 'Failed to create Stripe portal session',
+      code: 'stripe_portal_failed',
+      details: error?.body?.error?.code,
+    });
+  }
+});
+
+fastify.post('/billing/webhook', async (request, reply) => {
+  try {
+    if (!STRIPE_WEBHOOK_SECRET) {
+      return reply.status(503).send(stripeWebhookConfigError());
+    }
+
+    const rawBody = (request as any).rawBody as Buffer | undefined;
+    const signatureHeader = Array.isArray(request.headers['stripe-signature'])
+      ? request.headers['stripe-signature'][0]
+      : request.headers['stripe-signature'];
+
+    if (!rawBody || !verifyStripeWebhookSignature(rawBody, signatureHeader)) {
+      return reply.status(400).send({
+        error: 'Invalid Stripe webhook signature',
+        code: 'stripe_signature_invalid',
+      });
+    }
+
+    const event = JSON.parse(rawBody.toString('utf8')) as JsonRecord;
+    const eventType = String(event.type || '');
+    const object = event.data?.object || {};
+
+    fastify.log.info({
+      event: 'stripe_webhook_received',
+      stripeEventId: maskForLog(event.id),
+      type: eventType,
+    });
+
+    if (eventType === 'checkout.session.completed') {
+      const subscriptionId = getStripeId(object.subscription);
+      const fallbackUserId = object.metadata?.user_id || object.client_reference_id || null;
+      if (subscriptionId && STRIPE_SECRET_KEY) {
+        await syncSubscriptionById(subscriptionId, fallbackUserId);
+      }
+    } else if (
+      eventType === 'customer.subscription.created' ||
+      eventType === 'customer.subscription.updated' ||
+      eventType === 'customer.subscription.deleted'
+    ) {
+      await upsertSubscriptionFromStripe(object);
+    } else if (eventType === 'invoice.payment_succeeded') {
+      const subscriptionId = getStripeId(object.subscription);
+      if (subscriptionId && STRIPE_SECRET_KEY) {
+        await syncSubscriptionById(subscriptionId);
+      }
+    } else if (eventType === 'invoice.payment_failed') {
+      const subscriptionId = getStripeId(object.subscription);
+      if (subscriptionId) {
+        const { error } = await (supabase
+          .from('user_subscriptions' as any)
+          .update({
+            status: 'past_due',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('stripe_subscription_id', subscriptionId) as any);
+        if (error) throw error;
+      }
+    }
+
+    return reply.send({ received: true });
+  } catch (error: any) {
+    fastify.log.error({
+      event: 'stripe_webhook_failed',
+      error: error?.message,
+    });
+    return reply.status(500).send({
+      error: error?.message || 'Failed to process Stripe webhook',
+      code: 'stripe_webhook_failed',
+    });
+  }
 });
 
 fastify.post('/metaapi/connect', async (request, reply) => {

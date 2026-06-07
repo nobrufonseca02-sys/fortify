@@ -16,7 +16,7 @@ export function SaaSOnboardingChecklist() {
 
   const items = [
     { label: 'Criar conta Fortify', done: Boolean(user?.id), icon: LayoutDashboard, action: '/settings' },
-    { label: 'Escolher plano ou beta', done: hasActivePlan, icon: CreditCard, action: '/settings' },
+    { label: 'Escolher plano ou beta', done: hasActivePlan, icon: CreditCard, action: '/pricing' },
     { label: 'Conectar MT5 próprio', done: activeAccountCount > 0, icon: Link2, action: '/mt5' },
     { label: 'Configurar regras', done: hasRules, icon: Shield, action: accounts[0]?.id ? `/accounts/${accounts[0].id}/rules` : '/accounts' },
     { label: 'Rodar primeiro sync', done: hasSync, icon: RefreshCw, action: accounts[0]?.id ? `/accounts/${accounts[0].id}` : '/mt5' },

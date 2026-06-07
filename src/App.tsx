@@ -16,6 +16,7 @@ import AccountDashboard from "./pages/AccountDashboard";
 import RuleManager from "./pages/RuleManager";
 import Performance from "./pages/Performance";
 import SettingsPage from "./pages/SettingsPage";
+import PricingPage from "./pages/PricingPage";
 import AdminPage from "./pages/AdminPage";
 import CreateAccount from "./pages/CreateAccount";
 import PropFirmLibrary from "./pages/PropFirmLibrary";
@@ -69,6 +70,7 @@ function ProtectedRoutes() {
         <Route path="/mt5" element={<MT5Connections />} />
         <Route path="/mt5/:connectionId" element={<MT5Dashboard />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/pricing" element={<PricingPage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

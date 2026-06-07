@@ -5,9 +5,14 @@ import { useAuth } from '@/hooks/useAuth';
 export interface FortifyPlan {
   id: string;
   plan_name: string;
+  name?: string | null;
+  slug?: string | null;
   status: string;
+  active?: boolean | null;
+  stripe_price_id?: string | null;
   account_limit: number;
   billing_interval: string | null;
+  price_amount?: number | null;
   price_cents: number | null;
 }
 
@@ -18,7 +23,9 @@ export interface FortifySubscription {
   plan_name: string;
   status: string;
   account_limit: number;
+  current_period_start?: string | null;
   current_period_end: string | null;
+  cancel_at_period_end?: boolean | null;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
 }
@@ -51,6 +58,7 @@ export function useSubscriptionPlan() {
           .from('plans' as any)
           .select('*')
           .eq('status', 'active')
+          .eq('active', true)
           .order('account_limit', { ascending: true }) as any),
         supabase
           .from('mt5_connections')

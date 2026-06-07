@@ -1,4 +1,4 @@
-import { LayoutDashboard, ScrollText, PlusCircle, Settings, BarChart3, Shield, BookOpen, Archive, LogOut, Server, Calculator, ClipboardList, FileCheck } from "lucide-react";
+import { LayoutDashboard, ScrollText, PlusCircle, Settings, BarChart3, Shield, BookOpen, Archive, LogOut, Server, Calculator, ClipboardList, FileCheck, CreditCard } from "lucide-react";
 import fortifyLogo from "@/assets/fortify-eagle.png";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -44,6 +44,7 @@ const groups = [
     items: [
       { title: "Prop Firm Library", url: "/library", icon: BookOpen },
       { title: "Contas MT5", url: "/mt5", icon: Server },
+      { title: "Planos", url: "/pricing", icon: CreditCard },
       { title: "Histórico", url: "/history", icon: Archive },
       { title: "Configurações", url: "/settings", icon: Settings },
     ],
