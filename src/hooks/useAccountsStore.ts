@@ -125,7 +125,7 @@ export function useAccountsStore() {
 
   // Filter out soft-deleted accounts
   const deletedIds = new Set(deletedAccounts.map(d => d.account.id));
-  const activeAccounts = accounts.filter(a => !deletedIds.has(a.id));
+  const activeAccounts = accounts.filter(a => !deletedIds.has(a.id) && a.status !== 'inactive');
 
   // Mutation to add account to Supabase
   const addAccountMutation = useMutation({
@@ -164,7 +164,7 @@ export function useAccountsStore() {
     addAccountMutation.mutate(account);
   }, [addAccountMutation]);
 
-  const removeAccount = useCallback((id: string, reason?: string) => {
+  const removeAccount = useCallback(async (id: string, reason?: string) => {
     const account = activeAccounts.find(a => a.id === id);
     if (account) {
       deletedAccounts = [...deletedAccounts, {
@@ -173,16 +173,41 @@ export function useAccountsStore() {
         reason,
       }];
       emitDeletedChange();
-    }
-  }, [activeAccounts]);
 
-  const restoreAccount = useCallback((id: string) => {
+      if (session?.user?.id) {
+        await supabase
+          .from('mt5_connections')
+          .update({ connection_status: 'disconnected', sync_status: 'removed', sync_error: null })
+          .eq('trading_account_id', id)
+          .eq('user_id', session.user.id);
+
+        await supabase
+          .from('trading_accounts')
+          .update({ status: 'inactive', mt5_connection_status: 'disconnected', mt5_sync_error: null })
+          .eq('id', id)
+          .eq('user_id', session.user.id);
+
+        queryClient.invalidateQueries({ queryKey: ['trading_accounts'] });
+        queryClient.invalidateQueries({ queryKey: ['mt5_connections'] });
+      }
+    }
+  }, [activeAccounts, queryClient, session?.user?.id]);
+
+  const restoreAccount = useCallback(async (id: string) => {
     const entry = deletedAccounts.find(d => d.account.id === id);
     if (entry) {
       deletedAccounts = deletedAccounts.filter(d => d.account.id !== id);
       emitDeletedChange();
+      if (session?.user?.id) {
+        await supabase
+          .from('trading_accounts')
+          .update({ status: 'active' })
+          .eq('id', id)
+          .eq('user_id', session.user.id);
+        queryClient.invalidateQueries({ queryKey: ['trading_accounts'] });
+      }
     }
-  }, []);
+  }, [queryClient, session?.user?.id]);
 
   const permanentlyDelete = useCallback((id: string) => {
     deletedAccounts = deletedAccounts.filter(d => d.account.id !== id);

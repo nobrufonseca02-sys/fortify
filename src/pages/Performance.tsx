@@ -181,6 +181,7 @@ const Performance = () => {
         .from('mt5_connections')
         .select('id')
         .eq('trading_account_id', selectedAccount.id)
+        .eq('user_id', selectedAccount.userId)
         .order('updated_at', { ascending: false })
         .limit(1)
         .maybeSingle();

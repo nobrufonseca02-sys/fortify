@@ -1,7 +1,8 @@
 import { useAuth } from "@/hooks/useAuth";
-import { LogOut, Settings, User, Shield } from "lucide-react";
+import { LogOut, Settings, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import { PlanStatusPanel } from "@/components/PlanStatusPanel";
 
 const SettingsPage = () => {
   const { user, signOut } = useAuth();
@@ -12,6 +13,8 @@ const SettingsPage = () => {
         <h1 className="text-lg font-black text-foreground">Configurações</h1>
         <p className="text-xs text-muted-foreground">Gerencie sua conta e preferências.</p>
       </motion.div>
+
+      <PlanStatusPanel />
 
       {/* Profile */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="rounded-2xl border border-border bg-card p-6 space-y-4 shadow-lg shadow-background/30">

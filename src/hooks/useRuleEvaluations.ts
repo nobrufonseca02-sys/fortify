@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { gatewayJsonHeaders } from '@/lib/gateway';
 
 export interface RuleEvaluationRow {
   id: string;
@@ -220,7 +221,7 @@ export function useSyncAndEvaluate() {
       const gatewayUrl = import.meta.env.VITE_METAAPI_GATEWAY_URL || 'http://localhost:3001';
       const response = await fetch(`${gatewayUrl}/metaapi/sync`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: gatewayJsonHeaders(session.access_token),
         body: JSON.stringify({ connectionId, userId }),
       });
 

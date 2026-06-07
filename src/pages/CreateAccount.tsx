@@ -21,6 +21,8 @@ import { createClient } from '@supabase/supabase-js';
 import { toast } from '@/hooks/use-toast';
 import { BetaResponsibilityNotice } from '@/components/BetaReadinessChecklist';
 import { getConnectErrorMessage } from '@/lib/betaReadiness';
+import { gatewayJsonHeaders } from '@/lib/gateway';
+import { useSubscriptionPlan } from '@/hooks/useSubscriptionPlan';
 
 const RISK_OPTIONS = [
   { label: '0.25%', value: 0.25, desc: 'Ultra conservador' },
@@ -124,7 +126,8 @@ const CreateAccount = () => {
   const location = useLocation();
   const queryClient = useQueryClient();
   const { addAccount } = useAccountsStore();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
+  const subscriptionPlan = useSubscriptionPlan();
   const [step, setStep] = useState(0);
 
   const supabaseUrl = getSupabaseUrl();
@@ -320,6 +323,24 @@ const CreateAccount = () => {
 
   const handleCreate = async () => {
     const initialConnectionStatus: Mt5ConnectionStatus = 'disconnected';
+    let nextRoute = '/accounts';
+
+    if (!user?.id || !session?.access_token) {
+      toast({ title: 'Sessão necessária', description: 'Faça login novamente antes de criar e conectar uma conta.', variant: 'destructive' });
+      return;
+    }
+
+    if (mt5Login && mt5Server && mt5InvestorPassword && !subscriptionPlan.isLoading) {
+      if (!subscriptionPlan.hasActivePlan || subscriptionPlan.remainingAccounts <= 0) {
+        toast({
+          title: 'Plano Fortify necessário',
+          description: subscriptionPlan.hasActivePlan ? 'Você atingiu o limite de contas do seu plano.' : 'Escolha um plano ou solicite acesso beta antes de conectar MT5.',
+          variant: 'destructive',
+        });
+        navigate('/settings');
+        return;
+      }
+    }
 
     if (supabase && user?.id) {
       try {
@@ -362,7 +383,7 @@ const CreateAccount = () => {
             const gatewayUrl = (import.meta as any).env?.VITE_METAAPI_GATEWAY_URL || 'http://localhost:3001';
             const gatewayRes = await fetch(`${gatewayUrl}/metaapi/connect`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: gatewayJsonHeaders(session.access_token),
               body: JSON.stringify({
                 accountName: insertPayload.nickname,
                 mt5Login: mt5Login.trim(),
@@ -382,7 +403,14 @@ const CreateAccount = () => {
             
             const newConnId = (connData as any)?.connection?.id;
             console.log('MetaApi connection created:', newConnId, 'for trading account:', res.data.id);
-            toast({ title: 'Conta + MetaApi conectada', description: 'Provisionamento iniciado. Use "Sync now" em Integrações para puxar os dados.' });
+            const shouldConfigureRules = Boolean((connData as any)?.requiresRuleConfiguration || !selectedProgramId);
+            nextRoute = shouldConfigureRules ? `/accounts/${res.data.id}/rules` : '/accounts';
+            toast({
+              title: 'Conta + MetaApi conectada',
+              description: shouldConfigureRules
+                ? 'Provisionamento iniciado. Confirme o rule set antes do primeiro sync.'
+                : 'Provisionamento iniciado. Use Sync now para puxar os dados.',
+            });
           } catch (e: any) {
             console.error('MetaApi provisioning failed:', e);
             toast({ title: 'Conta criada, MetaApi falhou', description: e?.message || 'Erro ao provisionar MetaApi', variant: 'destructive' });
@@ -390,7 +418,7 @@ const CreateAccount = () => {
         } else {
           toast({ title: 'Conta criada', description: 'Configure a conexão MT5 em Integrações quando desejar.' });
         }
-        navigate('/accounts');
+        navigate(nextRoute);
         return;
       } catch {
         toast({ title: 'Erro ao criar conta', description: 'Falha ao salvar no Supabase. Usando fallback local.', variant: 'destructive' });
@@ -913,7 +941,7 @@ const CreateAccount = () => {
                     placeholder="Digite a senha MT5"
                   />
                   <p className="text-[11px] text-muted-foreground">
-                    Use a senha de acesso da conta MT5 fornecida pela mesa para sincronização via MetaApi.
+                    Use a senha de acesso da conta MT5 fornecida pela mesa para sincronização via MetaApi. A senha é enviada ao backend seguro apenas no provisionamento e não é exibida novamente. Prefira senha investidor/read-only quando disponível.
                   </p>
                 </div>
               </div>
@@ -935,7 +963,7 @@ const CreateAccount = () => {
 
               <div className="rounded-lg border border-border bg-muted/20 p-4">
                 <p className="text-xs text-muted-foreground">
-                  Ao finalizar, sua conta ficará pronta para sincronização automática.
+                  O login Fortify abre seu dashboard. O login, servidor e senha MT5 são usados somente para conectar esta conta de trading à MetaApi pelo backend.
                 </p>
               </div>
             </div>

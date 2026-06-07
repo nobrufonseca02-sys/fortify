@@ -9,6 +9,8 @@ import type { Mt5ConnectionStatus, TradingAccount } from '@/types/fortify';
 import { supabase } from '@/integrations/supabase/client';
 import { BetaReadinessChecklist, BetaResponsibilityNotice, GuidedEmptyState } from '@/components/BetaReadinessChecklist';
 import { buildBetaChecklist, getSyncErrorMessage, getSyncStatusMeta, maskLogin } from '@/lib/betaReadiness';
+import { useAuth } from '@/hooks/useAuth';
+import { gatewayJsonHeaders } from '@/lib/gateway';
 
 const mt5StatusConfig: Record<Mt5ConnectionStatus, { label: string; icon: typeof Link2; className: string }> = {
   disconnected: { label: 'Desconectada', icon: XCircle, className: 'bg-muted text-muted-foreground' },
@@ -22,6 +24,7 @@ const AccountDashboard = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { accounts } = useAccountsStore();
+  const { user, session } = useAuth();
   const [fallbackAccount, setFallbackAccount] = useState<TradingAccount | null>(null);
 
   const account = accounts.find(a => a.id === id) || fallbackAccount;
@@ -36,13 +39,13 @@ const AccountDashboard = () => {
   const [evaluations, setEvaluations] = useState<any[]>([]);
 
   useEffect(() => {
-    if (id) {
+    if (id && user?.id) {
       reloadAccountData();
     }
-  }, [id]);
+  }, [id, user?.id]);
 
   const reloadAccountData = async () => {
-    if (!id) return;
+    if (!id || !user?.id) return;
     
     setLoadingMt5Data(true);
     setMt5DataError(null);
@@ -53,11 +56,13 @@ const AccountDashboard = () => {
           .from('trading_accounts')
           .select('*')
           .eq('id', id)
+          .eq('user_id', user.id)
           .maybeSingle(),
         supabase
           .from('mt5_connections')
           .select('*')
           .eq('trading_account_id', id)
+          .eq('user_id', user.id)
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle(),
@@ -147,7 +152,7 @@ const AccountDashboard = () => {
   };
 
   const handleSyncNow = async () => {
-    if (!supabase || !id || !connection) {
+    if (!supabase || !id || !connection || !user?.id || !session?.access_token) {
       toast.error('Conexão MT5 não encontrada.');
       return;
     }
@@ -157,10 +162,10 @@ const AccountDashboard = () => {
       const gatewayUrl = (import.meta as any).env?.VITE_METAAPI_GATEWAY_URL || 'http://localhost:3001';
       const res = await fetch(`${gatewayUrl}/metaapi/sync`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: gatewayJsonHeaders(session.access_token),
         body: JSON.stringify({
           connectionId: connection.id,
-          userId: account?.userId || connection?.user_id || '',
+          userId: user.id,
         }),
       });
       const data = await res.json();

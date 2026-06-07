@@ -16,6 +16,8 @@ import { SlideToActivate } from '@/components/SlideToActivate';
 import { toast } from '@/hooks/use-toast';
 import { BetaReadinessChecklist, GuidedEmptyState } from '@/components/BetaReadinessChecklist';
 import { buildBetaChecklist } from '@/lib/betaReadiness';
+import { PlanStatusPanel } from '@/components/PlanStatusPanel';
+import { SaaSOnboardingChecklist } from '@/components/SaaSOnboardingChecklist';
 
 const mt5StatusConfig: Record<Mt5ConnectionStatus, { label: string; icon: typeof Link2; className: string }> = {
   disconnected: { label: 'Desconectada', icon: XCircle, className: 'bg-muted text-muted-foreground' },
@@ -389,6 +391,7 @@ function AccountCard({ account, index, mt5Connection }: { account: TradingAccoun
 const Dashboard = () => {
   const { accounts } = useAccountsStore();
   const { data: ruleRows = [] } = useAllRuleEvaluations();
+  const { user } = useAuth();
   const navigate = useNavigate();
   
   // MT5 connections state
@@ -400,13 +403,18 @@ const Dashboard = () => {
     const loadMt5Connections = async () => {
       setLoadingConnections(true);
       try {
+        if (!user?.id) {
+          setMt5Connections([]);
+          return;
+        }
         const { data, error } = await supabase
           .from('mt5_connections')
           .select('*')
+          .eq('user_id', user.id)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
-        setMt5Connections(data || []);
+        setMt5Connections((data || []).filter((conn: any) => conn.sync_status !== 'removed'));
       } catch (error) {
         console.error('Failed to load MT5 connections:', error);
       } finally {
@@ -415,7 +423,7 @@ const Dashboard = () => {
     };
 
     loadMt5Connections();
-  }, []);
+  }, [user?.id]);
 
   // Helper to get MT5 connection for an account
   const getMt5Connection = (accountId: string) => {
@@ -428,6 +436,8 @@ const Dashboard = () => {
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
       <HeroCard />
+      <PlanStatusPanel compact />
+      <SaaSOnboardingChecklist />
       <DecisionCard />
 
       {primaryAccount ? (

@@ -1,4 +1,4 @@
-import Fastify from 'fastify';
+import Fastify, { type FastifyRequest } from 'fastify';
 import dotenv from 'dotenv';
 import path from 'node:path';
 import { existsSync } from 'node:fs';
@@ -23,6 +23,7 @@ const METAAPI_TOKEN = process.env.METAAPI_TOKEN!;
 const METAAPI_REGION = process.env.METAAPI_REGION || 'new-york';
 const METAAPI_PROVISIONING_MAX_ATTEMPTS = Number(process.env.METAAPI_PROVISIONING_MAX_ATTEMPTS || 4);
 const METAAPI_PROVISIONING_MAX_WAIT_MS = Number(process.env.METAAPI_PROVISIONING_MAX_WAIT_MS || 30000);
+const FORTIFY_ALLOW_BETA_FALLBACK = process.env.FORTIFY_ALLOW_BETA_FALLBACK === 'true';
 
 if (!SUPABASE_URL) {
   throw new Error('Missing required environment variable: SUPABASE_URL');
@@ -48,6 +49,7 @@ fastify.log.info({
   metaapiTokenPresent: !!METAAPI_TOKEN,
   metaapiTokenLength: METAAPI_TOKEN.length,
   metaapiRegion: METAAPI_REGION,
+  betaFallbackEnabled: FORTIFY_ALLOW_BETA_FALLBACK,
   supabaseUrlHost: hostOnly(SUPABASE_URL),
   port: PORT,
 });
@@ -128,6 +130,23 @@ type TradingAccount = {
   total_loss_limit: number | null;
   profit_target: number | null;
   status: string;
+};
+
+type AuthenticatedUser = {
+  id: string;
+  email?: string;
+};
+
+type AccountLimitCheck = {
+  allowed: boolean;
+  status: 'active_subscription' | 'fallback_beta' | 'plan_required' | 'limit_exceeded';
+  planName: string | null;
+  accountLimit: number;
+  activeAccountCount: number;
+  remainingAccounts: number;
+  error?: string;
+  code?: string;
+  httpStatus?: number;
 };
 
 type DetectionResult = {
@@ -231,6 +250,283 @@ function maskForLog(value: unknown): string | null {
   const text = String(value);
   if (text.length <= 4) return '*'.repeat(text.length);
   return `${text.slice(0, 2)}***${text.slice(-2)}`;
+}
+
+function getBearerToken(request: FastifyRequest): string | null {
+  const header = request.headers.authorization;
+  if (!header) return null;
+  const value = Array.isArray(header) ? header[0] : header;
+  const match = /^bearer\s+(.+)$/i.exec(value.trim());
+  return match?.[1]?.trim() || null;
+}
+
+async function verifyRequestUser(request: FastifyRequest, requestedUserId: string): Promise<AuthenticatedUser | { error: JsonRecord; status: number }> {
+  if (!isUuid(requestedUserId)) {
+    return {
+      status: 400,
+      error: {
+        error: 'A valid userId is required',
+        code: 'invalid_user_id',
+      },
+    };
+  }
+
+  const token = getBearerToken(request);
+  if (!token) {
+    return {
+      status: 401,
+      error: {
+        error: 'Missing user session token',
+        code: 'missing_user_session',
+      },
+    };
+  }
+
+  const { data, error } = await supabase.auth.getUser(token);
+  const authUser = data?.user;
+
+  if (error || !authUser) {
+    fastify.log.warn({
+      event: 'fortify_user_token_invalid',
+      requestedUserId: maskForLog(requestedUserId),
+      error: error?.message,
+    });
+    return {
+      status: 401,
+      error: {
+        error: 'Invalid or expired user session',
+        code: 'invalid_user_session',
+      },
+    };
+  }
+
+  if (authUser.id !== requestedUserId) {
+    fastify.log.warn({
+      event: 'fortify_user_token_mismatch',
+      tokenUserId: maskForLog(authUser.id),
+      requestedUserId: maskForLog(requestedUserId),
+    });
+    return {
+      status: 403,
+      error: {
+        error: 'User session does not match requested userId',
+        code: 'user_mismatch',
+      },
+    };
+  }
+
+  return {
+    id: authUser.id,
+    email: authUser.email,
+  };
+}
+
+function isAuthError(result: AuthenticatedUser | { error: JsonRecord; status: number }): result is { error: JsonRecord; status: number } {
+  return 'error' in result;
+}
+
+async function getActiveAccountLimit(userId: string): Promise<AccountLimitCheck> {
+  const { data: subscription, error } = await (supabase
+    .from('user_subscriptions')
+    .select('plan_id,plan_name,status,account_limit,current_period_end')
+    .eq('user_id', userId)
+    .in('status', ['active', 'trialing'])
+    .order('current_period_end', { ascending: false })
+    .limit(1)
+    .maybeSingle() as any);
+
+  if (error) {
+    fastify.log.error({
+      event: 'subscription_lookup_failed',
+      userId: maskForLog(userId),
+      error: error.message,
+    });
+
+    if (FORTIFY_ALLOW_BETA_FALLBACK) {
+      fastify.log.warn({
+        event: 'subscription_lookup_failed_using_beta_fallback',
+        userId: maskForLog(userId),
+      });
+      return {
+        allowed: true,
+        status: 'fallback_beta',
+        planName: 'Local Beta Fallback',
+        accountLimit: 1,
+        activeAccountCount: 0,
+        remainingAccounts: 1,
+      };
+    }
+
+    return {
+      allowed: false,
+      status: 'plan_required',
+      planName: null,
+      accountLimit: 0,
+      activeAccountCount: 0,
+      remainingAccounts: 0,
+      error: 'Subscription lookup failed',
+      code: 'subscription_lookup_failed',
+      httpStatus: 500,
+    };
+  }
+
+  const isPeriodActive =
+    !subscription?.current_period_end ||
+    !Number.isFinite(Date.parse(subscription.current_period_end)) ||
+    Date.parse(subscription.current_period_end) > Date.now();
+
+  if (!subscription || !isPeriodActive) {
+    if (FORTIFY_ALLOW_BETA_FALLBACK) {
+      fastify.log.warn({
+        event: 'subscription_missing_using_beta_fallback',
+        userId: maskForLog(userId),
+      });
+      return {
+        allowed: true,
+        status: 'fallback_beta',
+        planName: 'Local Beta Fallback',
+        accountLimit: 1,
+        activeAccountCount: 0,
+        remainingAccounts: 1,
+      };
+    }
+
+    return {
+      allowed: false,
+      status: 'plan_required',
+      planName: null,
+      accountLimit: 0,
+      activeAccountCount: 0,
+      remainingAccounts: 0,
+      error: 'Active Fortify plan required before connecting MT5',
+      code: 'plan_required',
+      httpStatus: 402,
+    };
+  }
+
+  return {
+    allowed: true,
+    status: 'active_subscription',
+    planName: subscription.plan_name,
+    accountLimit: Number(subscription.account_limit ?? 0),
+    activeAccountCount: 0,
+    remainingAccounts: Number(subscription.account_limit ?? 0),
+  };
+}
+
+async function enforceAccountLimitForConnect(input: {
+  userId: string;
+  mt5Login: string;
+  mt5Server: string;
+  tradingAccountId: string | null;
+}): Promise<AccountLimitCheck> {
+  const { userId, mt5Login, mt5Server, tradingAccountId } = input;
+  const limit = await getActiveAccountLimit(userId);
+  if (!limit.allowed) return limit;
+
+  const reusableStatuses = ['connected', 'connecting', 'syncing', 'queued', 'auth_error'];
+  const { data: ownExistingConnection, error: ownExistingConnectionError } = await supabase
+    .from('mt5_connections')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('mt5_login', mt5Login)
+    .eq('mt5_server', mt5Server)
+    .in('connection_status', reusableStatuses)
+    .limit(1)
+    .maybeSingle();
+
+  if (ownExistingConnectionError) {
+    return {
+      ...limit,
+      allowed: false,
+      error: 'Failed to check existing MT5 connection',
+      code: 'supabase_lookup_failed',
+      httpStatus: 500,
+    };
+  }
+
+  if (ownExistingConnection) {
+    return limit;
+  }
+
+  if (tradingAccountId) {
+    const { data: ownTradingConnection, error: ownTradingConnectionError } = await supabase
+      .from('mt5_connections')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('trading_account_id', tradingAccountId)
+      .in('connection_status', reusableStatuses)
+      .limit(1)
+      .maybeSingle();
+
+    if (ownTradingConnectionError) {
+      return {
+        ...limit,
+        allowed: false,
+        error: 'Failed to check selected trading account connection',
+        code: 'supabase_lookup_failed',
+        httpStatus: 500,
+      };
+    }
+
+    if (ownTradingConnection) {
+      return limit;
+    }
+  }
+
+  const activeStatuses = ['connected', 'connecting', 'syncing'];
+  const { count, error: countError } = await supabase
+    .from('mt5_connections')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .in('connection_status', activeStatuses);
+
+  if (countError) {
+    return {
+      ...limit,
+      allowed: false,
+      error: 'Failed to count active MT5 accounts',
+      code: 'supabase_lookup_failed',
+      httpStatus: 500,
+    };
+  }
+
+  const activeAccountCount = count ?? 0;
+  const accountLimit = limit.accountLimit;
+  const remainingAccounts = Math.max(0, accountLimit - activeAccountCount);
+
+  if (activeAccountCount >= accountLimit) {
+    return {
+      ...limit,
+      allowed: false,
+      activeAccountCount,
+      remainingAccounts,
+      error: 'Você atingiu o limite de contas do seu plano.',
+      code: 'account_limit_exceeded',
+      httpStatus: 402,
+    };
+  }
+
+  return {
+    ...limit,
+    activeAccountCount,
+    remainingAccounts,
+  };
+}
+
+async function findOtherUserMt5Connection(userId: string, mt5Login: string, mt5Server: string) {
+  const { data, error } = await supabase
+    .from('mt5_connections')
+    .select('id,user_id,connection_status')
+    .eq('mt5_login', mt5Login)
+    .eq('mt5_server', mt5Server)
+    .neq('user_id', userId)
+    .in('connection_status', ['connected', 'connecting', 'syncing'])
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data ?? null;
 }
 
 function detectAccountSource(mt5Server: string, brokerName?: string | null): DetectionResult {
@@ -1348,6 +1644,70 @@ fastify.post('/metaapi/connect', async (request, reply) => {
       });
     }
 
+    const authResult = await verifyRequestUser(request, userId);
+    if (isAuthError(authResult)) {
+      return reply.status(authResult.status).send(authResult.error);
+    }
+
+    let otherUserConnection: JsonRecord | null = null;
+    try {
+      otherUserConnection = await findOtherUserMt5Connection(userId, mt5Login, mt5Server);
+    } catch (lookupError: any) {
+      fastify.log.error({
+        event: 'metaapi_connect_duplicate_lookup_failed',
+        userId: maskForLog(userId),
+        mt5Login: maskForLog(mt5Login),
+        mt5Server,
+        error: lookupError?.message,
+      });
+      return reply.status(500).send({
+        error: 'Supabase lookup failed while checking duplicate MT5 ownership',
+        code: 'supabase_lookup_failed',
+        details: lookupError?.message,
+      });
+    }
+
+    if (otherUserConnection) {
+      fastify.log.warn({
+        event: 'metaapi_connect_duplicate_mt5_blocked',
+        requestingUserId: maskForLog(userId),
+        existingUserId: maskForLog(otherUserConnection.user_id),
+        existingConnectionId: maskForLog(otherUserConnection.id),
+        mt5Login: maskForLog(mt5Login),
+        mt5Server,
+      });
+      return reply.status(409).send({
+        error: 'This MT5 login/server is already connected to another Fortify user',
+        code: 'duplicate_mt5_account',
+      });
+    }
+
+    const accountLimitCheck = await enforceAccountLimitForConnect({
+      userId,
+      mt5Login,
+      mt5Server,
+      tradingAccountId,
+    });
+
+    if (!accountLimitCheck.allowed) {
+      fastify.log.warn({
+        event: 'metaapi_connect_plan_blocked',
+        userId: maskForLog(userId),
+        status: accountLimitCheck.status,
+        planName: accountLimitCheck.planName,
+        accountLimit: accountLimitCheck.accountLimit,
+        activeAccountCount: accountLimitCheck.activeAccountCount,
+      });
+      return reply.status(accountLimitCheck.httpStatus ?? 402).send({
+        error: accountLimitCheck.error || 'Active Fortify plan required before connecting MT5',
+        code: accountLimitCheck.code || accountLimitCheck.status,
+        planName: accountLimitCheck.planName,
+        accountLimit: accountLimitCheck.accountLimit,
+        activeAccountCount: accountLimitCheck.activeAccountCount,
+        remainingAccounts: accountLimitCheck.remainingAccounts,
+      });
+    }
+
     const url = `${provisioningBaseUrl}/users/current/accounts`;
     const detection = detectAccountSource(mt5Server, brokerName);
 
@@ -1364,6 +1724,9 @@ fastify.post('/metaapi/connect', async (request, reply) => {
       detectionConfidence: detection.detection_confidence,
       tradingAccountId: maskForLog(tradingAccountId),
       userId: maskForLog(userId),
+      planName: accountLimitCheck.planName,
+      activeAccountCount: accountLimitCheck.activeAccountCount,
+      accountLimit: accountLimitCheck.accountLimit,
     });
 
     let existingMetaApiAccount: MetaApiProvisioningAccount | null = null;
@@ -1408,6 +1771,7 @@ fastify.post('/metaapi/connect', async (request, reply) => {
           });
         }
 
+        // Password is transient: sent only to MetaApi provisioning, never logged, never persisted.
         provisioning = await postProvisioningAccount(url, {
           name: accountName,
           type: 'cloud',
@@ -1620,6 +1984,18 @@ fastify.post('/metaapi/connect', async (request, reply) => {
         });
       }
 
+      if (!selectedTradingAccount) {
+        fastify.log.warn({
+          event: 'metaapi_connect_trading_account_ownership_mismatch',
+          tradingAccountId: maskForLog(effectiveTradingAccountId),
+          userId: maskForLog(userId),
+        });
+        return reply.status(403).send({
+          error: 'Trading account does not belong to the authenticated user',
+          code: 'ownership_mismatch',
+        });
+      }
+
       existingRuleSetId = selectedTradingAccount?.rule_set_id ?? null;
       existingRuleSelectionStatus = selectedTradingAccount?.rule_selection_status ?? null;
     }
@@ -1784,6 +2160,11 @@ fastify.post('/metaapi/sync', async (request, reply) => {
       });
     }
 
+    const authResult = await verifyRequestUser(request, userId);
+    if (isAuthError(authResult)) {
+      return reply.status(authResult.status).send(authResult.error);
+    }
+
     const { data: conn, error: connErr } = await supabase
       .from('mt5_connections')
       .select('*')
@@ -1795,10 +2176,13 @@ fastify.post('/metaapi/sync', async (request, reply) => {
       fastify.log.error({
         event: 'metaapi_sync_connection_not_found',
         connectionId,
-        userId,
+        userId: maskForLog(userId),
         error: connErr?.message,
       });
-      return reply.status(404).send({ error: 'Connection not found' });
+      return reply.status(403).send({
+        error: 'Connection does not belong to the authenticated user',
+        code: 'ownership_mismatch',
+      });
     }
 
     if (!conn.provider_account_id) {
@@ -1830,6 +2214,19 @@ fastify.post('/metaapi/sync', async (request, reply) => {
         error: 'Supabase read failed while loading trading account',
         code: 'supabase_read_failed',
         details: tradingAccountErr.message,
+      });
+    }
+
+    if (conn.trading_account_id && !tradingAccount) {
+      fastify.log.warn({
+        event: 'metaapi_sync_trading_account_ownership_mismatch',
+        connectionId: maskForLog(connectionId),
+        tradingAccountId: maskForLog(conn.trading_account_id),
+        userId: maskForLog(userId),
+      });
+      return reply.status(403).send({
+        error: 'Trading account does not belong to the authenticated user',
+        code: 'ownership_mismatch',
       });
     }
 

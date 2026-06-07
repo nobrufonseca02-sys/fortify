@@ -102,6 +102,14 @@ export function getSyncStatusMeta(status?: string | null, lastSyncAt?: string | 
       description: 'O Fortify está buscando snapshots, posições e trades.',
     };
   }
+  if (['disconnected', 'removed', 'inactive'].includes(normalized)) {
+    return {
+      label: normalized === 'removed' ? 'Removida' : 'Desconectada',
+      shortLabel: normalized === 'removed' ? 'removed' : 'disconnected',
+      className: 'bg-muted text-muted-foreground',
+      description: 'A conta foi desconectada do monitoramento. O histórico permanece preservado.',
+    };
+  }
   if (!lastSyncAt) {
     return {
       label: 'Nunca sincronizada',
@@ -245,6 +253,14 @@ export function getConnectErrorMessage(data: any) {
     metaapi_provisioning_failed: 'A MetaApi recusou o provisionamento. Revise servidor, login, senha e permissões da conta.',
     metaapi_provisioning_fetch_failed: 'Não foi possível alcançar a MetaApi. Verifique internet local e tente novamente.',
     invalid_metaapi_token: 'Configuração MetaApi inválida no gateway local. Atualize o token antes de conectar contas.',
+    missing_user_session: 'Sessão Fortify ausente. Faça login novamente antes de conectar o MT5.',
+    invalid_user_session: 'Sessão Fortify inválida ou expirada. Faça login novamente e tente conectar.',
+    user_mismatch: 'A sessão Fortify não corresponde ao usuário da requisição. Recarregue o app e tente novamente.',
+    ownership_mismatch: 'Esta conta não pertence ao usuário autenticado. Abra a conta correta ou faça login novamente.',
+    plan_required: 'Escolha um plano Fortify ou solicite acesso beta antes de conectar uma nova conta MT5.',
+    account_limit_exceeded: 'Você atingiu o limite de contas do seu plano. Remova uma conta do monitoramento ou faça upgrade.',
+    duplicate_mt5_account: 'Este login/servidor MT5 já está conectado por outro usuário Fortify. Use uma conta MT5 própria.',
+    subscription_lookup_failed: 'Não foi possível validar seu plano Fortify. Recarregue a sessão e tente novamente.',
     supabase_insert_failed: 'Conta conectada, mas o Fortify não conseguiu gravar no Supabase. Verifique permissões e schema.',
     supabase_update_failed: 'Conta conectada, mas o Fortify não conseguiu atualizar o Supabase. Verifique permissões e schema.',
     supabase_lookup_failed: 'O Fortify não conseguiu localizar registros no Supabase. Recarregue a sessão e tente novamente.',
@@ -256,6 +272,9 @@ export function getSyncErrorMessage(data: any) {
   const fallback = data?.error || data?.details || 'Erro ao sincronizar com MetaApi.';
   const messages: Record<string, string> = {
     missing_user_session: 'Sessão do usuário não encontrada. Faça login novamente e tente o sync.',
+    invalid_user_session: 'Sessão Fortify inválida ou expirada. Faça login novamente e tente o sync.',
+    user_mismatch: 'A sessão Fortify não corresponde ao usuário da requisição. Recarregue o app e tente novamente.',
+    ownership_mismatch: 'Esta conexão MT5 não pertence ao usuário autenticado. Abra sua própria conta e tente novamente.',
     connection_not_found: 'Conexão MT5 não encontrada para esta conta. Revise a integração em MT5.',
     metaapi_account_pending: 'A conta ainda está em implantação na MetaApi. Aguarde alguns minutos e tente novamente.',
     metaapi_region_mismatch: 'A região da conta MetaApi não bate com o gateway local. Confirme METAAPI_REGION no backend.',

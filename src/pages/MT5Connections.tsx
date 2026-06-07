@@ -15,6 +15,9 @@ import { Button } from '@/components/ui/button';
 import type { Tables } from '@/integrations/supabase/types';
 import { BetaResponsibilityNotice, GuidedEmptyState } from '@/components/BetaReadinessChecklist';
 import { getConnectErrorMessage, getSyncErrorMessage, getSyncStatusMeta, maskLogin } from '@/lib/betaReadiness';
+import { gatewayJsonHeaders } from '@/lib/gateway';
+import { useSubscriptionPlan } from '@/hooks/useSubscriptionPlan';
+import { PlanStatusPanel } from '@/components/PlanStatusPanel';
 
 type Mt5ConnectionRow = Tables<'mt5_connections'>;
 
@@ -36,6 +39,7 @@ export default function MT5Connections() {
   const { session } = useAuth();
   const navigate = useNavigate();
   const userId = session?.user?.id;
+  const plan = useSubscriptionPlan();
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -52,6 +56,7 @@ export default function MT5Connections() {
   const [mt5Password, setMt5Password] = useState('');
 
   const canUse = Boolean(userId);
+  const canConnectNewAccount = plan.hasActivePlan && plan.remainingAccounts > 0;
 
   const fetchRows = async () => {
     if (!userId) return;
@@ -61,6 +66,7 @@ export default function MT5Connections() {
     const { data, error } = await supabase
       .from('mt5_connections')
       .select('*')
+      .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -71,7 +77,7 @@ export default function MT5Connections() {
       return;
     }
 
-    setRows((data || []) as Mt5ConnectionRow[]);
+    setRows(((data || []) as Mt5ConnectionRow[]).filter((row) => (row as any).sync_status !== 'removed'));
     setLoading(false);
   };
 
@@ -94,6 +100,18 @@ export default function MT5Connections() {
     e.preventDefault();
     if (!userId) return;
     if (!accountName || !mt5Login || !mt5Server || !brokerName || !mt5Password) return;
+    if (!session?.access_token) {
+      toast({ title: 'Sessão necessária', description: 'Faça login novamente antes de conectar o MT5.', variant: 'destructive' });
+      return;
+    }
+    if (!canConnectNewAccount) {
+      toast({
+        title: 'Plano Fortify necessário',
+        description: plan.hasActivePlan ? 'Você atingiu o limite de contas do seu plano.' : 'Escolha um plano ou solicite acesso beta antes de conectar.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     setSaving(true);
     let routeToRules: string | null = null;
@@ -104,7 +122,7 @@ export default function MT5Connections() {
       try {
         const res = await fetch(`${gatewayUrl}/metaapi/connect`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: gatewayJsonHeaders(session.access_token),
           body: JSON.stringify({
             accountName,
             mt5Login,
@@ -149,9 +167,12 @@ export default function MT5Connections() {
     setBusyId(r.id);
     const gatewayUrl = import.meta.env.VITE_METAAPI_GATEWAY_URL || 'http://localhost:3001';
     try {
+      if (!session?.access_token) {
+        throw new Error('Sessão Fortify expirada. Faça login novamente.');
+      }
       const res = await fetch(`${gatewayUrl}/metaapi/sync`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: gatewayJsonHeaders(session.access_token),
         body: JSON.stringify({
           connectionId: r.id,
           userId,
@@ -181,23 +202,42 @@ export default function MT5Connections() {
   const handleDisconnect = async (r: Mt5ConnectionRow) => {
     const { error } = await supabase
       .from('mt5_connections')
-      .update({ connection_status: 'disconnected' })
-      .eq('id', r.id);
+      .update({ connection_status: 'disconnected', sync_status: 'disconnected', sync_error: null })
+      .eq('id', r.id)
+      .eq('user_id', userId);
     if (error) {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' });
       return;
+    }
+    if ((r as any).trading_account_id) {
+      await supabase
+        .from('trading_accounts')
+        .update({ mt5_connection_status: 'disconnected', mt5_sync_error: null })
+        .eq('id', (r as any).trading_account_id)
+        .eq('user_id', userId);
     }
     toast({ title: 'Desconectado' });
     fetchRows();
   };
 
   const handleDelete = async (r: Mt5ConnectionRow) => {
-    const { error } = await supabase.from('mt5_connections').delete().eq('id', r.id);
+    const { error } = await supabase
+      .from('mt5_connections')
+      .update({ connection_status: 'disconnected', sync_status: 'removed', sync_error: null })
+      .eq('id', r.id)
+      .eq('user_id', userId);
     if (error) {
       toast({ title: 'Erro ao remover', description: error.message, variant: 'destructive' });
       return;
     }
-    toast({ title: 'Conexão removida', description: `"${r.account_name}" foi removida.` });
+    if ((r as any).trading_account_id) {
+      await supabase
+        .from('trading_accounts')
+        .update({ status: 'inactive', mt5_connection_status: 'disconnected', mt5_sync_error: null })
+        .eq('id', (r as any).trading_account_id)
+        .eq('user_id', userId);
+    }
+    toast({ title: 'Conta removida do monitoramento', description: `"${r.account_name}" foi preservada no histórico.` });
     fetchRows();
   };
 
@@ -222,12 +262,26 @@ export default function MT5Connections() {
             MetaApi cloud para sincronização automática de contas MT5 — sem servidor local.
           </p>
         </div>
-        <button onClick={() => setShowForm(!showForm)} className="pill-btn pill-btn-primary">
+        <button
+          onClick={() => {
+            if (!canConnectNewAccount) {
+              toast({
+                title: 'Plano Fortify necessário',
+                description: plan.hasActivePlan ? 'Você atingiu o limite de contas do seu plano.' : 'Escolha um plano ou solicite acesso beta em Configurações.',
+                variant: 'destructive',
+              });
+              return;
+            }
+            setShowForm(!showForm);
+          }}
+          className="pill-btn pill-btn-primary"
+        >
           <Plus className="w-4 h-4" />
           Conectar nova conta
         </button>
       </div>
 
+      <PlanStatusPanel compact />
       <BetaResponsibilityNotice />
 
       {showForm && (
@@ -238,6 +292,11 @@ export default function MT5Connections() {
           className="card-premium rounded-xl border border-border bg-card p-6 space-y-5"
         >
           <h2 className="text-sm font-semibold text-foreground">Conectar conta MT5</h2>
+          <div className="rounded-lg border border-border bg-muted/20 p-4">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Sua conta Fortify é usada para acessar o dashboard. O login, servidor e senha MT5 são enviados somente ao backend local para provisionar a MetaApi; a senha não é exibida novamente nem salva em texto puro no Supabase. Use senha investidor/read-only quando a corretora permitir.
+            </p>
+          </div>
 
           <div className="grid grid-cols-2 gap-2">
             {(['metaapi'] as const).map(p => {
@@ -427,7 +486,7 @@ export default function MT5Connections() {
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Remover conexão?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  A conexão "{r.account_name}" será removida permanentemente.
+                                  A conexão "{r.account_name}" sairá do monitoramento. O histórico já sincronizado será preservado.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
@@ -456,7 +515,17 @@ export default function MT5Connections() {
           title="Nenhuma conta MT5 conectada"
           description="Conecte uma conta demo real para o Fortify buscar saldo, equity, posições e trades. Depois da conexão, configure as regras antes de confiar no painel de risco."
           actionLabel="Conectar MT5"
-          onAction={() => setShowForm(true)}
+          onAction={() => {
+            if (!canConnectNewAccount) {
+              toast({
+                title: 'Plano Fortify necessário',
+                description: plan.hasActivePlan ? 'Você atingiu o limite de contas do seu plano.' : 'Escolha um plano ou solicite acesso beta em Configurações.',
+                variant: 'destructive',
+              });
+              return;
+            }
+            setShowForm(true);
+          }}
         />
       )}
     </div>

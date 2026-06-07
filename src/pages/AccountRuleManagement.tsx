@@ -7,6 +7,7 @@ import { toast } from '@/hooks/use-toast';
 import { hydrateRuleEvaluationRows, type RuleEvaluationRow } from '@/hooks/useRuleEvaluations';
 import { BetaReadinessChecklist, BetaResponsibilityNotice } from '@/components/BetaReadinessChecklist';
 import { buildBetaChecklist, getConnectionStatusMeta, getRulesStatusMeta, getSyncErrorMessage, getSyncStatusMeta } from '@/lib/betaReadiness';
+import { gatewayJsonHeaders } from '@/lib/gateway';
 
 type RuleStatus = 'APPROVING' | 'WARNING' | 'VIOLATED' | 'NOT_MET';
 
@@ -56,7 +57,7 @@ function ruleSetReviewLabel(ruleSet: any) {
 export default function AccountRuleManagement() {
   const { accountId } = useParams<{ accountId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -80,12 +81,15 @@ export default function AccountRuleManagement() {
   const [editReviewStatus, setEditReviewStatus] = useState('user_custom');
 
   const loadData = async () => {
-    if (!accountId) return;
+    if (!accountId || !user?.id) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
 
     const [accountRes, connRes, ruleSetRes, defRes, evalRes, customRes] = await Promise.all([
-      (supabase.from('trading_accounts').select('*').eq('id', accountId).maybeSingle() as any),
-      (supabase.from('mt5_connections').select('*').eq('trading_account_id', accountId).order('created_at', { ascending: false }).limit(1).maybeSingle() as any),
+      (supabase.from('trading_accounts').select('*').eq('id', accountId).eq('user_id', user.id).maybeSingle() as any),
+      (supabase.from('mt5_connections').select('*').eq('trading_account_id', accountId).eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle() as any),
       (supabase
         .from('rule_set_versions')
         .select('*, programs (*, prop_firms (*))')
@@ -100,6 +104,7 @@ export default function AccountRuleManagement() {
         .from('account_rule_overrides' as any)
         .select('*, rule_definitions (*)')
         .eq('trading_account_id', accountId)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false }) as any),
     ]);
 
@@ -137,7 +142,7 @@ export default function AccountRuleManagement() {
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountId]);
+  }, [accountId, user?.id]);
 
   const currentRuleSet = useMemo(() => ruleSets.find((ruleSet) => ruleSet.id === account?.rule_set_id), [account, ruleSets]);
   const suggestedRuleSets = useMemo(() => {
@@ -263,12 +268,12 @@ export default function AccountRuleManagement() {
   };
 
   const runSync = async () => {
-    if (!connection?.id || !user?.id) return;
+    if (!connection?.id || !user?.id || !session?.access_token) return;
     setSyncing(true);
     const gatewayUrl = import.meta.env.VITE_METAAPI_GATEWAY_URL || 'http://localhost:3001';
     const res = await fetch(`${gatewayUrl}/metaapi/sync`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: gatewayJsonHeaders(session.access_token),
       body: JSON.stringify({ connectionId: connection.id, userId: user.id }),
     });
     const body = await res.json().catch(() => ({}));

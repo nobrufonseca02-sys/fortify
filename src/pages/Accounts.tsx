@@ -18,6 +18,7 @@ import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { GuidedEmptyState } from '@/components/BetaReadinessChecklist';
 import { getRulesStatusMeta, getSyncErrorMessage, getSyncStatusMeta, maskLogin } from '@/lib/betaReadiness';
+import { gatewayJsonHeaders } from '@/lib/gateway';
 
 // Re-export for backward compatibility
 export { useAccountsStore } from '@/hooks/useAccountsStore';
@@ -51,7 +52,7 @@ const Accounts = () => {
   const queryClient = useQueryClient();
   const { accounts, addAccount, removeAccount } = useAccountsStore();
   const { data: ruleRows = [] } = useAllRuleEvaluations();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [showForm, setShowForm] = useState(false);
 
   // MT5 connections state
@@ -74,13 +75,18 @@ const Accounts = () => {
     const loadMt5Connections = async () => {
       setLoadingConnections(true);
       try {
+        if (!user?.id) {
+          setMt5Connections([]);
+          return;
+        }
         const { data, error } = await supabase
           .from('mt5_connections')
           .select('*')
+          .eq('user_id', user.id)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
-        setMt5Connections(data || []);
+        setMt5Connections((data || []).filter((conn: any) => conn.sync_status !== 'removed'));
       } catch (error) {
         console.error('Failed to load MT5 connections:', error);
       } finally {
@@ -89,7 +95,7 @@ const Accounts = () => {
     };
 
     loadMt5Connections();
-  }, []);
+  }, [user?.id]);
 
   // Helper to get MT5 connection for an account
   const getMt5Connection = (accountId: string) => {
@@ -98,7 +104,7 @@ const Accounts = () => {
 
   const handleSyncNow = async (event: React.MouseEvent, account: TradingAccount, mt5Connection?: any) => {
     event.stopPropagation();
-    if (!mt5Connection?.id || !user?.id) {
+    if (!mt5Connection?.id || !user?.id || !session?.access_token) {
       toast({
         title: 'Sync indisponível',
         description: 'Conecte o MT5 e confirme a sessão do usuário antes de sincronizar.',
@@ -112,7 +118,7 @@ const Accounts = () => {
       const gatewayUrl = import.meta.env.VITE_METAAPI_GATEWAY_URL || 'http://localhost:3001';
       const res = await fetch(`${gatewayUrl}/metaapi/sync`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: gatewayJsonHeaders(session.access_token),
         body: JSON.stringify({ connectionId: mt5Connection.id, userId: user.id }),
       });
       const body = await res.json().catch(() => ({}));
@@ -129,8 +135,9 @@ const Accounts = () => {
       const { data } = await supabase
         .from('mt5_connections')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
-      setMt5Connections(data || []);
+      setMt5Connections((data || []).filter((conn: any) => conn.sync_status !== 'removed'));
     } catch (error: any) {
       toast({ title: 'Sync falhou', description: error?.message || 'Não foi possível chamar o gateway local.', variant: 'destructive' });
     } finally {

@@ -19,7 +19,7 @@ export type RuleSeverity = 'hard' | 'soft';
 export type EvaluationScope = 'daily' | 'total' | 'phase' | 'payoutWindow';
 export type RuleStatus = 'APPROVING' | 'WARNING' | 'VIOLATED' | 'NOT_MET';
 export type RuleSetOrigin = 'template' | 'custom';
-export type AccountStatus = 'active' | 'violated' | 'passed';
+export type AccountStatus = 'active' | 'inactive' | 'violated' | 'passed';
 
 export type Mt5ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'syncing' | 'auth_error';
 
