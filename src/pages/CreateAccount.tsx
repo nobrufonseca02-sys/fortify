@@ -19,6 +19,8 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { createClient } from '@supabase/supabase-js';
 import { toast } from '@/hooks/use-toast';
+import { BetaResponsibilityNotice } from '@/components/BetaReadinessChecklist';
+import { getConnectErrorMessage } from '@/lib/betaReadiness';
 
 const RISK_OPTIONS = [
   { label: '0.25%', value: 0.25, desc: 'Ultra conservador' },
@@ -375,7 +377,7 @@ const CreateAccount = () => {
             
             if (!gatewayRes.ok) {
               console.error('MetaApi connection failed:', connData);
-              throw new Error(connData?.error || connData?.details || 'Erro ao conectar com MetaApi');
+              throw new Error(getConnectErrorMessage(connData));
             }
             
             const newConnId = (connData as any)?.connection?.id;
@@ -689,6 +691,7 @@ const CreateAccount = () => {
         {/* ─── STEP 2: Rules ─── */}
         {step === 2 && (
           <motion.div key="s2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
+            <BetaResponsibilityNotice variant={ruleSource === 'manual' ? 'custom' : 'rules'} />
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-semibold text-foreground">Regras da Conta</h2>
@@ -943,6 +946,7 @@ const CreateAccount = () => {
         {step === 5 && (
           <motion.div key="s5" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
             <h2 className="text-sm font-semibold text-foreground">Revisão e Preview</h2>
+            <BetaResponsibilityNotice variant={ruleSource === 'manual' ? 'custom' : 'rules'} />
 
             {/* Account preview card */}
             <div className="rounded-xl border border-primary/30 bg-card p-5 space-y-4">

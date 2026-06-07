@@ -5,6 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import { hydrateRuleEvaluationRows, type RuleEvaluationRow } from '@/hooks/useRuleEvaluations';
+import { BetaReadinessChecklist, BetaResponsibilityNotice } from '@/components/BetaReadinessChecklist';
+import { buildBetaChecklist, getConnectionStatusMeta, getRulesStatusMeta, getSyncErrorMessage, getSyncStatusMeta } from '@/lib/betaReadiness';
 
 type RuleStatus = 'APPROVING' | 'WARNING' | 'VIOLATED' | 'NOT_MET';
 
@@ -272,7 +274,7 @@ export default function AccountRuleManagement() {
     const body = await res.json().catch(() => ({}));
     setSyncing(false);
     if (!res.ok) {
-      toast({ title: 'Erro no sync', description: body?.error || 'Falha ao sincronizar conta.', variant: 'destructive' });
+      toast({ title: 'Erro no sync', description: getSyncErrorMessage(body), variant: 'destructive' });
       return;
     }
     toast({ title: 'Sync concluído', description: 'Avaliações e snapshots atualizados.' });
@@ -326,6 +328,17 @@ export default function AccountRuleManagement() {
   const isMissingRuleSet = !account.rule_set_id || account.rule_selection_status === 'unconfigured';
   const isAutoGeneric = account.rule_selection_status === 'auto_generic';
   const needsReview = currentRuleSet?.review_status === 'needs_review';
+  const betaChecklist = buildBetaChecklist({
+    account,
+    connection,
+    ruleSet: currentRuleSet,
+    snapshot,
+    evaluations,
+    customRulesCount: customRules.length,
+  });
+  const connectionMeta = getConnectionStatusMeta(connection?.connection_status || account.mt5_connection_status);
+  const syncMeta = getSyncStatusMeta(connection?.sync_status, connection?.last_sync_at || account.mt5_last_sync_at, connection?.sync_error || account.mt5_sync_error);
+  const rulesMeta = getRulesStatusMeta({ account, ruleSet: currentRuleSet, customRulesCount: customRules.length });
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -371,9 +384,34 @@ export default function AccountRuleManagement() {
                 {connection?.last_sync_at ? new Date(connection.last_sync_at).toLocaleString('pt-BR') : '--'}
               </p>
             </div>
+            <div className="rounded-lg bg-muted/30 p-3">
+              <p className="text-[10px] uppercase text-muted-foreground">Connection</p>
+              <p className={`inline-flex rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wider ${connectionMeta.className}`}>
+                {connectionMeta.label}
+              </p>
+            </div>
+            <div className="rounded-lg bg-muted/30 p-3">
+              <p className="text-[10px] uppercase text-muted-foreground">Sync</p>
+              <p className={`inline-flex rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wider ${syncMeta.className}`}>
+                {syncMeta.label}
+              </p>
+            </div>
+            <div className="rounded-lg bg-muted/30 p-3">
+              <p className="text-[10px] uppercase text-muted-foreground">Rules</p>
+              <p className={`inline-flex rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wider ${rulesMeta.className}`}>
+                {rulesMeta.label}
+              </p>
+            </div>
           </div>
         </div>
       </section>
+
+      <BetaReadinessChecklist
+        items={betaChecklist}
+        title="Beta readiness checklist"
+        description="Complete or review these items before relying on this account for controlled beta monitoring."
+        compact
+      />
 
       {(isMissingRuleSet || isAutoGeneric || needsReview) && (
         <section className="rounded-xl border border-warning/30 bg-warning/5 p-4 flex items-start gap-3">
@@ -392,6 +430,8 @@ export default function AccountRuleManagement() {
           </div>
         </section>
       )}
+
+      <BetaResponsibilityNotice variant={isAutoGeneric ? 'broker' : needsReview ? 'rules' : customRules.length > 0 ? 'custom' : 'default'} />
 
       <section className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-5">
         <div className="rounded-xl border border-border bg-card p-5 space-y-4">
@@ -477,7 +517,10 @@ export default function AccountRuleManagement() {
         {evaluations.length === 0 ? (
           <div className="rounded-lg border border-warning/30 bg-warning/5 p-4 flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 text-warning mt-0.5" />
-            <p className="text-sm text-foreground">No evaluations yet. Configure rules and run sync.</p>
+            <div>
+              <p className="text-sm font-medium text-foreground">No evaluations yet</p>
+              <p className="text-xs text-muted-foreground mt-1">Configure rules and run sync. Without evaluations, Fortify cannot produce a reliable risk plan or next best action.</p>
+            </div>
           </div>
         ) : (
           Object.entries(groupedEvaluations).map(([group, rows]) => (
@@ -516,8 +559,16 @@ export default function AccountRuleManagement() {
                         </div>
                       </div>
                       <div className="rounded-lg bg-muted/30 p-3 flex items-start gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-primary mt-0.5" />
-                        <p className="text-xs text-foreground">{row.recommended_action || row.message}</p>
+                        {row.data_status === 'insufficient_data' ? (
+                          <AlertTriangle className="w-4 h-4 text-warning mt-0.5" />
+                        ) : (
+                          <CheckCircle2 className="w-4 h-4 text-primary mt-0.5" />
+                        )}
+                        <p className="text-xs text-foreground">
+                          {row.data_status === 'insufficient_data'
+                            ? 'Insufficient data. Sync more trade history before relying on this rule.'
+                            : row.recommended_action || row.message}
+                        </p>
                       </div>
                     </div>
                   );

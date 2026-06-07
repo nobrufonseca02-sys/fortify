@@ -1,15 +1,18 @@
 import { useEffect, useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Calculator, Shield, AlertTriangle, TrendingDown, Lightbulb } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { AccountSelector } from '@/components/AccountSelector';
 import { useAccountsStore } from '@/hooks/useAccountsStore';
 import { useRuleEvaluations } from '@/hooks/useRuleEvaluations';
 import { TradingAccount } from '@/types/fortify';
 import { Input } from '@/components/ui/input';
+import { GuidedEmptyState } from '@/components/BetaReadinessChecklist';
 
 const fmt = (v: number) => `$${Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`;
 
 const RiskCalculator = () => {
+  const navigate = useNavigate();
   const { accounts } = useAccountsStore();
   const [selectedAccount, setSelectedAccount] = useState<TradingAccount | undefined>(accounts[0]);
   const { data: ruleEvaluations = [] } = useRuleEvaluations(selectedAccount?.id);
@@ -29,6 +32,7 @@ const RiskCalculator = () => {
 
   const dailyLossEval = findEvaluation(['max_daily_loss']);
   const maxLossEval = findEvaluation(['max_total_loss', 'trailing_drawdown']);
+  const hasInsufficientData = ruleEvaluations.some(evaluation => evaluation.data_status === 'insufficient_data');
 
   const dailyLossLimit = dailyLossEval?.limit_value ?? 0;
   const dailyLossUsed = dailyLossEval?.current_value ?? 0;
@@ -87,8 +91,14 @@ const RiskCalculator = () => {
 
   if (!selectedAccount) {
     return (
-      <div className="p-6 text-center text-muted-foreground">
-        Nenhuma conta cadastrada. Crie uma conta primeiro.
+      <div className="p-6 max-w-4xl mx-auto">
+        <GuidedEmptyState
+          icon={Calculator}
+          title="Nenhuma conta para calcular risco"
+          description="Crie ou conecte uma conta MT5 primeiro. A calculadora usa equity e regras avaliadas para sugerir tamanho de risco."
+          actionLabel="Conectar MT5"
+          onAction={() => navigate('/mt5')}
+        />
       </div>
     );
   }
@@ -131,9 +141,27 @@ const RiskCalculator = () => {
       {!dailyLossEval && !maxLossEval && (
         <div className="rounded-xl border border-warning/30 bg-warning/5 p-4 flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-foreground">
-            Nenhum limite de regra foi avaliado para esta conta. Configure um rule set e execute sync antes de usar a calculadora para sizing real.
-          </p>
+          <div>
+            <p className="text-sm font-medium text-foreground">Regras ainda não avaliadas</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Configure um rule set e execute sync antes de usar a calculadora para sizing real.
+            </p>
+            <button type="button" onClick={() => navigate(`/accounts/${selectedAccount.id}/rules`)} className="pill-btn mt-3">
+              Configurar regras
+            </button>
+          </div>
+        </div>
+      )}
+
+      {hasInsufficientData && (
+        <div className="rounded-xl border border-warning/30 bg-warning/5 p-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-foreground">Histórico insuficiente</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Alguns limites dependem de trades ou dias operados. Continue sincronizando após as sessões antes de usar estes cálculos como decisão final.
+            </p>
+          </div>
         </div>
       )}
 

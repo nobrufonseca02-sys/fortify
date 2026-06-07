@@ -43,6 +43,10 @@ export interface TradingAccount {
   mt5ConnectionStatus?: Mt5ConnectionStatus;
   mt5LastSyncAt?: string;
   mt5SyncError?: string;
+  ruleSelectionStatus?: string;
+  detectedBroker?: string;
+  detectedPropFirm?: string;
+  detectionConfidence?: string;
 }
 
 export interface Mt5Connection {

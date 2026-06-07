@@ -86,7 +86,10 @@ function mapSupabaseToTradingAccount(row: any): TradingAccount {
     mt5ConnectionStatus: row.mt5_connection_status || undefined,
     mt5LastSyncAt: row.mt5_last_sync_at || undefined,
     mt5SyncError: row.mt5_sync_error || undefined,
-    // TODO: Map account_type and prop_firm fields if needed
+    ruleSelectionStatus: row.rule_selection_status || undefined,
+    detectedBroker: row.detected_broker || undefined,
+    detectedPropFirm: row.detected_prop_firm || undefined,
+    detectionConfidence: row.detection_confidence || undefined,
   };
 }
 

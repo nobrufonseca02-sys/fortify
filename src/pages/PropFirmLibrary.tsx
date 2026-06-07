@@ -12,6 +12,7 @@ import {
   type PropFirm, type Program, type RuleInstance,
 } from '@/hooks/usePropFirmLibrary';
 import { Button } from '@/components/ui/button';
+import { BetaResponsibilityNotice } from '@/components/BetaReadinessChecklist';
 
 const RULE_ICONS: Record<string, React.ElementType> = {
   max_daily_loss: Flame,
@@ -159,6 +160,8 @@ const PropFirmLibrary = () => {
         ))}
       </div>
 
+      <BetaResponsibilityNotice variant="rules" />
+
       <AnimatePresence mode="wait">
         {/* ─── Step 0: Prop Firms ─── */}
         {currentStep === 0 && (
@@ -278,6 +281,11 @@ const PropFirmLibrary = () => {
                     </a>
                   )}
                 </p>
+                {!version?.source_url && (
+                  <p className="text-[11px] text-warning mt-1">
+                    Sem fonte oficial anexada nesta versão. Valide no dashboard/contrato da mesa antes de depender do template.
+                  </p>
+                )}
               </div>
               <Button
                 onClick={() => navigate('/accounts/new', {

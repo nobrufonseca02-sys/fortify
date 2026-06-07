@@ -1,8 +1,9 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { RULE_SET_TEMPLATES, TEMPLATE_RULES } from '@/data/mockData';
 import { TradingAccount, type Mt5ConnectionStatus } from '@/types/fortify';
-import { Plus, Trash2, Wallet, ChevronRight, Shield, AlertTriangle, XCircle, BookOpen, Link2, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, Wallet, ChevronRight, Shield, AlertTriangle, XCircle, BookOpen, Link2, RefreshCw, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAccountsStore } from '@/hooks/useAccountsStore';
 import { useAllRuleEvaluations } from '@/hooks/useRuleEvaluations';
@@ -15,6 +16,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { GuidedEmptyState } from '@/components/BetaReadinessChecklist';
+import { getRulesStatusMeta, getSyncErrorMessage, getSyncStatusMeta, maskLogin } from '@/lib/betaReadiness';
 
 // Re-export for backward compatibility
 export { useAccountsStore } from '@/hooks/useAccountsStore';
@@ -45,6 +48,7 @@ const StatusBadge = ({ status }: { status: 'SAFE' | 'WARNING' | 'VIOLATED' }) =>
 
 const Accounts = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { accounts, addAccount, removeAccount } = useAccountsStore();
   const { data: ruleRows = [] } = useAllRuleEvaluations();
   const { user } = useAuth();
@@ -53,6 +57,7 @@ const Accounts = () => {
   // MT5 connections state
   const [mt5Connections, setMt5Connections] = useState<any[]>([]);
   const [loadingConnections, setLoadingConnections] = useState(false);
+  const [syncingId, setSyncingId] = useState<string | null>(null);
 
   // Form state
   const [nickname, setNickname] = useState('');
@@ -89,6 +94,48 @@ const Accounts = () => {
   // Helper to get MT5 connection for an account
   const getMt5Connection = (accountId: string) => {
     return mt5Connections.find(conn => conn.trading_account_id === accountId);
+  };
+
+  const handleSyncNow = async (event: React.MouseEvent, account: TradingAccount, mt5Connection?: any) => {
+    event.stopPropagation();
+    if (!mt5Connection?.id || !user?.id) {
+      toast({
+        title: 'Sync indisponível',
+        description: 'Conecte o MT5 e confirme a sessão do usuário antes de sincronizar.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSyncingId(account.id);
+    try {
+      const gatewayUrl = import.meta.env.VITE_METAAPI_GATEWAY_URL || 'http://localhost:3001';
+      const res = await fetch(`${gatewayUrl}/metaapi/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ connectionId: mt5Connection.id, userId: user.id }),
+      });
+      const body = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        toast({ title: 'Sync falhou', description: getSyncErrorMessage(body), variant: 'destructive' });
+        return;
+      }
+
+      toast({ title: 'Sync concluído', description: 'Saldo, posições, trades e regras foram atualizados.' });
+      queryClient.invalidateQueries({ queryKey: ['trading_accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['rule_evaluations'] });
+
+      const { data } = await supabase
+        .from('mt5_connections')
+        .select('*')
+        .order('created_at', { ascending: false });
+      setMt5Connections(data || []);
+    } catch (error: any) {
+      toast({ title: 'Sync falhou', description: error?.message || 'Não foi possível chamar o gateway local.', variant: 'destructive' });
+    } finally {
+      setSyncingId(null);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -225,6 +272,17 @@ const Accounts = () => {
           const connectionStatus = (rawConnectionStatus || 'disconnected') as Mt5ConnectionStatus;
           const mt5Status = mt5StatusConfig[connectionStatus] || mt5StatusConfig.disconnected;
           const Mt5StatusIcon = mt5Status.icon;
+          const syncStatus = getSyncStatusMeta(mt5Connection?.sync_status, mt5Connection?.last_sync_at || account.mt5LastSyncAt, mt5Connection?.sync_error || account.mt5SyncError);
+          const rulesStatus = getRulesStatusMeta({
+            account: {
+              ...account,
+              rule_selection_status: account.ruleSelectionStatus,
+              rule_set_id: account.ruleSetId,
+            },
+          });
+          const loginLabel = maskLogin(account.mt5Login || mt5Connection?.mt5_login);
+          const serverLabel = account.mt5Server || mt5Connection?.mt5_server || 'Servidor não informado';
+          const detectedBroker = account.detectedBroker || mt5Connection?.broker_name || account.broker || 'Broker não detectado';
 
           // Compute account health
           const hasViolation = evals.some(e => e.status === 'VIOLATED');
@@ -257,18 +315,26 @@ const Accounts = () => {
               <div className="flex items-start justify-between">
                 <div className="min-w-0 flex-1">
                   <h3 className="font-semibold text-foreground truncate">{account.nickname}</h3>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">{account.broker} • {ruleSet?.name || 'Personalizado'}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{detectedBroker} • {ruleSet?.name || (account.ruleSetId ? 'Regras configuradas' : 'Sem regras')}</p>
                   {mt5Connection && (
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <span className={`inline-flex items-center gap-1 text-[8px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${mt5Status.className}`}>
                         <Mt5StatusIcon className={`w-2.5 h-2.5 ${connectionStatus === 'connecting' || connectionStatus === 'syncing' ? 'animate-spin' : ''}`} />
                         {mt5Status.label}
                       </span>
-                      <span className="text-[8px] text-muted-foreground">
-                        {mt5Connection.provider || 'mt5'} • {mt5Connection.last_sync_at ? new Date(mt5Connection.last_sync_at).toLocaleDateString('pt-BR') : 'sem sync'}
+                      <span className={`inline-flex items-center text-[8px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${syncStatus.className}`}>
+                        {syncStatus.label}
+                      </span>
+                      <span className={`inline-flex items-center text-[8px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${rulesStatus.className}`}>
+                        {rulesStatus.label}
                       </span>
                     </div>
                   )}
+                  <div className="mt-2 grid grid-cols-1 gap-1 text-[10px] text-muted-foreground">
+                    <span>Login {loginLabel} · {serverLabel}</span>
+                    {account.detectedPropFirm ? <span>Mesa detectada: {account.detectedPropFirm}</span> : null}
+                    <span>Último sync: {mt5Connection?.last_sync_at ? new Date(mt5Connection.last_sync_at).toLocaleString('pt-BR') : 'nunca'}</span>
+                  </div>
                 </div>
                 <StatusBadge status={healthStatus} />
               </div>
@@ -363,7 +429,16 @@ const Accounts = () => {
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap justify-end">
+                  <button
+                    type="button"
+                    onClick={(e) => handleSyncNow(e, account, mt5Connection)}
+                    disabled={!mt5Connection?.id || syncingId === account.id}
+                    className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors disabled:opacity-50"
+                  >
+                    {syncingId === account.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                    Sync now
+                  </button>
                   <button
                     type="button"
                     onClick={(e) => {
@@ -373,7 +448,18 @@ const Accounts = () => {
                     className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
                   >
                     <Shield className="w-3 h-3" />
-                    Regras
+                    {account.ruleSetId ? 'View rules' : 'Configure rules'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/accounts/${account.id}`);
+                    }}
+                    className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
+                  >
+                    <ChevronRight className="w-3 h-3" />
+                    Risk plan
                   </button>
                   <span className="text-[10px] text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
                     Abrir Painel <ChevronRight className="w-3 h-3" />
@@ -386,11 +472,13 @@ const Accounts = () => {
       </div>
 
       {accounts.length === 0 && (
-        <div className="rounded-xl border border-dashed border-border p-10 text-center">
-          <Wallet className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">Nenhuma conta cadastrada.</p>
-          <p className="text-xs text-muted-foreground mt-1">Clique em "Nova Conta" para começar.</p>
-        </div>
+        <GuidedEmptyState
+          icon={Wallet}
+          title="Nenhuma conta cadastrada"
+          description="Comece conectando uma conta MT5 demo real ou criando uma conta pela biblioteca. O beta precisa de uma conta, regras e primeiro sync para liberar o painel de risco."
+          actionLabel="Nova Conta"
+          onAction={() => navigate('/accounts/new')}
+        />
       )}
     </div>
   );

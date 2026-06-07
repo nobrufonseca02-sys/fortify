@@ -13,6 +13,7 @@ import {
   AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { toast } from '@/hooks/use-toast';
+import { GuidedEmptyState } from '@/components/BetaReadinessChecklist';
 
 const fmt = (v: number) => `$${v.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`;
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', {
@@ -69,11 +70,11 @@ const AccountHistory = () => {
 
       {/* Deleted accounts list */}
       {deletedAccounts.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border p-12 text-center">
-          <Wallet className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-50" />
-          <p className="text-sm text-muted-foreground font-medium">Nenhuma conta excluída</p>
-          <p className="text-xs text-muted-foreground mt-1">Contas removidas aparecerão aqui para possível restauração.</p>
-        </div>
+        <GuidedEmptyState
+          icon={Wallet}
+          title="Nenhuma conta arquivada"
+          description="Tudo certo por aqui. Contas removidas pela UI aparecem neste histórico para restauração antes de qualquer exclusão definitiva local."
+        />
       ) : (
         <div className="space-y-3">
           <AnimatePresence>

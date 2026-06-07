@@ -14,6 +14,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useMemo, useState, useEffect } from 'react';
 import { SlideToActivate } from '@/components/SlideToActivate';
 import { toast } from '@/hooks/use-toast';
+import { BetaReadinessChecklist, GuidedEmptyState } from '@/components/BetaReadinessChecklist';
+import { buildBetaChecklist } from '@/lib/betaReadiness';
 
 const mt5StatusConfig: Record<Mt5ConnectionStatus, { label: string; icon: typeof Link2; className: string }> = {
   disconnected: { label: 'Desconectada', icon: XCircle, className: 'bg-muted text-muted-foreground' },
@@ -386,6 +388,7 @@ function AccountCard({ account, index, mt5Connection }: { account: TradingAccoun
 
 const Dashboard = () => {
   const { accounts } = useAccountsStore();
+  const { data: ruleRows = [] } = useAllRuleEvaluations();
   const navigate = useNavigate();
   
   // MT5 connections state
@@ -418,11 +421,39 @@ const Dashboard = () => {
   const getMt5Connection = (accountId: string) => {
     return mt5Connections.find(conn => conn.trading_account_id === accountId);
   };
+  const primaryAccount = accounts[0];
+  const primaryConnection = primaryAccount ? getMt5Connection(primaryAccount.id) : null;
+  const primaryEvaluations = primaryAccount ? ruleRows.filter(row => row.trading_account_id === primaryAccount.id) : [];
 
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
       <HeroCard />
       <DecisionCard />
+
+      {primaryAccount ? (
+        <BetaReadinessChecklist
+          items={buildBetaChecklist({
+            account: {
+              ...primaryAccount,
+              rule_selection_status: primaryAccount.ruleSelectionStatus,
+              rule_set_id: primaryAccount.ruleSetId,
+            },
+            connection: primaryConnection,
+            evaluations: primaryEvaluations,
+          })}
+          title="Controlled beta checklist"
+          description="Use this as the launch pad for the selected account before trading decisions."
+          compact
+        />
+      ) : (
+        <GuidedEmptyState
+          icon={Shield}
+          title="No account ready for monitoring"
+          description="Connect MT5, configure rules and run the first sync to unlock the risk console for beta use."
+          actionLabel="Connect MT5"
+          onAction={() => navigate('/mt5')}
+        />
+      )}
 
       <section>
         <div className="flex items-end justify-between mb-5">

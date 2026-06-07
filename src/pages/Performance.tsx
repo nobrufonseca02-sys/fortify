@@ -11,8 +11,9 @@ import {
 } from 'recharts';
 import {
   TrendingUp, TrendingDown, Calendar, BarChart3, Shield, Activity, Target,
-  ArrowUpRight, ArrowDownRight, Minus,
+  ArrowUpRight, ArrowDownRight, Minus, Wallet, RefreshCw,
 } from 'lucide-react';
+import { GuidedEmptyState } from '@/components/BetaReadinessChecklist';
 
 /* ── helpers ─────────────────────────────────────────────── */
 const fmt = (v: number) =>
@@ -231,7 +232,15 @@ const Performance = () => {
   }, [account, maxLossLimit, snapshots]);
 
   if (!account) {
-    return <div className="p-6 text-center text-muted-foreground">Nenhuma conta cadastrada.</div>;
+    return (
+      <div className="p-6 max-w-4xl mx-auto">
+        <GuidedEmptyState
+          icon={Wallet}
+          title="Nenhuma conta para analisar"
+          description="Crie ou conecte uma conta MT5 primeiro. A página de performance precisa de snapshots reais para mostrar equity, drawdown e histórico."
+        />
+      </div>
+    );
   }
 
   if (data.length === 0) {
@@ -244,9 +253,11 @@ const Performance = () => {
 
         <AccountSelector accounts={accounts} selected={selectedAccount} onSelect={setSelectedAccount} />
 
-        <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
-          Nenhum snapshot real encontrado para esta conta. Execute um sync MT5 antes de analisar performance.
-        </div>
+        <GuidedEmptyState
+          icon={RefreshCw}
+          title="Performance ainda sem histórico"
+          description="Nenhum snapshot real foi encontrado para esta conta. Execute o primeiro sync MT5 para criar histórico de balance/equity e liberar a análise."
+        />
       </div>
     );
   }
@@ -304,6 +315,15 @@ const Performance = () => {
         <StatCard icon={Calendar} label="Dias Operados" value={String(tradingDays)} />
         <StatCard icon={Target} label="Meta Restante" value={fmt(profitRemaining)} />
       </div>
+
+      {totalTrades === 0 && (
+        <div className="rounded-xl border border-warning/30 bg-warning/5 p-4">
+          <p className="text-sm font-medium text-foreground">Conta sincronizada, mas sem trades fechados</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            A curva de equity já pode ser acompanhada, mas métricas de consistência e histórico de performance ficam limitadas até existirem trades.
+          </p>
+        </div>
+      )}
 
       {/* ── EQUITY CURVE ───────────────────────────────── */}
       <section className="rounded-xl border border-border bg-card p-5">

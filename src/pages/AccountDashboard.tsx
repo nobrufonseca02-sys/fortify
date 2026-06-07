@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, RefreshCw, Link2, XCircle, AlertTriangle, TrendingUp, TrendingDown, Shield } from 'lucide-react';
 import type { Mt5ConnectionStatus, TradingAccount } from '@/types/fortify';
 import { supabase } from '@/integrations/supabase/client';
+import { BetaReadinessChecklist, BetaResponsibilityNotice, GuidedEmptyState } from '@/components/BetaReadinessChecklist';
+import { buildBetaChecklist, getSyncErrorMessage, getSyncStatusMeta, maskLogin } from '@/lib/betaReadiness';
 
 const mt5StatusConfig: Record<Mt5ConnectionStatus, { label: string; icon: typeof Link2; className: string }> = {
   disconnected: { label: 'Desconectada', icon: XCircle, className: 'bg-muted text-muted-foreground' },
@@ -31,6 +33,7 @@ const AccountDashboard = () => {
   const [snapshot, setSnapshot] = useState<any | null>(null);
   const [positions, setPositions] = useState<any[]>([]);
   const [trades, setTrades] = useState<any[]>([]);
+  const [evaluations, setEvaluations] = useState<any[]>([]);
 
   useEffect(() => {
     if (id) {
@@ -45,7 +48,7 @@ const AccountDashboard = () => {
     setMt5DataError(null);
     
     try {
-      const [accRes, connRes] = await Promise.all([
+      const [accRes, connRes, evalRes] = await Promise.all([
         supabase
           .from('trading_accounts')
           .select('*')
@@ -58,10 +61,17 @@ const AccountDashboard = () => {
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle(),
+        (supabase
+          .from('rule_evaluations' as any)
+          .select('*')
+          .eq('trading_account_id', id)
+          .order('computed_at', { ascending: false }) as any),
       ]);
 
       if (accRes.error) throw accRes.error;
       if (connRes.error) throw connRes.error;
+      if (evalRes.error) console.error('Failed to load rule evaluations:', evalRes.error);
+      setEvaluations(evalRes.error ? [] : (evalRes.data || []));
 
       setConnection(connRes.data ?? null);
 
@@ -157,7 +167,7 @@ const AccountDashboard = () => {
 
       if (!res.ok) {
         console.error('MetaApi sync failed:', data);
-        let errorMessage = data?.error || data?.details || 'Falha ao sincronizar dados.';
+        let errorMessage = getSyncErrorMessage(data);
         if (errorMessage?.includes('Connection not found')) {
           errorMessage = 'Nenhuma conexão MT5 encontrada para esta conta. Configure a conexão primeiro.';
         } else if (errorMessage?.includes('Invalid credentials')) {
@@ -175,7 +185,7 @@ const AccountDashboard = () => {
       await reloadAccountData();
     } catch (e: any) {
       console.error('MetaApi sync error:', e);
-      toast.error('Erro ao sincronizar. Tente novamente.');
+      toast.error('Erro ao sincronizar. Tente novamente ou confirme se o gateway local está ativo.');
     } finally {
       setSyncingNow(false);
     }
@@ -184,6 +194,14 @@ const AccountDashboard = () => {
   const getStatusConfig = (status: string) => {
     return mt5StatusConfig[status as Mt5ConnectionStatus] || mt5StatusConfig.disconnected;
   };
+
+  const betaChecklist = buildBetaChecklist({
+    account,
+    connection,
+    snapshot,
+    evaluations,
+  });
+  const syncStatus = getSyncStatusMeta(connection?.sync_status, connection?.last_sync_at, connection?.sync_error);
 
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
@@ -200,6 +218,15 @@ const AccountDashboard = () => {
           Rules / Risk Plan
         </Button>
       </div>
+
+      {account && (
+        <BetaReadinessChecklist
+          items={betaChecklist}
+          title="Account beta checklist"
+          description="Use this checklist before treating the account as ready for real monitoring."
+          compact
+        />
+      )}
 
       {loadingMt5Data ? (
         <div className="text-center py-8">
@@ -218,7 +245,7 @@ const AccountDashboard = () => {
               <CardTitle>Account Overview</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Account Name</p>
                   <p className="font-semibold">{account?.nickname || 'Unknown'}</p>
@@ -230,6 +257,10 @@ const AccountDashboard = () => {
                 <div>
                   <p className="text-sm text-muted-foreground">Status</p>
                   <p className="font-semibold">{account?.status || 'Unknown'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">MT5</p>
+                  <p className="font-semibold">{maskLogin(account?.mt5Login || connection?.mt5_login)} · {account?.mt5Server || connection?.mt5_server || 'No server'}</p>
                 </div>
               </div>
             </CardContent>
@@ -271,13 +302,17 @@ const AccountDashboard = () => {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Sync Status</p>
-                      <p className="font-medium mt-1">{connection.sync_status || 'Unknown'}</p>
+                      <span className={`inline-flex items-center rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wider mt-1 ${syncStatus.className}`}>
+                        {syncStatus.label}
+                      </span>
                     </div>
                   </div>
                   
                   {connection.sync_error && (
                     <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30">
-                      <p className="text-sm text-destructive">Last Error: {connection.sync_error}</p>
+                      <p className="text-sm font-medium text-destructive">Sync failed</p>
+                      <p className="text-xs text-destructive/90 mt-1">{connection.sync_error}</p>
+                      <p className="text-xs text-muted-foreground mt-2">Try Sync Now again. If it repeats, review MetaApi account status and the gateway logs.</p>
                     </div>
                   )}
 
@@ -296,12 +331,13 @@ const AccountDashboard = () => {
                   </Button>
                 </div>
               ) : (
-                <div>
-                  <p className="text-sm text-muted-foreground">No MT5 connection found</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Configure your MT5 connection to start syncing data.
-                  </p>
-                </div>
+                <GuidedEmptyState
+                  icon={Link2}
+                  title="No MT5 connection found"
+                  description="Connect MT5 first so Fortify can fetch real balance, equity, positions and trades for this account."
+                  actionLabel="Connect MT5"
+                  onAction={() => navigate('/mt5')}
+                />
               )}
             </CardContent>
           </Card>
@@ -337,7 +373,10 @@ const AccountDashboard = () => {
                     </div>
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Connection created, waiting for first sync</p>
+                  <div className="rounded-lg border border-warning/30 bg-warning/5 p-4">
+                    <p className="text-sm font-medium text-foreground">Connected, waiting for first sync</p>
+                    <p className="text-xs text-muted-foreground mt-1">Run Sync Now to create the first account snapshot and unlock risk calculations.</p>
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -370,7 +409,10 @@ const AccountDashboard = () => {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No open positions</p>
+                  <div className="rounded-lg border border-border bg-muted/20 p-4">
+                    <p className="text-sm font-medium text-foreground">No open positions</p>
+                    <p className="text-xs text-muted-foreground mt-1">This is normal after sync when the MT5 account has no active trades. Risk still uses balance, equity and closed trade history.</p>
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -406,11 +448,16 @@ const AccountDashboard = () => {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No recent trades</p>
+                  <div className="rounded-lg border border-warning/30 bg-warning/5 p-4">
+                    <p className="text-sm font-medium text-foreground">No recent trades synced</p>
+                    <p className="text-xs text-muted-foreground mt-1">Some rules need trade history. If this account is new, keep syncing after trading sessions; otherwise confirm the MetaApi account has access to history.</p>
+                  </div>
                 )}
               </CardContent>
             </Card>
           )}
+
+          <BetaResponsibilityNotice />
         </div>
       )}
     </div>

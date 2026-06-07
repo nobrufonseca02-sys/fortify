@@ -13,6 +13,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import type { Tables } from '@/integrations/supabase/types';
+import { BetaResponsibilityNotice, GuidedEmptyState } from '@/components/BetaReadinessChecklist';
+import { getConnectErrorMessage, getSyncErrorMessage, getSyncStatusMeta, maskLogin } from '@/lib/betaReadiness';
 
 type Mt5ConnectionRow = Tables<'mt5_connections'>;
 
@@ -28,35 +30,6 @@ const STATUS_MAP: Record<string, { label: string; icon: typeof CheckCircle2; cla
 
 const PROVIDER_META: Record<string, { label: string; icon: typeof Cloud; className: string }> = {
   metaapi: { label: 'MetaApi', icon: Cloud, className: 'text-primary bg-primary/10' },
-};
-
-const connectErrorMessage = (data: any) => {
-  const fallback = data?.error || data?.details || 'Erro ao conectar com MetaApi';
-  const messages: Record<string, string> = {
-    wrong_mt5_server: 'Servidor MT5 não aceito pela MetaApi. Confirme o nome exato do servidor no terminal MT5 e tente novamente.',
-    wrong_mt5_credentials: 'Login ou senha MT5 inválidos. Confirme login, senha master/investor e servidor antes de tentar de novo.',
-    mt5_password_required: 'Informe a senha MT5 para provisionar a conta na MetaApi.',
-    metaapi_provisioning_pending: 'A MetaApi ainda está provisionando a conta. Aguarde alguns instantes e tente sincronizar novamente.',
-    metaapi_provisioning_failed: 'A MetaApi recusou o provisionamento. Revise servidor, login, senha e permissões da conta.',
-    metaapi_provisioning_fetch_failed: 'Não foi possível alcançar a API da MetaApi. Verifique conexão local e tente novamente.',
-    invalid_metaapi_token: 'Token MetaApi inválido no backend local. Atualize o token no gateway antes de conectar contas.',
-    supabase_insert_failed: 'A conta conectou, mas o Fortify não conseguiu gravar no Supabase. Verifique permissões e schema.',
-    supabase_update_failed: 'A conta conectou, mas o Fortify não conseguiu atualizar o Supabase. Verifique permissões e schema.',
-    supabase_lookup_failed: 'O Fortify não conseguiu localizar os registros no Supabase. Recarregue a sessão e tente novamente.',
-  };
-  return messages[data?.code] || fallback;
-};
-
-const syncErrorMessage = (data: any) => {
-  const fallback = data?.error || data?.details || 'Erro ao sincronizar com MetaApi';
-  const messages: Record<string, string> = {
-    supabase_update_failed: 'Sync recebido, mas falhou ao atualizar status no Supabase. Tente novamente e verifique permissões.',
-    supabase_upsert_failed: 'Sync recebido, mas falhou ao gravar snapshots no Supabase. Verifique schema e permissões.',
-    supabase_insert_failed: 'Sync recebido, mas falhou ao gravar trades/posições no Supabase. Verifique schema e permissões.',
-    supabase_delete_failed: 'Sync recebido, mas falhou ao limpar posições antigas. Tente novamente.',
-    rule_evaluation_failed: 'Sync concluído parcialmente, mas as regras não foram recalculadas. Abra a conta e revise o rule set.',
-  };
-  return messages[data?.code] || fallback;
 };
 
 export default function MT5Connections() {
@@ -112,7 +85,8 @@ export default function MT5Connections() {
     return rows.map((r) => {
       const st = STATUS_MAP[r.connection_status] || STATUS_MAP.disconnected;
       const pv = PROVIDER_META[(r as any).provider || 'metaapi'] || PROVIDER_META.metaapi;
-      return { ...r, st, pv };
+      const sync = getSyncStatusMeta((r as any).sync_status, r.last_sync_at, r.sync_error);
+      return { ...r, st, pv, sync };
     });
   }, [rows]);
 
@@ -146,7 +120,7 @@ export default function MT5Connections() {
 
         if (!res.ok) {
           console.error('MetaApi connection failed:', data);
-          const errorMessage = connectErrorMessage(data);
+          const errorMessage = getConnectErrorMessage(data);
           toast({ title: 'Erro ao registrar conta', description: errorMessage, variant: 'destructive' });
           return;
         }
@@ -188,7 +162,7 @@ export default function MT5Connections() {
 
       if (!res.ok) {
         console.error('MetaApi sync failed:', data);
-        const errorMessage = syncErrorMessage(data);
+        const errorMessage = getSyncErrorMessage(data);
         toast({ title: 'Erro ao sincronizar', description: errorMessage, variant: 'destructive' });
         fetchRows();
         return;
@@ -253,6 +227,8 @@ export default function MT5Connections() {
           Conectar nova conta
         </button>
       </div>
+
+      <BetaResponsibilityNotice />
 
       {showForm && (
         <motion.form
@@ -364,6 +340,7 @@ export default function MT5Connections() {
                   <th className="px-4 py-3 font-medium">Servidor</th>
                   <th className="px-4 py-3 font-medium">Broker</th>
                   <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 font-medium">Sync</th>
                   <th className="px-4 py-3 font-medium">Último sync</th>
                   <th className="px-4 py-3 font-medium">Erro</th>
                   <th className="px-4 py-3 font-medium text-xs text-muted-foreground">Provider ID</th>
@@ -390,13 +367,18 @@ export default function MT5Connections() {
                           {r.pv.label}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{r.mt5_login}</td>
+                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{maskLogin(r.mt5_login)}</td>
                       <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{r.mt5_server}</td>
                       <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{r.broker_name || '—'}</td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span className={`inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full ${r.st.className}`}>
                           <StIcon className={`w-3 h-3 ${isAnimated ? 'animate-spin' : ''}`} />
                           {r.st.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className={`inline-flex items-center text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full ${r.sync.className}`}>
+                          {r.sync.label}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
@@ -469,11 +451,13 @@ export default function MT5Connections() {
           </div>
         </div>
       ) : (
-        <div className="rounded-xl border border-dashed border-border p-10 text-center">
-          <Server className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">Nenhuma conta MT5 conectada.</p>
-          <p className="text-xs text-muted-foreground mt-1">Clique em "Conectar nova conta" para começar.</p>
-        </div>
+        <GuidedEmptyState
+          icon={Server}
+          title="Nenhuma conta MT5 conectada"
+          description="Conecte uma conta demo real para o Fortify buscar saldo, equity, posições e trades. Depois da conexão, configure as regras antes de confiar no painel de risco."
+          actionLabel="Conectar MT5"
+          onAction={() => setShowForm(true)}
+        />
       )}
     </div>
   );
