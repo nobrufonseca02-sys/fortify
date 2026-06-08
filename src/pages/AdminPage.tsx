@@ -38,8 +38,11 @@ type AdminUser = {
   subscription_status: string | null;
   plan: string | null;
   plan_name: string | null;
+  support_tier?: string | null;
+  plan_family?: string | null;
   account_limit: number;
   connected_accounts_count: number;
+  account_limit_reached?: boolean;
   sync_error_count: number;
   last_sync_at: string | null;
   subscription?: AdminSubscription | null;
@@ -125,7 +128,7 @@ type AdminSystemStatus = {
 const statusClass = (status?: string | null) => {
   const normalized = String(status || '').toLowerCase();
   if (['active', 'trialing', 'connected', 'success', 'verified', 'configured'].includes(normalized)) return 'bg-success/15 text-success border-0';
-  if (['pending', 'running', 'connecting', 'syncing', 'needs_review', 'incomplete', 'missing'].includes(normalized)) return 'bg-warning/15 text-warning border-0';
+  if (['pending', 'running', 'connecting', 'syncing', 'needs_review', 'incomplete', 'missing', 'past_due'].includes(normalized)) return 'bg-warning/15 text-warning border-0';
   if (['error', 'failed', 'auth_error', 'suspended', 'canceled', 'deprecated', 'invalid'].includes(normalized)) return 'bg-destructive/15 text-destructive border-0';
   return 'bg-muted text-muted-foreground border-0';
 };
@@ -138,7 +141,7 @@ const fmtDate = (value?: string | null) => {
 };
 
 const fmtPrice = (value?: number | null) => {
-  if (!value) return 'Sem preco';
+  if (!value) return 'Sem preço';
   return (value / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
@@ -177,6 +180,7 @@ export default function AdminPage() {
   const [rules, setRules] = useState<AdminRuleSet[]>([]);
   const [system, setSystem] = useState<AdminSystemStatus | null>(null);
   const [search, setSearch] = useState('');
+  const [billingFilter, setBillingFilter] = useState('all');
   const [selectedPlans, setSelectedPlans] = useState<Record<string, string>>({});
   const [planForm, setPlanForm] = useState({
     id: '',
@@ -196,9 +200,18 @@ export default function AdminPage() {
 
   const visibleUsers = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return users;
-    return users.filter((user) => JSON.stringify(user).toLowerCase().includes(q));
-  }, [search, users]);
+    return users.filter((user) => {
+      const matchesSearch = !q || JSON.stringify(user).toLowerCase().includes(q);
+      const matchesFilter =
+        billingFilter === 'all' ||
+        (billingFilter === 'priority' && ['priority', 'enterprise'].includes(String(user.support_tier || '').toLowerCase())) ||
+        (billingFilter === 'enterprise' && String(user.plan_family || user.plan || '').toLowerCase().includes('enterprise')) ||
+        (billingFilter === 'past_due' && String(user.subscription_status || '').toLowerCase() === 'past_due') ||
+        (billingFilter === 'no_plan' && !user.subscription_status) ||
+        (billingFilter === 'limit_reached' && Boolean(user.account_limit_reached));
+      return matchesSearch && matchesFilter;
+    });
+  }, [billingFilter, search, users]);
 
   const loadAdminData = useCallback(async () => {
     if (!token) return;
@@ -227,7 +240,7 @@ export default function AdminPage() {
       if (error?.status === 401 || error?.status === 403) {
         setForbidden(true);
       } else {
-        toast({ title: 'Admin indisponivel', description: error?.message || 'Falha ao carregar dados administrativos.', variant: 'destructive' });
+        toast({ title: 'Admin indisponível', description: error?.message || 'Falha ao carregar dados administrativos.', variant: 'destructive' });
       }
     } finally {
       setLoading(false);
@@ -244,7 +257,7 @@ export default function AdminPage() {
       await action();
       await loadAdminData();
     } catch (error: any) {
-      toast({ title: 'Acao nao concluida', description: error?.message || 'Revise os dados e tente novamente.', variant: 'destructive' });
+      toast({ title: 'Ação não concluída', description: error?.message || 'Revise os dados e tente novamente.', variant: 'destructive' });
     } finally {
       setBusyAction(null);
     }
@@ -264,7 +277,7 @@ export default function AdminPage() {
       method: 'POST',
       body: JSON.stringify({ blocked }),
     });
-    toast({ title: blocked ? 'Usuario suspenso' : 'Usuario reativado', description: user.email });
+    toast({ title: blocked ? 'Usuário suspenso' : 'Usuário reativado', description: user.email });
   });
 
   const savePlan = () => runAction('plan-save', async () => {
@@ -302,6 +315,27 @@ export default function AdminPage() {
     });
   });
 
+  const editPlan = (plan: AdminPlan) => {
+    setPlanForm({
+      id: plan.id || '',
+      name: plan.name || plan.plan_name || '',
+      slug: plan.slug || plan.id || '',
+      account_limit: String(plan.account_limit ?? 1),
+      price_amount: plan.price_amount ? String(plan.price_amount) : '',
+      billing_interval: plan.billing_interval || 'month',
+      currency: plan.currency || 'brl',
+      support_tier: plan.support_tier || 'basic',
+      stripe_product_id: plan.stripe_product_id && plan.stripe_product_id.includes('...')
+        ? ''
+        : plan.stripe_product_id || '',
+      stripe_price_id: plan.stripe_price_id && plan.stripe_price_id.includes('...')
+        ? ''
+        : plan.stripe_price_id || '',
+      display_order: String(plan.display_order ?? 100),
+      active: plan.active === false ? 'false' : 'true',
+    });
+  };
+
   const resolveStripePrices = () => runAction('resolve-prices', async () => {
     const body = await adminFetch('/admin/plans/resolve-stripe-prices', token, {
       method: 'POST',
@@ -333,7 +367,7 @@ export default function AdminPage() {
       method: 'POST',
       body: JSON.stringify(form),
     });
-    toast({ title: 'Revisao de regras atualizada', description: rule.name });
+    toast({ title: 'Revisão de regras atualizada', description: rule.name });
   });
 
   if (loading || roleLoading) {
@@ -356,7 +390,7 @@ export default function AdminPage() {
         <div className="max-w-md text-center">
           <h1 className="text-lg font-bold text-foreground">Acesso restrito</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Esta area exige sessao autenticada e role admin validada pelo backend.
+            Esta área exige sessão autenticada e role admin validada pelo backend.
           </p>
         </div>
       </div>
@@ -370,10 +404,10 @@ export default function AdminPage() {
           <p className="eyebrow mb-2">Fortify Admin</p>
           <h1 className="text-2xl font-bold text-foreground tracking-tight flex items-center gap-2">
             <Shield className="h-5 w-5 text-primary" />
-            Area administrativa
+            Área administrativa
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Usuarios, assinaturas, planos, contas MT5, regras e saude do gateway.
+            Usuários, assinaturas, planos, contas MT5, regras e saúde do gateway.
           </p>
         </div>
         <Button variant="outline" onClick={loadAdminData} className="gap-2">
@@ -384,7 +418,7 @@ export default function AdminPage() {
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {[
-          { label: 'Usuarios', value: summary?.totalUsers ?? 0, icon: Users },
+          { label: 'Usuários', value: summary?.totalUsers ?? 0, icon: Users },
           { label: 'Assinaturas', value: summary?.activeSubscriptions ?? 0, icon: CreditCard },
           { label: 'Beta', value: summary?.betaUsers ?? 0, icon: CheckCircle2 },
           { label: 'MT5 conectadas', value: summary?.connectedAccounts ?? 0, icon: Server },
@@ -416,15 +450,15 @@ export default function AdminPage() {
         </TabsList>
 
         <TabsContent value="overview" className="grid gap-4 lg:grid-cols-2">
-          <AdminCard title="Usuarios recentes">
+          <AdminCard title="Usuários recentes">
             <SimpleTable
               headers={['Email', 'Criado em']}
               rows={(summary?.recentUsers || []).map((user: any) => [user.email || 'sem email', fmtDate(user.created_at)])}
             />
           </AdminCard>
-          <AdminCard title="Conexoes recentes">
+          <AdminCard title="Conexões recentes">
             <SimpleTable
-              headers={['Conta', 'Usuario', 'Status']}
+              headers={['Conta', 'Usuário', 'Status']}
               rows={(summary?.recentConnections || []).map((connection: AdminAccount) => [
                 connection.account_name || connection.mt5_server || 'MT5',
                 connection.user_email || 'sem email',
@@ -435,20 +469,36 @@ export default function AdminPage() {
         </TabsContent>
 
         <TabsContent value="users" className="space-y-4">
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por email, plano ou status" className="pl-9" />
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
+            <div className="relative max-w-sm flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por e-mail, plano ou status" className="pl-9" />
+            </div>
+            <Select value={billingFilter} onValueChange={setBillingFilter}>
+              <SelectTrigger className="w-full md:w-64">
+                <SelectValue placeholder="Filtro de cobrança" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="priority">Suporte prioritário/VIP</SelectItem>
+                <SelectItem value="enterprise">Enterprise</SelectItem>
+                <SelectItem value="past_due">Pagamento pendente</SelectItem>
+                <SelectItem value="no_plan">Sem plano</SelectItem>
+                <SelectItem value="limit_reached">Limite de contas atingido</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <AdminCard title="Usuarios">
+          <AdminCard title="Usuários">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Email</TableHead>
                   <TableHead>Plano</TableHead>
+                  <TableHead>Suporte</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Contas</TableHead>
-                  <TableHead>Ultimo sync</TableHead>
-                  <TableHead className="text-right">Acoes</TableHead>
+                  <TableHead>Último sync</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -467,6 +517,7 @@ export default function AdminPage() {
                         </SelectContent>
                       </Select>
                     </TableCell>
+                    <TableCell>{user.support_tier || '-'}</TableCell>
                     <TableCell><Badge className={statusClass(user.subscription_status)}>{user.subscription_status || 'sem plano'}</Badge></TableCell>
                     <TableCell>{user.connected_accounts_count}/{user.account_limit}</TableCell>
                     <TableCell>{fmtDate(user.last_sync_at)}</TableCell>
@@ -492,22 +543,25 @@ export default function AdminPage() {
                 <TableRow>
                   <TableHead>Email</TableHead>
                   <TableHead>Plano</TableHead>
+                  <TableHead>Suporte</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Limite</TableHead>
-                  <TableHead>Renovacao/fim</TableHead>
+                  <TableHead>Renovação/fim</TableHead>
                   <TableHead>Stripe</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((user) => (
+                {visibleUsers.map((user) => (
                   <TableRow key={user.user_id}>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>{user.plan_name || user.plan || 'sem plano'}</TableCell>
+                    <TableCell>{user.support_tier || '-'}</TableCell>
                     <TableCell><Badge className={statusClass(user.subscription_status)}>{user.subscription_status || 'none'}</Badge></TableCell>
                     <TableCell>{user.account_limit}</TableCell>
                     <TableCell>{fmtDate(user.subscription?.current_period_end)}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {user.subscription?.has_stripe_customer ? 'cliente ok' : 'sem cliente'} · {user.subscription?.has_stripe_subscription ? 'assinatura ok' : 'sem assinatura'}
+                      <div>{user.subscription?.stripe_customer_id || (user.subscription?.has_stripe_customer ? 'cliente configurado' : 'sem cliente')}</div>
+                      <div>{user.subscription?.stripe_subscription_id || (user.subscription?.has_stripe_subscription ? 'assinatura configurada' : 'sem assinatura')}</div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -531,10 +585,12 @@ export default function AdminPage() {
                   <TableHead>Slug</TableHead>
                   <TableHead>Limite</TableHead>
                   <TableHead>Preço</TableHead>
+                  <TableHead>Intervalo</TableHead>
                   <TableHead>Suporte</TableHead>
-                  <TableHead>Produto</TableHead>
+                  <TableHead>Product ID</TableHead>
                   <TableHead>Preço Stripe</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -544,10 +600,20 @@ export default function AdminPage() {
                     <TableCell>{plan.slug || plan.id}</TableCell>
                     <TableCell>{plan.account_limit}</TableCell>
                     <TableCell>{fmtPrice(plan.price_amount)}</TableCell>
+                    <TableCell>{plan.billing_interval === 'year' ? 'anual' : plan.billing_interval === 'month' ? 'mensal' : '-'}</TableCell>
                     <TableCell>{plan.support_tier || 'basic'}</TableCell>
-                    <TableCell><Badge className={statusClass(plan.stripe_product_id_status)}>{plan.stripe_product_id_status || 'missing'}</Badge></TableCell>
-                    <TableCell><Badge className={statusClass(plan.stripe_price_id_status)}>{plan.stripe_price_id_status || 'missing'}</Badge></TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      <div>{plan.stripe_product_id || 'ausente'}</div>
+                      <Badge className={statusClass(plan.stripe_product_id_status)}>{plan.stripe_product_id_status || 'missing'}</Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      <div>{plan.stripe_price_id || 'ausente'}</div>
+                      <Badge className={statusClass(plan.stripe_price_id_status)}>{plan.stripe_price_id_status || 'missing'}</Badge>
+                    </TableCell>
                     <TableCell><Badge className={statusClass(plan.active ? 'active' : 'inactive')}>{plan.active ? 'active' : 'inactive'}</Badge></TableCell>
+                    <TableCell className="text-right">
+                      <Button size="sm" variant="outline" onClick={() => editPlan(plan)}>Editar</Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -559,12 +625,30 @@ export default function AdminPage() {
               <Field label="Nome"><Input value={planForm.name} onChange={(e) => setPlanForm((p) => ({ ...p, name: e.target.value }))} placeholder="Monthly" /></Field>
               <Field label="Slug"><Input value={planForm.slug} onChange={(e) => setPlanForm((p) => ({ ...p, slug: e.target.value }))} placeholder="monthly" /></Field>
               <Field label="Limite de contas"><Input value={planForm.account_limit} onChange={(e) => setPlanForm((p) => ({ ...p, account_limit: e.target.value }))} type="number" min="0" /></Field>
-              <Field label="Preco em centavos"><Input value={planForm.price_amount} onChange={(e) => setPlanForm((p) => ({ ...p, price_amount: e.target.value }))} type="number" min="0" placeholder="4900" /></Field>
+              <Field label="Preço em centavos"><Input value={planForm.price_amount} onChange={(e) => setPlanForm((p) => ({ ...p, price_amount: e.target.value }))} type="number" min="0" placeholder="4900" /></Field>
+              <Field label="Intervalo">
+                <Select value={planForm.billing_interval} onValueChange={(value) => setPlanForm((p) => ({ ...p, billing_interval: value }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="month">Mensal</SelectItem>
+                    <SelectItem value="year">Anual</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
               <Field label="Moeda"><Input value={planForm.currency} onChange={(e) => setPlanForm((p) => ({ ...p, currency: e.target.value }))} placeholder="brl" /></Field>
               <Field label="Suporte"><Input value={planForm.support_tier} onChange={(e) => setPlanForm((p) => ({ ...p, support_tier: e.target.value }))} placeholder="basic, standard, priority, enterprise" /></Field>
               <Field label="Stripe product ID"><Input value={planForm.stripe_product_id} onChange={(e) => setPlanForm((p) => ({ ...p, stripe_product_id: e.target.value }))} placeholder="prod_..." /></Field>
               <Field label="Stripe price ID"><Input value={planForm.stripe_price_id} onChange={(e) => setPlanForm((p) => ({ ...p, stripe_price_id: e.target.value }))} placeholder="price_..." /></Field>
               <Field label="Ordem"><Input value={planForm.display_order} onChange={(e) => setPlanForm((p) => ({ ...p, display_order: e.target.value }))} type="number" min="0" /></Field>
+              <Field label="Ativo">
+                <Select value={planForm.active} onValueChange={(value) => setPlanForm((p) => ({ ...p, active: value }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">Ativo</SelectItem>
+                    <SelectItem value="false">Inativo</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
               <Button onClick={savePlan} disabled={busyAction === 'plan-save'} className="w-full">Salvar plano</Button>
             </div>
           </AdminCard>
@@ -576,13 +660,13 @@ export default function AdminPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Conta</TableHead>
-                  <TableHead>Usuario</TableHead>
+                  <TableHead>Usuário</TableHead>
                   <TableHead>Servidor</TableHead>
                   <TableHead>Login</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Sync</TableHead>
                   <TableHead>Regra</TableHead>
-                  <TableHead className="text-right">Acoes</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -614,7 +698,7 @@ export default function AdminPage() {
         </TabsContent>
 
         <TabsContent value="rules">
-          <AdminCard title="Rules Library">
+          <AdminCard title="Biblioteca de regras">
             <div className="space-y-3">
               {rules.map((rule) => {
                 const form = ruleReview[rule.id] || {
@@ -628,7 +712,7 @@ export default function AdminPage() {
                       <div>
                         <p className="font-semibold text-foreground">{rule.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {rule.prop_firm?.name || 'Generic'} · {rule.program?.name || 'Sem programa'} · {rule.rule_count} regras
+                          {rule.prop_firm?.name || 'Genérico'} · {rule.program?.name || 'Sem programa'} · {rule.rule_count} regras
                         </p>
                       </div>
                       <Badge className={statusClass(rule.review_status)}>
@@ -646,8 +730,8 @@ export default function AdminPage() {
                           <SelectItem value="deprecated">deprecated</SelectItem>
                         </SelectContent>
                       </Select>
-                      <Input value={form.sourceUrl} onChange={(e) => setRuleReview((prev) => ({ ...prev, [rule.id]: { ...form, sourceUrl: e.target.value } }))} placeholder="Source URL" />
-                      <Textarea value={form.sourceNotes} onChange={(e) => setRuleReview((prev) => ({ ...prev, [rule.id]: { ...form, sourceNotes: e.target.value } }))} placeholder="Notas de revisao" className="min-h-10" />
+                      <Input value={form.sourceUrl} onChange={(e) => setRuleReview((prev) => ({ ...prev, [rule.id]: { ...form, sourceUrl: e.target.value } }))} placeholder="URL da fonte" />
+                      <Textarea value={form.sourceNotes} onChange={(e) => setRuleReview((prev) => ({ ...prev, [rule.id]: { ...form, sourceNotes: e.target.value } }))} placeholder="Notas de revisão" className="min-h-10" />
                       <Button onClick={() => reviewRule(rule)} disabled={busyAction === `rule-${rule.id}`}>Salvar</Button>
                     </div>
                   </div>
@@ -660,8 +744,8 @@ export default function AdminPage() {
         <TabsContent value="system">
           <AdminCard title="Status do sistema">
             <div className="grid gap-3 md:grid-cols-2">
-              <StatusLine icon={Activity} label="Gateway" ok={Boolean(system?.gateway?.ok)} detail={`region ${system?.gateway?.region || 'unknown'} · port ${system?.gateway?.port || '-'}`} />
-              <StatusLine icon={Database} label="Supabase" ok={Boolean(system?.supabaseConnected)} detail={system?.supabaseError || 'connected'} />
+              <StatusLine icon={Activity} label="Gateway" ok={Boolean(system?.gateway?.ok)} detail={`região ${system?.gateway?.region || 'unknown'} · porta ${system?.gateway?.port || '-'}`} />
+              <StatusLine icon={Database} label="Supabase" ok={Boolean(system?.supabaseConnected)} detail={system?.supabaseError || 'conectado'} />
               <StatusLine icon={CreditCard} label="Stripe secret" ok={Boolean(system?.stripeConfigured)} detail={system?.stripeConfigured ? 'configurado' : 'ausente'} />
               <StatusLine icon={CreditCard} label="Stripe webhook" ok={Boolean(system?.stripeWebhookConfigured)} detail={system?.stripeWebhookConfigured ? 'configurado' : 'ausente'} />
               <StatusLine icon={CreditCard} label="Produtos e preços" ok={Boolean(system?.productPriceMappingComplete)} detail={system?.productPriceMappingComplete ? 'mapeamento completo' : 'mapeamento pendente'} />

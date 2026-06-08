@@ -215,20 +215,20 @@ const AccountDashboard = () => {
           <ArrowLeft className="w-4 h-4 text-muted-foreground" />
         </button>
         <div className="flex-1">
-          <h1 className="text-lg font-bold text-foreground">Account Dashboard</h1>
-          <p className="text-xs text-muted-foreground">Monitor your trading account performance</p>
+          <h1 className="text-lg font-bold text-foreground">Painel da conta</h1>
+          <p className="text-xs text-muted-foreground">Monitore o desempenho da sua conta de trading</p>
         </div>
         <Button onClick={() => navigate(`/accounts/${id}/rules`)} variant="outline">
           <Shield className="w-4 h-4 mr-2" />
-          Rules / Risk Plan
+          Regras / plano de risco
         </Button>
       </div>
 
       {account && (
         <BetaReadinessChecklist
           items={betaChecklist}
-          title="Account beta checklist"
-          description="Use this checklist before treating the account as ready for real monitoring."
+          title="Checklist beta da conta"
+          description="Use este checklist antes de tratar a conta como pronta para monitoramento real."
           compact
         />
       )}
@@ -236,7 +236,7 @@ const AccountDashboard = () => {
       {loadingMt5Data ? (
         <div className="text-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="text-sm text-muted-foreground mt-2">Loading account data...</p>
+          <p className="text-sm text-muted-foreground mt-2">Carregando dados da conta...</p>
         </div>
       ) : mt5DataError ? (
         <div className="text-center py-8">
@@ -247,25 +247,25 @@ const AccountDashboard = () => {
           {/* Account Overview */}
           <Card>
             <CardHeader>
-              <CardTitle>Account Overview</CardTitle>
+              <CardTitle>Visão geral da conta</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">Account Name</p>
-                  <p className="font-semibold">{account?.nickname || 'Unknown'}</p>
+                  <p className="text-sm text-muted-foreground">Nome da conta</p>
+                  <p className="font-semibold">{account?.nickname || 'Desconhecida'}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Current Balance</p>
+                  <p className="text-sm text-muted-foreground">Saldo atual</p>
                   <p className="font-semibold">${account?.currentBalance?.toLocaleString() || '0'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Status</p>
-                  <p className="font-semibold">{account?.status || 'Unknown'}</p>
+                  <p className="font-semibold">{account?.status || 'Desconhecido'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">MT5</p>
-                  <p className="font-semibold">{maskLogin(account?.mt5Login || connection?.mt5_login)} · {account?.mt5Server || connection?.mt5_server || 'No server'}</p>
+                  <p className="font-semibold">{maskLogin(account?.mt5Login || connection?.mt5_login)} · {account?.mt5Server || connection?.mt5_server || 'Sem servidor'}</p>
                 </div>
               </div>
             </CardContent>
@@ -274,7 +274,7 @@ const AccountDashboard = () => {
           {/* MT5 Connection Status */}
           <Card>
             <CardHeader>
-              <CardTitle>MT5 Connection</CardTitle>
+              <CardTitle>Conexão MT5</CardTitle>
             </CardHeader>
             <CardContent>
               {connection ? (
@@ -296,17 +296,17 @@ const AccountDashboard = () => {
                       </div>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Provider</p>
-                      <p className="font-medium mt-1">{connection.provider || 'Unknown'}</p>
+                      <p className="text-sm text-muted-foreground">Provedor</p>
+                      <p className="font-medium mt-1">{connection.provider || 'Desconhecido'}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Last Sync</p>
+                      <p className="text-sm text-muted-foreground">Último sync</p>
                       <p className="font-medium mt-1">
-                        {connection.last_sync_at ? new Date(connection.last_sync_at).toLocaleString() : 'Never'}
+                        {connection.last_sync_at ? new Date(connection.last_sync_at).toLocaleString('pt-BR') : 'Nunca'}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Sync Status</p>
+                      <p className="text-sm text-muted-foreground">Status do sync</p>
                       <span className={`inline-flex items-center rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wider mt-1 ${syncStatus.className}`}>
                         {syncStatus.label}
                       </span>
@@ -315,9 +315,9 @@ const AccountDashboard = () => {
                   
                   {connection.sync_error && (
                     <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30">
-                      <p className="text-sm font-medium text-destructive">Sync failed</p>
+                      <p className="text-sm font-medium text-destructive">Sync falhou</p>
                       <p className="text-xs text-destructive/90 mt-1">{connection.sync_error}</p>
-                      <p className="text-xs text-muted-foreground mt-2">Try Sync Now again. If it repeats, review MetaApi account status and the gateway logs.</p>
+                      <p className="text-xs text-muted-foreground mt-2">Tente sincronizar novamente. Se repetir, revise o status da conta MetaApi e os logs do gateway.</p>
                     </div>
                   )}
 
@@ -325,12 +325,12 @@ const AccountDashboard = () => {
                     {syncingNow ? (
                       <>
                         <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                        Syncing...
+                        Sincronizando...
                       </>
                     ) : (
                       <>
                         <RefreshCw className="w-4 h-4 mr-2" />
-                        Sync Now
+                        Sincronizar agora
                       </>
                     )}
                   </Button>
@@ -338,9 +338,9 @@ const AccountDashboard = () => {
               ) : (
                 <GuidedEmptyState
                   icon={Link2}
-                  title="No MT5 connection found"
-                  description="Connect MT5 first so Fortify can fetch real balance, equity, positions and trades for this account."
-                  actionLabel="Connect MT5"
+                  title="Nenhuma conexão MT5 encontrada"
+                  description="Conecte o MT5 para o Fortify buscar saldo, equity, posições e trades reais desta conta."
+                  actionLabel="Conectar MT5"
                   onAction={() => navigate('/mt5')}
                 />
               )}
@@ -351,13 +351,13 @@ const AccountDashboard = () => {
           {connection && (
             <Card>
               <CardHeader>
-                <CardTitle>Account Snapshot</CardTitle>
+                <CardTitle>Snapshot da conta</CardTitle>
               </CardHeader>
               <CardContent>
                 {snapshot ? (
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
-                      <p className="text-sm text-muted-foreground">Balance</p>
+                      <p className="text-sm text-muted-foreground">Saldo</p>
                       <p className="font-semibold">${snapshot.balance?.toLocaleString() || '0'}</p>
                     </div>
                     <div>
@@ -365,13 +365,13 @@ const AccountDashboard = () => {
                       <p className="font-semibold">${snapshot.equity?.toLocaleString() || '0'}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Daily PnL</p>
+                      <p className="text-sm text-muted-foreground">PnL diário</p>
                       <p className={`font-semibold ${snapshot.daily_pnl >= 0 ? 'text-success' : 'text-destructive'}`}>
                         ${snapshot.daily_pnl?.toLocaleString() || '0'}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Floating PnL</p>
+                      <p className="text-sm text-muted-foreground">PnL flutuante</p>
                       <p className={`font-semibold ${snapshot.floating_pnl >= 0 ? 'text-success' : 'text-destructive'}`}>
                         ${snapshot.floating_pnl?.toLocaleString() || '0'}
                       </p>
@@ -379,8 +379,8 @@ const AccountDashboard = () => {
                   </div>
                 ) : (
                   <div className="rounded-lg border border-warning/30 bg-warning/5 p-4">
-                    <p className="text-sm font-medium text-foreground">Connected, waiting for first sync</p>
-                    <p className="text-xs text-muted-foreground mt-1">Run Sync Now to create the first account snapshot and unlock risk calculations.</p>
+                    <p className="text-sm font-medium text-foreground">Conectada, aguardando o primeiro sync</p>
+                    <p className="text-xs text-muted-foreground mt-1">Rode a sincronização para criar o primeiro snapshot e liberar os cálculos de risco.</p>
                   </div>
                 )}
               </CardContent>
@@ -391,7 +391,7 @@ const AccountDashboard = () => {
           {connection && (
             <Card>
               <CardHeader>
-                <CardTitle>Open Positions</CardTitle>
+                <CardTitle>Posições abertas</CardTitle>
               </CardHeader>
               <CardContent>
                 {positions.length > 0 ? (
@@ -401,7 +401,7 @@ const AccountDashboard = () => {
                         <div className="flex items-center gap-4">
                           <span className="font-semibold text-sm">{pos.symbol}</span>
                           <span className="text-xs px-2 py-1 rounded bg-primary/15 text-primary">
-                            OPEN
+                            ABERTA
                           </span>
                         </div>
                         <div className="flex items-center gap-4">
@@ -415,8 +415,8 @@ const AccountDashboard = () => {
                   </div>
                 ) : (
                   <div className="rounded-lg border border-border bg-muted/20 p-4">
-                    <p className="text-sm font-medium text-foreground">No open positions</p>
-                    <p className="text-xs text-muted-foreground mt-1">This is normal after sync when the MT5 account has no active trades. Risk still uses balance, equity and closed trade history.</p>
+                    <p className="text-sm font-medium text-foreground">Nenhuma posição aberta</p>
+                    <p className="text-xs text-muted-foreground mt-1">Isso é normal após o sync quando a conta MT5 não tem trades ativos. O risco ainda usa saldo, equity e histórico fechado.</p>
                   </div>
                 )}
               </CardContent>
@@ -427,7 +427,7 @@ const AccountDashboard = () => {
           {connection && (
             <Card>
               <CardHeader>
-                <CardTitle>Recent Trades</CardTitle>
+                <CardTitle>Trades recentes</CardTitle>
               </CardHeader>
               <CardContent>
                 {trades.length > 0 ? (
@@ -440,7 +440,7 @@ const AccountDashboard = () => {
                             {trade.side?.toUpperCase()}
                           </span>
                           <span className="text-xs text-muted-foreground">
-                            {trade.created_at ? new Date(trade.created_at).toLocaleString() : 'Unknown'}
+                            {trade.created_at ? new Date(trade.created_at).toLocaleString('pt-BR') : 'Desconhecido'}
                           </span>
                         </div>
                         <div className="flex items-center gap-4">
@@ -454,8 +454,8 @@ const AccountDashboard = () => {
                   </div>
                 ) : (
                   <div className="rounded-lg border border-warning/30 bg-warning/5 p-4">
-                    <p className="text-sm font-medium text-foreground">No recent trades synced</p>
-                    <p className="text-xs text-muted-foreground mt-1">Some rules need trade history. If this account is new, keep syncing after trading sessions; otherwise confirm the MetaApi account has access to history.</p>
+                    <p className="text-sm font-medium text-foreground">Nenhum trade recente sincronizado</p>
+                    <p className="text-xs text-muted-foreground mt-1">Algumas regras precisam de histórico de trades. Se a conta for nova, sincronize após as sessões; caso contrário, confirme se a MetaApi tem acesso ao histórico.</p>
                   </div>
                 )}
               </CardContent>

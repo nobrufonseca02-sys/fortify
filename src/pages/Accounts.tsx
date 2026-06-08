@@ -182,7 +182,7 @@ const Accounts = () => {
     <div className="p-6 max-w-6xl mx-auto space-y-8">
       <div className="rounded-2xl hero-surface edge-top p-7 md:p-10 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
         <div className="max-w-2xl">
-          <p className="eyebrow mb-4">Portfolio · Contas</p>
+          <p className="eyebrow mb-4">Portfólio · Contas</p>
           <h1 className="display-editorial-sm text-gradient-steel">Minhas <span className="text-gradient-primary">Contas</span></h1>
           <p className="text-sm md:text-base text-muted-foreground mt-4 max-w-md leading-relaxed">
             Cadastre, monitore e proteja cada conta de prop firm em uma única superfície.
@@ -191,7 +191,7 @@ const Accounts = () => {
         <div className="flex items-center gap-2 flex-wrap">
           <button onClick={() => navigate('/library')} className="pill-btn">
             <BookOpen className="w-4 h-4" />
-            Prop Firm Library
+            Biblioteca de Mesas
           </button>
           <button onClick={() => navigate('/accounts/new')} className="pill-btn pill-btn-primary">
             <Plus className="w-4 h-4" />

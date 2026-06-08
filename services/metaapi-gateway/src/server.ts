@@ -986,10 +986,10 @@ function sanitizePlan(plan: JsonRecord | null | undefined) {
     display_order: plan.display_order,
     highlighted: plan.highlighted,
     recommended_badge: plan.recommended_badge,
-    stripe_product_id: maskExternalId(plan.stripe_product_id),
+    stripe_product_id: plan.stripe_product_id ?? null,
     has_stripe_product: Boolean(plan.stripe_product_id),
     stripe_product_id_status: isStripeProductId(plan.stripe_product_id) ? 'configured' : plan.stripe_product_id ? 'invalid' : 'missing',
-    stripe_price_id: maskExternalId(plan.stripe_price_id),
+    stripe_price_id: plan.stripe_price_id ?? null,
     has_stripe_price: Boolean(plan.stripe_price_id),
     stripe_price_id_status: isStripePriceId(plan.stripe_price_id) ? 'configured' : plan.stripe_price_id ? 'invalid' : 'missing',
     created_at: plan.created_at,
@@ -1098,16 +1098,19 @@ function buildUserEmailMap(users: Array<{ id: string; email: string }>) {
 }
 
 async function getAdminUserRows() {
-  const [users, subscriptionsRes, connectionsRes] = await Promise.all([
+  const [users, subscriptionsRes, connectionsRes, plansRes] = await Promise.all([
     listAuthUsersForAdmin(),
     (supabase.from('user_subscriptions' as any).select('*') as any),
     supabase.from('mt5_connections').select('id,user_id,last_sync_at,connection_status,sync_status,sync_error'),
+    (supabase.from('plans' as any).select('id,slug,support_tier,account_limit,billing_interval') as any),
   ]);
 
   if (subscriptionsRes.error) throw subscriptionsRes.error;
   if (connectionsRes.error) throw connectionsRes.error;
+  if (plansRes.error) throw plansRes.error;
 
   const subByUser = new Map((subscriptionsRes.data || []).map((sub: JsonRecord) => [sub.user_id, sub]));
+  const planById = new Map((plansRes.data || []).map((plan: JsonRecord) => [plan.id, plan]));
   const connectionsByUser = new Map<string, JsonRecord[]>();
   for (const connection of connectionsRes.data || []) {
     const list = connectionsByUser.get(connection.user_id) || [];
@@ -1117,6 +1120,7 @@ async function getAdminUserRows() {
 
   return users.map((user) => {
     const subscription = subByUser.get(user.id) as JsonRecord | undefined;
+    const plan = subscription?.plan_id ? planById.get(subscription.plan_id) as JsonRecord | undefined : undefined;
     const userConnections = connectionsByUser.get(user.id) || [];
     const lastSync = userConnections
       .map((connection) => connection.last_sync_at)
@@ -1133,10 +1137,15 @@ async function getAdminUserRows() {
       subscription_status: subscription?.status || null,
       plan: subscription?.plan_id || null,
       plan_name: subscription?.plan_name || null,
+      support_tier: plan?.support_tier || null,
+      plan_family: String(plan?.slug || subscription?.plan_id || '').split('_')[0] || null,
       account_limit: subscription?.account_limit || 0,
       connected_accounts_count: userConnections.filter((connection) => ['connected', 'connecting', 'syncing'].includes(String(connection.connection_status))).length,
       sync_error_count: userConnections.filter((connection) => connection.sync_error || ['error', 'failed'].includes(String(connection.sync_status))).length,
       last_sync_at: lastSync,
+      account_limit_reached: Number(subscription?.account_limit || 0) > 0
+        ? userConnections.filter((connection) => ['connected', 'connecting', 'syncing'].includes(String(connection.connection_status))).length >= Number(subscription?.account_limit || 0)
+        : false,
       subscription: sanitizeSubscription(subscription),
     };
   });
@@ -2821,7 +2830,7 @@ fastify.get('/admin/plans', async (request, reply) => {
     const { data, error } = await (supabase
       .from('plans' as any)
       .select('*')
-      .order('account_limit', { ascending: true }) as any);
+      .order('display_order', { ascending: true }) as any);
 
     if (error) throw error;
     return reply.send({ plans: (data || []).map(sanitizePlan) });
@@ -2858,6 +2867,29 @@ fastify.post('/admin/plans', async (request, reply) => {
     const stripeProductId = String(body?.stripe_product_id || body?.stripeProductId || '').trim() || null;
     const stripePriceId = String(body?.stripe_price_id || body?.stripePriceId || '').trim() || null;
     const accountLimit = Math.max(0, Math.floor(toNumber(body?.account_limit ?? body?.accountLimit, 0)));
+    const billingInterval = String(body?.billing_interval || body?.billingInterval || '').trim().toLowerCase() || null;
+    const supportTier = String(body?.support_tier || body?.supportTier || 'basic').trim().toLowerCase();
+
+    if (stripeProductId && !isStripeProductId(stripeProductId)) {
+      return reply.status(400).send({
+        error: 'O Product ID da Stripe deve começar com prod_.',
+        code: 'admin_invalid_stripe_product_id',
+      });
+    }
+
+    if (stripePriceId && !isStripePriceId(stripePriceId)) {
+      return reply.status(400).send({
+        error: 'O Price ID da Stripe deve começar com price_.',
+        code: 'admin_invalid_stripe_price_id',
+      });
+    }
+
+    if (billingInterval && !['month', 'year'].includes(billingInterval)) {
+      return reply.status(400).send({
+        error: 'O intervalo de cobrança deve ser month ou year.',
+        code: 'admin_invalid_billing_interval',
+      });
+    }
 
     const { data, error } = await (supabase
       .from('plans' as any)
@@ -2869,8 +2901,8 @@ fastify.post('/admin/plans', async (request, reply) => {
         status: active ? 'active' : 'inactive',
         active,
         account_limit: accountLimit,
-        support_tier: body?.support_tier || body?.supportTier || 'basic',
-        billing_interval: body?.billing_interval || body?.billingInterval || null,
+        support_tier: supportTier,
+        billing_interval: billingInterval,
         price_cents: toNullableNumber(priceAmount),
         price_amount: toNullableNumber(priceAmount),
         currency: String(body?.currency || 'brl').toLowerCase(),

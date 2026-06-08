@@ -287,9 +287,9 @@ export default function AuthPage() {
                       />
                     ) : (
                       <>
-                        {mode === "login" && "Entrar no painel"}
-                        {mode === "signup" && "Criar Conta"}
-                        {mode === "forgot" && "Enviar Link"}
+                        {mode === "login" && "Entrar"}
+                        {mode === "signup" && "Criar conta"}
+                        {mode === "forgot" && "Enviar link"}
                         <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                       </>
                     )}
@@ -344,11 +344,11 @@ export default function AuthPage() {
             transition={{ delay: 0.8 }}
           >
             <span className="flex items-center gap-1.5">
-              <Lock className="h-3 w-3" /> SSL Encryption
+              <Lock className="h-3 w-3" /> Criptografia SSL
             </span>
             <span className="w-1 h-1 rounded-full bg-muted-foreground/20" />
             <span className="flex items-center gap-1.5">
-              <Shield className="h-3 w-3" /> Data Protected
+              <Shield className="h-3 w-3" /> Dados protegidos
             </span>
           </motion.div>
         </motion.div>

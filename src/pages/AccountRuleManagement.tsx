@@ -29,29 +29,29 @@ const statusMeta: Record<RuleStatus, { label: string; className: string }> = {
 
 function categoryLabel(category: string | null | undefined) {
   const value = String(category ?? 'custom');
-  if (['risk', 'drawdown'].includes(value)) return 'Loss limits';
-  if (value === 'objective') return 'Profit target';
-  if (value === 'consistency') return 'Consistency';
-  if (value === 'risk_sizing') return 'Lot/risk sizing';
-  if (['activity', 'payout'].includes(value)) return 'Trading days/payout';
-  if (value === 'restriction') return 'Restrictions';
-  return 'Custom rules';
+  if (['risk', 'drawdown'].includes(value)) return 'Limites de perda';
+  if (value === 'objective') return 'Meta de lucro';
+  if (value === 'consistency') return 'Consistência';
+  if (value === 'risk_sizing') return 'Lote/risco';
+  if (['activity', 'payout'].includes(value)) return 'Dias de trading/payout';
+  if (value === 'restriction') return 'Restrições';
+  return 'Regras customizadas';
 }
 
 function nextBestAction(rows: any[], account: any) {
-  if (!account?.rule_set_id) return 'Configure rules before relying on account insights.';
-  if (rows.some((row) => row.status === 'VIOLATED')) return 'Stop trading and review violated rules.';
-  if (rows.some((row) => row.status === 'WARNING')) return 'Reduce risk until warning rules have more buffer.';
-  if (rows.some((row) => row.data_status === 'insufficient_data')) return 'Sync more trades/history to complete rule checks.';
-  return 'Continue with controlled risk and keep syncing after trading sessions.';
+  if (!account?.rule_set_id) return 'Configure regras antes de confiar nos insights da conta.';
+  if (rows.some((row) => row.status === 'VIOLATED')) return 'Pare de operar e revise as regras violadas.';
+  if (rows.some((row) => row.status === 'WARNING')) return 'Reduza o risco até as regras em atenção ganharem mais margem.';
+  if (rows.some((row) => row.data_status === 'insufficient_data')) return 'Sincronize mais trades/histórico para concluir as checagens.';
+  return 'Continue com risco controlado e sincronize após as sessões de trading.';
 }
 
 function ruleSetReviewLabel(ruleSet: any) {
-  if (!ruleSet) return 'No rule set selected';
-  if (ruleSet.review_status === 'needs_review') return 'Needs manual review';
-  if (ruleSet.review_status === 'user_custom' || ruleSet.is_user_custom) return 'User/custom template';
-  if (ruleSet.review_status === 'verified') return 'Verified template';
-  return ruleSet.review_status || 'Unreviewed template';
+  if (!ruleSet) return 'Nenhum conjunto de regras selecionado';
+  if (ruleSet.review_status === 'needs_review') return 'Precisa de revisão manual';
+  if (ruleSet.review_status === 'user_custom' || ruleSet.is_user_custom) return 'Modelo customizado';
+  if (ruleSet.review_status === 'verified') return 'Modelo verificado';
+  return ruleSet.review_status || 'Modelo sem revisão';
 }
 
 export default function AccountRuleManagement() {
@@ -413,8 +413,8 @@ export default function AccountRuleManagement() {
 
       <BetaReadinessChecklist
         items={betaChecklist}
-        title="Beta readiness checklist"
-        description="Complete or review these items before relying on this account for controlled beta monitoring."
+          title="Checklist do beta"
+          description="Conclua ou revise estes itens antes de confiar nesta conta para monitoramento controlado."
         compact
       />
 
@@ -423,14 +423,14 @@ export default function AccountRuleManagement() {
           <AlertTriangle className="w-4 h-4 text-warning mt-0.5" />
           <div className="space-y-1">
             <p className="text-sm font-semibold text-foreground">
-              {isMissingRuleSet ? 'Rule set required' : isAutoGeneric ? 'Generic fallback needs confirmation' : 'Rule set needs review'}
+              {isMissingRuleSet ? 'Conjunto de regras obrigatório' : isAutoGeneric ? 'Fallback genérico precisa de confirmação' : 'Conjunto de regras precisa de revisão'}
             </p>
             <p className="text-xs text-muted-foreground">
               {isMissingRuleSet
-                ? 'Select the prop firm/program or choose Generic Broker-only as an explicit fallback before relying on evaluations.'
+                ? 'Selecione a mesa/programa ou escolha Broker genérico como fallback explícito antes de confiar nas avaliações.'
                 : isAutoGeneric
-                  ? 'Generic Broker-only is a risk template, not an official prop-firm rule set. Confirm it with Save rules or choose the real prop firm/program.'
-                  : 'This template is marked needs_review. Verify official prop-firm rules or add account-specific custom rules before using it with beta users.'}
+                  ? 'Broker genérico é um modelo de risco, não um conjunto oficial de regras de mesa. Confirme com Salvar regras ou escolha a mesa/programa real.'
+                  : 'Este modelo está marcado como needs_review. Verifique regras oficiais da mesa ou adicione regras customizadas antes de usá-lo com usuários beta.'}
             </p>
           </div>
         </section>
@@ -442,7 +442,7 @@ export default function AccountRuleManagement() {
         <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <div className="flex items-center gap-2">
             <SlidersHorizontal className="w-4 h-4 text-primary" />
-            <h2 className="font-semibold text-foreground">Configure Rules</h2>
+            <h2 className="font-semibold text-foreground">Configurar regras</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3">
             <select
@@ -450,10 +450,10 @@ export default function AccountRuleManagement() {
               onChange={(event) => setSelectedRuleSetId(event.target.value)}
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
             >
-              <option value="">No rules / broker-only monitoring</option>
+              <option value="">Sem regras / monitoramento broker-only</option>
               {ruleSets.map((ruleSet) => (
                 <option key={ruleSet.id} value={ruleSet.id}>
-                  {ruleSet.programs?.prop_firms?.name || 'Library'} · {ruleSet.name}
+                  {ruleSet.programs?.prop_firms?.name || 'Biblioteca'} · {ruleSet.name}
                   {ruleSet.review_status ? ` · ${ruleSet.review_status}` : ''}
                 </option>
               ))}
@@ -463,13 +463,13 @@ export default function AccountRuleManagement() {
             </button>
           </div>
           <p className="text-xs text-muted-foreground">
-            Selected: {currentRuleSet ? `${currentRuleSet.programs?.prop_firms?.name || 'Library'} / ${currentRuleSet.name}` : 'No active rule set'}
+            Selecionado: {currentRuleSet ? `${currentRuleSet.programs?.prop_firms?.name || 'Biblioteca'} / ${currentRuleSet.name}` : 'Nenhum conjunto de regras ativo'}
             {' · '}
             {ruleSetReviewLabel(currentRuleSet)}
           </p>
           {suggestedRuleSets.length > 0 && (
             <div className="space-y-2">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Suggested templates</p>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Modelos sugeridos</p>
               <div className="flex flex-wrap gap-2">
                 {suggestedRuleSets.map((ruleSet) => (
                   <button
@@ -478,7 +478,7 @@ export default function AccountRuleManagement() {
                     onClick={() => setSelectedRuleSetId(ruleSet.id)}
                     className="rounded-md border border-border px-2 py-1 text-[11px] text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
                   >
-                    {ruleSet.programs?.prop_firms?.name || 'Library'} · {ruleSet.review_status || 'unreviewed'}
+                    {ruleSet.programs?.prop_firms?.name || 'Biblioteca'} · {ruleSet.review_status || 'sem revisão'}
                   </button>
                 ))}
               </div>
@@ -487,22 +487,22 @@ export default function AccountRuleManagement() {
         </div>
 
         <div className="rounded-xl border border-border bg-card p-5 space-y-3">
-          <h2 className="font-semibold text-foreground">Management Plan</h2>
+          <h2 className="font-semibold text-foreground">Plano de gerenciamento</h2>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <p className="text-[10px] uppercase text-muted-foreground">Profit needed</p>
+              <p className="text-[10px] uppercase text-muted-foreground">Lucro necessário</p>
               <p className="font-mono text-sm text-foreground">{fmtMoney(plan.profitNeeded)}</p>
             </div>
             <div>
-              <p className="text-[10px] uppercase text-muted-foreground">Daily buffer</p>
+              <p className="text-[10px] uppercase text-muted-foreground">Margem diária</p>
               <p className="font-mono text-sm text-foreground">{fmtMoney(plan.dailyRemaining)}</p>
             </div>
             <div>
-              <p className="text-[10px] uppercase text-muted-foreground">Total buffer</p>
+              <p className="text-[10px] uppercase text-muted-foreground">Margem total</p>
               <p className="font-mono text-sm text-foreground">{fmtMoney(plan.totalRemaining)}</p>
             </div>
             <div>
-              <p className="text-[10px] uppercase text-muted-foreground">Risk/trade</p>
+              <p className="text-[10px] uppercase text-muted-foreground">Risco/trade</p>
               <p className="font-mono text-sm text-foreground">{fmtMoney(plan.safeRisk)}</p>
             </div>
           </div>
@@ -515,16 +515,16 @@ export default function AccountRuleManagement() {
 
       <section className="rounded-xl border border-border bg-card p-5 space-y-5">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-foreground">Rule Evaluations</h2>
-          <span className="text-xs text-muted-foreground">{evaluations.length} checks</span>
+          <h2 className="font-semibold text-foreground">Avaliações de regras</h2>
+          <span className="text-xs text-muted-foreground">{evaluations.length} checagens</span>
         </div>
 
         {evaluations.length === 0 ? (
           <div className="rounded-lg border border-warning/30 bg-warning/5 p-4 flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 text-warning mt-0.5" />
             <div>
-              <p className="text-sm font-medium text-foreground">No evaluations yet</p>
-              <p className="text-xs text-muted-foreground mt-1">Configure rules and run sync. Without evaluations, Fortify cannot produce a reliable risk plan or next best action.</p>
+              <p className="text-sm font-medium text-foreground">Nenhuma avaliação ainda</p>
+              <p className="text-xs text-muted-foreground mt-1">Configure regras e rode o sync. Sem avaliações, o Fortify não consegue gerar um plano de risco confiável.</p>
             </div>
           </div>
         ) : (
@@ -539,7 +539,7 @@ export default function AccountRuleManagement() {
                     <div key={row.id} className="rounded-lg border border-border bg-background p-4 space-y-3">
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <p className="font-medium text-sm text-foreground">{row.rule_instances?.rule_definitions?.name || 'Rule'}</p>
+                          <p className="font-medium text-sm text-foreground">{row.rule_instances?.rule_definitions?.name || 'Regra'}</p>
                           <p className="text-xs text-muted-foreground">{row.explanation || row.message}</p>
                         </div>
                         <span className={`text-[10px] font-semibold uppercase px-2 py-1 rounded-full ${meta.className}`}>
@@ -551,15 +551,15 @@ export default function AccountRuleManagement() {
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-xs">
                         <div>
-                          <p className="text-muted-foreground">Current</p>
+                          <p className="text-muted-foreground">Atual</p>
                           <p className="font-mono text-foreground">{Number(row.current_value ?? 0).toFixed(2)}</p>
                         </div>
                         <div>
-                          <p className="text-muted-foreground">Limit</p>
+                          <p className="text-muted-foreground">Limite</p>
                           <p className="font-mono text-foreground">{Number(row.limit_value ?? 0).toFixed(2)}</p>
                         </div>
                         <div>
-                          <p className="text-muted-foreground">Remaining</p>
+                          <p className="text-muted-foreground">Restante</p>
                           <p className="font-mono text-foreground">{Number(row.remaining_value ?? 0).toFixed(2)}</p>
                         </div>
                       </div>
@@ -571,7 +571,7 @@ export default function AccountRuleManagement() {
                         )}
                         <p className="text-xs text-foreground">
                           {row.data_status === 'insufficient_data'
-                            ? 'Insufficient data. Sync more trade history before relying on this rule.'
+                            ? 'Dados insuficientes. Sincronize mais histórico de trades antes de confiar nesta regra.'
                             : row.recommended_action || row.message}
                         </p>
                       </div>
@@ -587,7 +587,7 @@ export default function AccountRuleManagement() {
       <section className="rounded-xl border border-border bg-card p-5 space-y-4">
         <div className="flex items-center gap-2">
           <Plus className="w-4 h-4 text-primary" />
-          <h2 className="font-semibold text-foreground">Custom Rule</h2>
+          <h2 className="font-semibold text-foreground">Regra customizada</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-[1fr_120px_120px_120px_auto] gap-3">
           <select
@@ -595,7 +595,7 @@ export default function AccountRuleManagement() {
             onChange={(event) => setCustomDefinitionId(event.target.value)}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
           >
-            <option value="">Select rule type</option>
+            <option value="">Selecione o tipo de regra</option>
             {definitions.map((definition) => (
               <option key={definition.id} value={definition.id}>
                 {definition.category} · {definition.name}
@@ -606,37 +606,37 @@ export default function AccountRuleManagement() {
             value={customLimit}
             onChange={(event) => setCustomLimit(event.target.value)}
             type="number"
-            placeholder="Limit"
+            placeholder="Limite"
             className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
           />
           <select value={customMode} onChange={(event) => setCustomMode(event.target.value as 'value' | 'percent')} className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground">
-            <option value="value">Value</option>
-            <option value="percent">Percent</option>
+            <option value="value">Valor</option>
+            <option value="percent">Percentual</option>
           </select>
           <select value={customSeverity} onChange={(event) => setCustomSeverity(event.target.value as 'hard' | 'soft')} className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground">
             <option value="soft">Soft</option>
             <option value="hard">Hard</option>
           </select>
-          <button className="pill-btn pill-btn-primary" onClick={addCustomRule}>Add</button>
+          <button className="pill-btn pill-btn-primary" onClick={addCustomRule}>Adicionar</button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {customRules.map((rule) => (
             <div key={rule.id} className={`rounded-lg border border-border p-3 space-y-3 ${rule.enabled ? 'bg-muted/20' : 'bg-muted/10 opacity-70'}`}>
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm text-foreground">{rule.rule_definitions?.name || 'Custom rule'}</p>
+                  <p className="text-sm text-foreground">{rule.rule_definitions?.name || 'Regra customizada'}</p>
                   <p className="text-xs text-muted-foreground">
-                    {rule.mode} · {rule.limit_value} · {rule.severity} · {rule.review_status} · {rule.enabled ? 'enabled' : 'disabled'}
+                    {rule.mode} · {rule.limit_value} · {rule.severity} · {rule.review_status} · {rule.enabled ? 'ativa' : 'inativa'}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button className="pill-btn" onClick={() => startEditingRule(rule)}>
                     <Pencil className="w-3 h-3" />
-                    Edit
+                    Editar
                   </button>
                   <button className="pill-btn" onClick={() => toggleCustomRule(rule)}>
                     <Power className="w-3 h-3" />
-                    {rule.enabled ? 'Disable' : 'Enable'}
+                    {rule.enabled ? 'Desativar' : 'Ativar'}
                   </button>
                 </div>
               </div>
@@ -649,20 +649,20 @@ export default function AccountRuleManagement() {
                     className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
                   />
                   <select value={editMode} onChange={(event) => setEditMode(event.target.value as 'value' | 'percent')} className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground">
-                    <option value="value">Value</option>
-                    <option value="percent">Percent</option>
+                    <option value="value">Valor</option>
+                    <option value="percent">Percentual</option>
                   </select>
                   <select value={editSeverity} onChange={(event) => setEditSeverity(event.target.value as 'hard' | 'soft')} className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground">
                     <option value="soft">Soft</option>
                     <option value="hard">Hard</option>
                   </select>
                   <select value={editReviewStatus} onChange={(event) => setEditReviewStatus(event.target.value)} className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground">
-                    <option value="user_custom">User custom</option>
-                    <option value="needs_review">Needs review</option>
-                    <option value="verified">Verified</option>
+                    <option value="user_custom">Customizada</option>
+                    <option value="needs_review">Precisa de revisão</option>
+                    <option value="verified">Verificada</option>
                   </select>
-                  <button className="pill-btn pill-btn-primary" onClick={saveCustomRule}>Save</button>
-                  <button className="pill-btn" onClick={() => setEditingRuleId('')}>Cancel</button>
+                  <button className="pill-btn pill-btn-primary" onClick={saveCustomRule}>Salvar</button>
+                  <button className="pill-btn" onClick={() => setEditingRuleId('')}>Cancelar</button>
                 </div>
               )}
             </div>

@@ -52,7 +52,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               <span className="hidden md:inline-flex h-4 w-px bg-border" />
               <div className="hidden md:flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
                 <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-                <span>System Online</span>
+                <span>Sistema online</span>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -69,7 +69,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               ) : null}
               <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.16em] text-muted-foreground/70">
                 <Activity className="w-3 h-3 text-primary/70" />
-                <span>Risk Console</span>
+                <span>Console de risco</span>
               </div>
             </div>
           </header>

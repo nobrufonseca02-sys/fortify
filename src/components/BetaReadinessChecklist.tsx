@@ -5,15 +5,15 @@ import type { BetaChecklistItem, BetaChecklistStatus } from '@/lib/betaReadiness
 import { cn } from '@/lib/utils';
 
 const statusMeta: Record<BetaChecklistStatus, { label: string; icon: typeof CheckCircle2; className: string }> = {
-  complete: { label: 'Complete', icon: CheckCircle2, className: 'bg-success/15 text-success border-success/20' },
-  pending: { label: 'Pending', icon: Circle, className: 'bg-muted text-muted-foreground border-border' },
-  warning: { label: 'Warning', icon: AlertTriangle, className: 'bg-warning/15 text-warning border-warning/25' },
+  complete: { label: 'Completo', icon: CheckCircle2, className: 'bg-success/15 text-success border-success/20' },
+  pending: { label: 'Pendente', icon: Circle, className: 'bg-muted text-muted-foreground border-border' },
+  warning: { label: 'Atenção', icon: AlertTriangle, className: 'bg-warning/15 text-warning border-warning/25' },
 };
 
 export function BetaReadinessChecklist({
   items,
-  title = 'Beta readiness checklist',
-  description = 'Complete these steps before relying on this account for live monitoring.',
+  title = 'Checklist do beta',
+  description = 'Conclua estes passos antes de confiar nesta conta para monitoramento ao vivo.',
   compact = false,
 }: {
   items: BetaChecklistItem[];
@@ -72,10 +72,10 @@ export function BetaReadinessChecklist({
 
 export function BetaResponsibilityNotice({ variant = 'default' }: { variant?: 'default' | 'rules' | 'broker' | 'custom' }) {
   const copy = {
-    default: 'Fortify helps monitor rules and risk, but traders must confirm official terms with the prop firm dashboard, contract or support team.',
-    rules: 'Templates marked needs_review must be validated before use. Fortify does not replace the official prop firm dashboard or contract.',
-    broker: 'Broker-only templates are generic risk guardrails. They are not official prop firm rules.',
-    custom: 'Custom rules are controlled by the user. Review limits carefully before relying on them for decisions.',
+    default: 'O Fortify ajuda a monitorar regras e risco, mas o trader deve confirmar os termos oficiais no painel, contrato ou suporte da mesa proprietária.',
+    rules: 'Modelos marcados como needs_review precisam ser validados antes do uso. O Fortify não substitui o painel ou contrato oficial da mesa.',
+    broker: 'Modelos broker-only são limites genéricos de risco. Eles não são regras oficiais de uma mesa proprietária.',
+    custom: 'Regras customizadas são controladas pelo usuário. Revise os limites com cuidado antes de usá-las para decisões.',
   };
 
   return (

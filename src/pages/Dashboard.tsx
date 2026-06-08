@@ -39,11 +39,11 @@ function getAccountData(account: TradingAccount, ruleRows: RuleEvaluationRow[] =
   if (avgRisk > 85) action = 'Parar de operar imediatamente';
   else if (avgRisk > 65) action = 'Reduzir lote significativamente';
   else if (avgRisk > 45) action = 'Reduzir tamanho do lote';
-  else if (avgRisk > 30) action = 'Recuperacao gradual';
+  else if (avgRisk > 30) action = 'Recuperação gradual';
 
   let insight = '';
   if (dailyLoss && dailyLoss.progressPct > 50) {
-    insight = `Ja usou ${fmt(dailyLoss.currentValue)} do limite diario. Restam ${fmt(Math.max(0, dailyLoss.limitValue - dailyLoss.currentValue))}`;
+    insight = `Já usou ${fmt(dailyLoss.currentValue)} do limite diário. Restam ${fmt(Math.max(0, dailyLoss.limitValue - dailyLoss.currentValue))}`;
   } else if (profitTarget && profitTarget.currentValue < 0) {
     insight = `Precisa de ${fmt(profitTarget.limitValue - profitTarget.currentValue)} para atingir a meta`;
   } else if (totalLoss && totalLoss.progressPct > 30) {
@@ -61,7 +61,7 @@ type AccountStatus = 'SAFE' | 'WARNING' | 'VIOLATED';
 
 const statusConfig: Record<AccountStatus, { label: string; color: string; bg: string; icon: typeof Shield; border: string; glow: string }> = {
   SAFE: { label: 'SEGURO', color: 'text-success', bg: 'bg-success/10', icon: Shield, border: 'border-success/20', glow: 'shadow-success/5' },
-  WARNING: { label: 'ATENCAO', color: 'text-warning', bg: 'bg-warning/10', icon: ShieldAlert, border: 'border-warning/20', glow: 'shadow-warning/5' },
+  WARNING: { label: 'ATENÇÃO', color: 'text-warning', bg: 'bg-warning/10', icon: ShieldAlert, border: 'border-warning/20', glow: 'shadow-warning/5' },
   VIOLATED: { label: 'VIOLADO', color: 'text-destructive', bg: 'bg-destructive/10', icon: ShieldX, border: 'border-destructive/20', glow: 'shadow-destructive/20' },
 };
 
@@ -140,7 +140,7 @@ function HeroCard() {
           <div className="flex items-center gap-2">
             <span className={`w-1.5 h-1.5 rounded-full ${sc.color.replace('text-', 'bg-')} animate-pulse`} />
             <span className="text-[10px] font-mono uppercase tracking-[0.22em] text-muted-foreground">
-              Risk Console <span className="text-foreground/40">/</span> {sc.label}
+              Console de risco <span className="text-foreground/40">/</span> {sc.label}
             </span>
           </div>
           <span className="badge-system">
@@ -231,7 +231,7 @@ function DecisionCard() {
           </div>
 
           <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">Regra mais proxima</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">Regra mais próxima</p>
             {data.closestRule ? (
               <div className="flex items-center gap-4">
                 <ProgressRing value={Math.round(data.closestRule.progressPct)} size={72} status={data.status} />
@@ -490,16 +490,16 @@ const Dashboard = () => {
             connection: primaryConnection,
             evaluations: primaryEvaluations,
           })}
-          title="Controlled beta checklist"
-          description="Use this as the launch pad for the selected account before trading decisions."
+          title="Checklist do beta controlado"
+          description="Use como ponto de partida da conta selecionada antes de tomar decisões de trade."
           compact
         />
       ) : (
         <GuidedEmptyState
           icon={Shield}
-          title="No account ready for monitoring"
-          description="Connect MT5, configure rules and run the first sync to unlock the risk console for beta use."
-          actionLabel="Connect MT5"
+          title="Nenhuma conta pronta para monitoramento"
+          description="Conecte o MT5, configure as regras e rode o primeiro sync para liberar o console de risco."
+          actionLabel="Conectar MT5"
           onAction={() => navigate('/mt5')}
         />
       )}
@@ -507,7 +507,7 @@ const Dashboard = () => {
       <section>
         <div className="flex items-end justify-between mb-5">
           <div>
-            <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground/70 mb-1">Portfolio</p>
+            <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground/70 mb-1">Portfólio</p>
             <h2 className="text-xl font-bold text-foreground tracking-tight">Suas Contas</h2>
           </div>
           <button onClick={() => navigate('/accounts')} className="text-xs text-primary hover:text-primary/80 transition-colors flex items-center gap-1 font-medium">
@@ -523,7 +523,7 @@ const Dashboard = () => {
 
       <footer className="pt-4 border-t border-border/30">
         <p className="text-[10px] text-muted-foreground/50 font-mono">
-          Ultima atualizacao: {new Date().toLocaleString('pt-BR')}
+          Última atualização: {new Date().toLocaleString('pt-BR')}
         </p>
       </footer>
     </div>
