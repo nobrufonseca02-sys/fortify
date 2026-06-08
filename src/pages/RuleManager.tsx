@@ -112,7 +112,7 @@ const RuleManager = () => {
             </div>
             <div>
               <h1 className="text-lg font-bold text-foreground tracking-tight">GERENCIAR REGRAS</h1>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Rule Engine Config</p>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Configuração do motor de regras</p>
             </div>
           </div>
         </div>

@@ -355,9 +355,9 @@ const Performance = () => {
         </div>
       </section>
 
-      {/* ── DRAWDOWN ANALYSIS ──────────────────────────── */}
+      {/* ── ANALISE DE DRAWDOWN ──────────────────────────── */}
       <section className="rounded-xl border border-border bg-card p-5 space-y-5">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Drawdown Analysis</h2>
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Análise de Drawdown</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">Drawdown Atual</p>

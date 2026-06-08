@@ -151,7 +151,7 @@ export function getRulesStatusMeta(input: {
       label: 'Regras ausentes',
       shortLabel: 'rules missing',
       className: 'bg-muted text-muted-foreground',
-      description: 'Escolha a mesa, programa ou fallback broker-only antes de confiar no painel.',
+      description: 'Escolha a mesa, o programa ou um fallback somente corretora antes de confiar no painel.',
     };
   }
   if (selection === 'auto_generic' || firmSlug.includes('broker-only') || firmSlug.includes('generic')) {
@@ -159,7 +159,7 @@ export function getRulesStatusMeta(input: {
       label: 'Broker-only genérico',
       shortLabel: 'generic broker-only',
       className: 'bg-warning/15 text-warning',
-      description: 'Template de risco do broker. Não é regra oficial de prop firm.',
+      description: 'Template de risco da corretora. Não é regra oficial de mesa proprietária.',
     };
   }
   if (reviewStatus === 'needs_review') {
@@ -172,7 +172,7 @@ export function getRulesStatusMeta(input: {
   }
   if (reviewStatus === 'user_custom' || ruleSet?.is_user_custom) {
     return {
-      label: 'Custom do usuário',
+      label: 'Personalizada',
       shortLabel: 'user custom',
       className: 'bg-info/15 text-info',
       description: 'Regras controladas pelo usuário. Revise limites antes de operar.',
@@ -313,58 +313,58 @@ export function buildBetaChecklist(input: {
   const items: BetaChecklistItem[] = [
     {
       id: 'mt5-connected',
-      label: 'MT5 connected',
+      label: 'MT5 conectada',
       status: connectionMeta.shortLabel === 'connected' ? 'complete' : connectionMeta.shortLabel === 'failed' ? 'warning' : 'pending',
       description: connectionMeta.shortLabel === 'connected'
-        ? 'MetaTrader is linked and ready for sync.'
+        ? 'MetaTrader conectado e pronto para sincronizar.'
         : connectionMeta.description,
-      actionLabel: connectionMeta.shortLabel === 'connected' ? undefined : 'Connect MT5',
+      actionLabel: connectionMeta.shortLabel === 'connected' ? undefined : 'Conectar MT5',
       actionTo: '/mt5',
     },
     {
       id: 'broker-detected',
-      label: 'Broker/server detected',
+      label: 'Corretora/servidor detectados',
       status: hasBrokerServer ? 'complete' : 'pending',
       description: hasBrokerServer
-        ? 'Broker and server are recorded for this account.'
-        : 'Connect MT5 or enter the exact server name so Fortify can identify the account.',
-      actionLabel: hasBrokerServer ? undefined : 'Review MT5',
+        ? 'Corretora e servidor registrados para esta conta.'
+        : 'Conecte o MT5 ou informe o nome exato do servidor para o Fortify identificar a conta.',
+      actionLabel: hasBrokerServer ? undefined : 'Revisar MT5',
       actionTo: '/mt5',
     },
     {
       id: 'rules-configured',
-      label: 'Rules configured',
+      label: 'Regras configuradas',
       status: rulesMissing ? 'pending' : rulesWarning ? 'warning' : 'complete',
       description: rulesMeta.description,
-      actionLabel: rulesMissing || rulesWarning ? 'Configure rules' : 'View rules',
+      actionLabel: rulesMissing || rulesWarning ? 'Configurar regras' : 'Ver regras',
       actionTo: accountId ? `/accounts/${accountId}/rules` : '/accounts',
     },
     {
       id: 'first-sync',
-      label: 'First sync completed',
+      label: 'Primeiro sync concluído',
       status: syncMeta.shortLabel === 'success' || syncMeta.shortLabel === 'stale data' ? (syncMeta.shortLabel === 'stale data' ? 'warning' : 'complete') : syncMeta.shortLabel === 'failed' ? 'warning' : 'pending',
-      description: hasSnapshot ? syncMeta.description : 'Run sync to fetch balance, equity, positions and trades.',
-      actionLabel: hasSnapshot ? undefined : 'Run first sync',
+      description: hasSnapshot ? syncMeta.description : 'Rode o sync para buscar saldo, equity, posições e trades.',
+      actionLabel: hasSnapshot ? undefined : 'Rodar primeiro sync',
       actionTo: accountId ? `/accounts/${accountId}` : '/mt5',
     },
     {
       id: 'risk-plan',
-      label: 'Risk plan generated',
+      label: 'Plano de risco gerado',
       status: riskReady ? 'complete' : riskMeta.shortLabel === 'insufficient data' ? 'warning' : 'pending',
       description: riskReady
-        ? 'Risk plan and next best action are available.'
+        ? 'Plano de risco e próxima ação recomendada disponíveis.'
         : riskMeta.description,
-      actionLabel: 'View risk plan',
+      actionLabel: 'Ver plano de risco',
       actionTo: accountId ? `/accounts/${accountId}/rules` : '/calculator',
     },
     {
       id: 'rule-evaluations',
-      label: 'Rule evaluations available',
+      label: 'Avaliações de regras disponíveis',
       status: evaluations.length > 0 ? (riskMeta.shortLabel === 'insufficient data' ? 'warning' : 'complete') : 'pending',
       description: evaluations.length > 0
-        ? `${evaluations.length} rule checks are available.`
-        : 'Configure rules and sync before using evaluation results.',
-      actionLabel: evaluations.length > 0 ? 'View evaluations' : 'Configure rules',
+        ? `${evaluations.length} checagem${evaluations.length === 1 ? '' : 's'} de regra disponíveis.`
+        : 'Configure regras e sincronize antes de usar os resultados de avaliação.',
+      actionLabel: evaluations.length > 0 ? 'Ver avaliações' : 'Configurar regras',
       actionTo: accountId ? `/accounts/${accountId}/rules` : '/accounts',
     },
   ];
@@ -373,14 +373,14 @@ export function buildBetaChecklist(input: {
   const warnings = items.some((item) => item.status === 'warning');
   items.push({
     id: 'ready-monitoring',
-    label: 'Account ready for monitoring',
+    label: 'Conta pronta para monitoramento',
     status: blocking ? 'pending' : warnings ? 'warning' : 'complete',
     description: blocking
-      ? 'Complete the pending steps before treating this account as beta-ready.'
+      ? 'Conclua os passos pendentes antes de tratar esta conta como pronta para o beta.'
       : warnings
-        ? 'Monitoring is available, but review the warning items before relying on it.'
-        : 'This account is ready for controlled monitoring.',
-    actionLabel: accountId ? 'Open account' : 'Open accounts',
+        ? 'O monitoramento está disponível, mas revise os itens em atenção antes de depender dele.'
+        : 'Esta conta está pronta para monitoramento controlado.',
+    actionLabel: accountId ? 'Abrir conta' : 'Abrir contas',
     actionTo: accountId ? `/accounts/${accountId}` : '/accounts',
   });
 

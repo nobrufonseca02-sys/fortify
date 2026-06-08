@@ -18,7 +18,10 @@ export interface Program {
   name: string;
   account_type: string;
   market_type: string;
+  phase?: string | null;
+  account_size?: number | null;
   notes: string | null;
+  review_status?: string | null;
 }
 
 export interface RuleSetVersion {
@@ -28,6 +31,10 @@ export interface RuleSetVersion {
   start_date: string | null;
   end_date: string | null;
   source_url: string | null;
+  source_notes?: string | null;
+  review_status?: string | null;
+  verified_at?: string | null;
+  is_user_custom?: boolean | null;
   status: string;
 }
 
@@ -51,6 +58,8 @@ export interface RuleInstance {
   severity: string;
   enabled: boolean;
   params: Record<string, unknown>;
+  review_status?: string | null;
+  source_notes?: string | null;
   rule_definition?: RuleDefinition;
 }
 

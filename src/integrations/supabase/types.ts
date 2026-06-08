@@ -761,17 +761,28 @@ export type Database = {
       prop_firm_status: "active" | "inactive" | "pending"
       rule_definition_key:
         | "max_daily_loss"
+        | "daily_loss_percent"
+        | "daily_loss_fixed"
         | "max_total_loss"
+        | "total_loss_percent"
+        | "total_loss_fixed"
         | "trailing_drawdown"
         | "floating_loss_limit"
         | "profit_target"
+        | "profit_target_percent"
+        | "profit_target_fixed"
         | "min_trading_days"
         | "profitable_days"
+        | "min_profitable_days"
         | "consistency_best_day_cap"
+        | "consistency_percent"
         | "inactivity_limit"
+        | "inactivity_limit_days"
         | "news_restriction"
+        | "news_trading_block"
         | "scalping_restriction"
         | "weekend_holding"
+        | "weekend_holding_block"
         | "payout_eligibility"
         | "profit_split"
         | "payout_frequency"
@@ -917,17 +928,28 @@ export const Constants = {
       prop_firm_status: ["active", "inactive", "pending"],
       rule_definition_key: [
         "max_daily_loss",
+        "daily_loss_percent",
+        "daily_loss_fixed",
         "max_total_loss",
+        "total_loss_percent",
+        "total_loss_fixed",
         "trailing_drawdown",
         "floating_loss_limit",
         "profit_target",
+        "profit_target_percent",
+        "profit_target_fixed",
         "min_trading_days",
         "profitable_days",
+        "min_profitable_days",
         "consistency_best_day_cap",
+        "consistency_percent",
         "inactivity_limit",
+        "inactivity_limit_days",
         "news_restriction",
+        "news_trading_block",
         "scalping_restriction",
         "weekend_holding",
+        "weekend_holding_block",
         "payout_eligibility",
         "profit_split",
         "payout_frequency",

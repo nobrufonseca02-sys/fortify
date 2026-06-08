@@ -24,9 +24,6 @@ import AccountHistory from "./pages/AccountHistory";
 import MT5Connections from "./pages/MT5Connections";
 import MT5Dashboard from "./pages/MT5Dashboard";
 import RiskCalculator from "./pages/RiskCalculator";
-
-import SessionPlanner from "./pages/SessionPlanner";
-import PostSessionReview from "./pages/PostSessionReview";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -55,9 +52,6 @@ function ProtectedRoutes() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/calculator" element={<RiskCalculator />} />
-        
-        <Route path="/planner" element={<SessionPlanner />} />
-        <Route path="/review" element={<PostSessionReview />} />
         <Route path="/accounts" element={<Accounts />} />
         <Route path="/accounts/new" element={<CreateAccount />} />
         <Route path="/accounts/:id" element={<AccountDashboard />} />

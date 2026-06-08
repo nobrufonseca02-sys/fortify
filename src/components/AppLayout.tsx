@@ -1,22 +1,38 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { PageTransition } from "@/components/PageTransition";
-import { Activity, CreditCard, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { Activity, CreditCard, Headphones, Loader2, Moon, Sun } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 import { createPortalSession, isBillingEnabled } from "@/lib/billing";
 import { toast } from "@/hooks/use-toast";
 
+const supportLabels: Record<string, string> = {
+  basic: "Suporte básico",
+  standard: "Suporte padrão",
+  priority: "Suporte prioritário",
+  enterprise: "Suporte Enterprise",
+};
+
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const { session } = useAuth();
-  const { subscription, plans } = useSubscriptionPlan();
+  const { subscription, plans, activeAccountCount, accountLimit } = useSubscriptionPlan();
   const [openingPortal, setOpeningPortal] = useState(false);
+  const [theme, setTheme] = useState(() => window.localStorage.getItem("fortify_theme") || "dark");
   const currentPlan = plans.find((plan) => plan.id === subscription?.plan_id || plan.slug === subscription?.plan_id);
   const isEnterprise = String(currentPlan?.slug || currentPlan?.id || '').includes('enterprise');
   const showUpgrade = Boolean(session && !isEnterprise);
+  const supportTier = String(subscription?.support_tier || currentPlan?.support_tier || "basic");
+  const currentPlanName = currentPlan?.name || currentPlan?.plan_name || subscription?.plan_name || "Sem plano";
+  const showSupportBadge = ["priority", "enterprise"].includes(supportTier);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem("fortify_theme", theme);
+  }, [theme]);
 
   const handleUpgrade = async () => {
     if (subscription?.stripe_customer_id && isBillingEnabled() && session?.access_token) {
@@ -55,7 +71,23 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 <span>Sistema online</span>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
+              {session ? (
+                <div className="hidden lg:flex items-center gap-2 rounded-full border border-border/70 bg-muted/35 px-3 py-1 text-[10px] font-medium text-muted-foreground">
+                  <span className="text-foreground">{currentPlanName}</span>
+                  <span className="h-3 w-px bg-border" />
+                  <span>{activeAccountCount}/{accountLimit || 0} contas</span>
+                  {showSupportBadge ? (
+                    <>
+                      <span className="h-3 w-px bg-border" />
+                      <span className="inline-flex items-center gap-1 text-primary">
+                        <Headphones className="h-3 w-3" />
+                        {supportLabels[supportTier] || supportTier}
+                      </span>
+                    </>
+                  ) : null}
+                </div>
+              ) : null}
               {showUpgrade ? (
                 <button
                   type="button"
@@ -67,6 +99,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   Fazer upgrade
                 </button>
               ) : null}
+              <button
+                type="button"
+                onClick={() => setTheme((value) => (value === "dark" ? "light" : "dark"))}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-[10px] font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Alternar modo noturno"
+                title="Modo noturno"
+              >
+                {theme === "dark" ? <Moon className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5" />}
+                <span className="hidden md:inline">{theme === "dark" ? "Modo noturno" : "Modo claro"}</span>
+              </button>
               <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.16em] text-muted-foreground/70">
                 <Activity className="w-3 h-3 text-primary/70" />
                 <span>Console de risco</span>

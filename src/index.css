@@ -77,6 +77,45 @@
     --font-body: 'Inter', system-ui, sans-serif;
     --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
   }
+
+  :root[data-theme='light'] {
+    --background: 210 30% 97%;
+    --foreground: 222 28% 8%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 28% 8%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 28% 8%;
+    --primary: 195 80% 38%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 24% 94%;
+    --secondary-foreground: 222 22% 12%;
+    --muted: 210 24% 94%;
+    --muted-foreground: 218 12% 43%;
+    --accent: 205 28% 92%;
+    --accent-foreground: 222 28% 8%;
+    --destructive: 358 68% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 22% 84%;
+    --input: 214 22% 84%;
+    --ring: 195 80% 38%;
+    --success: 158 62% 36%;
+    --warning: 36 90% 45%;
+    --info: 210 90% 45%;
+    --surface-0: 210 30% 97%;
+    --surface-1: 0 0% 100%;
+    --surface-2: 210 32% 96%;
+    --surface-3: 210 26% 92%;
+    --surface-elevated: 0 0% 100%;
+    --surface-glass: 0 0% 100%;
+    --sidebar-background: 215 35% 96%;
+    --sidebar-foreground: 220 16% 32%;
+    --sidebar-primary: 195 80% 38%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 28% 91%;
+    --sidebar-accent-foreground: 222 28% 8%;
+    --sidebar-border: 214 22% 82%;
+    --sidebar-ring: 195 80% 38%;
+  }
 }
 
 @layer base {
@@ -91,6 +130,12 @@
       radial-gradient(ellipse 80% 50% at 50% -10%, hsl(195 85% 30% / 0.08), transparent 60%),
       radial-gradient(ellipse 60% 40% at 100% 100%, hsl(158 64% 30% / 0.04), transparent 60%);
     background-attachment: fixed;
+  }
+
+  :root[data-theme='light'] body {
+    background-image:
+      radial-gradient(ellipse 70% 45% at 45% -10%, hsl(195 85% 72% / 0.2), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 100% 100%, hsl(158 64% 70% / 0.16), transparent 60%);
   }
 
   h1, h2, h3, h4 {

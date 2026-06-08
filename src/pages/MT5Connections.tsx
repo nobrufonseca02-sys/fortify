@@ -457,7 +457,7 @@ export default function MT5Connections() {
                             disabled={busyId === r.id}
                           >
                             {busyId === r.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                            Sync now
+                            Sincronizar agora
                           </Button>
                           {(r as any).trading_account_id ? (
                             <Button

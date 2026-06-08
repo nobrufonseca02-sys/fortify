@@ -444,7 +444,7 @@ const Accounts = () => {
                     className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors disabled:opacity-50"
                   >
                     {syncingId === account.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-                    Sync now
+                    Sincronizar agora
                   </button>
                   <button
                     type="button"
@@ -455,7 +455,7 @@ const Accounts = () => {
                     className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
                   >
                     <Shield className="w-3 h-3" />
-                    {account.ruleSetId ? 'View rules' : 'Configure rules'}
+                    {account.ruleSetId ? 'Ver regras' : 'Configurar regras'}
                   </button>
                   <button
                     type="button"
@@ -466,7 +466,7 @@ const Accounts = () => {
                     className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
                   >
                     <ChevronRight className="w-3 h-3" />
-                    Risk plan
+                    Plano de risco
                   </button>
                   <span className="text-[10px] text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
                     Abrir Painel <ChevronRight className="w-3 h-3" />

@@ -409,7 +409,7 @@ const CreateAccount = () => {
               title: 'Conta + MetaApi conectada',
               description: shouldConfigureRules
                 ? 'Provisionamento iniciado. Confirme o rule set antes do primeiro sync.'
-                : 'Provisionamento iniciado. Use Sync now para puxar os dados.',
+                : 'Provisionamento iniciado. Use Sincronizar agora para puxar os dados.',
             });
           } catch (e: any) {
             console.error('MetaApi provisioning failed:', e);
@@ -477,7 +477,7 @@ const CreateAccount = () => {
                 <div>
                   <div className="flex items-center gap-2">
                     <BookOpen className="w-4 h-4 text-primary" />
-                    <h2 className="text-sm font-semibold text-foreground">Prop Firm Library</h2>
+                    <h2 className="text-sm font-semibold text-foreground">Biblioteca de Mesas</h2>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">Escolha a empresa (prop firm). Depois selecione o modelo de conta.</p>
                 </div>

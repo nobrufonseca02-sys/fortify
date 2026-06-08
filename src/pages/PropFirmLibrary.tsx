@@ -69,6 +69,18 @@ const FIRM_LOGOS: Record<string, string> = {
   custom: 'C',
 };
 
+function reviewStatusMeta(status?: string | null, isUserCustom?: boolean | null, isGeneric?: boolean) {
+  if (isUserCustom) return { label: 'Regra personalizada', className: 'bg-info/10 text-info' };
+  if (isGeneric) return { label: 'Template genérico', className: 'bg-muted text-muted-foreground' };
+  if (status === 'verified') return { label: 'Oficial verificada', className: 'bg-success/10 text-success' };
+  if (status === 'deprecated') return { label: 'Descontinuada', className: 'bg-destructive/10 text-destructive' };
+  return { label: 'Precisa de revisão', className: 'bg-warning/10 text-warning' };
+}
+
+function formatAccountType(value?: string | null) {
+  return String(value || 'programa').replace(/_/g, ' ');
+}
+
 const PropFirmLibrary = () => {
   const navigate = useNavigate();
   const [selectedFirmId, setSelectedFirmId] = useState<string | null>(null);
@@ -110,7 +122,12 @@ const PropFirmLibrary = () => {
 
   const sortedCategories = CATEGORY_ORDER.filter(c => groupedRules[c]);
 
-  const steps = ['Prop Firm', 'Programa', 'Regras'];
+  const steps = ['Mesa', 'Programa', 'Regras'];
+  const versionStatus = reviewStatusMeta(
+    version?.review_status,
+    version?.is_user_custom,
+    selectedFirm?.slug === 'generic-mt5-broker' || selectedFirm?.slug === 'easymarkets-broker-only',
+  );
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
@@ -122,10 +139,10 @@ const PropFirmLibrary = () => {
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-primary" />
-            <h1 className="text-lg font-bold text-foreground">Prop Firm Library</h1>
+            <h1 className="text-lg font-bold text-foreground">Biblioteca de Mesas</h1>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {currentStep === 0 && 'Selecione uma prop firm para ver seus programas e regras'}
+            {currentStep === 0 && 'Selecione uma mesa ou corretora para ver programas e templates de regras'}
             {currentStep === 1 && `${selectedFirm?.name} — Escolha um programa`}
             {currentStep === 2 && `${selectedFirm?.name} • ${selectedProgram?.name}`}
           </p>
@@ -250,8 +267,11 @@ const PropFirmLibrary = () => {
                       <div>
                         <h3 className="font-semibold text-foreground text-sm">{prog.name}</h3>
                         <div className="flex items-center gap-2 mt-1.5">
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{prog.account_type.replace('_', ' ')}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{formatAccountType(prog.account_type)}</span>
                           <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">{prog.market_type}</span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${reviewStatusMeta(prog.review_status).className}`}>
+                            {reviewStatusMeta(prog.review_status).label}
+                          </span>
                         </div>
                         {prog.notes && <p className="text-[11px] text-muted-foreground mt-2">{prog.notes}</p>}
                       </div>
@@ -275,12 +295,23 @@ const PropFirmLibrary = () => {
                 </h3>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   {rules.length} regra{rules.length !== 1 ? 's' : ''} configurada{rules.length !== 1 ? 's' : ''}
+                  <span className={`ml-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${versionStatus.className}`}>
+                    {versionStatus.label}
+                  </span>
                   {version?.source_url && (
                     <a href={version.source_url} target="_blank" rel="noopener noreferrer" className="text-primary ml-2 hover:underline inline-flex items-center gap-1">
                       <ExternalLink className="w-3 h-3" /> Fonte oficial
                     </a>
                   )}
                 </p>
+                {version?.source_notes && (
+                  <p className="text-[11px] text-muted-foreground mt-1">{version.source_notes}</p>
+                )}
+                {version?.verified_at && (
+                  <p className="text-[11px] text-success mt-1">
+                    Verificada em {new Date(version.verified_at).toLocaleDateString('pt-BR')}.
+                  </p>
+                )}
                 {!version?.source_url && (
                   <p className="text-[11px] text-warning mt-1">
                     Sem fonte oficial anexada nesta versão. Valide no dashboard/contrato da mesa antes de depender do template.
@@ -332,6 +363,7 @@ const PropFirmLibrary = () => {
                         const def = rule.rule_definition;
                         const Icon = def ? RULE_ICONS[def.key] || Shield : Shield;
                         const catColor = CATEGORY_COLORS[category] || 'text-muted-foreground bg-muted';
+                        const ruleStatus = reviewStatusMeta(rule.review_status || version?.review_status, version?.is_user_custom, selectedFirm?.slug === 'generic-mt5-broker');
                         return (
                           <div
                             key={rule.id}
@@ -356,6 +388,9 @@ const PropFirmLibrary = () => {
                                     rule.severity === 'hard' ? 'bg-destructive/10 text-destructive' : 'bg-warning/10 text-warning'
                                   }`}>
                                     {rule.severity}
+                                  </span>
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${ruleStatus.className}`}>
+                                    {ruleStatus.label}
                                   </span>
                                   {rule.includes_floating && (
                                     <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-info/10 text-info">inclui floating</span>

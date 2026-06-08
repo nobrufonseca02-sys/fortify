@@ -78,7 +78,6 @@ fastify.log.info({
   envLoaded: !gatewayEnvResult.error,
   envError: gatewayEnvResult.error?.message,
   metaapiTokenPresent: !!METAAPI_TOKEN,
-  metaapiTokenLength: METAAPI_TOKEN.length,
   metaapiRegion: METAAPI_REGION,
   betaFallbackEnabled: FORTIFY_ALLOW_BETA_FALLBACK,
   stripeConfigured: !!STRIPE_SECRET_KEY,
@@ -1830,14 +1829,12 @@ async function validateLoadedMetaApiToken() {
       url,
       status: res.status,
       tokenPresent: !!METAAPI_TOKEN,
-      tokenLength: METAAPI_TOKEN.length,
     });
   } catch (error: any) {
     fastify.log.error({
       event: 'metaapi_startup_token_validation_failed',
       url,
       tokenPresent: !!METAAPI_TOKEN,
-      tokenLength: METAAPI_TOKEN.length,
       error: error?.message || String(error),
       name: error?.name,
       cause: error?.cause,
@@ -2321,9 +2318,13 @@ function evaluateRule(
   let result: RuleEvaluationResult | null = null;
   switch (key) {
     case 'max_daily_loss':
+    case 'daily_loss_percent':
+    case 'daily_loss_fixed':
       result = calcMaxDailyLoss(snapshot, tradingAccount, rule);
       break;
     case 'max_total_loss':
+    case 'total_loss_percent':
+    case 'total_loss_fixed':
     case 'static_drawdown':
       result = calcMaxTotalLoss(snapshot, tradingAccount, rule);
       break;
@@ -2336,6 +2337,8 @@ function evaluateRule(
       result = calcFloatingLossLimit(positions, tradingAccount, rule);
       break;
     case 'profit_target':
+    case 'profit_target_percent':
+    case 'profit_target_fixed':
       result = calcProfitTarget(snapshot, tradingAccount, rule);
       break;
     case 'min_trading_days':
@@ -2343,9 +2346,11 @@ function evaluateRule(
       result = calcMinTradingDays(trades, rule);
       break;
     case 'profitable_days':
+    case 'min_profitable_days':
       result = calcProfitableDays(snapshots, rule);
       break;
     case 'consistency_best_day_cap':
+    case 'consistency_percent':
       result = calcConsistencyBestDayCap(snapshots, rule);
       break;
     case 'trade_value_score_max_percent':
@@ -2361,11 +2366,14 @@ function evaluateRule(
       result = calcStopLossRequired(positions, rule);
       break;
     case 'inactivity_limit':
+    case 'inactivity_limit_days':
       result = calcInactivity(trades, rule);
       break;
     case 'news_restriction':
+    case 'news_trading_block':
     case 'scalping_restriction':
     case 'weekend_holding':
+    case 'weekend_holding_block':
     case 'leverage_limit':
     case 'payout_eligibility':
     case 'profit_split':
@@ -3462,7 +3470,7 @@ fastify.post('/billing/confirm-checkout-session', async (request, reply) => {
       stripeCode: error?.body?.error?.code,
     });
     return reply.status(error?.status && error.status < 500 ? 400 : 500).send({
-      error: error?.message || 'Não foi possível confirmar o checkout Stripe.',
+      error: 'Não foi possível confirmar esta sessão de checkout da Stripe.',
       code: 'stripe_checkout_confirm_failed',
       details: error?.body?.error?.code,
     });

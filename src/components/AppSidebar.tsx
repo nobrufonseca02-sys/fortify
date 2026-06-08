@@ -17,7 +17,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 const groups = [
   {
-    label: "Cockpit",
+    label: "Operação",
     items: [
       { title: "Painel", url: "/", icon: LayoutDashboard },
       { title: "Calculadora de Risco", url: "/calculator", icon: Calculator },
@@ -25,7 +25,7 @@ const groups = [
     ],
   },
   {
-    label: "Contas & Regras",
+    label: "Contas e Regras",
     items: [
       { title: "Contas", url: "/accounts", icon: PlusCircle },
       { title: "Contas MT5", url: "/mt5", icon: Server },
@@ -63,7 +63,7 @@ export function AppSidebar() {
             {!collapsed && (
               <div className="flex flex-col leading-none">
                 <h1 className="text-[13px] font-bold text-foreground tracking-[0.22em] uppercase font-display">Fortify</h1>
-                <span className="text-[9px] font-mono uppercase tracking-[0.2em] text-muted-foreground/70 mt-1">Risk OS · v1</span>
+                <span className="text-[9px] font-mono uppercase tracking-[0.2em] text-muted-foreground/70 mt-1">Sistema de risco · v1</span>
               </div>
             )}
           </div>

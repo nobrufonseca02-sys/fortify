@@ -30,7 +30,7 @@ const statusMeta: Record<RuleStatus, { label: string; className: string }> = {
 function categoryLabel(category: string | null | undefined) {
   const value = String(category ?? 'custom');
   if (['risk', 'drawdown'].includes(value)) return 'Limites de perda';
-  if (value === 'objective') return 'Meta de lucro';
+  if (['objective', 'target'].includes(value)) return 'Meta de lucro';
   if (value === 'consistency') return 'Consistência';
   if (value === 'risk_sizing') return 'Lote/risco';
   if (['activity', 'payout'].includes(value)) return 'Dias de trading/payout';
@@ -49,9 +49,20 @@ function nextBestAction(rows: any[], account: any) {
 function ruleSetReviewLabel(ruleSet: any) {
   if (!ruleSet) return 'Nenhum conjunto de regras selecionado';
   if (ruleSet.review_status === 'needs_review') return 'Precisa de revisão manual';
-  if (ruleSet.review_status === 'user_custom' || ruleSet.is_user_custom) return 'Modelo customizado';
-  if (ruleSet.review_status === 'verified') return 'Modelo verificado';
+  if (ruleSet.review_status === 'user_custom' || ruleSet.is_user_custom) return 'Regra personalizada';
+  if (ruleSet.review_status === 'verified') return 'Oficial verificada';
   return ruleSet.review_status || 'Modelo sem revisão';
+}
+
+function healthLabel(value: string) {
+  if (value === 'violated') return 'Violada';
+  if (value === 'high risk') return 'Atenção';
+  if (value === 'safe') return 'Segura';
+  return 'Pendente';
+}
+
+function hasRuleKey(row: any, keys: string[]) {
+  return keys.includes(String(row.rule_instances?.rule_definitions?.key ?? ''));
 }
 
 export default function AccountRuleManagement() {
@@ -170,11 +181,11 @@ export default function AccountRuleManagement() {
   }, [evaluations]);
 
   const plan = useMemo(() => {
-    const daily = evaluations.find((row) => row.rule_instances?.rule_definitions?.key === 'max_daily_loss');
+    const daily = evaluations.find((row) => hasRuleKey(row, ['max_daily_loss', 'daily_loss_percent', 'daily_loss_fixed']));
     const total =
-      evaluations.find((row) => row.rule_instances?.rule_definitions?.key === 'max_total_loss') ||
+      evaluations.find((row) => hasRuleKey(row, ['max_total_loss', 'total_loss_percent', 'total_loss_fixed', 'static_drawdown'])) ||
       evaluations.find((row) => String(row.rule_instances?.rule_definitions?.key ?? '').includes('drawdown'));
-    const target = evaluations.find((row) => row.rule_instances?.rule_definitions?.key === 'profit_target');
+    const target = evaluations.find((row) => hasRuleKey(row, ['profit_target', 'profit_target_percent', 'profit_target_fixed']));
     const dailyRemaining = Number(daily?.remaining_value ?? Math.max(0, Number(daily?.limit_value ?? 0) - Number(daily?.current_value ?? 0)));
     const totalRemaining = Number(total?.remaining_value ?? Math.max(0, Number(total?.limit_value ?? 0) - Number(total?.current_value ?? 0)));
     const profitNeeded = Number(target?.remaining_value ?? Math.max(0, Number(target?.limit_value ?? 0) - Number(target?.current_value ?? 0)));
@@ -354,25 +365,28 @@ export default function AccountRuleManagement() {
         </button>
         <button className="pill-btn pill-btn-primary" onClick={syncNow} disabled={syncing || !connection?.id}>
           <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-          Sync now
+          Sincronizar agora
         </button>
       </div>
 
       <section className="rounded-xl border border-border bg-card p-5">
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5">
           <div>
-            <p className="eyebrow mb-3">Account Rules</p>
+            <p className="eyebrow mb-3">Regras da conta</p>
             <h1 className="text-2xl font-bold text-foreground">{account.nickname}</h1>
             <p className="text-sm text-muted-foreground mt-2">
               Login {maskLogin(account.mt5_login)} · {account.mt5_server || '--'} · {account.detected_broker || account.broker || '--'}
             </p>
             <p className="text-xs text-muted-foreground mt-2">
-              Detection: {account.detection_confidence || 'low'} · {account.detection_notes || 'No detection notes yet.'}
+              Detecção: {account.detection_confidence || 'baixa'} · {account.detection_notes || 'Ainda sem notas de detecção.'}
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Mesa/programa: {currentRuleSet?.programs?.prop_firms?.name || account.detected_prop_firm || 'não definido'} · fase {currentRuleSet?.phase || account.phase || 'não definida'} · tamanho {fmtMoney(currentRuleSet?.account_size ?? account.account_size ?? account.start_balance)}
             </p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 min-w-[320px]">
             <div className="rounded-lg bg-muted/30 p-3">
-              <p className="text-[10px] uppercase text-muted-foreground">Balance</p>
+              <p className="text-[10px] uppercase text-muted-foreground">Saldo</p>
               <p className="font-mono text-sm text-foreground">{fmtMoney(snapshot?.balance ?? account.current_balance)}</p>
             </div>
             <div className="rounded-lg bg-muted/30 p-3">
@@ -380,17 +394,17 @@ export default function AccountRuleManagement() {
               <p className="font-mono text-sm text-foreground">{fmtMoney(snapshot?.equity ?? account.current_equity)}</p>
             </div>
             <div className="rounded-lg bg-muted/30 p-3">
-              <p className="text-[10px] uppercase text-muted-foreground">Health</p>
-              <p className="font-semibold text-sm capitalize text-foreground">{health}</p>
+              <p className="text-[10px] uppercase text-muted-foreground">Saúde</p>
+              <p className="font-semibold text-sm text-foreground">{healthLabel(health)}</p>
             </div>
             <div className="rounded-lg bg-muted/30 p-3">
-              <p className="text-[10px] uppercase text-muted-foreground">Last sync</p>
+              <p className="text-[10px] uppercase text-muted-foreground">Último sync</p>
               <p className="font-mono text-xs text-foreground">
                 {connection?.last_sync_at ? new Date(connection.last_sync_at).toLocaleString('pt-BR') : '--'}
               </p>
             </div>
             <div className="rounded-lg bg-muted/30 p-3">
-              <p className="text-[10px] uppercase text-muted-foreground">Connection</p>
+              <p className="text-[10px] uppercase text-muted-foreground">Conexão</p>
               <p className={`inline-flex rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wider ${connectionMeta.className}`}>
                 {connectionMeta.label}
               </p>
@@ -402,7 +416,7 @@ export default function AccountRuleManagement() {
               </p>
             </div>
             <div className="rounded-lg bg-muted/30 p-3">
-              <p className="text-[10px] uppercase text-muted-foreground">Rules</p>
+              <p className="text-[10px] uppercase text-muted-foreground">Regras</p>
               <p className={`inline-flex rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wider ${rulesMeta.className}`}>
                 {rulesMeta.label}
               </p>
@@ -467,6 +481,18 @@ export default function AccountRuleManagement() {
             {' · '}
             {ruleSetReviewLabel(currentRuleSet)}
           </p>
+          {currentRuleSet?.source_url || currentRuleSet?.source_notes ? (
+            <div className="rounded-lg border border-border bg-muted/20 p-3 text-xs text-muted-foreground">
+              {currentRuleSet?.source_url ? (
+                <a href={currentRuleSet.source_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                  Fonte anexada
+                </a>
+              ) : (
+                <span>Sem URL de fonte anexada.</span>
+              )}
+              {currentRuleSet?.source_notes ? <p className="mt-1">{currentRuleSet.source_notes}</p> : null}
+            </div>
+          ) : null}
           {suggestedRuleSets.length > 0 && (
             <div className="space-y-2">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Modelos sugeridos</p>

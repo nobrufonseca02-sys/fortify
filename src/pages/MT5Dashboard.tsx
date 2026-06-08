@@ -383,7 +383,7 @@ const MT5Dashboard = () => {
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                <StatPill label="Max Balance" value={fmt(maxBalance)} />
+                <StatPill label="Saldo máximo" value={fmt(maxBalance)} />
                 <StatPill label="Dias de Trading" value={String(tradingDays)} />
                 <StatPill label="Total de Trades" value={String(totalTrades)} />
                 <StatPill label="Win Rate" value={`${winRate.toFixed(1)}%`} />

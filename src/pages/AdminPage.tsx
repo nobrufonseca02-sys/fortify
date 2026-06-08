@@ -133,6 +133,38 @@ const statusClass = (status?: string | null) => {
   return 'bg-muted text-muted-foreground border-0';
 };
 
+const statusLabel = (status?: string | null) => {
+  const normalized = String(status || '').toLowerCase();
+  const labels: Record<string, string> = {
+    active: 'Ativo',
+    trialing: 'Trial',
+    connected: 'Conectada',
+    success: 'Sucesso',
+    verified: 'Oficial verificada',
+    configured: 'Configurado',
+    pending: 'Pendente',
+    running: 'Em execução',
+    connecting: 'Conectando',
+    syncing: 'Sincronizando',
+    needs_review: 'Precisa de revisão',
+    incomplete: 'Incompleto',
+    missing: 'Ausente',
+    past_due: 'Pagamento pendente',
+    error: 'Erro',
+    failed: 'Falhou',
+    auth_error: 'Falha de autenticação',
+    suspended: 'Suspenso',
+    canceled: 'Cancelado',
+    deprecated: 'Descontinuado',
+    invalid: 'Inválido',
+    inactive: 'Inativo',
+    none: 'Sem plano',
+    custom: 'Personalizada',
+    user_custom: 'Personalizada',
+  };
+  return labels[normalized] || status || 'Sem status';
+};
+
 const fmtDate = (value?: string | null) => {
   if (!value) return 'sem data';
   const date = new Date(value);
@@ -206,6 +238,8 @@ export default function AdminPage() {
         billingFilter === 'all' ||
         (billingFilter === 'priority' && ['priority', 'enterprise'].includes(String(user.support_tier || '').toLowerCase())) ||
         (billingFilter === 'enterprise' && String(user.plan_family || user.plan || '').toLowerCase().includes('enterprise')) ||
+        (billingFilter === 'pro' && String(user.plan_family || user.plan || '').toLowerCase().includes('pro')) ||
+        (billingFilter === 'active' && ['active', 'trialing'].includes(String(user.subscription_status || '').toLowerCase())) ||
         (billingFilter === 'past_due' && String(user.subscription_status || '').toLowerCase() === 'past_due') ||
         (billingFilter === 'no_plan' && !user.subscription_status) ||
         (billingFilter === 'limit_reached' && Boolean(user.account_limit_reached));
@@ -462,7 +496,7 @@ export default function AdminPage() {
               rows={(summary?.recentConnections || []).map((connection: AdminAccount) => [
                 connection.account_name || connection.mt5_server || 'MT5',
                 connection.user_email || 'sem email',
-                <Badge key={connection.id} className={statusClass(connection.connection_status)}>{connection.connection_status || 'unknown'}</Badge>,
+                <Badge key={connection.id} className={statusClass(connection.connection_status)}>{statusLabel(connection.connection_status || 'unknown')}</Badge>,
               ])}
             />
           </AdminCard>
@@ -480,7 +514,9 @@ export default function AdminPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="active">Ativos</SelectItem>
                 <SelectItem value="priority">Suporte prioritário/VIP</SelectItem>
+                <SelectItem value="pro">Pro</SelectItem>
                 <SelectItem value="enterprise">Enterprise</SelectItem>
                 <SelectItem value="past_due">Pagamento pendente</SelectItem>
                 <SelectItem value="no_plan">Sem plano</SelectItem>
@@ -518,7 +554,7 @@ export default function AdminPage() {
                       </Select>
                     </TableCell>
                     <TableCell>{user.support_tier || '-'}</TableCell>
-                    <TableCell><Badge className={statusClass(user.subscription_status)}>{user.subscription_status || 'sem plano'}</Badge></TableCell>
+                    <TableCell><Badge className={statusClass(user.subscription_status)}>{statusLabel(user.subscription_status || 'none')}</Badge></TableCell>
                     <TableCell>{user.connected_accounts_count}/{user.account_limit}</TableCell>
                     <TableCell>{fmtDate(user.last_sync_at)}</TableCell>
                     <TableCell className="text-right">
@@ -556,7 +592,7 @@ export default function AdminPage() {
                     <TableCell>{user.email}</TableCell>
                     <TableCell>{user.plan_name || user.plan || 'sem plano'}</TableCell>
                     <TableCell>{user.support_tier || '-'}</TableCell>
-                    <TableCell><Badge className={statusClass(user.subscription_status)}>{user.subscription_status || 'none'}</Badge></TableCell>
+                    <TableCell><Badge className={statusClass(user.subscription_status)}>{statusLabel(user.subscription_status || 'none')}</Badge></TableCell>
                     <TableCell>{user.account_limit}</TableCell>
                     <TableCell>{fmtDate(user.subscription?.current_period_end)}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">
@@ -604,13 +640,13 @@ export default function AdminPage() {
                     <TableCell>{plan.support_tier || 'basic'}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       <div>{plan.stripe_product_id || 'ausente'}</div>
-                      <Badge className={statusClass(plan.stripe_product_id_status)}>{plan.stripe_product_id_status || 'missing'}</Badge>
+                      <Badge className={statusClass(plan.stripe_product_id_status)}>{statusLabel(plan.stripe_product_id_status || 'missing')}</Badge>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       <div>{plan.stripe_price_id || 'ausente'}</div>
-                      <Badge className={statusClass(plan.stripe_price_id_status)}>{plan.stripe_price_id_status || 'missing'}</Badge>
+                      <Badge className={statusClass(plan.stripe_price_id_status)}>{statusLabel(plan.stripe_price_id_status || 'missing')}</Badge>
                     </TableCell>
-                    <TableCell><Badge className={statusClass(plan.active ? 'active' : 'inactive')}>{plan.active ? 'active' : 'inactive'}</Badge></TableCell>
+                    <TableCell><Badge className={statusClass(plan.active ? 'active' : 'inactive')}>{statusLabel(plan.active ? 'active' : 'inactive')}</Badge></TableCell>
                     <TableCell className="text-right">
                       <Button size="sm" variant="outline" onClick={() => editPlan(plan)}>Editar</Button>
                     </TableCell>
@@ -676,10 +712,10 @@ export default function AdminPage() {
                     <TableCell>{account.user_email || 'sem email'}</TableCell>
                     <TableCell>{account.mt5_server}</TableCell>
                     <TableCell>{account.mt5_login}</TableCell>
-                    <TableCell><Badge className={statusClass(account.connection_status)}>{account.connection_status || 'unknown'}</Badge></TableCell>
+                    <TableCell><Badge className={statusClass(account.connection_status)}>{statusLabel(account.connection_status || 'unknown')}</Badge></TableCell>
                     <TableCell>
                       <div className="space-y-1">
-                        <Badge className={statusClass(account.sync_status)}>{account.sync_status || 'none'}</Badge>
+                        <Badge className={statusClass(account.sync_status)}>{statusLabel(account.sync_status || 'none')}</Badge>
                         {account.sync_error && <p className="max-w-[220px] truncate text-xs text-destructive">{account.sync_error}</p>}
                       </div>
                     </TableCell>
@@ -716,7 +752,7 @@ export default function AdminPage() {
                         </p>
                       </div>
                       <Badge className={statusClass(rule.review_status)}>
-                        {rule.is_user_custom ? 'custom' : rule.review_status}
+                        {rule.is_user_custom ? 'Personalizada' : statusLabel(rule.review_status)}
                       </Badge>
                     </div>
                     <div className="grid gap-3 md:grid-cols-[180px_1fr_1fr_auto]">
@@ -725,9 +761,9 @@ export default function AdminPage() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="verified">verified</SelectItem>
-                          <SelectItem value="needs_review">needs_review</SelectItem>
-                          <SelectItem value="deprecated">deprecated</SelectItem>
+                          <SelectItem value="verified">Oficial verificada</SelectItem>
+                          <SelectItem value="needs_review">Precisa de revisão</SelectItem>
+                          <SelectItem value="deprecated">Descontinuada</SelectItem>
                         </SelectContent>
                       </Select>
                       <Input value={form.sourceUrl} onChange={(e) => setRuleReview((prev) => ({ ...prev, [rule.id]: { ...form, sourceUrl: e.target.value } }))} placeholder="URL da fonte" />
@@ -744,10 +780,10 @@ export default function AdminPage() {
         <TabsContent value="system">
           <AdminCard title="Status do sistema">
             <div className="grid gap-3 md:grid-cols-2">
-              <StatusLine icon={Activity} label="Gateway" ok={Boolean(system?.gateway?.ok)} detail={`região ${system?.gateway?.region || 'unknown'} · porta ${system?.gateway?.port || '-'}`} />
+              <StatusLine icon={Activity} label="Gateway" ok={Boolean(system?.gateway?.ok)} detail={`região ${system?.gateway?.region || 'desconhecida'} · porta ${system?.gateway?.port || '-'}`} />
               <StatusLine icon={Database} label="Supabase" ok={Boolean(system?.supabaseConnected)} detail={system?.supabaseError || 'conectado'} />
-              <StatusLine icon={CreditCard} label="Stripe secret" ok={Boolean(system?.stripeConfigured)} detail={system?.stripeConfigured ? 'configurado' : 'ausente'} />
-              <StatusLine icon={CreditCard} label="Stripe webhook" ok={Boolean(system?.stripeWebhookConfigured)} detail={system?.stripeWebhookConfigured ? 'configurado' : 'ausente'} />
+              <StatusLine icon={CreditCard} label="Chave Stripe" ok={Boolean(system?.stripeConfigured)} detail={system?.stripeConfigured ? 'configurada' : 'ausente'} />
+              <StatusLine icon={CreditCard} label="Webhook Stripe" ok={Boolean(system?.stripeWebhookConfigured)} detail={system?.stripeWebhookConfigured ? 'configurado' : 'ausente'} />
               <StatusLine icon={CreditCard} label="Produtos e preços" ok={Boolean(system?.productPriceMappingComplete)} detail={system?.productPriceMappingComplete ? 'mapeamento completo' : 'mapeamento pendente'} />
               <StatusLine icon={Server} label="MetaApi token" ok={Boolean(system?.metaapiTokenConfigured)} detail={system?.metaapiTokenConfigured ? 'configurado' : 'ausente'} />
             </div>
@@ -810,7 +846,7 @@ function StatusLine({ icon: Icon, label, ok, detail }: { icon: LucideIcon; label
         </div>
       </div>
       <Badge className={ok ? 'bg-success/15 text-success border-0' : 'bg-destructive/15 text-destructive border-0'}>
-        {ok ? 'ok' : 'acao'}
+        {ok ? 'ok' : 'ação'}
       </Badge>
     </div>
   );

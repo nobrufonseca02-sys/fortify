@@ -73,8 +73,8 @@ export function BetaReadinessChecklist({
 export function BetaResponsibilityNotice({ variant = 'default' }: { variant?: 'default' | 'rules' | 'broker' | 'custom' }) {
   const copy = {
     default: 'O Fortify ajuda a monitorar regras e risco, mas o trader deve confirmar os termos oficiais no painel, contrato ou suporte da mesa proprietária.',
-    rules: 'Modelos marcados como needs_review precisam ser validados antes do uso. O Fortify não substitui o painel ou contrato oficial da mesa.',
-    broker: 'Modelos broker-only são limites genéricos de risco. Eles não são regras oficiais de uma mesa proprietária.',
+    rules: 'Modelos marcados como Precisa de revisão precisam ser validados antes do uso. O Fortify não substitui o painel ou contrato oficial da mesa.',
+    broker: 'Modelos somente corretora são limites genéricos de risco. Eles não são regras oficiais de uma mesa proprietária.',
     custom: 'Regras customizadas são controladas pelo usuário. Revise os limites com cuidado antes de usá-las para decisões.',
   };
 
