@@ -6,6 +6,20 @@ import { useAuth } from '@/hooks/useAuth';
 import { createPortalSession, isBillingEnabled } from '@/lib/billing';
 import { toast } from '@/hooks/use-toast';
 
+const supportLabels: Record<string, string> = {
+  basic: 'Suporte básico',
+  standard: 'Suporte padrão',
+  priority: 'Suporte prioritário',
+  enterprise: 'Suporte VIP/Enterprise',
+};
+
+function formatPlanPrice(plan: any) {
+  if (plan.id === 'beta_free') return 'Acesso beta';
+  const amount = Number((plan.price_amount ?? plan.price_cents) || 0);
+  if (!amount) return 'Preço a confirmar';
+  return `${(amount / 100).toLocaleString('pt-BR', { style: 'currency', currency: String(plan.currency || 'brl').toUpperCase() })}/${plan.billing_interval === 'year' ? 'ano' : 'mês'}`;
+}
+
 export function PlanStatusPanel({ compact = false }: { compact?: boolean }) {
   const navigate = useNavigate();
   const { session } = useAuth();
@@ -43,7 +57,7 @@ export function PlanStatusPanel({ compact = false }: { compact?: boolean }) {
       const portal = await createPortalSession(session.access_token);
       window.location.assign(portal.portal_url);
     } catch (error: any) {
-      toast({ title: 'Portal indisponível', description: error?.message || 'Assine um plano pago antes de abrir o portal Stripe.', variant: 'destructive' });
+      toast({ title: 'Portal indisponível', description: error?.message || 'Você ainda não possui uma assinatura ativa. Escolha um plano para começar.', variant: 'destructive' });
     } finally {
       setOpeningPortal(false);
     }
@@ -102,11 +116,10 @@ export function PlanStatusPanel({ compact = false }: { compact?: boolean }) {
                   Até {plan.account_limit} conta{plan.account_limit === 1 ? '' : 's'} MT5.
                 </p>
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  {plan.id === 'beta_free'
-                    ? 'Acesso beta'
-                    : (plan.price_amount ?? plan.price_cents)
-                      ? `${(Number((plan.price_amount ?? plan.price_cents) || 0) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'USD' })}/${plan.billing_interval}`
-                      : 'Preço a definir'}
+                  {formatPlanPrice(plan)}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  {supportLabels[String(plan.support_tier || 'basic')] || supportLabels.basic}
                 </p>
               </div>
             ))}

@@ -11,9 +11,13 @@ const gatewayEnvPath = path.resolve(__dirname, '../.env');
 const gatewayEnvResult = dotenv.config({ path: gatewayEnvPath, override: true });
 
 const fastify = Fastify({ logger: true });
+const corsAllowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || 'http://localhost:8080,http://localhost:8081,http://localhost:5173')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 fastify.register(cors, {
-  origin: ['http://localhost:8080', 'http://localhost:8081', 'http://localhost:5173'],
+  origin: corsAllowedOrigins,
   credentials: true,
 });
 
@@ -46,8 +50,8 @@ const METAAPI_PROVISIONING_MAX_WAIT_MS = Number(process.env.METAAPI_PROVISIONING
 const FORTIFY_ALLOW_BETA_FALLBACK = process.env.FORTIFY_ALLOW_BETA_FALLBACK === 'true';
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
-const STRIPE_SUCCESS_URL = process.env.STRIPE_SUCCESS_URL || 'http://localhost:8081/dashboard?checkout=success';
-const STRIPE_CANCEL_URL = process.env.STRIPE_CANCEL_URL || 'http://localhost:8081/pricing?billing=cancelled';
+const STRIPE_SUCCESS_URL = process.env.STRIPE_SUCCESS_URL || 'http://localhost:8081/dashboard?checkout=success&session_id={CHECKOUT_SESSION_ID}';
+const STRIPE_CANCEL_URL = process.env.STRIPE_CANCEL_URL || 'http://localhost:8081/pricing?checkout=cancel';
 const STRIPE_CUSTOMER_PORTAL_RETURN_URL = process.env.STRIPE_CUSTOMER_PORTAL_RETURN_URL || 'http://localhost:8081/settings';
 const STRIPE_API_BASE_URL = 'https://api.stripe.com/v1';
 const OWNER_ADMIN_EMAIL = 'nobrufonseca01@hotmail.com';
@@ -185,11 +189,18 @@ type BillingPlan = {
   slug?: string | null;
   status?: string | null;
   active?: boolean | null;
+  stripe_product_id?: string | null;
   stripe_price_id?: string | null;
   account_limit: number;
+  support_tier?: string | null;
   billing_interval?: string | null;
   price_amount?: number | null;
   price_cents?: number | null;
+  currency?: string | null;
+  plan_features?: unknown;
+  display_order?: number | null;
+  highlighted?: boolean | null;
+  recommended_badge?: string | null;
 };
 
 type AdminAuthResult = AuthenticatedUser & { isOwnerEmail: boolean };
@@ -508,17 +519,17 @@ function isAuthError(result: AuthenticatedUser | { error: JsonRecord; status: nu
 
 function stripeConfigError() {
   return {
-    error: 'Stripe billing is not configured on this gateway',
+    error: 'A cobrança Stripe ainda não está configurada neste gateway.',
     code: 'stripe_config_missing',
-    details: 'Set STRIPE_SECRET_KEY in services/metaapi-gateway/.env to create billing sessions.',
+    details: 'Configure STRIPE_SECRET_KEY em services/metaapi-gateway/.env para criar sessões reais.',
   };
 }
 
 function stripeWebhookConfigError() {
   return {
-    error: 'Stripe webhook secret is not configured on this gateway',
+    error: 'O segredo do webhook Stripe ainda não está configurado neste gateway.',
     code: 'stripe_webhook_config_missing',
-    details: 'Set STRIPE_WEBHOOK_SECRET before accepting Stripe webhooks.',
+    details: 'Configure STRIPE_WEBHOOK_SECRET antes de aceitar eventos Stripe.',
   };
 }
 
@@ -530,11 +541,18 @@ function normalizeBillingPlan(plan: JsonRecord): BillingPlan {
     slug: plan.slug ?? plan.id,
     status: plan.status ?? 'active',
     active: plan.active ?? true,
+    stripe_product_id: plan.stripe_product_id ?? null,
     stripe_price_id: plan.stripe_price_id ?? null,
     account_limit: Number(plan.account_limit ?? 0),
+    support_tier: plan.support_tier ?? null,
     billing_interval: plan.billing_interval ?? null,
     price_amount: plan.price_amount ?? plan.price_cents ?? null,
     price_cents: plan.price_cents ?? plan.price_amount ?? null,
+    currency: plan.currency ?? null,
+    plan_features: plan.plan_features ?? [],
+    display_order: plan.display_order ?? null,
+    highlighted: plan.highlighted ?? null,
+    recommended_badge: plan.recommended_badge ?? null,
   };
 }
 
@@ -590,6 +608,64 @@ async function findBillingPlanByStripePriceId(priceId: string): Promise<BillingP
 function appendStripeParam(params: URLSearchParams, key: string, value: unknown) {
   if (value === null || value === undefined || value === '') return;
   params.append(key, String(value));
+}
+
+function isStripePriceId(value: unknown): value is string {
+  return typeof value === 'string' && /^price_[A-Za-z0-9]+$/.test(value);
+}
+
+function isStripeProductId(value: unknown): value is string {
+  return typeof value === 'string' && /^prod_[A-Za-z0-9]+$/.test(value);
+}
+
+function isStripeCheckoutSessionId(value: unknown): value is string {
+  return typeof value === 'string' && /^cs_(test|live)_[A-Za-z0-9]+$/.test(value);
+}
+
+function checkoutSuccessUrl() {
+  if (STRIPE_SUCCESS_URL.includes('{CHECKOUT_SESSION_ID}')) return STRIPE_SUCCESS_URL;
+  const separator = STRIPE_SUCCESS_URL.includes('?') ? '&' : '?';
+  return `${STRIPE_SUCCESS_URL}${separator}session_id={CHECKOUT_SESSION_ID}`;
+}
+
+const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>();
+
+function getRequestIp(request: FastifyRequest) {
+  const forwarded = request.headers['x-forwarded-for'];
+  const first = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+  return String(first || request.ip || 'local').split(',')[0].trim();
+}
+
+function checkRateLimit(request: FastifyRequest, scope: string, maxRequests: number, windowMs: number) {
+  const key = `${scope}:${getRequestIp(request)}`;
+  const now = Date.now();
+  const bucket = rateLimitBuckets.get(key);
+  if (!bucket || bucket.resetAt <= now) {
+    rateLimitBuckets.set(key, { count: 1, resetAt: now + windowMs });
+    return { allowed: true, retryAfterSeconds: 0 };
+  }
+  bucket.count += 1;
+  if (bucket.count > maxRequests) {
+    return { allowed: false, retryAfterSeconds: Math.ceil((bucket.resetAt - now) / 1000) };
+  }
+  return { allowed: true, retryAfterSeconds: 0 };
+}
+
+function rateLimitError(retryAfterSeconds: number) {
+  return {
+    error: 'Muitas tentativas em pouco tempo. Aguarde alguns instantes e tente novamente.',
+    code: 'rate_limited',
+    retryAfterSeconds,
+  };
+}
+
+function getPlanPriceIdFromSession(session: JsonRecord, subscription?: JsonRecord | null) {
+  return (
+    session.line_items?.data?.[0]?.price?.id ||
+    session.display_items?.[0]?.price?.id ||
+    getStripePriceId(subscription || {}) ||
+    null
+  );
 }
 
 async function stripeRequest(pathname: string, params: Record<string, unknown>) {
@@ -754,6 +830,130 @@ async function syncSubscriptionById(subscriptionId: string, fallbackUserId?: str
   return upsertSubscriptionFromStripe(subscription, fallbackUserId);
 }
 
+async function getSubscriptionStatusForUser(userId: string) {
+  const [subscriptionRes, activeAccountCountRes] = await Promise.all([
+    (supabase
+      .from('user_subscriptions' as any)
+      .select('*')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle() as any),
+    supabase
+      .from('mt5_connections')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .in('connection_status', ['connected', 'connecting', 'syncing']),
+  ]);
+
+  if (subscriptionRes.error) throw subscriptionRes.error;
+  if (activeAccountCountRes.error) throw activeAccountCountRes.error;
+
+  let subscription = subscriptionRes.data as JsonRecord | null;
+  const refreshSubscriptionId = subscription?.stripe_subscription_id ? String(subscription.stripe_subscription_id) : null;
+  if (refreshSubscriptionId && STRIPE_SECRET_KEY) {
+    try {
+      await syncSubscriptionById(refreshSubscriptionId, userId);
+      const refreshed = await (supabase
+        .from('user_subscriptions' as any)
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle() as any);
+      if (!refreshed.error && refreshed.data) subscription = refreshed.data;
+    } catch (error: any) {
+      fastify.log.warn({
+        event: 'stripe_subscription_status_refresh_failed',
+        userId: maskForLog(userId),
+        subscriptionId: maskForLog(refreshSubscriptionId),
+        error: error?.message,
+      });
+    }
+  }
+
+  const plan = subscription?.plan_id
+    ? await findAdminPlanBySelector(subscription.plan_id)
+    : null;
+  const activeAccountCount = Number(activeAccountCountRes.count ?? 0);
+  const accountLimit = Number(subscription?.account_limit ?? plan?.account_limit ?? 0);
+
+  return {
+    subscription: sanitizeSubscription(subscription),
+    plan: sanitizePlan(plan as JsonRecord | null),
+    support_tier: plan?.support_tier || null,
+    activeAccountCount,
+    accountLimit,
+    remainingAccounts: Math.max(0, accountLimit - activeAccountCount),
+    hasActivePlan: Boolean(subscription && ['active', 'trialing'].includes(String(subscription.status))),
+  };
+}
+
+async function resolveStripePricesForPlans() {
+  if (!STRIPE_SECRET_KEY) {
+    return { configured: false, resolved: [], missing: [] as JsonRecord[] };
+  }
+
+  const { data: plans, error } = await (supabase
+    .from('plans' as any)
+    .select('*')
+    .eq('status', 'active')
+    .eq('active', true)
+    .not('stripe_product_id', 'is', null) as any);
+
+  if (error) throw error;
+
+  const resolved: JsonRecord[] = [];
+  const missing: JsonRecord[] = [];
+  for (const plan of plans || []) {
+    if (!isStripeProductId(plan.stripe_product_id)) {
+      missing.push({ plan_id: plan.id, reason: 'invalid_product_id' });
+      continue;
+    }
+
+    const prices = await stripeGet(
+      `/prices?product=${encodeURIComponent(plan.stripe_product_id)}&active=true&type=recurring&limit=100`,
+    );
+    const expectedAmount = Number(plan.price_amount ?? plan.price_cents ?? 0);
+    const expectedCurrency = String(plan.currency || 'brl').toLowerCase();
+    const expectedInterval = String(plan.billing_interval || '').toLowerCase();
+    const match = (prices.data || []).find((price: JsonRecord) =>
+      price.active === true &&
+      price.currency === expectedCurrency &&
+      Number(price.unit_amount) === expectedAmount &&
+      String(price.recurring?.interval || '').toLowerCase() === expectedInterval &&
+      isStripePriceId(price.id)
+    );
+
+    if (!match) {
+      missing.push({
+        plan_id: plan.id,
+        product_id: maskForLog(plan.stripe_product_id),
+        amount: expectedAmount,
+        currency: expectedCurrency,
+        interval: expectedInterval,
+        reason: 'no_matching_active_recurring_price',
+      });
+      continue;
+    }
+
+    const { error: updateError } = await (supabase
+      .from('plans' as any)
+      .update({
+        stripe_price_id: match.id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', plan.id) as any);
+    if (updateError) throw updateError;
+
+    resolved.push({
+      plan_id: plan.id,
+      product_id: maskForLog(plan.stripe_product_id),
+      price_id: maskForLog(match.id),
+    });
+  }
+
+  return { configured: true, resolved, missing };
+}
+
 function toPositiveInteger(value: unknown, fallback: number, max = 100) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
@@ -778,10 +978,20 @@ function sanitizePlan(plan: JsonRecord | null | undefined) {
     status: plan.status,
     active: plan.active ?? plan.status === 'active',
     account_limit: plan.account_limit,
+    support_tier: plan.support_tier,
     billing_interval: plan.billing_interval,
     price_amount: plan.price_amount ?? plan.price_cents ?? null,
+    currency: plan.currency,
+    plan_features: Array.isArray(plan.plan_features) ? plan.plan_features : [],
+    display_order: plan.display_order,
+    highlighted: plan.highlighted,
+    recommended_badge: plan.recommended_badge,
+    stripe_product_id: maskExternalId(plan.stripe_product_id),
+    has_stripe_product: Boolean(plan.stripe_product_id),
+    stripe_product_id_status: isStripeProductId(plan.stripe_product_id) ? 'configured' : plan.stripe_product_id ? 'invalid' : 'missing',
     stripe_price_id: maskExternalId(plan.stripe_price_id),
     has_stripe_price: Boolean(plan.stripe_price_id),
+    stripe_price_id_status: isStripePriceId(plan.stripe_price_id) ? 'configured' : plan.stripe_price_id ? 'invalid' : 'missing',
     created_at: plan.created_at,
     updated_at: plan.updated_at,
   };
@@ -2328,6 +2538,9 @@ fastify.get('/health', async () => {
 
 fastify.get('/admin/summary', async (request, reply) => {
   try {
+    const limit = checkRateLimit(request, 'admin', 120, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
     const adminResult = await verifyAdminRequest(request);
     if (isAuthError(adminResult)) return reply.status(adminResult.status).send(adminResult.error);
 
@@ -2382,18 +2595,21 @@ fastify.get('/admin/summary', async (request, reply) => {
 
 fastify.get('/admin/users', async (request, reply) => {
   try {
+    const rateLimit = checkRateLimit(request, 'admin', 120, 60_000);
+    if (!rateLimit.allowed) return reply.status(429).send(rateLimitError(rateLimit.retryAfterSeconds));
+
     const adminResult = await verifyAdminRequest(request);
     if (isAuthError(adminResult)) return reply.status(adminResult.status).send(adminResult.error);
 
     const rows = await getAdminUserRows();
     const page = toPositiveInteger(getQueryParam(request, 'page'), 1, 1000);
-    const limit = toPositiveInteger(getQueryParam(request, 'limit'), 25, 100);
+    const pageLimit = toPositiveInteger(getQueryParam(request, 'limit'), 25, 100);
     const result = filterAndPaginateRows(rows, {
       search: getQueryParam(request, 'search'),
       status: getQueryParam(request, 'status'),
       plan: getQueryParam(request, 'plan'),
       page,
-      limit,
+      limit: pageLimit,
     });
 
     return reply.send({ users: result.rows, pagination: result.pagination });
@@ -2409,6 +2625,9 @@ fastify.get('/admin/users', async (request, reply) => {
 
 fastify.get('/admin/users/:userId', async (request, reply) => {
   try {
+    const limit = checkRateLimit(request, 'admin', 120, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
     const adminResult = await verifyAdminRequest(request);
     if (isAuthError(adminResult)) return reply.status(adminResult.status).send(adminResult.error);
 
@@ -2462,6 +2681,9 @@ fastify.get('/admin/users/:userId', async (request, reply) => {
 
 fastify.post('/admin/users/:userId/subscription', async (request, reply) => {
   try {
+    const limit = checkRateLimit(request, 'admin-write', 60, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
     const adminResult = await verifyAdminRequest(request);
     if (isAuthError(adminResult)) return reply.status(adminResult.status).send(adminResult.error);
 
@@ -2523,6 +2745,9 @@ fastify.post('/admin/users/:userId/subscription', async (request, reply) => {
 
 fastify.post('/admin/users/:userId/block', async (request, reply) => {
   try {
+    const limit = checkRateLimit(request, 'admin-write', 60, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
     const adminResult = await verifyAdminRequest(request);
     if (isAuthError(adminResult)) return reply.status(adminResult.status).send(adminResult.error);
 
@@ -2587,6 +2812,9 @@ fastify.post('/admin/users/:userId/block', async (request, reply) => {
 
 fastify.get('/admin/plans', async (request, reply) => {
   try {
+    const limit = checkRateLimit(request, 'admin', 120, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
     const adminResult = await verifyAdminRequest(request);
     if (isAuthError(adminResult)) return reply.status(adminResult.status).send(adminResult.error);
 
@@ -2609,6 +2837,9 @@ fastify.get('/admin/plans', async (request, reply) => {
 
 fastify.post('/admin/plans', async (request, reply) => {
   try {
+    const limit = checkRateLimit(request, 'admin-write', 60, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
     const adminResult = await verifyAdminRequest(request);
     if (isAuthError(adminResult)) return reply.status(adminResult.status).send(adminResult.error);
 
@@ -2624,6 +2855,7 @@ fastify.post('/admin/plans', async (request, reply) => {
 
     const active = body?.active !== false && String(body?.status || 'active') !== 'inactive';
     const priceAmount = body?.price_amount ?? body?.priceAmount ?? body?.price_cents ?? null;
+    const stripeProductId = String(body?.stripe_product_id || body?.stripeProductId || '').trim() || null;
     const stripePriceId = String(body?.stripe_price_id || body?.stripePriceId || '').trim() || null;
     const accountLimit = Math.max(0, Math.floor(toNumber(body?.account_limit ?? body?.accountLimit, 0)));
 
@@ -2637,9 +2869,16 @@ fastify.post('/admin/plans', async (request, reply) => {
         status: active ? 'active' : 'inactive',
         active,
         account_limit: accountLimit,
+        support_tier: body?.support_tier || body?.supportTier || 'basic',
         billing_interval: body?.billing_interval || body?.billingInterval || null,
         price_cents: toNullableNumber(priceAmount),
         price_amount: toNullableNumber(priceAmount),
+        currency: String(body?.currency || 'brl').toLowerCase(),
+        plan_features: Array.isArray(body?.plan_features) ? body.plan_features : [],
+        display_order: toPositiveInteger(body?.display_order ?? body?.displayOrder, 100, 1000),
+        highlighted: Boolean(body?.highlighted),
+        recommended_badge: body?.recommended_badge || body?.recommendedBadge || null,
+        stripe_product_id: stripeProductId,
         stripe_price_id: stripePriceId,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'id' })
@@ -2652,6 +2891,7 @@ fastify.post('/admin/plans', async (request, reply) => {
       event: 'admin_plan_upserted',
       adminUserId: maskForLog(adminResult.id),
       planId: data.id,
+      hasStripeProduct: Boolean(stripeProductId),
       hasStripePrice: Boolean(stripePriceId),
     });
 
@@ -2666,13 +2906,50 @@ fastify.post('/admin/plans', async (request, reply) => {
   }
 });
 
+fastify.post('/admin/plans/resolve-stripe-prices', async (request, reply) => {
+  try {
+    const rateLimit = checkRateLimit(request, 'admin-write', 20, 60_000);
+    if (!rateLimit.allowed) return reply.status(429).send(rateLimitError(rateLimit.retryAfterSeconds));
+
+    const adminResult = await verifyAdminRequest(request);
+    if (isAuthError(adminResult)) return reply.status(adminResult.status).send(adminResult.error);
+
+    if (!STRIPE_SECRET_KEY) {
+      return reply.status(503).send(stripeConfigError());
+    }
+
+    const result = await resolveStripePricesForPlans();
+    fastify.log.info({
+      event: 'admin_stripe_prices_resolved',
+      adminUserId: maskForLog(adminResult.id),
+      resolvedCount: result.resolved.length,
+      missingCount: result.missing.length,
+    });
+    return reply.send(result);
+  } catch (error: any) {
+    fastify.log.error({
+      event: 'admin_stripe_prices_resolve_failed',
+      error: error?.message,
+      stripeCode: error?.body?.error?.code,
+    });
+    return reply.status(error?.status && error.status < 500 ? 400 : 500).send({
+      error: error?.message || 'Não foi possível resolver os Price IDs da Stripe.',
+      code: 'admin_stripe_prices_resolve_failed',
+      details: error?.body?.error?.code,
+    });
+  }
+});
+
 fastify.get('/admin/accounts', async (request, reply) => {
   try {
+    const rateLimit = checkRateLimit(request, 'admin', 120, 60_000);
+    if (!rateLimit.allowed) return reply.status(429).send(rateLimitError(rateLimit.retryAfterSeconds));
+
     const adminResult = await verifyAdminRequest(request);
     if (isAuthError(adminResult)) return reply.status(adminResult.status).send(adminResult.error);
 
     const page = toPositiveInteger(getQueryParam(request, 'page'), 1, 1000);
-    const limit = toPositiveInteger(getQueryParam(request, 'limit'), 25, 100);
+    const pageLimit = toPositiveInteger(getQueryParam(request, 'limit'), 25, 100);
     const search = getQueryParam(request, 'search').toLowerCase();
     const status = getQueryParam(request, 'status').toLowerCase();
     const syncStatus = getQueryParam(request, 'sync_status').toLowerCase();
@@ -2701,7 +2978,7 @@ fastify.get('/admin/accounts', async (request, reply) => {
       return matchesSearch && matchesStatus && matchesSync;
     });
 
-    const result = paginateRows(accounts, page, limit);
+    const result = paginateRows(accounts, page, pageLimit);
     return reply.send({ accounts: result.rows, pagination: result.pagination });
   } catch (error: any) {
     fastify.log.error({ event: 'admin_accounts_failed', error: error?.message });
@@ -2715,6 +2992,9 @@ fastify.get('/admin/accounts', async (request, reply) => {
 
 fastify.post('/admin/accounts/:accountId/force-sync', async (request, reply) => {
   try {
+    const limit = checkRateLimit(request, 'admin-write', 60, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
     const adminResult = await verifyAdminRequest(request);
     if (isAuthError(adminResult)) return reply.status(adminResult.status).send(adminResult.error);
 
@@ -2770,6 +3050,9 @@ fastify.post('/admin/accounts/:accountId/force-sync', async (request, reply) => 
 
 fastify.post('/admin/accounts/:accountId/soft-remove', async (request, reply) => {
   try {
+    const limit = checkRateLimit(request, 'admin-write', 60, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
     const adminResult = await verifyAdminRequest(request);
     if (isAuthError(adminResult)) return reply.status(adminResult.status).send(adminResult.error);
 
@@ -2836,6 +3119,9 @@ fastify.post('/admin/accounts/:accountId/soft-remove', async (request, reply) =>
 
 fastify.get('/admin/rules', async (request, reply) => {
   try {
+    const limit = checkRateLimit(request, 'admin', 120, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
     const adminResult = await verifyAdminRequest(request);
     if (isAuthError(adminResult)) return reply.status(adminResult.status).send(adminResult.error);
 
@@ -2909,6 +3195,9 @@ fastify.get('/admin/rules', async (request, reply) => {
 
 fastify.post('/admin/rules/:id/review', async (request, reply) => {
   try {
+    const limit = checkRateLimit(request, 'admin-write', 60, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
     const adminResult = await verifyAdminRequest(request);
     if (isAuthError(adminResult)) return reply.status(adminResult.status).send(adminResult.error);
 
@@ -2960,10 +3249,22 @@ fastify.post('/admin/rules/:id/review', async (request, reply) => {
 
 fastify.get('/admin/system', async (request, reply) => {
   try {
+    const limit = checkRateLimit(request, 'admin', 120, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
     const adminResult = await verifyAdminRequest(request);
     if (isAuthError(adminResult)) return reply.status(adminResult.status).send(adminResult.error);
 
-    const { error: supabaseError } = await supabase.from('plans' as any).select('id', { count: 'exact', head: true } as any);
+    const { data: plans, error: supabaseError } = await (supabase
+      .from('plans' as any)
+      .select('id,stripe_product_id,stripe_price_id')
+      .eq('status', 'active')
+      .eq('active', true) as any);
+    const billablePlans = (plans || []).filter((plan: JsonRecord) => plan.id !== 'beta_free');
+    const productPriceMappingComplete =
+      billablePlans.length > 0 &&
+      billablePlans.every((plan: JsonRecord) => isStripeProductId(plan.stripe_product_id) && isStripePriceId(plan.stripe_price_id));
+
     return reply.send({
       gateway: {
         ok: true,
@@ -2972,6 +3273,7 @@ fastify.get('/admin/system', async (request, reply) => {
       },
       stripeConfigured: Boolean(STRIPE_SECRET_KEY),
       stripeWebhookConfigured: Boolean(STRIPE_WEBHOOK_SECRET),
+      productPriceMappingComplete,
       metaapiTokenConfigured: Boolean(METAAPI_TOKEN),
       supabaseConnected: !supabaseError,
       supabaseError: supabaseError?.message || null,
@@ -2991,38 +3293,47 @@ fastify.get('/admin/system', async (request, reply) => {
   }
 });
 
-fastify.post('/billing/create-checkout-session', async (request, reply) => {
+fastify.get('/billing/subscription-status', async (request, reply) => {
   try {
+    const limit = checkRateLimit(request, 'billing', 60, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
     const authResult = await verifyBearerUser(request);
     if (isAuthError(authResult)) {
       return reply.status(authResult.status).send(authResult.error);
     }
 
-    const body = request.body as {
-      planSlug?: string;
-      planId?: string;
-      priceId?: string;
-    };
-    const selector = String(body?.planSlug || body?.planId || body?.priceId || '').trim();
-    if (!selector) {
-      return reply.status(400).send({
-        error: 'planSlug, planId or priceId is required',
-        code: 'billing_plan_required',
-      });
+    const status = await getSubscriptionStatusForUser(authResult.id);
+    return reply.send(status);
+  } catch (error: any) {
+    fastify.log.error({
+      event: 'billing_subscription_status_failed',
+      error: error?.message,
+    });
+    return reply.status(500).send({
+      error: 'Não foi possível carregar o status da assinatura.',
+      code: 'billing_subscription_status_failed',
+      details: error?.message,
+    });
+  }
+});
+
+fastify.post('/billing/confirm-checkout-session', async (request, reply) => {
+  try {
+    const limit = checkRateLimit(request, 'billing', 30, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
+    const authResult = await verifyBearerUser(request);
+    if (isAuthError(authResult)) {
+      return reply.status(authResult.status).send(authResult.error);
     }
 
-    const plan = await findBillingPlanBySelector(selector);
-    if (!plan) {
+    const body = request.body as { sessionId?: string };
+    const sessionId = String(body?.sessionId || '').trim();
+    if (!isStripeCheckoutSessionId(sessionId)) {
       return reply.status(400).send({
-        error: 'Selected Fortify plan was not found',
-        code: 'invalid_billing_plan',
-      });
-    }
-
-    if (plan.id === 'beta_free') {
-      return reply.status(400).send({
-        error: 'Beta Free does not use Stripe checkout',
-        code: 'beta_plan_not_checkoutable',
+        error: 'Sessão de checkout inválida.',
+        code: 'invalid_checkout_session',
       });
     }
 
@@ -3030,12 +3341,153 @@ fastify.post('/billing/create-checkout-session', async (request, reply) => {
       return reply.status(503).send(stripeConfigError());
     }
 
-    if (!plan.stripe_price_id) {
-      return reply.status(400).send({
-        error: 'Selected Fortify plan is missing stripe_price_id',
-        code: 'stripe_price_missing',
-        details: 'Add the real Stripe price id to public.plans.stripe_price_id before enabling checkout for this plan.',
+    const session = await stripeGet(
+      `/checkout/sessions/${encodeURIComponent(sessionId)}?expand[]=subscription&expand[]=line_items`,
+    );
+    const sessionUserId = String(session.metadata?.user_id || session.client_reference_id || '').trim();
+    if (sessionUserId !== authResult.id) {
+      fastify.log.warn({
+        event: 'stripe_checkout_session_user_mismatch',
+        sessionId: maskForLog(sessionId),
+        sessionUserId: maskForLog(sessionUserId),
+        authUserId: maskForLog(authResult.id),
       });
+      return reply.status(403).send({
+        error: 'Esta sessão de checkout não pertence ao usuário autenticado.',
+        code: 'checkout_session_user_mismatch',
+      });
+    }
+
+    const subscription = typeof session.subscription === 'object' ? session.subscription : null;
+    const subscriptionStatus = String(subscription?.status || '').toLowerCase();
+    const paymentConfirmed =
+      session.payment_status === 'paid' ||
+      ['active', 'trialing'].includes(subscriptionStatus);
+
+    if (!paymentConfirmed) {
+      return reply.status(409).send({
+        error: 'Pagamento ainda não confirmado pela Stripe.',
+        code: 'stripe_payment_not_confirmed',
+        payment_status: session.payment_status || null,
+        subscription_status: subscriptionStatus || null,
+      });
+    }
+
+    const priceId = getPlanPriceIdFromSession(session, subscription);
+    if (!isStripePriceId(priceId)) {
+      return reply.status(409).send({
+        error: 'Não foi possível identificar o Price ID da Stripe nesta sessão.',
+        code: 'stripe_price_missing',
+      });
+    }
+
+    const plan = await findBillingPlanByStripePriceId(priceId);
+    if (!plan) {
+      return reply.status(409).send({
+        error: 'O Price ID pago ainda não está mapeado a um plano Fortify.',
+        code: 'stripe_price_not_mapped',
+      });
+    }
+
+    if (subscription) {
+      await upsertSubscriptionFromStripe(subscription, authResult.id);
+    } else {
+      const currentPeriodEnd = defaultPeriodEndForPlan(plan);
+      const stripeCustomerId = getStripeId(session.customer);
+      const stripeSubscriptionId = getStripeId(session.subscription);
+      const { error } = await (supabase
+        .from('user_subscriptions' as any)
+        .upsert({
+          user_id: authResult.id,
+          plan_id: plan.id,
+          plan_name: plan.plan_name,
+          status: 'active',
+          account_limit: plan.account_limit,
+          current_period_start: new Date().toISOString(),
+          current_period_end: currentPeriodEnd,
+          cancel_at_period_end: false,
+          stripe_customer_id: stripeCustomerId,
+          stripe_subscription_id: stripeSubscriptionId,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' }) as any);
+      if (error) throw error;
+    }
+
+    const status = await getSubscriptionStatusForUser(authResult.id);
+    fastify.log.info({
+      event: 'stripe_checkout_session_confirmed',
+      userId: maskForLog(authResult.id),
+      sessionId: maskForLog(sessionId),
+      planId: plan.id,
+    });
+
+    return reply.send(status);
+  } catch (error: any) {
+    fastify.log.error({
+      event: 'stripe_checkout_session_confirm_failed',
+      error: error?.message,
+      status: error?.status,
+      stripeCode: error?.body?.error?.code,
+    });
+    return reply.status(error?.status && error.status < 500 ? 400 : 500).send({
+      error: error?.message || 'Não foi possível confirmar o checkout Stripe.',
+      code: 'stripe_checkout_confirm_failed',
+      details: error?.body?.error?.code,
+    });
+  }
+});
+
+fastify.post('/billing/create-checkout-session', async (request, reply) => {
+  try {
+    const limit = checkRateLimit(request, 'billing', 30, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
+    const authResult = await verifyBearerUser(request);
+    if (isAuthError(authResult)) {
+      return reply.status(authResult.status).send(authResult.error);
+    }
+
+    const body = request.body as {
+      planSlug?: string;
+      plan_slug?: string;
+      planId?: string;
+      priceId?: string;
+    };
+    const selector = String(body?.planSlug || body?.plan_slug || body?.planId || body?.priceId || '').trim();
+    if (!selector) {
+      return reply.status(400).send({
+        error: 'Informe o plano desejado antes de iniciar o checkout.',
+        code: 'billing_plan_required',
+      });
+    }
+
+    const plan = await findBillingPlanBySelector(selector);
+    if (!plan) {
+      return reply.status(400).send({
+        error: 'Plano Fortify não encontrado ou inativo.',
+        code: 'invalid_billing_plan',
+      });
+    }
+
+    if (plan.id === 'beta_free') {
+      return reply.status(400).send({
+        error: 'O plano beta não usa checkout Stripe.',
+        code: 'beta_plan_not_checkoutable',
+      });
+    }
+
+    if (!plan.stripe_price_id || !isStripePriceId(plan.stripe_price_id)) {
+      return reply.status(400).send({
+        error: 'Este plano ainda não possui um Price ID válido da Stripe.',
+        code: 'stripe_price_missing',
+        details: isStripeProductId(plan.stripe_price_id)
+          ? 'O plano está usando Product ID. Resolva e salve o Price ID recorrente correto.'
+          : 'Salve um ID iniciado por price_ no cadastro do plano.',
+      });
+    }
+
+    if (!STRIPE_SECRET_KEY) {
+      return reply.status(503).send(stripeConfigError());
     }
 
     const { data: subscription } = await (supabase
@@ -3044,9 +3496,27 @@ fastify.post('/billing/create-checkout-session', async (request, reply) => {
       .eq('user_id', authResult.id)
       .maybeSingle() as any);
 
+    let stripeCustomerId = subscription?.stripe_customer_id || null;
+    if (!stripeCustomerId && authResult.email) {
+      const customer = await stripeRequest('/customers', {
+        email: authResult.email,
+        'metadata[user_id]': authResult.id,
+      });
+      stripeCustomerId = getStripeId(customer.id);
+      if (stripeCustomerId) {
+        await (supabase
+          .from('user_subscriptions' as any)
+          .update({
+            stripe_customer_id: stripeCustomerId,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('user_id', authResult.id) as any);
+      }
+    }
+
     const params: Record<string, unknown> = {
       mode: 'subscription',
-      success_url: STRIPE_SUCCESS_URL,
+      success_url: checkoutSuccessUrl(),
       cancel_url: STRIPE_CANCEL_URL,
       client_reference_id: authResult.id,
       'line_items[0][price]': plan.stripe_price_id,
@@ -3060,8 +3530,8 @@ fastify.post('/billing/create-checkout-session', async (request, reply) => {
       allow_promotion_codes: true,
     };
 
-    if (subscription?.stripe_customer_id) {
-      params.customer = subscription.stripe_customer_id;
+    if (stripeCustomerId) {
+      params.customer = stripeCustomerId;
     } else if (authResult.email) {
       params.customer_email = authResult.email;
     }
@@ -3096,6 +3566,9 @@ fastify.post('/billing/create-checkout-session', async (request, reply) => {
 
 fastify.post('/billing/create-portal-session', async (request, reply) => {
   try {
+    const limit = checkRateLimit(request, 'billing', 30, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
     const authResult = await verifyBearerUser(request);
     if (isAuthError(authResult)) {
       return reply.status(authResult.status).send(authResult.error);
@@ -3117,9 +3590,8 @@ fastify.post('/billing/create-portal-session', async (request, reply) => {
 
     if (!subscription?.stripe_customer_id) {
       return reply.status(404).send({
-        error: 'Stripe customer was not found for this Fortify user',
+        error: 'Você ainda não possui uma assinatura ativa. Escolha um plano para começar.',
         code: 'stripe_customer_missing',
-        details: 'Subscribe to a paid plan before opening the Stripe customer portal.',
       });
     }
 
@@ -3158,6 +3630,9 @@ fastify.post('/billing/create-portal-session', async (request, reply) => {
 
 fastify.post('/billing/webhook', async (request, reply) => {
   try {
+    const limit = checkRateLimit(request, 'billing-webhook', 180, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
     if (!STRIPE_WEBHOOK_SECRET) {
       return reply.status(503).send(stripeWebhookConfigError());
     }
@@ -3230,6 +3705,9 @@ fastify.post('/billing/webhook', async (request, reply) => {
 
 fastify.post('/metaapi/connect', async (request, reply) => {
   try {
+    const limit = checkRateLimit(request, 'metaapi-connect', 20, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
     const body = request.body as {
       accountName?: string;
       mt5Login?: string;
@@ -3753,6 +4231,9 @@ fastify.post('/metaapi/connect', async (request, reply) => {
 
 fastify.post('/metaapi/sync', async (request, reply) => {
   try {
+    const limit = checkRateLimit(request, 'metaapi-sync', 60, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
     const body = request.body as {
       connectionId?: string;
       userId?: string;

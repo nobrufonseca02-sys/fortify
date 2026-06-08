@@ -97,7 +97,7 @@ function AuthGuard() {
   const { session, loading } = useAuth();
   if (loading) return null;
   if (session) {
-    const intendedPlan = window.sessionStorage.getItem('fortify_intended_plan');
+    const intendedPlan = window.sessionStorage.getItem('intended_plan_slug') || window.sessionStorage.getItem('fortify_intended_plan');
     if (intendedPlan) {
       return <Navigate to={`/pricing?checkoutPlan=${encodeURIComponent(intendedPlan)}`} replace />;
     }

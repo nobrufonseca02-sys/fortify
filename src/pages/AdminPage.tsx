@@ -53,10 +53,19 @@ type AdminPlan = {
   status?: string | null;
   active?: boolean | null;
   account_limit: number;
+  support_tier?: string | null;
   billing_interval?: string | null;
   price_amount?: number | null;
+  currency?: string | null;
+  stripe_product_id?: string | null;
   stripe_price_id?: string | null;
+  stripe_product_id_status?: 'configured' | 'missing' | 'invalid';
+  stripe_price_id_status?: 'configured' | 'missing' | 'invalid';
   has_stripe_price?: boolean;
+  has_stripe_product?: boolean;
+  display_order?: number | null;
+  highlighted?: boolean | null;
+  recommended_badge?: string | null;
 };
 
 type AdminSubscription = {
@@ -106,6 +115,7 @@ type AdminSystemStatus = {
   gateway?: { ok: boolean; region: string; port: number };
   stripeConfigured?: boolean;
   stripeWebhookConfigured?: boolean;
+  productPriceMappingComplete?: boolean;
   metaapiTokenConfigured?: boolean;
   supabaseConnected?: boolean;
   supabaseError?: string | null;
@@ -114,9 +124,9 @@ type AdminSystemStatus = {
 
 const statusClass = (status?: string | null) => {
   const normalized = String(status || '').toLowerCase();
-  if (['active', 'trialing', 'connected', 'success', 'verified'].includes(normalized)) return 'bg-success/15 text-success border-0';
-  if (['pending', 'running', 'connecting', 'syncing', 'needs_review', 'incomplete'].includes(normalized)) return 'bg-warning/15 text-warning border-0';
-  if (['error', 'failed', 'auth_error', 'suspended', 'canceled', 'deprecated'].includes(normalized)) return 'bg-destructive/15 text-destructive border-0';
+  if (['active', 'trialing', 'connected', 'success', 'verified', 'configured'].includes(normalized)) return 'bg-success/15 text-success border-0';
+  if (['pending', 'running', 'connecting', 'syncing', 'needs_review', 'incomplete', 'missing'].includes(normalized)) return 'bg-warning/15 text-warning border-0';
+  if (['error', 'failed', 'auth_error', 'suspended', 'canceled', 'deprecated', 'invalid'].includes(normalized)) return 'bg-destructive/15 text-destructive border-0';
   return 'bg-muted text-muted-foreground border-0';
 };
 
@@ -129,7 +139,7 @@ const fmtDate = (value?: string | null) => {
 
 const fmtPrice = (value?: number | null) => {
   if (!value) return 'Sem preco';
-  return (value / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'USD' });
+  return (value / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
 async function adminFetch(path: string, token: string, options: RequestInit = {}) {
@@ -175,7 +185,11 @@ export default function AdminPage() {
     account_limit: '1',
     price_amount: '',
     billing_interval: 'month',
+    currency: 'brl',
+    support_tier: 'basic',
+    stripe_product_id: '',
     stripe_price_id: '',
+    display_order: '100',
     active: 'true',
   });
   const [ruleReview, setRuleReview] = useState<Record<string, { reviewStatus: string; sourceUrl: string; sourceNotes: string }>>({});
@@ -263,12 +277,40 @@ export default function AdminPage() {
         account_limit: Number(planForm.account_limit),
         price_amount: planForm.price_amount ? Number(planForm.price_amount) : null,
         billing_interval: planForm.billing_interval || null,
+        currency: planForm.currency || 'brl',
+        support_tier: planForm.support_tier || 'basic',
+        stripe_product_id: planForm.stripe_product_id || null,
         stripe_price_id: planForm.stripe_price_id || null,
+        display_order: Number(planForm.display_order || 100),
         active: planForm.active === 'true',
       }),
     });
     toast({ title: 'Plano salvo' });
-    setPlanForm({ id: '', name: '', slug: '', account_limit: '1', price_amount: '', billing_interval: 'month', stripe_price_id: '', active: 'true' });
+    setPlanForm({
+      id: '',
+      name: '',
+      slug: '',
+      account_limit: '1',
+      price_amount: '',
+      billing_interval: 'month',
+      currency: 'brl',
+      support_tier: 'basic',
+      stripe_product_id: '',
+      stripe_price_id: '',
+      display_order: '100',
+      active: 'true',
+    });
+  });
+
+  const resolveStripePrices = () => runAction('resolve-prices', async () => {
+    const body = await adminFetch('/admin/plans/resolve-stripe-prices', token, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+    toast({
+      title: 'Resolução Stripe concluída',
+      description: `${body?.resolved?.length || 0} planos resolvidos; ${body?.missing?.length || 0} pendentes.`,
+    });
   });
 
   const forceSync = (account: AdminAccount) => runAction(`sync-${account.id}`, async () => {
@@ -364,13 +406,13 @@ export default function AdminPage() {
 
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-7">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
-          <TabsTrigger value="plans">Plans</TabsTrigger>
+          <TabsTrigger value="overview">Visão geral</TabsTrigger>
+          <TabsTrigger value="users">Usuários</TabsTrigger>
+          <TabsTrigger value="subscriptions">Assinaturas</TabsTrigger>
+          <TabsTrigger value="plans">Planos</TabsTrigger>
           <TabsTrigger value="accounts">MT5</TabsTrigger>
-          <TabsTrigger value="rules">Rules</TabsTrigger>
-          <TabsTrigger value="system">System</TabsTrigger>
+          <TabsTrigger value="rules">Regras</TabsTrigger>
+          <TabsTrigger value="system">Sistema</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="grid gap-4 lg:grid-cols-2">
@@ -465,7 +507,7 @@ export default function AdminPage() {
                     <TableCell>{user.account_limit}</TableCell>
                     <TableCell>{fmtDate(user.subscription?.current_period_end)}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {user.subscription?.has_stripe_customer ? 'customer ok' : 'sem customer'} · {user.subscription?.has_stripe_subscription ? 'subscription ok' : 'sem subscription'}
+                      {user.subscription?.has_stripe_customer ? 'cliente ok' : 'sem cliente'} · {user.subscription?.has_stripe_subscription ? 'assinatura ok' : 'sem assinatura'}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -476,14 +518,22 @@ export default function AdminPage() {
 
         <TabsContent value="plans" className="grid gap-4 lg:grid-cols-[1fr_360px]">
           <AdminCard title="Planos">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <p className="text-xs text-muted-foreground">Produto e preço Stripe são validados por status, sem exibir chaves secretas.</p>
+              <Button size="sm" variant="outline" onClick={resolveStripePrices} disabled={busyAction === 'resolve-prices'}>
+                Resolver Price IDs
+              </Button>
+            </div>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Plano</TableHead>
                   <TableHead>Slug</TableHead>
                   <TableHead>Limite</TableHead>
-                  <TableHead>Preco</TableHead>
-                  <TableHead>Stripe</TableHead>
+                  <TableHead>Preço</TableHead>
+                  <TableHead>Suporte</TableHead>
+                  <TableHead>Produto</TableHead>
+                  <TableHead>Preço Stripe</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -494,7 +544,9 @@ export default function AdminPage() {
                     <TableCell>{plan.slug || plan.id}</TableCell>
                     <TableCell>{plan.account_limit}</TableCell>
                     <TableCell>{fmtPrice(plan.price_amount)}</TableCell>
-                    <TableCell>{plan.has_stripe_price ? 'configurado' : 'pendente'}</TableCell>
+                    <TableCell>{plan.support_tier || 'basic'}</TableCell>
+                    <TableCell><Badge className={statusClass(plan.stripe_product_id_status)}>{plan.stripe_product_id_status || 'missing'}</Badge></TableCell>
+                    <TableCell><Badge className={statusClass(plan.stripe_price_id_status)}>{plan.stripe_price_id_status || 'missing'}</Badge></TableCell>
                     <TableCell><Badge className={statusClass(plan.active ? 'active' : 'inactive')}>{plan.active ? 'active' : 'inactive'}</Badge></TableCell>
                   </TableRow>
                 ))}
@@ -508,7 +560,11 @@ export default function AdminPage() {
               <Field label="Slug"><Input value={planForm.slug} onChange={(e) => setPlanForm((p) => ({ ...p, slug: e.target.value }))} placeholder="monthly" /></Field>
               <Field label="Limite de contas"><Input value={planForm.account_limit} onChange={(e) => setPlanForm((p) => ({ ...p, account_limit: e.target.value }))} type="number" min="0" /></Field>
               <Field label="Preco em centavos"><Input value={planForm.price_amount} onChange={(e) => setPlanForm((p) => ({ ...p, price_amount: e.target.value }))} type="number" min="0" placeholder="4900" /></Field>
+              <Field label="Moeda"><Input value={planForm.currency} onChange={(e) => setPlanForm((p) => ({ ...p, currency: e.target.value }))} placeholder="brl" /></Field>
+              <Field label="Suporte"><Input value={planForm.support_tier} onChange={(e) => setPlanForm((p) => ({ ...p, support_tier: e.target.value }))} placeholder="basic, standard, priority, enterprise" /></Field>
+              <Field label="Stripe product ID"><Input value={planForm.stripe_product_id} onChange={(e) => setPlanForm((p) => ({ ...p, stripe_product_id: e.target.value }))} placeholder="prod_..." /></Field>
               <Field label="Stripe price ID"><Input value={planForm.stripe_price_id} onChange={(e) => setPlanForm((p) => ({ ...p, stripe_price_id: e.target.value }))} placeholder="price_..." /></Field>
+              <Field label="Ordem"><Input value={planForm.display_order} onChange={(e) => setPlanForm((p) => ({ ...p, display_order: e.target.value }))} type="number" min="0" /></Field>
               <Button onClick={savePlan} disabled={busyAction === 'plan-save'} className="w-full">Salvar plano</Button>
             </div>
           </AdminCard>
@@ -602,13 +658,14 @@ export default function AdminPage() {
         </TabsContent>
 
         <TabsContent value="system">
-          <AdminCard title="System Status">
+          <AdminCard title="Status do sistema">
             <div className="grid gap-3 md:grid-cols-2">
               <StatusLine icon={Activity} label="Gateway" ok={Boolean(system?.gateway?.ok)} detail={`region ${system?.gateway?.region || 'unknown'} · port ${system?.gateway?.port || '-'}`} />
               <StatusLine icon={Database} label="Supabase" ok={Boolean(system?.supabaseConnected)} detail={system?.supabaseError || 'connected'} />
-              <StatusLine icon={CreditCard} label="Stripe secret" ok={Boolean(system?.stripeConfigured)} detail={system?.stripeConfigured ? 'configured' : 'missing'} />
-              <StatusLine icon={CreditCard} label="Stripe webhook" ok={Boolean(system?.stripeWebhookConfigured)} detail={system?.stripeWebhookConfigured ? 'configured' : 'missing'} />
-              <StatusLine icon={Server} label="MetaApi token" ok={Boolean(system?.metaapiTokenConfigured)} detail={system?.metaapiTokenConfigured ? 'configured' : 'missing'} />
+              <StatusLine icon={CreditCard} label="Stripe secret" ok={Boolean(system?.stripeConfigured)} detail={system?.stripeConfigured ? 'configurado' : 'ausente'} />
+              <StatusLine icon={CreditCard} label="Stripe webhook" ok={Boolean(system?.stripeWebhookConfigured)} detail={system?.stripeWebhookConfigured ? 'configurado' : 'ausente'} />
+              <StatusLine icon={CreditCard} label="Produtos e preços" ok={Boolean(system?.productPriceMappingComplete)} detail={system?.productPriceMappingComplete ? 'mapeamento completo' : 'mapeamento pendente'} />
+              <StatusLine icon={Server} label="MetaApi token" ok={Boolean(system?.metaapiTokenConfigured)} detail={system?.metaapiTokenConfigured ? 'configurado' : 'ausente'} />
             </div>
           </AdminCard>
         </TabsContent>

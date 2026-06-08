@@ -1,0 +1,221 @@
+-- Fortify BRL Stripe plan catalog.
+-- Additive only: keeps existing beta/internal plans and prepares real product/price mapping.
+
+alter table public.plans
+  add column if not exists stripe_product_id text,
+  add column if not exists support_tier text not null default 'basic',
+  add column if not exists plan_features jsonb not null default '[]'::jsonb,
+  add column if not exists display_order integer not null default 100,
+  add column if not exists highlighted boolean not null default false,
+  add column if not exists recommended_badge text,
+  add column if not exists currency text not null default 'brl';
+
+create index if not exists plans_display_order_idx
+  on public.plans(display_order);
+
+create unique index if not exists plans_stripe_product_id_unique_idx
+  on public.plans(stripe_product_id)
+  where stripe_product_id is not null;
+
+with plan_catalog (
+  id,
+  plan_name,
+  name,
+  slug,
+  stripe_product_id,
+  account_limit,
+  support_tier,
+  billing_interval,
+  price_amount,
+  currency,
+  display_order,
+  highlighted,
+  recommended_badge,
+  plan_features
+) as (
+  values
+    (
+      'beginner_monthly',
+      'Beginner Mensal',
+      'Beginner',
+      'beginner_monthly',
+      'prod_UWogmsnDUiFI4b',
+      1,
+      'basic',
+      'month',
+      9700,
+      'brl',
+      10,
+      false,
+      null,
+      '["1 conta MT5", "Regras e alertas essenciais", "Suporte básico"]'::jsonb
+    ),
+    (
+      'beginner_annual',
+      'Beginner Anual',
+      'Beginner',
+      'beginner_annual',
+      'prod_Uf3vLt89c3SHly',
+      1,
+      'basic',
+      'year',
+      104900,
+      'brl',
+      20,
+      false,
+      null,
+      '["1 conta MT5", "Regras e alertas essenciais", "Suporte básico"]'::jsonb
+    ),
+    (
+      'advanced_monthly',
+      'Advanced Mensal',
+      'Advanced',
+      'advanced_monthly',
+      'prod_Uf3wnzfJZWD4mh',
+      3,
+      'standard',
+      'month',
+      28700,
+      'brl',
+      30,
+      false,
+      null,
+      '["3 contas MT5", "Sync e snapshots recorrentes", "Suporte padrão"]'::jsonb
+    ),
+    (
+      'advanced_annual',
+      'Advanced Anual',
+      'Advanced',
+      'advanced_annual',
+      'prod_Uf3xj9KBVDBlKC',
+      3,
+      'standard',
+      'year',
+      304900,
+      'brl',
+      40,
+      false,
+      null,
+      '["3 contas MT5", "Sync e snapshots recorrentes", "Suporte padrão"]'::jsonb
+    ),
+    (
+      'pro_monthly',
+      'Pro Mensal',
+      'Pro',
+      'pro_monthly',
+      'prod_Uf3yJK5Nmf7jzw',
+      5,
+      'priority',
+      'month',
+      49700,
+      'brl',
+      50,
+      true,
+      'Mais escolhido',
+      '["5 contas MT5", "Regras avançadas", "Suporte prioritário"]'::jsonb
+    ),
+    (
+      'pro_annual',
+      'Pro Anual',
+      'Pro',
+      'pro_annual',
+      'prod_Uf3zoN1lxhobpF',
+      5,
+      'priority',
+      'year',
+      509700,
+      'brl',
+      60,
+      true,
+      'Melhor valor',
+      '["5 contas MT5", "Regras avançadas", "Suporte prioritário"]'::jsonb
+    ),
+    (
+      'enterprise_monthly',
+      'Enterprise Mensal',
+      'Enterprise',
+      'enterprise_monthly',
+      'prod_Uf40eBMaXSHhHx',
+      10,
+      'enterprise',
+      'month',
+      99700,
+      'brl',
+      70,
+      false,
+      'VIP',
+      '["10 contas MT5", "Operação multi-conta", "Suporte VIP/Enterprise"]'::jsonb
+    ),
+    (
+      'enterprise_annual',
+      'Enterprise Anual',
+      'Enterprise',
+      'enterprise_annual',
+      'prod_Uf41FVIixc7Y33',
+      10,
+      'enterprise',
+      'year',
+      1014700,
+      'brl',
+      80,
+      false,
+      'VIP',
+      '["10 contas MT5", "Operação multi-conta", "Suporte VIP/Enterprise"]'::jsonb
+    )
+)
+insert into public.plans (
+  id,
+  plan_name,
+  name,
+  slug,
+  stripe_product_id,
+  status,
+  active,
+  account_limit,
+  support_tier,
+  billing_interval,
+  price_cents,
+  price_amount,
+  currency,
+  display_order,
+  highlighted,
+  recommended_badge,
+  plan_features
+)
+select
+  id,
+  plan_name,
+  name,
+  slug,
+  stripe_product_id,
+  'active',
+  true,
+  account_limit,
+  support_tier,
+  billing_interval,
+  price_amount,
+  price_amount,
+  currency,
+  display_order,
+  highlighted,
+  recommended_badge,
+  plan_features
+from plan_catalog
+on conflict (id) do update set
+  plan_name = excluded.plan_name,
+  name = excluded.name,
+  slug = excluded.slug,
+  stripe_product_id = excluded.stripe_product_id,
+  status = excluded.status,
+  active = excluded.active,
+  account_limit = excluded.account_limit,
+  support_tier = excluded.support_tier,
+  billing_interval = excluded.billing_interval,
+  price_cents = excluded.price_cents,
+  price_amount = excluded.price_amount,
+  currency = excluded.currency,
+  display_order = excluded.display_order,
+  highlighted = excluded.highlighted,
+  recommended_badge = excluded.recommended_badge,
+  plan_features = excluded.plan_features,
+  updated_at = now();

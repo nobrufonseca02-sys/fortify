@@ -75,7 +75,8 @@ export default function AuthPage() {
   };
 
   const choosePaidPlan = () => {
-    window.sessionStorage.setItem("fortify_intended_plan", "monthly");
+    window.sessionStorage.setItem("fortify_intended_plan", "pro_monthly");
+    window.sessionStorage.setItem("intended_plan_slug", "pro_monthly");
     setMode("signup");
   };
 

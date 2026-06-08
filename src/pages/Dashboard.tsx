@@ -18,6 +18,7 @@ import { BetaReadinessChecklist, GuidedEmptyState } from '@/components/BetaReadi
 import { buildBetaChecklist } from '@/lib/betaReadiness';
 import { PlanStatusPanel } from '@/components/PlanStatusPanel';
 import { SaaSOnboardingChecklist } from '@/components/SaaSOnboardingChecklist';
+import { confirmCheckoutSession } from '@/lib/billing';
 
 const mt5StatusConfig: Record<Mt5ConnectionStatus, { label: string; icon: typeof Link2; className: string }> = {
   disconnected: { label: 'Desconectada', icon: XCircle, className: 'bg-muted text-muted-foreground' },
@@ -392,9 +393,14 @@ const Dashboard = () => {
   const { accounts } = useAccountsStore();
   const { data: ruleRows = [] } = useAllRuleEvaluations();
   const { user } = useAuth();
+  const { session } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const checkoutSuccess = new URLSearchParams(location.search).get('checkout') === 'success';
+  const searchParams = new URLSearchParams(location.search);
+  const checkoutSuccess = searchParams.get('checkout') === 'success';
+  const checkoutSessionId = searchParams.get('session_id');
+  const [checkoutMessage, setCheckoutMessage] = useState<string | null>(null);
+  const [checkoutConfirming, setCheckoutConfirming] = useState(false);
   
   // MT5 connections state
   const [mt5Connections, setMt5Connections] = useState<any[]>([]);
@@ -427,6 +433,27 @@ const Dashboard = () => {
     loadMt5Connections();
   }, [user?.id]);
 
+  useEffect(() => {
+    if (!checkoutSuccess || !checkoutSessionId || !session?.access_token) return;
+    let active = true;
+    setCheckoutConfirming(true);
+    confirmCheckoutSession(checkoutSessionId, session.access_token)
+      .then(() => {
+        if (!active) return;
+        setCheckoutMessage('Pagamento confirmado. Seu plano foi ativado.');
+      })
+      .catch((error) => {
+        if (!active) return;
+        setCheckoutMessage(error?.message || 'Pagamento recebido. Seu plano será ativado em instantes.');
+      })
+      .finally(() => {
+        if (active) setCheckoutConfirming(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [checkoutSessionId, checkoutSuccess, session?.access_token]);
+
   // Helper to get MT5 connection for an account
   const getMt5Connection = (accountId: string) => {
     return mt5Connections.find(conn => conn.trading_account_id === accountId);
@@ -440,7 +467,9 @@ const Dashboard = () => {
       <HeroCard />
       {checkoutSuccess && (
         <div className="rounded-xl border border-success/25 bg-success/10 p-4">
-          <p className="text-sm font-semibold text-foreground">Pagamento recebido. Seu plano sera ativado em instantes.</p>
+          <p className="text-sm font-semibold text-foreground">
+            {checkoutConfirming ? 'Confirmando pagamento com a Stripe...' : checkoutMessage || 'Pagamento recebido. Seu plano será ativado em instantes.'}
+          </p>
           <p className="text-xs text-muted-foreground mt-1">
             Se o webhook ainda estiver processando, o status pode aparecer como pendente por alguns segundos.
           </p>

@@ -1,9 +1,40 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { PageTransition } from "@/components/PageTransition";
-import { Activity } from "lucide-react";
+import { Activity, CreditCard, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
+import { createPortalSession, isBillingEnabled } from "@/lib/billing";
+import { toast } from "@/hooks/use-toast";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
+  const navigate = useNavigate();
+  const { session } = useAuth();
+  const { subscription, plans } = useSubscriptionPlan();
+  const [openingPortal, setOpeningPortal] = useState(false);
+  const currentPlan = plans.find((plan) => plan.id === subscription?.plan_id || plan.slug === subscription?.plan_id);
+  const isEnterprise = String(currentPlan?.slug || currentPlan?.id || '').includes('enterprise');
+  const showUpgrade = Boolean(session && !isEnterprise);
+
+  const handleUpgrade = async () => {
+    if (subscription?.stripe_customer_id && isBillingEnabled() && session?.access_token) {
+      setOpeningPortal(true);
+      try {
+        const portal = await createPortalSession(session.access_token);
+        window.location.assign(portal.portal_url);
+      } catch (error: any) {
+        toast({ title: 'Portal indisponível', description: error?.message || 'Abrindo planos Fortify.' });
+        navigate('/pricing');
+      } finally {
+        setOpeningPortal(false);
+      }
+      return;
+    }
+    navigate('/pricing');
+  };
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
@@ -24,9 +55,22 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 <span>System Online</span>
               </div>
             </div>
-            <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.16em] text-muted-foreground/70">
-              <Activity className="w-3 h-3 text-primary/70" />
-              <span>Risk Console</span>
+            <div className="flex items-center gap-3">
+              {showUpgrade ? (
+                <button
+                  type="button"
+                  onClick={handleUpgrade}
+                  disabled={openingPortal}
+                  className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-primary hover:bg-primary/15 transition-colors disabled:opacity-60"
+                >
+                  {openingPortal ? <Loader2 className="w-3 h-3 animate-spin" /> : <CreditCard className="w-3 h-3" />}
+                  Fazer upgrade
+                </button>
+              ) : null}
+              <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.16em] text-muted-foreground/70">
+                <Activity className="w-3 h-3 text-primary/70" />
+                <span>Risk Console</span>
+              </div>
             </div>
           </header>
 

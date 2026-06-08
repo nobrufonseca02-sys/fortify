@@ -10,10 +10,17 @@ export interface FortifyPlan {
   status: string;
   active?: boolean | null;
   stripe_price_id?: string | null;
+  stripe_product_id?: string | null;
   account_limit: number;
+  support_tier?: string | null;
   billing_interval: string | null;
   price_amount?: number | null;
   price_cents: number | null;
+  currency?: string | null;
+  plan_features?: string[] | null;
+  display_order?: number | null;
+  highlighted?: boolean | null;
+  recommended_badge?: string | null;
 }
 
 export interface FortifySubscription {
@@ -28,6 +35,7 @@ export interface FortifySubscription {
   cancel_at_period_end?: boolean | null;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
+  support_tier?: string | null;
 }
 
 function isSubscriptionUsable(subscription: FortifySubscription | null | undefined) {
@@ -51,7 +59,7 @@ export function useSubscriptionPlan() {
           .select('*')
           .eq('status', 'active')
           .eq('active', true)
-          .order('account_limit', { ascending: true }) as any);
+          .order('display_order', { ascending: true }) as any);
 
       if (plansRes.error) throw plansRes.error;
       const plans = (plansRes.data ?? []) as FortifyPlan[];

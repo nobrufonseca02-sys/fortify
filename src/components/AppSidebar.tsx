@@ -1,4 +1,4 @@
-import { LayoutDashboard, ScrollText, PlusCircle, Settings, BarChart3, Shield, BookOpen, Archive, LogOut, Server, Calculator, ClipboardList, FileCheck, CreditCard } from "lucide-react";
+import { LayoutDashboard, ScrollText, PlusCircle, Settings, BarChart3, Shield, BookOpen, Archive, LogOut, Server, Calculator, CreditCard } from "lucide-react";
 import fortifyLogo from "@/assets/fortify-eagle.png";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -19,31 +19,24 @@ const groups = [
   {
     label: "Cockpit",
     items: [
-      { title: "Risk Panel", url: "/", icon: LayoutDashboard },
-      { title: "Calculadora", url: "/calculator", icon: Calculator },
+      { title: "Painel", url: "/", icon: LayoutDashboard },
+      { title: "Calculadora de Risco", url: "/calculator", icon: Calculator },
       
     ],
   },
   {
     label: "Contas & Regras",
     items: [
-      { title: "Minhas Contas", url: "/accounts", icon: PlusCircle },
+      { title: "Contas", url: "/accounts", icon: PlusCircle },
+      { title: "Contas MT5", url: "/mt5", icon: Server },
       { title: "Regras", url: "/rules", icon: ScrollText },
-      { title: "Performance", url: "/performance", icon: BarChart3 },
-    ],
-  },
-  {
-    label: "Disciplina",
-    items: [
-      { title: "Plano de Sessão", url: "/planner", icon: ClipboardList },
-      { title: "Revisão", url: "/review", icon: FileCheck },
+      { title: "Desempenho", url: "/performance", icon: BarChart3 },
     ],
   },
   {
     label: "Recursos",
     items: [
-      { title: "Prop Firm Library", url: "/library", icon: BookOpen },
-      { title: "Contas MT5", url: "/mt5", icon: Server },
+      { title: "Biblioteca de Mesas", url: "/library", icon: BookOpen },
       { title: "Planos", url: "/pricing", icon: CreditCard },
       { title: "Histórico", url: "/history", icon: Archive },
       { title: "Configurações", url: "/settings", icon: Settings },
@@ -114,7 +107,7 @@ export function AppSidebar() {
                     <SidebarMenuButton asChild>
                       <NavLink to="/adm" activeClassName="">
                         <Shield className="mr-2 h-4 w-4" />
-                        {!collapsed && <span className="text-[12px] font-medium tracking-wide">Admin</span>}
+                        {!collapsed && <span className="text-[12px] font-medium tracking-wide">ADM</span>}
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
