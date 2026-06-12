@@ -3,7 +3,7 @@ import { gatewayJsonHeaders } from '@/lib/gateway';
 const gatewayUrl = () => import.meta.env.VITE_METAAPI_GATEWAY_URL || 'http://localhost:3001';
 
 export function isBillingEnabled() {
-  return import.meta.env.VITE_BILLING_ENABLED === 'true';
+  return import.meta.env.VITE_BILLING_ENABLED !== 'false';
 }
 
 export async function createCheckoutSession(planSlug: string, accessToken: string) {
@@ -63,4 +63,19 @@ export async function createPortalSession(accessToken: string) {
   }
 
   return body as { portal_url: string };
+}
+
+export async function createAddonCheckoutSession(addonSlug: string, accessToken: string) {
+  const response = await fetch(`${gatewayUrl()}/billing/create-addon-checkout-session`, {
+    method: 'POST',
+    headers: gatewayJsonHeaders(accessToken),
+    body: JSON.stringify({ addonSlug }),
+  });
+
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(body?.details || body?.error || 'Falha ao criar checkout da conta extra.');
+  }
+
+  return body as { checkout_url: string; session_id: string };
 }

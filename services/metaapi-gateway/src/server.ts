@@ -55,6 +55,7 @@ const STRIPE_CANCEL_URL = process.env.STRIPE_CANCEL_URL || 'http://localhost:808
 const STRIPE_CUSTOMER_PORTAL_RETURN_URL = process.env.STRIPE_CUSTOMER_PORTAL_RETURN_URL || 'http://localhost:8081/settings';
 const STRIPE_API_BASE_URL = 'https://api.stripe.com/v1';
 const OWNER_ADMIN_EMAIL = 'nobrufonseca01@hotmail.com';
+const EXTRA_ACCOUNT_ADDON_SLUG = 'extra_account_monthly';
 
 if (!SUPABASE_URL) {
   throw new Error('Missing required environment variable: SUPABASE_URL');
@@ -200,6 +201,7 @@ type BillingPlan = {
   display_order?: number | null;
   highlighted?: boolean | null;
   recommended_badge?: string | null;
+  plan_type?: string | null;
 };
 
 type AdminAuthResult = AuthenticatedUser & { isOwnerEmail: boolean };
@@ -552,7 +554,23 @@ function normalizeBillingPlan(plan: JsonRecord): BillingPlan {
     display_order: plan.display_order ?? null,
     highlighted: plan.highlighted ?? null,
     recommended_badge: plan.recommended_badge ?? null,
+    plan_type: plan.plan_type ?? null,
   };
+}
+
+function isAddonPlan(plan: BillingPlan | JsonRecord | null | undefined) {
+  if (!plan) return false;
+  const id = String(plan.id || '').toLowerCase();
+  const slug = String(plan.slug || '').toLowerCase();
+  const planType = String(plan.plan_type || '').toLowerCase();
+  return planType === 'add_on' || id === EXTRA_ACCOUNT_ADDON_SLUG || slug === EXTRA_ACCOUNT_ADDON_SLUG;
+}
+
+function isAddonSubscription(subscription: JsonRecord) {
+  return (
+    String(subscription.metadata?.addon_slug || '').toLowerCase() === EXTRA_ACCOUNT_ADDON_SLUG ||
+    String(subscription.metadata?.addon_type || '').toLowerCase() === 'extra_account'
+  );
 }
 
 function isSafePlanSelector(value: string) {
@@ -753,11 +771,133 @@ function getStripePriceId(subscription: JsonRecord): string | null {
   );
 }
 
+function getStripeSubscriptionItemId(subscription: JsonRecord): string | null {
+  return getStripeId(subscription.items?.data?.[0]?.id);
+}
+
+function getStripeSubscriptionQuantity(subscription: JsonRecord): number {
+  const quantity = Number(subscription.items?.data?.[0]?.quantity ?? 1);
+  return Number.isFinite(quantity) && quantity > 0 ? Math.floor(quantity) : 1;
+}
+
 function getStripeId(value: unknown): string | null {
   if (!value) return null;
   if (typeof value === 'string') return value;
   if (typeof value === 'object' && value && 'id' in value) return String((value as JsonRecord).id);
   return null;
+}
+
+function isMissingRelationError(error: JsonRecord | null | undefined) {
+  if (!error) return false;
+  const message = String(error.message || error.details || '').toLowerCase();
+  return error.code === '42P01' || error.code === 'PGRST205' || message.includes('subscription_addons');
+}
+
+async function getActiveAddonQuantityForUser(userId: string) {
+  const { data, error } = await (supabase
+    .from('subscription_addons' as any)
+    .select('quantity,status')
+    .eq('user_id', userId)
+    .in('status', ['active', 'trialing']) as any);
+
+  if (error) {
+    if (isMissingRelationError(error)) {
+      fastify.log.warn({
+        event: 'subscription_addons_table_missing',
+        userId: maskForLog(userId),
+      });
+      return 0;
+    }
+    throw error;
+  }
+
+  return (data || []).reduce((sum: number, item: JsonRecord) => {
+    const quantity = Number(item.quantity ?? 0);
+    return sum + (Number.isFinite(quantity) && quantity > 0 ? Math.floor(quantity) : 0);
+  }, 0);
+}
+
+async function findBaseSubscriptionForAddon(userId: string) {
+  const { data, error } = await (supabase
+    .from('user_subscriptions' as any)
+    .select('id,stripe_customer_id,status,current_period_end')
+    .eq('user_id', userId)
+    .in('status', ['active', 'trialing'])
+    .order('current_period_end', { ascending: false })
+    .limit(1)
+    .maybeSingle() as any);
+
+  if (error) throw error;
+  if (!data) return null;
+
+  const periodEnd = data.current_period_end ? Date.parse(data.current_period_end) : Number.NaN;
+  if (Number.isFinite(periodEnd) && periodEnd <= Date.now()) return null;
+  return data as JsonRecord;
+}
+
+async function upsertAddonFromStripe(subscription: JsonRecord, fallbackUserId?: string | null, fallbackPlan?: BillingPlan | null) {
+  const stripeSubscriptionId = getStripeId(subscription.id);
+  const stripeCustomerId = getStripeId(subscription.customer);
+  const priceId = getStripePriceId(subscription);
+  const userId = String(subscription.metadata?.user_id || fallbackUserId || '').trim();
+
+  if (!stripeSubscriptionId || !stripeCustomerId || !priceId || !isUuid(userId)) {
+    fastify.log.warn({
+      event: 'stripe_addon_sync_skipped_missing_metadata',
+      subscriptionId: maskForLog(stripeSubscriptionId),
+      customerId: maskForLog(stripeCustomerId),
+      priceId: maskForLog(priceId),
+      userId: maskForLog(userId),
+    });
+    return { updated: false, reason: 'missing_metadata', addon: true };
+  }
+
+  const plan = fallbackPlan || await findBillingPlanByStripePriceId(priceId);
+  if (!plan || !isAddonPlan(plan)) {
+    fastify.log.warn({
+      event: 'stripe_addon_sync_skipped_plan_not_found',
+      subscriptionId: maskForLog(stripeSubscriptionId),
+      priceId: maskForLog(priceId),
+      userId: maskForLog(userId),
+    });
+    return { updated: false, reason: 'addon_plan_not_found', addon: true };
+  }
+
+  const baseSubscription = await findBaseSubscriptionForAddon(userId);
+  if (!baseSubscription) {
+    fastify.log.warn({
+      event: 'stripe_addon_sync_skipped_base_subscription_missing',
+      subscriptionId: maskForLog(stripeSubscriptionId),
+      userId: maskForLog(userId),
+    });
+    return { updated: false, reason: 'base_subscription_missing', addon: true };
+  }
+
+  const { error } = await (supabase
+    .from('subscription_addons' as any)
+    .upsert({
+      user_id: userId,
+      subscription_id: baseSubscription.id,
+      addon_slug: plan.slug || plan.id,
+      stripe_price_id: priceId,
+      stripe_subscription_id: stripeSubscriptionId,
+      stripe_subscription_item_id: getStripeSubscriptionItemId(subscription),
+      quantity: getStripeSubscriptionQuantity(subscription),
+      status: String(subscription.status || 'incomplete'),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'stripe_subscription_id' }) as any);
+
+  if (error) throw error;
+
+  fastify.log.info({
+    event: 'stripe_addon_synced',
+    userId: maskForLog(userId),
+    addonSlug: plan.slug || plan.id,
+    status: subscription.status,
+    subscriptionId: maskForLog(stripeSubscriptionId),
+  });
+
+  return { updated: true, addon: true, addonSlug: plan.slug || plan.id };
 }
 
 async function upsertSubscriptionFromStripe(subscription: JsonRecord, fallbackUserId?: string | null) {
@@ -786,6 +926,10 @@ async function upsertSubscriptionFromStripe(subscription: JsonRecord, fallbackUs
       userId: maskForLog(userId),
     });
     return { updated: false, reason: 'plan_not_found' };
+  }
+
+  if (isAddonPlan(plan) || isAddonSubscription(subscription)) {
+    return upsertAddonFromStripe(subscription, fallbackUserId, plan);
   }
 
   const currentPeriodStart =
@@ -873,13 +1017,18 @@ async function getSubscriptionStatusForUser(userId: string) {
     ? await findAdminPlanBySelector(subscription.plan_id)
     : null;
   const activeAccountCount = Number(activeAccountCountRes.count ?? 0);
-  const accountLimit = Number(subscription?.account_limit ?? plan?.account_limit ?? 0);
+  const includedAccountLimit = Number(subscription?.account_limit ?? plan?.account_limit ?? 0);
+  const extraAccountQuantity = subscription ? await getActiveAddonQuantityForUser(userId) : 0;
+  const accountLimit = includedAccountLimit + extraAccountQuantity;
 
   return {
     subscription: sanitizeSubscription(subscription),
     plan: sanitizePlan(plan as JsonRecord | null),
     support_tier: plan?.support_tier || null,
     activeAccountCount,
+    includedAccountLimit,
+    extraAccountQuantity,
+    totalAccountLimit: accountLimit,
     accountLimit,
     remainingAccounts: Math.max(0, accountLimit - activeAccountCount),
     hasActivePlan: Boolean(subscription && ['active', 'trialing'].includes(String(subscription.status))),
@@ -979,6 +1128,7 @@ function sanitizePlan(plan: JsonRecord | null | undefined) {
     account_limit: plan.account_limit,
     support_tier: plan.support_tier,
     billing_interval: plan.billing_interval,
+    plan_type: plan.plan_type ?? null,
     price_amount: plan.price_amount ?? plan.price_cents ?? null,
     currency: plan.currency,
     plan_features: Array.isArray(plan.plan_features) ? plan.plan_features : [],
@@ -1333,13 +1483,17 @@ async function getActiveAccountLimit(userId: string): Promise<AccountLimitCheck>
     };
   }
 
+  const includedAccountLimit = Number(subscription.account_limit ?? 0);
+  const extraAccountQuantity = await getActiveAddonQuantityForUser(userId);
+  const accountLimit = includedAccountLimit + extraAccountQuantity;
+
   return {
     allowed: true,
     status: 'active_subscription',
     planName: subscription.plan_name,
-    accountLimit: Number(subscription.account_limit ?? 0),
+    accountLimit,
     activeAccountCount: 0,
-    remainingAccounts: Number(subscription.account_limit ?? 0),
+    remainingAccounts: accountLimit,
   };
 }
 
@@ -3429,6 +3583,33 @@ fastify.post('/billing/confirm-checkout-session', async (request, reply) => {
       });
     }
 
+    if (isAddonPlan(plan)) {
+      if (!subscription) {
+        return reply.status(409).send({
+          error: 'Não foi possível identificar a assinatura da conta extra na Stripe.',
+          code: 'stripe_addon_subscription_missing',
+        });
+      }
+
+      const addonSync = await upsertAddonFromStripe(subscription, authResult.id, plan);
+      if (!addonSync.updated) {
+        return reply.status(409).send({
+          error: 'Não foi possível ativar a conta extra. Confirme que há um plano ativo antes de adicionar contas.',
+          code: String(addonSync.reason || 'stripe_addon_sync_failed'),
+        });
+      }
+
+      const status = await getSubscriptionStatusForUser(authResult.id);
+      fastify.log.info({
+        event: 'stripe_addon_checkout_session_confirmed',
+        userId: maskForLog(authResult.id),
+        sessionId: maskForLog(sessionId),
+        addonSlug: plan.slug || plan.id,
+      });
+
+      return reply.send({ ...status, addon: sanitizePlan(plan as JsonRecord) });
+    }
+
     if (subscription) {
       await upsertSubscriptionFromStripe(subscription, authResult.id);
     } else {
@@ -3516,6 +3697,13 @@ fastify.post('/billing/create-checkout-session', async (request, reply) => {
       });
     }
 
+    if (isAddonPlan(plan)) {
+      return reply.status(400).send({
+        error: 'Use o checkout de conta extra para adicionar capacidade a uma assinatura ativa.',
+        code: 'addon_checkout_required',
+      });
+    }
+
     if (!plan.stripe_price_id || !isStripePriceId(plan.stripe_price_id)) {
       return reply.status(400).send({
         error: 'Este plano ainda não possui um Price ID válido da Stripe.',
@@ -3599,6 +3787,119 @@ fastify.post('/billing/create-checkout-session', async (request, reply) => {
     return reply.status(error?.status && error.status < 500 ? 400 : 500).send({
       error: error?.message || 'Failed to create Stripe checkout session',
       code: 'stripe_checkout_failed',
+      details: error?.body?.error?.code,
+    });
+  }
+});
+
+fastify.post('/billing/create-addon-checkout-session', async (request, reply) => {
+  try {
+    const limit = checkRateLimit(request, 'billing', 30, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
+    const authResult = await verifyBearerUser(request);
+    if (isAuthError(authResult)) {
+      return reply.status(authResult.status).send(authResult.error);
+    }
+
+    const body = request.body as {
+      addonSlug?: string;
+      addon_slug?: string;
+    };
+    const selector = String(body?.addonSlug || body?.addon_slug || EXTRA_ACCOUNT_ADDON_SLUG).trim();
+    const plan = await findBillingPlanBySelector(selector);
+
+    if (!plan || !isAddonPlan(plan)) {
+      return reply.status(400).send({
+        error: 'Conta extra Fortify não encontrada ou inativa.',
+        code: 'invalid_addon_plan',
+      });
+    }
+
+    if (!plan.stripe_price_id || !isStripePriceId(plan.stripe_price_id)) {
+      return reply.status(400).send({
+        error: 'Este plano ainda não possui um Price ID válido da Stripe.',
+        code: 'stripe_price_missing',
+      });
+    }
+
+    if (!STRIPE_SECRET_KEY) {
+      return reply.status(503).send(stripeConfigError());
+    }
+
+    const baseSubscription = await findBaseSubscriptionForAddon(authResult.id);
+    if (!baseSubscription) {
+      return reply.status(402).send({
+        error: 'Você precisa ter um plano ativo para adicionar contas extras.',
+        code: 'active_plan_required_for_addon',
+      });
+    }
+
+    let stripeCustomerId = getStripeId(baseSubscription.stripe_customer_id);
+    if (!stripeCustomerId && authResult.email) {
+      const customer = await stripeRequest('/customers', {
+        email: authResult.email,
+        'metadata[user_id]': authResult.id,
+      });
+      stripeCustomerId = getStripeId(customer.id);
+      if (stripeCustomerId) {
+        await (supabase
+          .from('user_subscriptions' as any)
+          .update({
+            stripe_customer_id: stripeCustomerId,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', baseSubscription.id) as any);
+      }
+    }
+
+    if (!stripeCustomerId) {
+      return reply.status(409).send({
+        error: 'Não foi possível preparar o cliente Stripe para a conta extra.',
+        code: 'stripe_customer_missing_for_addon',
+      });
+    }
+
+    const params: Record<string, unknown> = {
+      mode: 'subscription',
+      success_url: checkoutSuccessUrl(),
+      cancel_url: STRIPE_CANCEL_URL,
+      client_reference_id: authResult.id,
+      customer: stripeCustomerId,
+      'line_items[0][price]': plan.stripe_price_id,
+      'line_items[0][quantity]': 1,
+      'metadata[user_id]': authResult.id,
+      'metadata[addon_slug]': plan.slug || plan.id,
+      'metadata[addon_type]': 'extra_account',
+      'subscription_data[metadata][user_id]': authResult.id,
+      'subscription_data[metadata][addon_slug]': plan.slug || plan.id,
+      'subscription_data[metadata][addon_type]': 'extra_account',
+      allow_promotion_codes: true,
+    };
+
+    const checkoutSession = await stripeRequest('/checkout/sessions', params);
+
+    fastify.log.info({
+      event: 'stripe_addon_checkout_session_created',
+      userId: maskForLog(authResult.id),
+      addonSlug: plan.slug || plan.id,
+      sessionId: maskForLog(checkoutSession.id),
+    });
+
+    return reply.send({
+      checkout_url: checkoutSession.url,
+      session_id: checkoutSession.id,
+    });
+  } catch (error: any) {
+    fastify.log.error({
+      event: 'stripe_addon_checkout_session_failed',
+      error: error?.message,
+      status: error?.status,
+      stripeCode: error?.body?.error?.code,
+    });
+    return reply.status(error?.status && error.status < 500 ? 400 : 500).send({
+      error: error?.message || 'Failed to create Stripe add-on checkout session',
+      code: 'stripe_addon_checkout_failed',
       details: error?.body?.error?.code,
     });
   }
@@ -3727,6 +4028,14 @@ fastify.post('/billing/webhook', async (request, reply) => {
           })
           .eq('stripe_subscription_id', subscriptionId) as any);
         if (error) throw error;
+        const addonUpdate = await (supabase
+          .from('subscription_addons' as any)
+          .update({
+            status: 'past_due',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('stripe_subscription_id', subscriptionId) as any);
+        if (addonUpdate.error && !isMissingRelationError(addonUpdate.error)) throw addonUpdate.error;
       }
     }
 

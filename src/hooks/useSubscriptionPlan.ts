@@ -14,6 +14,7 @@ export interface FortifyPlan {
   account_limit: number;
   support_tier?: string | null;
   billing_interval: string | null;
+  plan_type?: string | null;
   price_amount?: number | null;
   price_cents: number | null;
   currency?: string | null;
@@ -36,6 +37,11 @@ export interface FortifySubscription {
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
   support_tier?: string | null;
+}
+
+function isMissingAddonTableError(error: any) {
+  const message = String(error?.message || error?.details || '').toLowerCase();
+  return error?.code === '42P01' || error?.code === 'PGRST205' || message.includes('subscription_addons');
 }
 
 function isSubscriptionUsable(subscription: FortifySubscription | null | undefined) {
@@ -72,10 +78,13 @@ export function useSubscriptionPlan() {
           accountLimit: 0,
           remainingAccounts: 0,
           hasActivePlan: false,
+          includedAccountLimit: 0,
+          extraAccountQuantity: 0,
+          totalAccountLimit: 0,
         };
       }
 
-      const [subscriptionRes, connectionCountRes] = await Promise.all([
+      const [subscriptionRes, connectionCountRes, addonRes] = await Promise.all([
         (supabase
           .from('user_subscriptions' as any)
           .select('*')
@@ -88,20 +97,36 @@ export function useSubscriptionPlan() {
           .select('id', { count: 'exact', head: true })
           .eq('user_id', userId)
           .in('connection_status', ['connected', 'connecting', 'syncing'] as any),
+        (supabase
+          .from('subscription_addons' as any)
+          .select('quantity,status')
+          .eq('user_id', userId)
+          .in('status', ['active', 'trialing']) as any),
       ]);
 
       if (subscriptionRes.error) throw subscriptionRes.error;
       if (connectionCountRes.error) throw connectionCountRes.error;
+      if (addonRes.error && !isMissingAddonTableError(addonRes.error)) throw addonRes.error;
 
       const subscriptions = (subscriptionRes.data ?? []) as FortifySubscription[];
       const activeSubscription = subscriptions.find(isSubscriptionUsable) ?? null;
       const activeAccountCount = Number(connectionCountRes.count ?? 0);
-      const accountLimit = Number(activeSubscription?.account_limit ?? 0);
+      const includedAccountLimit = Number(activeSubscription?.account_limit ?? 0);
+      const extraAccountQuantity = addonRes.error
+        ? 0
+        : (addonRes.data ?? []).reduce((sum: number, item: any) => {
+          const quantity = Number(item.quantity ?? 0);
+          return sum + (Number.isFinite(quantity) && quantity > 0 ? Math.floor(quantity) : 0);
+        }, 0);
+      const accountLimit = includedAccountLimit + extraAccountQuantity;
 
       return {
         subscription: activeSubscription,
         plans,
         activeAccountCount,
+        includedAccountLimit,
+        extraAccountQuantity,
+        totalAccountLimit: accountLimit,
         accountLimit,
         remainingAccounts: Math.max(0, accountLimit - activeAccountCount),
         hasActivePlan: isSubscriptionUsable(activeSubscription),
@@ -113,6 +138,9 @@ export function useSubscriptionPlan() {
     subscription: query.data?.subscription ?? null,
     plans: query.data?.plans ?? [],
     activeAccountCount: query.data?.activeAccountCount ?? 0,
+    includedAccountLimit: query.data?.includedAccountLimit ?? 0,
+    extraAccountQuantity: query.data?.extraAccountQuantity ?? 0,
+    totalAccountLimit: query.data?.totalAccountLimit ?? query.data?.accountLimit ?? 0,
     accountLimit: query.data?.accountLimit ?? 0,
     remainingAccounts: query.data?.remainingAccounts ?? 0,
     hasActivePlan: query.data?.hasActivePlan ?? false,

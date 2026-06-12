@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CheckCircle2, CreditCard, Loader2, ShieldCheck, Sparkles } from 'lucide-react';
+import { CheckCircle2, CreditCard, Loader2, PlusCircle, ShieldCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscriptionPlan, type FortifyPlan } from '@/hooks/useSubscriptionPlan';
-import { createCheckoutSession, createPortalSession, isBillingEnabled } from '@/lib/billing';
+import { createAddonCheckoutSession, createCheckoutSession, createPortalSession, isBillingEnabled } from '@/lib/billing';
 import { toast } from '@/hooks/use-toast';
 
-type Interval = 'month' | 'year';
+const EXTRA_ACCOUNT_ADDON_SLUG = 'extra_account_monthly';
 
 const supportLabels: Record<string, string> = {
   basic: 'Suporte básico',
@@ -34,6 +33,15 @@ function planFamily(plan: FortifyPlan) {
   return slug;
 }
 
+function isAddonPlan(plan: FortifyPlan) {
+  const slug = String(plan.slug || plan.id).toLowerCase();
+  return String(plan.plan_type || '').toLowerCase() === 'add_on' || slug === EXTRA_ACCOUNT_ADDON_SLUG;
+}
+
+function isValidStripePrice(value?: string | null) {
+  return typeof value === 'string' && /^price_[A-Za-z0-9]+$/.test(value);
+}
+
 function formatPrice(plan: FortifyPlan) {
   const amount = Number(plan.price_amount ?? plan.price_cents ?? 0);
   if (plan.id === 'beta_free') return 'Beta';
@@ -52,15 +60,21 @@ export default function PricingPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { session } = useAuth();
-  const { plans, subscription, isLoading } = useSubscriptionPlan();
-  const [interval, setInterval] = useState<Interval>('month');
+  const {
+    plans,
+    subscription,
+    isLoading,
+    hasActivePlan,
+    extraAccountQuantity,
+    accountLimit,
+    activeAccountCount,
+  } = useSubscriptionPlan();
   const [busyPlan, setBusyPlan] = useState<string | null>(null);
+  const [busyAddon, setBusyAddon] = useState(false);
   const [openingPortal, setOpeningPortal] = useState(false);
   const [resumeAttempted, setResumeAttempted] = useState(false);
   const billingEnabled = isBillingEnabled();
   const currentPlanId = subscription?.plan_id;
-  const currentPlan = plans.find((plan) => plan.id === currentPlanId || plan.slug === currentPlanId);
-  const currentIsEnterprise = currentPlan ? planFamily(currentPlan) === 'enterprise' : false;
   const checkoutCanceled = searchParams.get('checkout') === 'cancel';
   const intendedPlan = useMemo(
     () => searchParams.get('checkoutPlan') || window.sessionStorage.getItem('intended_plan_slug') || window.sessionStorage.getItem('fortify_intended_plan'),
@@ -68,10 +82,17 @@ export default function PricingPage() {
   );
 
   const visiblePlans = useMemo(() => {
-    const paid = plans.filter((plan) => plan.id !== 'beta_free');
-    const filtered = paid.filter((plan) => plan.billing_interval === interval);
-    return filtered.length > 0 ? filtered : paid;
-  }, [interval, plans]);
+    return plans.filter((plan) => (
+      plan.id !== 'beta_free' &&
+      plan.billing_interval === 'month' &&
+      !isAddonPlan(plan)
+    ));
+  }, [plans]);
+
+  const addonPlan = useMemo(
+    () => plans.find((plan) => isAddonPlan(plan)) ?? null,
+    [plans],
+  );
 
   const startCheckout = async (plan: FortifyPlan) => {
     if (plan.id === 'beta_free') {
@@ -87,8 +108,13 @@ export default function PricingPage() {
       return;
     }
 
+    if (!isValidStripePrice(plan.stripe_price_id)) {
+      toast({ title: 'Plano indisponível', description: 'Este plano ainda não possui um Price ID válido da Stripe.', variant: 'destructive' });
+      return;
+    }
+
     if (!billingEnabled) {
-      toast({ title: 'Checkout desativado', description: 'Ative VITE_BILLING_ENABLED e configure Stripe no gateway.', variant: 'destructive' });
+      toast({ title: 'Checkout desativado', description: 'O checkout Stripe foi desativado neste ambiente.', variant: 'destructive' });
       return;
     }
 
@@ -100,6 +126,39 @@ export default function PricingPage() {
       toast({ title: 'Checkout indisponível', description: error?.message || 'Revise a configuração Stripe do gateway.', variant: 'destructive' });
     } finally {
       setBusyPlan(null);
+    }
+  };
+
+  const startAddonCheckout = async () => {
+    if (!session?.access_token) {
+      toast({ title: 'Sessão necessária', description: 'Entre ou crie sua conta para adicionar contas extras.' });
+      navigate('/auth');
+      return;
+    }
+
+    if (!hasActivePlan) {
+      toast({ title: 'Plano necessário', description: 'Você precisa ter um plano ativo para adicionar contas extras.', variant: 'destructive' });
+      return;
+    }
+
+    if (!addonPlan || !isValidStripePrice(addonPlan.stripe_price_id)) {
+      toast({ title: 'Conta extra indisponível', description: 'Este plano ainda não possui um Price ID válido da Stripe.', variant: 'destructive' });
+      return;
+    }
+
+    if (!billingEnabled) {
+      toast({ title: 'Checkout desativado', description: 'O checkout Stripe foi desativado neste ambiente.', variant: 'destructive' });
+      return;
+    }
+
+    setBusyAddon(true);
+    try {
+      const checkout = await createAddonCheckoutSession(addonPlan.slug || addonPlan.id, session.access_token);
+      window.location.assign(checkout.checkout_url);
+    } catch (error: any) {
+      toast({ title: 'Conta extra indisponível', description: error?.message || 'Revise a configuração Stripe do gateway.', variant: 'destructive' });
+    } finally {
+      setBusyAddon(false);
     }
   };
 
@@ -151,12 +210,6 @@ export default function PricingPage() {
               Gerenciar assinatura
             </Button>
           ) : null}
-          {currentIsEnterprise ? null : (
-            <Button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="gap-2">
-              <Sparkles className="w-4 h-4" />
-              Fazer upgrade
-            </Button>
-          )}
         </div>
       </div>
 
@@ -176,12 +229,7 @@ export default function PricingPage() {
       )}
 
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <Tabs value={interval} onValueChange={(value) => setInterval(value as Interval)}>
-          <TabsList>
-            <TabsTrigger value="month">Mensal</TabsTrigger>
-            <TabsTrigger value="year">Anual</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <p className="text-sm font-medium text-foreground">Planos mensais</p>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <ShieldCheck className="h-4 w-4 text-primary" />
           Você pode gerenciar sua assinatura nas configurações.
@@ -197,6 +245,8 @@ export default function PricingPage() {
           const features = Array.isArray(plan.plan_features) && plan.plan_features.length > 0
             ? plan.plan_features
             : [`Até ${plan.account_limit} conta${plan.account_limit === 1 ? '' : 's'} MT5`, support, 'Regras e alertas Fortify'];
+
+          const hasValidPrice = isValidStripePrice(plan.stripe_price_id);
 
           return (
             <section key={plan.id} className={`rounded-xl border bg-card p-5 space-y-5 ${plan.highlighted ? 'border-primary/50 shadow-lg shadow-primary/5' : 'border-border'}`}>
@@ -232,18 +282,43 @@ export default function PricingPage() {
 
               <Button
                 type="button"
-                disabled={isCurrent || isBusy || (plan.id !== 'beta_free' && !billingEnabled)}
+                disabled={isCurrent || isBusy || !hasValidPrice}
                 onClick={() => subscription?.stripe_customer_id && !isCurrent ? openPortal() : startCheckout(plan)}
-                className="w-full gap-2"
+                className={`w-full gap-2 ${isCurrent || isBusy || !hasValidPrice ? '' : 'cursor-pointer'}`}
                 variant={plan.highlighted ? 'premium' : 'default'}
               >
                 {isBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                {isCurrent ? 'Plano atual' : subscription?.stripe_customer_id ? 'Gerenciar assinatura' : 'Assinar'}
+                {!hasValidPrice ? 'Indisponível' : isCurrent ? 'Plano atual' : subscription?.stripe_customer_id ? 'Gerenciar assinatura' : 'Assinar'}
               </Button>
             </section>
           );
         })}
       </div>
+
+      <section className="rounded-xl border border-border bg-card p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <PlusCircle className="h-5 w-5 text-primary" />
+            <p className="text-sm font-semibold text-foreground">Conta MT5 extra</p>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Adicione capacidade ao seu plano ativo por R$119/mês por conta adicional.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Contas extras ativas: {extraAccountQuantity}. Uso atual: {activeAccountCount}/{accountLimit || 0} contas.
+          </p>
+        </div>
+        <Button
+          type="button"
+          onClick={startAddonCheckout}
+          disabled={busyAddon || !addonPlan || !isValidStripePrice(addonPlan.stripe_price_id)}
+          className="gap-2 md:min-w-[220px]"
+          variant="outline"
+        >
+          {busyAddon ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4" />}
+          {addonPlan && isValidStripePrice(addonPlan.stripe_price_id) ? 'Adicionar conta extra' : 'Indisponível'}
+        </Button>
+      </section>
     </div>
   );
 }
