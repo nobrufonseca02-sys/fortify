@@ -285,6 +285,8 @@ function Dashboard() {
 
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
+      <MarketTicker />
+
       <motion.header
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -296,8 +298,6 @@ function Dashboard() {
           Monitore risco, drawdown, posições abertas e regras críticas antes do próximo trade.
         </p>
       </motion.header>
-
-      <MarketTicker />
 
       {checkoutSuccess && (
         <div className="rounded-xl border border-success/25 bg-success/10 p-4">

@@ -37,20 +37,11 @@ const directionClass: Record<MarketTickerAsset['direction'], string> = {
 
 function TickerItem({ asset }: { asset: MarketTickerAsset }) {
   return (
-    <div className="flex min-w-max items-center gap-3 border-r border-border/50 px-4 py-3">
-      <div>
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-xs font-bold text-foreground">{asset.symbol}</span>
-          <span className="rounded-full border border-border/60 bg-muted/30 px-1.5 py-0.5 text-[8px] uppercase tracking-[0.16em] text-muted-foreground">
-            {asset.category}
-          </span>
-        </div>
-        <p className="mt-0.5 text-[10px] text-muted-foreground">{asset.name}</p>
-      </div>
-      <div className="text-right">
-        <p className="font-mono text-xs font-semibold text-foreground">{asset.price}</p>
-        <p className={`font-mono text-[10px] font-bold ${directionClass[asset.direction]}`}>{asset.changePercent}</p>
-      </div>
+    <div className="flex h-10 min-w-max items-center gap-2 border-r border-border/40 px-3">
+      <span className="font-mono text-xs font-bold text-foreground">{asset.symbol}</span>
+      <span className="hidden text-[10px] text-muted-foreground sm:inline">{asset.name}</span>
+      <span className="font-mono text-xs font-semibold text-foreground">{asset.price}</span>
+      <span className={`font-mono text-[10px] font-bold ${directionClass[asset.direction]}`}>{asset.changePercent}</span>
     </div>
   );
 }
@@ -59,16 +50,14 @@ export function MarketTicker() {
   const tickerItems = [...assets, ...assets];
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-border bg-card/85 shadow-lg shadow-background/20">
-      <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-2">
-        <div>
-          <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-primary">Market tape</p>
-          <p className="text-[10px] text-muted-foreground">
-            Cotações simuladas para visualização. Dados reais serão integrados em uma próxima versão.
-          </p>
-        </div>
+    <section className="flex h-11 overflow-hidden rounded-xl border border-border bg-card/80 shadow-sm shadow-background/20">
+      <div
+        className="hidden shrink-0 items-center border-r border-border/50 px-3 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground sm:flex"
+        title="Cotações simuladas para visualização. Dados reais serão integrados em uma próxima versão."
+      >
+        Dados simulados
       </div>
-      <div className="group relative overflow-hidden">
+      <div className="group relative min-w-0 flex-1 overflow-hidden">
         <div className="flex w-max animate-[ticker-scroll_62s_linear_infinite] group-hover:[animation-play-state:paused]">
           {tickerItems.map((asset, index) => (
             <TickerItem key={`${asset.symbol}-${index}`} asset={asset} />
