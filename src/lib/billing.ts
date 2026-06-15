@@ -6,6 +6,12 @@ export function isBillingEnabled() {
   return import.meta.env.VITE_BILLING_ENABLED !== 'false';
 }
 
+function assertCheckoutUrl(url: string | undefined) {
+  if (!url || !url.includes('checkout.stripe.com')) {
+    throw new Error('A Stripe retornou uma URL inválida para checkout.');
+  }
+}
+
 export async function createCheckoutSession(planSlug: string, accessToken: string) {
   const response = await fetch(`${gatewayUrl()}/billing/create-checkout-session`, {
     method: 'POST',
@@ -18,6 +24,7 @@ export async function createCheckoutSession(planSlug: string, accessToken: strin
     throw new Error(body?.details || body?.error || 'Falha ao criar checkout Stripe.');
   }
 
+  assertCheckoutUrl(body?.checkout_url);
   return body as { checkout_url: string; session_id: string };
 }
 
@@ -77,5 +84,6 @@ export async function createAddonCheckoutSession(addonSlug: string, accessToken:
     throw new Error(body?.details || body?.error || 'Falha ao criar checkout da conta extra.');
   }
 
+  assertCheckoutUrl(body?.checkout_url);
   return body as { checkout_url: string; session_id: string };
 }

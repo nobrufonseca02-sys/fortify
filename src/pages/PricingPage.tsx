@@ -9,6 +9,12 @@ import { createAddonCheckoutSession, createCheckoutSession, createPortalSession,
 import { toast } from '@/hooks/use-toast';
 
 const EXTRA_ACCOUNT_ADDON_SLUG = 'extra_account_monthly';
+const MAIN_PLAN_SLUGS = new Set([
+  'beginner_monthly',
+  'advanced_monthly',
+  'pro_monthly',
+  'enterprise_monthly',
+]);
 
 const supportLabels: Record<string, string> = {
   basic: 'Suporte básico',
@@ -42,6 +48,11 @@ function isValidStripePrice(value?: string | null) {
   return typeof value === 'string' && /^price_[A-Za-z0-9]+$/.test(value);
 }
 
+function hasConfiguredPrice(plan: FortifyPlan) {
+  const amount = Number(plan.price_amount ?? plan.price_cents ?? 0);
+  return amount > 0 && isValidStripePrice(plan.stripe_price_id);
+}
+
 function formatPrice(plan: FortifyPlan) {
   const amount = Number(plan.price_amount ?? plan.price_cents ?? 0);
   if (plan.id === 'beta_free') return 'Beta';
@@ -64,7 +75,6 @@ export default function PricingPage() {
     plans,
     subscription,
     isLoading,
-    hasActivePlan,
     extraAccountQuantity,
     accountLimit,
     activeAccountCount,
@@ -75,6 +85,11 @@ export default function PricingPage() {
   const [resumeAttempted, setResumeAttempted] = useState(false);
   const billingEnabled = isBillingEnabled();
   const currentPlanId = subscription?.plan_id;
+  const hasActivePaidStripeSubscription = Boolean(
+    subscription?.stripe_customer_id &&
+    subscription?.stripe_subscription_id &&
+    subscription.plan_id !== 'beta_free',
+  );
   const checkoutCanceled = searchParams.get('checkout') === 'cancel';
   const intendedPlan = useMemo(
     () => searchParams.get('checkoutPlan') || window.sessionStorage.getItem('intended_plan_slug') || window.sessionStorage.getItem('fortify_intended_plan'),
@@ -83,9 +98,10 @@ export default function PricingPage() {
 
   const visiblePlans = useMemo(() => {
     return plans.filter((plan) => (
-      plan.id !== 'beta_free' &&
+      MAIN_PLAN_SLUGS.has(String(plan.slug || plan.id)) &&
       plan.billing_interval === 'month' &&
-      !isAddonPlan(plan)
+      !isAddonPlan(plan) &&
+      hasConfiguredPrice(plan)
     ));
   }, [plans]);
 
@@ -108,7 +124,7 @@ export default function PricingPage() {
       return;
     }
 
-    if (!isValidStripePrice(plan.stripe_price_id)) {
+    if (!hasConfiguredPrice(plan)) {
       toast({ title: 'Plano indisponível', description: 'Este plano ainda não possui um Price ID válido da Stripe.', variant: 'destructive' });
       return;
     }
@@ -136,7 +152,7 @@ export default function PricingPage() {
       return;
     }
 
-    if (!hasActivePlan) {
+    if (!hasActivePaidStripeSubscription) {
       toast({ title: 'Plano necessário', description: 'Você precisa ter um plano ativo para adicionar contas extras.', variant: 'destructive' });
       return;
     }
@@ -204,7 +220,7 @@ export default function PricingPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          {subscription?.stripe_customer_id ? (
+          {hasActivePaidStripeSubscription ? (
             <Button variant="outline" onClick={openPortal} disabled={openingPortal} className="gap-2">
               {openingPortal ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
               Gerenciar assinatura
@@ -246,7 +262,7 @@ export default function PricingPage() {
             ? plan.plan_features
             : [`Até ${plan.account_limit} conta${plan.account_limit === 1 ? '' : 's'} MT5`, support, 'Regras e alertas Fortify'];
 
-          const hasValidPrice = isValidStripePrice(plan.stripe_price_id);
+          const hasValidPrice = hasConfiguredPrice(plan);
 
           return (
             <section key={plan.id} className={`rounded-xl border bg-card p-5 space-y-5 ${plan.highlighted ? 'border-primary/50 shadow-lg shadow-primary/5' : 'border-border'}`}>
@@ -283,12 +299,12 @@ export default function PricingPage() {
               <Button
                 type="button"
                 disabled={isCurrent || isBusy || !hasValidPrice}
-                onClick={() => subscription?.stripe_customer_id && !isCurrent ? openPortal() : startCheckout(plan)}
+                onClick={() => hasActivePaidStripeSubscription && !isCurrent ? openPortal() : startCheckout(plan)}
                 className={`w-full gap-2 ${isCurrent || isBusy || !hasValidPrice ? '' : 'cursor-pointer'}`}
                 variant={plan.highlighted ? 'premium' : 'default'}
               >
                 {isBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                {!hasValidPrice ? 'Indisponível' : isCurrent ? 'Plano atual' : subscription?.stripe_customer_id ? 'Gerenciar assinatura' : 'Assinar'}
+                {!hasValidPrice ? 'Indisponível' : isCurrent ? 'Plano atual' : hasActivePaidStripeSubscription ? 'Gerenciar assinatura' : currentPlanId === 'beta_free' ? 'Fazer upgrade' : 'Assinar'}
               </Button>
             </section>
           );
@@ -302,21 +318,23 @@ export default function PricingPage() {
             <p className="text-sm font-semibold text-foreground">Conta MT5 extra</p>
           </div>
           <p className="text-sm text-muted-foreground">
-            Adicione capacidade ao seu plano ativo por R$119/mês por conta adicional.
+            Conta extra — R$119/mês. Adicione capacidade ao seu plano ativo.
           </p>
           <p className="text-xs text-muted-foreground">
-            Contas extras ativas: {extraAccountQuantity}. Uso atual: {activeAccountCount}/{accountLimit || 0} contas.
+            {hasActivePaidStripeSubscription
+              ? `Contas extras ativas: ${extraAccountQuantity}. Uso atual: ${activeAccountCount}/${accountLimit || 0} contas.`
+              : 'Você precisa ter um plano ativo para adicionar contas extras.'}
           </p>
         </div>
         <Button
           type="button"
           onClick={startAddonCheckout}
-          disabled={busyAddon || !addonPlan || !isValidStripePrice(addonPlan.stripe_price_id)}
+          disabled={busyAddon || !hasActivePaidStripeSubscription || !addonPlan || !hasConfiguredPrice(addonPlan)}
           className="gap-2 md:min-w-[220px]"
           variant="outline"
         >
           {busyAddon ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4" />}
-          {addonPlan && isValidStripePrice(addonPlan.stripe_price_id) ? 'Adicionar conta extra' : 'Indisponível'}
+          {addonPlan && hasConfiguredPrice(addonPlan) ? 'Adicionar conta extra' : 'Indisponível'}
         </Button>
       </section>
     </div>
