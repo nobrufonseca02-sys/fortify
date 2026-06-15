@@ -54,6 +54,8 @@ const STRIPE_SUCCESS_URL = process.env.STRIPE_SUCCESS_URL || 'http://localhost:8
 const STRIPE_CANCEL_URL = process.env.STRIPE_CANCEL_URL || 'http://localhost:8081/pricing?checkout=cancel';
 const STRIPE_CUSTOMER_PORTAL_RETURN_URL = process.env.STRIPE_CUSTOMER_PORTAL_RETURN_URL || 'http://localhost:8081/settings';
 const STRIPE_API_BASE_URL = 'https://api.stripe.com/v1';
+const BILLING_GRACE_HOURS = Math.max(0, Number(process.env.BILLING_GRACE_HOURS || 0));
+const INTERNAL_CRON_SECRET = process.env.INTERNAL_CRON_SECRET || '';
 const OWNER_ADMIN_EMAIL = 'nobrufonseca01@hotmail.com';
 const EXTRA_ACCOUNT_ADDON_SLUG = 'extra_account_monthly';
 
@@ -180,6 +182,16 @@ type AccountLimitCheck = {
   error?: string;
   code?: string;
   httpStatus?: number;
+};
+
+type UserEntitlement = {
+  hasActivePaidPlan: boolean;
+  planSlug: string | null;
+  accountLimit: number;
+  paidUntil: string | null;
+  subscriptionStatus: string | null;
+  canUseMetaApi: boolean;
+  reason: string;
 };
 
 type BillingPlan = {
@@ -763,6 +775,56 @@ function stripeEpochToIso(value: unknown): string | null {
   return new Date(seconds * 1000).toISOString();
 }
 
+function getStripePeriodStart(source: JsonRecord): string | null {
+  return (
+    stripeEpochToIso(source.current_period_start) ||
+    stripeEpochToIso(source.items?.data?.[0]?.current_period_start) ||
+    stripeEpochToIso(source.lines?.data?.[0]?.period?.start) ||
+    null
+  );
+}
+
+function getStripePeriodEnd(source: JsonRecord): string | null {
+  return (
+    stripeEpochToIso(source.current_period_end) ||
+    stripeEpochToIso(source.items?.data?.[0]?.current_period_end) ||
+    stripeEpochToIso(source.lines?.data?.[0]?.period?.end) ||
+    null
+  );
+}
+
+function isValidPaidStatus(status: unknown) {
+  return ['active', 'trialing'].includes(String(status || '').toLowerCase());
+}
+
+function isInvalidPaidStatus(status: unknown) {
+  return ['past_due', 'unpaid', 'canceled', 'cancelled', 'incomplete', 'incomplete_expired', 'payment_failed'].includes(
+    String(status || '').toLowerCase(),
+  );
+}
+
+function isFutureIso(value: unknown) {
+  const parsed = value ? Date.parse(String(value)) : Number.NaN;
+  return Number.isFinite(parsed) && parsed > Date.now();
+}
+
+function shouldSuspendForPaymentFailure(paidUntil: unknown) {
+  if (BILLING_GRACE_HOURS <= 0) return true;
+  const parsed = paidUntil ? Date.parse(String(paidUntil)) : Number.NaN;
+  if (!Number.isFinite(parsed)) return true;
+  return parsed + BILLING_GRACE_HOURS * 60 * 60 * 1000 <= Date.now();
+}
+
+function metaApiBlockedError(entitlement?: UserEntitlement) {
+  return {
+    error: 'Seu plano não está ativo. Regularize sua assinatura para sincronizar contas MT5.',
+    code: 'plan_required',
+    reason: entitlement?.reason || 'subscription_inactive',
+    subscriptionStatus: entitlement?.subscriptionStatus || null,
+    paidUntil: entitlement?.paidUntil || null,
+  };
+}
+
 function getStripePriceId(subscription: JsonRecord): string | null {
   return (
     subscription.items?.data?.[0]?.price?.id ||
@@ -820,7 +882,7 @@ async function getActiveAddonQuantityForUser(userId: string) {
 async function findBaseSubscriptionForAddon(userId: string) {
   const { data, error } = await (supabase
     .from('user_subscriptions' as any)
-    .select('id,stripe_customer_id,status,current_period_end')
+    .select('id,stripe_customer_id,status,current_period_end,paid_until')
     .eq('user_id', userId)
     .in('status', ['active', 'trialing'])
     .order('current_period_end', { ascending: false })
@@ -830,7 +892,7 @@ async function findBaseSubscriptionForAddon(userId: string) {
   if (error) throw error;
   if (!data) return null;
 
-  const periodEnd = data.current_period_end ? Date.parse(data.current_period_end) : Number.NaN;
+  const periodEnd = data.paid_until || data.current_period_end ? Date.parse(data.paid_until || data.current_period_end) : Number.NaN;
   if (Number.isFinite(periodEnd) && periodEnd <= Date.now()) return null;
   return data as JsonRecord;
 }
@@ -932,12 +994,12 @@ async function upsertSubscriptionFromStripe(subscription: JsonRecord, fallbackUs
     return upsertAddonFromStripe(subscription, fallbackUserId, plan);
   }
 
-  const currentPeriodStart =
-    stripeEpochToIso(subscription.current_period_start) ||
-    stripeEpochToIso(subscription.items?.data?.[0]?.current_period_start);
-  const currentPeriodEnd =
-    stripeEpochToIso(subscription.current_period_end) ||
-    stripeEpochToIso(subscription.items?.data?.[0]?.current_period_end);
+  const subscriptionStatus = String(subscription.status || 'incomplete').toLowerCase();
+  const currentPeriodStart = getStripePeriodStart(subscription);
+  const currentPeriodEnd = getStripePeriodEnd(subscription);
+  const paidUntil = currentPeriodEnd;
+  const validPaidSubscription = isValidPaidStatus(subscriptionStatus) && isFutureIso(paidUntil);
+  const now = new Date().toISOString();
 
   const { error } = await (supabase
     .from('user_subscriptions' as any)
@@ -945,23 +1007,36 @@ async function upsertSubscriptionFromStripe(subscription: JsonRecord, fallbackUs
       user_id: userId,
       plan_id: plan.id,
       plan_name: plan.plan_name,
-      status: String(subscription.status || 'incomplete'),
+      status: subscriptionStatus,
+      stripe_subscription_status: subscriptionStatus,
       account_limit: plan.account_limit,
       current_period_start: currentPeriodStart,
       current_period_end: currentPeriodEnd,
+      paid_until: paidUntil,
+      activated_at: validPaidSubscription ? now : undefined,
       cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
       stripe_customer_id: stripeCustomerId,
       stripe_subscription_id: stripeSubscriptionId,
-      updated_at: new Date().toISOString(),
+      suspended_at: validPaidSubscription ? null : undefined,
+      suspension_reason: validPaidSubscription ? null : undefined,
+      metaapi_suspended_at: validPaidSubscription ? null : undefined,
+      metaapi_suspension_reason: validPaidSubscription ? null : undefined,
+      updated_at: now,
     }, { onConflict: 'user_id' }) as any);
 
   if (error) throw error;
+
+  if (validPaidSubscription) {
+    await reactivateUserMetaApiAccess(userId);
+  } else if (isInvalidPaidStatus(subscriptionStatus) || !isFutureIso(paidUntil)) {
+    await suspendUserMetaApiAccounts(userId, `stripe_subscription_${subscriptionStatus || 'invalid'}`);
+  }
 
   fastify.log.info({
     event: 'stripe_subscription_synced',
     userId: maskForLog(userId),
     planId: plan.id,
-    status: subscription.status,
+    status: subscriptionStatus,
     subscriptionId: maskForLog(stripeSubscriptionId),
   });
 
@@ -971,6 +1046,70 @@ async function upsertSubscriptionFromStripe(subscription: JsonRecord, fallbackUs
 async function syncSubscriptionById(subscriptionId: string, fallbackUserId?: string | null) {
   const subscription = await stripeGet(`/subscriptions/${encodeURIComponent(subscriptionId)}`);
   return upsertSubscriptionFromStripe(subscription, fallbackUserId);
+}
+
+async function handleInvoicePaymentSucceeded(invoice: JsonRecord) {
+  const subscriptionId = getStripeId(invoice.subscription);
+  const paidAt = stripeEpochToIso(invoice.status_transitions?.paid_at) || stripeEpochToIso(invoice.created) || new Date().toISOString();
+  if (subscriptionId && STRIPE_SECRET_KEY) {
+    const result = await syncSubscriptionById(subscriptionId);
+    const paidUntil = getStripePeriodEnd(invoice);
+    const updatePayload: JsonRecord = {
+      last_payment_status: 'succeeded',
+      last_payment_at: paidAt,
+      last_payment_failed_at: null,
+      updated_at: new Date().toISOString(),
+    };
+    if (paidUntil) {
+      updatePayload.paid_until = paidUntil;
+      updatePayload.current_period_end = paidUntil;
+    }
+    const { data, error } = await (supabase
+      .from('user_subscriptions' as any)
+      .update(updatePayload)
+      .eq('stripe_subscription_id', subscriptionId)
+      .select('user_id')
+      .maybeSingle() as any);
+    if (error) throw error;
+    if (data?.user_id) await reactivateUserMetaApiAccess(String(data.user_id));
+    return result;
+  }
+  return { updated: false, reason: 'subscription_missing' };
+}
+
+async function handleInvoicePaymentFailed(invoice: JsonRecord) {
+  const subscriptionId = getStripeId(invoice.subscription);
+  if (!subscriptionId) return { updated: false, reason: 'subscription_missing' };
+
+  const now = new Date().toISOString();
+  const { data, error } = await (supabase
+    .from('user_subscriptions' as any)
+    .update({
+      status: 'past_due',
+      stripe_subscription_status: 'past_due',
+      last_payment_status: 'failed',
+      last_payment_failed_at: now,
+      updated_at: now,
+    })
+    .eq('stripe_subscription_id', subscriptionId)
+    .select('user_id,paid_until,current_period_end')
+    .maybeSingle() as any);
+  if (error) throw error;
+
+  const addonUpdate = await (supabase
+    .from('subscription_addons' as any)
+    .update({
+      status: 'past_due',
+      updated_at: now,
+    })
+    .eq('stripe_subscription_id', subscriptionId) as any);
+  if (addonUpdate.error && !isMissingRelationError(addonUpdate.error)) throw addonUpdate.error;
+
+  if (data?.user_id && shouldSuspendForPaymentFailure(data.paid_until || data.current_period_end)) {
+    await suspendUserMetaApiAccounts(String(data.user_id), 'invoice_payment_failed');
+  }
+
+  return { updated: Boolean(data), suspended: Boolean(data?.user_id && shouldSuspendForPaymentFailure(data.paid_until || data.current_period_end)) };
 }
 
 async function getSubscriptionStatusForUser(userId: string) {
@@ -1020,6 +1159,7 @@ async function getSubscriptionStatusForUser(userId: string) {
   const includedAccountLimit = Number(subscription?.account_limit ?? plan?.account_limit ?? 0);
   const extraAccountQuantity = subscription ? await getActiveAddonQuantityForUser(userId) : 0;
   const accountLimit = includedAccountLimit + extraAccountQuantity;
+  const entitlement = await getUserEntitlement(userId);
 
   return {
     subscription: sanitizeSubscription(subscription),
@@ -1031,7 +1171,73 @@ async function getSubscriptionStatusForUser(userId: string) {
     totalAccountLimit: accountLimit,
     accountLimit,
     remainingAccounts: Math.max(0, accountLimit - activeAccountCount),
-    hasActivePlan: Boolean(subscription && ['active', 'trialing'].includes(String(subscription.status))),
+    hasActivePlan: entitlement.canUseMetaApi,
+    entitlement,
+  };
+}
+
+async function getUserEntitlement(userId: string): Promise<UserEntitlement> {
+  const { data: subscription, error } = await (supabase
+    .from('user_subscriptions' as any)
+    .select('*')
+    .eq('user_id', userId)
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle() as any);
+
+  if (error) {
+    fastify.log.error({
+      event: 'entitlement_subscription_lookup_failed',
+      userId: maskForLog(userId),
+      error: error.message,
+    });
+    return {
+      hasActivePaidPlan: false,
+      planSlug: null,
+      accountLimit: 0,
+      paidUntil: null,
+      subscriptionStatus: null,
+      canUseMetaApi: false,
+      reason: 'subscription_lookup_failed',
+    };
+  }
+
+  if (!subscription) {
+    return {
+      hasActivePaidPlan: false,
+      planSlug: null,
+      accountLimit: 0,
+      paidUntil: null,
+      subscriptionStatus: null,
+      canUseMetaApi: false,
+      reason: 'subscription_missing',
+    };
+  }
+
+  const plan = subscription.plan_id ? await findAdminPlanBySelector(subscription.plan_id) : null;
+  const status = String(subscription.status || '').toLowerCase();
+  const paidUntil = String(subscription.paid_until || subscription.current_period_end || '') || null;
+  const periodActive = isFutureIso(paidUntil);
+  const planSlug = String(plan?.slug || subscription.plan_id || '').toLowerCase();
+  const isPaidPlan = Boolean(subscription.plan_id && planSlug !== 'beta_free' && Number(subscription.account_limit ?? plan?.account_limit ?? 0) > 0);
+  const baseAccountLimit = Number(subscription.account_limit ?? plan?.account_limit ?? 0);
+  const extraAccountQuantity = isPaidPlan ? await getActiveAddonQuantityForUser(userId) : 0;
+  const accountLimit = baseAccountLimit + extraAccountQuantity;
+  const hasActivePaidPlan = isPaidPlan && isValidPaidStatus(status) && periodActive;
+
+  let reason = 'active_paid_plan';
+  if (!isPaidPlan) reason = planSlug === 'beta_free' ? 'beta_free_not_paid' : 'plan_not_paid';
+  else if (!isValidPaidStatus(status)) reason = `subscription_${status || 'inactive'}`;
+  else if (!periodActive) reason = 'paid_until_expired';
+
+  return {
+    hasActivePaidPlan,
+    planSlug: planSlug || null,
+    accountLimit: hasActivePaidPlan ? accountLimit : 0,
+    paidUntil,
+    subscriptionStatus: status || null,
+    canUseMetaApi: hasActivePaidPlan,
+    reason,
   };
 }
 
@@ -1155,8 +1361,18 @@ function sanitizeSubscription(subscription: JsonRecord | null | undefined) {
     plan_name: subscription.plan_name,
     status: subscription.status,
     account_limit: subscription.account_limit,
+    activated_at: subscription.activated_at,
     current_period_start: subscription.current_period_start,
     current_period_end: subscription.current_period_end,
+    paid_until: subscription.paid_until,
+    stripe_subscription_status: subscription.stripe_subscription_status,
+    last_payment_status: subscription.last_payment_status,
+    last_payment_at: subscription.last_payment_at,
+    last_payment_failed_at: subscription.last_payment_failed_at,
+    suspended_at: subscription.suspended_at,
+    suspension_reason: subscription.suspension_reason,
+    metaapi_suspended_at: subscription.metaapi_suspended_at,
+    metaapi_suspension_reason: subscription.metaapi_suspension_reason,
     cancel_at_period_end: subscription.cancel_at_period_end,
     stripe_customer_id: maskExternalId(subscription.stripe_customer_id),
     stripe_subscription_id: maskExternalId(subscription.stripe_subscription_id),
@@ -1182,6 +1398,10 @@ function sanitizeConnection(connection: JsonRecord, email?: string | null) {
     connection_status: connection.connection_status,
     sync_status: connection.sync_status,
     sync_error: connection.sync_error,
+    suspended_at: connection.suspended_at,
+    suspension_reason: connection.suspension_reason,
+    metaapi_suspended_at: connection.metaapi_suspended_at,
+    metaapi_suspension_reason: connection.metaapi_suspension_reason,
     last_sync_at: connection.last_sync_at,
     created_at: connection.created_at,
     updated_at: connection.updated_at,
@@ -1250,7 +1470,7 @@ async function getAdminUserRows() {
   const [users, subscriptionsRes, connectionsRes, plansRes] = await Promise.all([
     listAuthUsersForAdmin(),
     (supabase.from('user_subscriptions' as any).select('*') as any),
-    supabase.from('mt5_connections').select('id,user_id,last_sync_at,connection_status,sync_status,sync_error'),
+    supabase.from('mt5_connections').select('id,user_id,last_sync_at,connection_status,sync_status,sync_error,provider_account_id,suspended_at,suspension_reason'),
     (supabase.from('plans' as any).select('id,slug,support_tier,account_limit,billing_interval') as any),
   ]);
 
@@ -1284,12 +1504,18 @@ async function getAdminUserRows() {
       last_sign_in_at: user.last_sign_in_at,
       blocked: Boolean(user.banned_until),
       subscription_status: subscription?.status || null,
+      paid_until: subscription?.paid_until || subscription?.current_period_end || null,
+      last_payment_failed_at: subscription?.last_payment_failed_at || null,
+      suspended_at: subscription?.suspended_at || null,
+      suspension_reason: subscription?.suspension_reason || null,
       plan: subscription?.plan_id || null,
       plan_name: subscription?.plan_name || null,
       support_tier: plan?.support_tier || null,
       plan_family: String(plan?.slug || subscription?.plan_id || '').split('_')[0] || null,
       account_limit: subscription?.account_limit || 0,
       connected_accounts_count: userConnections.filter((connection) => ['connected', 'connecting', 'syncing'].includes(String(connection.connection_status))).length,
+      deployed_mt5_count: userConnections.filter((connection) => connection.provider_account_id && !connection.suspended_at && String(connection.sync_status) !== 'removed').length,
+      suspension_pending_count: userConnections.filter((connection) => String(connection.sync_status) === 'suspension_pending').length,
       sync_error_count: userConnections.filter((connection) => connection.sync_error || ['error', 'failed'].includes(String(connection.sync_status))).length,
       last_sync_at: lastSync,
       account_limit_reached: Number(subscription?.account_limit || 0) > 0
@@ -1405,26 +1631,14 @@ async function loadRuleEvaluationSummary(tradingAccountIds: string[]) {
 }
 
 async function getActiveAccountLimit(userId: string): Promise<AccountLimitCheck> {
-  const { data: subscription, error } = await (supabase
-    .from('user_subscriptions')
-    .select('plan_id,plan_name,status,account_limit,current_period_end')
-    .eq('user_id', userId)
-    .in('status', ['active', 'trialing'])
-    .order('current_period_end', { ascending: false })
-    .limit(1)
-    .maybeSingle() as any);
+  const entitlement = await getUserEntitlement(userId);
 
-  if (error) {
-    fastify.log.error({
-      event: 'subscription_lookup_failed',
-      userId: maskForLog(userId),
-      error: error.message,
-    });
-
+  if (!entitlement.canUseMetaApi) {
     if (FORTIFY_ALLOW_BETA_FALLBACK) {
       fastify.log.warn({
-        event: 'subscription_lookup_failed_using_beta_fallback',
+        event: 'subscription_entitlement_blocked_using_beta_fallback',
         userId: maskForLog(userId),
+        reason: entitlement.reason,
       });
       return {
         allowed: true,
@@ -1443,57 +1657,19 @@ async function getActiveAccountLimit(userId: string): Promise<AccountLimitCheck>
       accountLimit: 0,
       activeAccountCount: 0,
       remainingAccounts: 0,
-      error: 'Subscription lookup failed',
-      code: 'subscription_lookup_failed',
-      httpStatus: 500,
-    };
-  }
-
-  const isPeriodActive =
-    !subscription?.current_period_end ||
-    !Number.isFinite(Date.parse(subscription.current_period_end)) ||
-    Date.parse(subscription.current_period_end) > Date.now();
-
-  if (!subscription || !isPeriodActive) {
-    if (FORTIFY_ALLOW_BETA_FALLBACK) {
-      fastify.log.warn({
-        event: 'subscription_missing_using_beta_fallback',
-        userId: maskForLog(userId),
-      });
-      return {
-        allowed: true,
-        status: 'fallback_beta',
-        planName: 'Local Beta Fallback',
-        accountLimit: 1,
-        activeAccountCount: 0,
-        remainingAccounts: 1,
-      };
-    }
-
-    return {
-      allowed: false,
-      status: 'plan_required',
-      planName: null,
-      accountLimit: 0,
-      activeAccountCount: 0,
-      remainingAccounts: 0,
-      error: 'Active Fortify plan required before connecting MT5',
+      error: 'Seu plano não está ativo. Regularize sua assinatura para sincronizar contas MT5.',
       code: 'plan_required',
       httpStatus: 402,
     };
   }
 
-  const includedAccountLimit = Number(subscription.account_limit ?? 0);
-  const extraAccountQuantity = await getActiveAddonQuantityForUser(userId);
-  const accountLimit = includedAccountLimit + extraAccountQuantity;
-
   return {
     allowed: true,
     status: 'active_subscription',
-    planName: subscription.plan_name,
-    accountLimit,
+    planName: entitlement.planSlug,
+    accountLimit: entitlement.accountLimit,
     activeAccountCount: 0,
-    remainingAccounts: accountLimit,
+    remainingAccounts: entitlement.accountLimit,
   };
 }
 
@@ -1966,6 +2142,167 @@ async function postProvisioningAccount(url: string, payload: JsonRecord) {
     attempts: METAAPI_PROVISIONING_MAX_ATTEMPTS,
     pending: lastRes.status === 202,
   };
+}
+
+async function undeployMetaApiAccount(providerAccountId: string) {
+  const url = `${provisioningBaseUrl}/users/current/accounts/${encodeURIComponent(providerAccountId)}/undeploy`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'auth-token': METAAPI_TOKEN,
+    },
+  });
+  const text = await res.text();
+  const body = parseJsonText(text);
+  return { ok: res.ok, status: res.status, body };
+}
+
+async function suspendUserMetaApiAccounts(userId: string, reason: string) {
+  const now = new Date().toISOString();
+  const { data: connections, error } = await (supabase
+    .from('mt5_connections' as any)
+    .select('*')
+    .eq('user_id', userId)
+    .neq('sync_status', 'removed') as any);
+
+  if (error) throw error;
+
+  let suspended = 0;
+  let pending = 0;
+  const errors: JsonRecord[] = [];
+
+  for (const connection of connections || []) {
+    const providerAccountId = String(connection.provider_account_id || '').trim();
+    let syncStatus = 'error';
+    let syncError = 'MetaApi suspenso por assinatura Fortify inativa.';
+
+    if (providerAccountId) {
+      try {
+        const result = await undeployMetaApiAccount(providerAccountId);
+        if (!result.ok) {
+          pending++;
+          syncStatus = 'suspension_pending';
+          syncError = 'Suspensão MetaApi pendente. Tentaremos novamente na reconciliação.';
+          errors.push({
+            connectionId: maskForLog(connection.id),
+            providerAccountId: maskForLog(providerAccountId),
+            status: result.status,
+          });
+          fastify.log.warn({
+            event: 'metaapi_undeploy_failed',
+            userId: maskForLog(userId),
+            connectionId: maskForLog(connection.id),
+            providerAccountId: maskForLog(providerAccountId),
+            status: result.status,
+          });
+        } else {
+          suspended++;
+          fastify.log.info({
+            event: 'metaapi_account_undeployed_for_subscription',
+            userId: maskForLog(userId),
+            connectionId: maskForLog(connection.id),
+            providerAccountId: maskForLog(providerAccountId),
+            reason,
+          });
+        }
+      } catch (undeployError: any) {
+        pending++;
+        syncStatus = 'suspension_pending';
+        syncError = 'Suspensão MetaApi pendente. Tentaremos novamente na reconciliação.';
+        errors.push({
+          connectionId: maskForLog(connection.id),
+          providerAccountId: maskForLog(providerAccountId),
+          error: undeployError?.message,
+        });
+        fastify.log.warn({
+          event: 'metaapi_undeploy_error',
+          userId: maskForLog(userId),
+          connectionId: maskForLog(connection.id),
+          providerAccountId: maskForLog(providerAccountId),
+          error: undeployError?.message,
+        });
+      }
+    } else {
+      suspended++;
+    }
+
+    const { error: updateError } = await (supabase
+      .from('mt5_connections' as any)
+      .update({
+        connection_status: 'disconnected',
+        sync_status: syncStatus,
+        sync_error: syncError,
+        suspended_at: now,
+        suspension_reason: reason,
+        metaapi_suspended_at: now,
+        metaapi_suspension_reason: reason,
+        updated_at: now,
+      })
+      .eq('id', connection.id) as any);
+
+    if (updateError) throw updateError;
+
+    if (connection.trading_account_id) {
+      const { error: accountError } = await supabase
+        .from('trading_accounts')
+        .update({
+          mt5_connection_status: 'disconnected',
+          mt5_sync_error: syncError,
+          updated_at: now,
+        })
+        .eq('id', connection.trading_account_id)
+        .eq('user_id', userId);
+      if (accountError) throw accountError;
+    }
+  }
+
+  const { error: subError } = await (supabase
+    .from('user_subscriptions' as any)
+    .update({
+      suspended_at: now,
+      suspension_reason: reason,
+      metaapi_suspended_at: now,
+      metaapi_suspension_reason: reason,
+      updated_at: now,
+    })
+    .eq('user_id', userId) as any);
+  if (subError) throw subError;
+
+  return { checked: (connections || []).length, suspended, pending, errors };
+}
+
+async function reactivateUserMetaApiAccess(userId: string) {
+  const now = new Date().toISOString();
+  const entitlement = await getUserEntitlement(userId);
+  if (!entitlement.canUseMetaApi) return { reactivated: false, entitlement };
+
+  const { error: connectionError } = await (supabase
+    .from('mt5_connections' as any)
+    .update({
+      sync_error: null,
+      suspended_at: null,
+      suspension_reason: null,
+      metaapi_suspended_at: null,
+      metaapi_suspension_reason: null,
+      updated_at: now,
+    })
+    .eq('user_id', userId)
+    .not('suspended_at', 'is', null) as any);
+  if (connectionError) throw connectionError;
+
+  const { error: subError } = await (supabase
+    .from('user_subscriptions' as any)
+    .update({
+      suspended_at: null,
+      suspension_reason: null,
+      metaapi_suspended_at: null,
+      metaapi_suspension_reason: null,
+      updated_at: now,
+    })
+    .eq('user_id', userId) as any);
+  if (subError) throw subError;
+
+  return { reactivated: true, entitlement };
 }
 
 async function validateLoadedMetaApiToken() {
@@ -2888,12 +3225,24 @@ fastify.post('/admin/users/:userId/subscription', async (request, reply) => {
         account_limit: accountLimit,
         current_period_start: new Date().toISOString(),
         current_period_end: currentPeriodEnd,
+        paid_until: currentPeriodEnd,
+        activated_at: ['active', 'trialing'].includes(status) ? new Date().toISOString() : undefined,
+        suspended_at: ['active', 'trialing'].includes(status) ? null : undefined,
+        suspension_reason: ['active', 'trialing'].includes(status) ? null : undefined,
+        metaapi_suspended_at: ['active', 'trialing'].includes(status) ? null : undefined,
+        metaapi_suspension_reason: ['active', 'trialing'].includes(status) ? null : undefined,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id' })
       .select('*')
       .single() as any);
 
     if (error) throw error;
+
+    if (['active', 'trialing'].includes(status)) {
+      await reactivateUserMetaApiAccess(userId);
+    } else {
+      await suspendUserMetaApiAccounts(userId, `admin_subscription_${status}`);
+    }
 
     fastify.log.info({
       event: 'admin_subscription_updated',
@@ -2956,12 +3305,23 @@ fastify.post('/admin/users/:userId/block', async (request, reply) => {
         account_limit: Number(existing?.account_limit ?? plan.account_limit),
         current_period_start: existing?.current_period_start || new Date().toISOString(),
         current_period_end: existing?.current_period_end || defaultPeriodEndForPlan(plan),
+        paid_until: blocked ? existing?.paid_until || existing?.current_period_end || null : existing?.paid_until || existing?.current_period_end || defaultPeriodEndForPlan(plan),
+        suspended_at: blocked ? new Date().toISOString() : null,
+        suspension_reason: blocked ? 'admin_blocked' : null,
+        metaapi_suspended_at: blocked ? new Date().toISOString() : null,
+        metaapi_suspension_reason: blocked ? 'admin_blocked' : null,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id' })
       .select('*')
       .single() as any);
 
     if (error) throw error;
+
+    if (blocked) {
+      await suspendUserMetaApiAccounts(userId, 'admin_blocked');
+    } else {
+      await reactivateUserMetaApiAccess(userId);
+    }
 
     fastify.log.info({
       event: 'admin_user_block_status_updated',
@@ -3487,6 +3847,94 @@ fastify.get('/admin/system', async (request, reply) => {
   }
 });
 
+fastify.post('/internal/billing/reconcile-subscriptions', async (request, reply) => {
+  try {
+    const limit = checkRateLimit(request, 'billing-reconcile', 20, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
+    const cronHeader = Array.isArray(request.headers['x-internal-cron-secret'])
+      ? request.headers['x-internal-cron-secret'][0]
+      : request.headers['x-internal-cron-secret'];
+    const bearer = getBearerToken(request);
+    const hasCronSecret = Boolean(INTERNAL_CRON_SECRET && (cronHeader === INTERNAL_CRON_SECRET || bearer === INTERNAL_CRON_SECRET));
+
+    if (!hasCronSecret) {
+      const adminResult = await verifyAdminRequest(request);
+      if (isAuthError(adminResult)) {
+        return reply.status(INTERNAL_CRON_SECRET ? 401 : adminResult.status).send({
+          error: 'Reconciliação não autorizada.',
+          code: 'internal_reconcile_unauthorized',
+        });
+      }
+    }
+
+    const { data: subscriptions, error } = await (supabase
+      .from('user_subscriptions' as any)
+      .select('*')
+      .neq('plan_id', 'beta_free') as any);
+    if (error) throw error;
+
+    let checked = 0;
+    let suspended = 0;
+    const errors: JsonRecord[] = [];
+
+    for (const subscription of subscriptions || []) {
+      checked++;
+      let current = subscription as JsonRecord;
+      const subscriptionId = getStripeId(current.stripe_subscription_id);
+      if (subscriptionId && STRIPE_SECRET_KEY) {
+        try {
+          await syncSubscriptionById(subscriptionId, String(current.user_id));
+          const refreshed = await (supabase
+            .from('user_subscriptions' as any)
+            .select('*')
+            .eq('user_id', current.user_id)
+            .maybeSingle() as any);
+          if (!refreshed.error && refreshed.data) current = refreshed.data;
+        } catch (refreshError: any) {
+          fastify.log.warn({
+            event: 'billing_reconcile_stripe_refresh_failed',
+            userId: maskForLog(current.user_id),
+            subscriptionId: maskForLog(subscriptionId),
+            error: refreshError?.message,
+          });
+        }
+      }
+
+      const entitlement = await getUserEntitlement(String(current.user_id));
+      const status = String(current.status || current.stripe_subscription_status || '').toLowerCase();
+      const shouldSuspend =
+        !entitlement.canUseMetaApi ||
+        isInvalidPaidStatus(status) ||
+        !isFutureIso(current.paid_until || current.current_period_end);
+
+      if (shouldSuspend) {
+        try {
+          await suspendUserMetaApiAccounts(String(current.user_id), entitlement.reason || `reconcile_${status || 'invalid'}`);
+          suspended++;
+        } catch (suspendError: any) {
+          errors.push({
+            userId: maskForLog(current.user_id),
+            error: suspendError?.message,
+          });
+        }
+      }
+    }
+
+    return reply.send({ checked, suspended, errors: errors.length, errorDetails: errors.slice(0, 10) });
+  } catch (error: any) {
+    fastify.log.error({
+      event: 'billing_reconcile_failed',
+      error: error?.message,
+    });
+    return reply.status(500).send({
+      error: 'Não foi possível reconciliar assinaturas.',
+      code: 'billing_reconcile_failed',
+      details: error?.message,
+    });
+  }
+});
+
 fastify.get('/billing/subscription-status', async (request, reply) => {
   try {
     const limit = checkRateLimit(request, 'billing', 60, 60_000);
@@ -3623,12 +4071,22 @@ fastify.post('/billing/confirm-checkout-session', async (request, reply) => {
           plan_id: plan.id,
           plan_name: plan.plan_name,
           status: 'active',
+          stripe_subscription_status: subscriptionStatus || 'active',
           account_limit: plan.account_limit,
           current_period_start: new Date().toISOString(),
           current_period_end: currentPeriodEnd,
+          paid_until: currentPeriodEnd,
+          activated_at: new Date().toISOString(),
+          last_payment_status: 'succeeded',
+          last_payment_at: new Date().toISOString(),
+          last_payment_failed_at: null,
           cancel_at_period_end: false,
           stripe_customer_id: stripeCustomerId,
           stripe_subscription_id: stripeSubscriptionId,
+          suspended_at: null,
+          suspension_reason: null,
+          metaapi_suspended_at: null,
+          metaapi_suspension_reason: null,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'user_id' }) as any);
       if (error) throw error;
@@ -3827,6 +4285,15 @@ fastify.post('/billing/create-addon-checkout-session', async (request, reply) =>
       return reply.status(503).send(stripeConfigError());
     }
 
+    const entitlement = await getUserEntitlement(authResult.id);
+    if (!entitlement.canUseMetaApi) {
+      return reply.status(402).send({
+        error: 'Você precisa ter um plano ativo para adicionar contas extras.',
+        code: 'active_plan_required_for_addon',
+        reason: entitlement.reason,
+      });
+    }
+
     const baseSubscription = await findBaseSubscriptionForAddon(authResult.id);
     if (!baseSubscription) {
       return reply.status(402).send({
@@ -4013,30 +4480,9 @@ fastify.post('/billing/webhook', async (request, reply) => {
     ) {
       await upsertSubscriptionFromStripe(object);
     } else if (eventType === 'invoice.payment_succeeded') {
-      const subscriptionId = getStripeId(object.subscription);
-      if (subscriptionId && STRIPE_SECRET_KEY) {
-        await syncSubscriptionById(subscriptionId);
-      }
-    } else if (eventType === 'invoice.payment_failed') {
-      const subscriptionId = getStripeId(object.subscription);
-      if (subscriptionId) {
-        const { error } = await (supabase
-          .from('user_subscriptions' as any)
-          .update({
-            status: 'past_due',
-            updated_at: new Date().toISOString(),
-          })
-          .eq('stripe_subscription_id', subscriptionId) as any);
-        if (error) throw error;
-        const addonUpdate = await (supabase
-          .from('subscription_addons' as any)
-          .update({
-            status: 'past_due',
-            updated_at: new Date().toISOString(),
-          })
-          .eq('stripe_subscription_id', subscriptionId) as any);
-        if (addonUpdate.error && !isMissingRelationError(addonUpdate.error)) throw addonUpdate.error;
-      }
+      await handleInvoicePaymentSucceeded(object);
+    } else if (eventType === 'invoice.payment_failed' || eventType === 'invoice.payment_action_required') {
+      await handleInvoicePaymentFailed(object);
     }
 
     return reply.send({ received: true });
@@ -4087,6 +4533,12 @@ fastify.post('/metaapi/connect', async (request, reply) => {
     const authResult = await verifyRequestUser(request, userId);
     if (isAuthError(authResult)) {
       return reply.status(authResult.status).send(authResult.error);
+    }
+
+    const entitlement = await getUserEntitlement(userId);
+    if (!entitlement.canUseMetaApi) {
+      await suspendUserMetaApiAccounts(userId, entitlement.reason);
+      return reply.status(402).send(metaApiBlockedError(entitlement));
     }
 
     let otherUserConnection: JsonRecord | null = null;
@@ -4606,6 +5058,12 @@ fastify.post('/metaapi/sync', async (request, reply) => {
     const authResult = await verifyRequestUserOrAdmin(request, userId);
     if (isAuthError(authResult)) {
       return reply.status(authResult.status).send(authResult.error);
+    }
+
+    const entitlement = await getUserEntitlement(userId);
+    if (!entitlement.canUseMetaApi) {
+      await suspendUserMetaApiAccounts(userId, entitlement.reason);
+      return reply.status(402).send(metaApiBlockedError(entitlement));
     }
 
     const { data: conn, error: connErr } = await supabase

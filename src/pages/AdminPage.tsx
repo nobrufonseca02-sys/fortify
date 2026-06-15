@@ -42,6 +42,12 @@ type AdminUser = {
   plan_family?: string | null;
   account_limit: number;
   connected_accounts_count: number;
+  deployed_mt5_count?: number;
+  suspension_pending_count?: number;
+  paid_until?: string | null;
+  last_payment_failed_at?: string | null;
+  suspended_at?: string | null;
+  suspension_reason?: string | null;
   account_limit_reached?: boolean;
   sync_error_count: number;
   last_sync_at: string | null;
@@ -79,6 +85,11 @@ type AdminSubscription = {
   status: string;
   account_limit: number;
   current_period_end: string | null;
+  paid_until?: string | null;
+  last_payment_failed_at?: string | null;
+  suspended_at?: string | null;
+  suspension_reason?: string | null;
+  stripe_subscription_status?: string | null;
   stripe_customer_id?: string | null;
   stripe_subscription_id?: string | null;
   has_stripe_customer?: boolean;
@@ -95,6 +106,8 @@ type AdminAccount = {
   connection_status: string | null;
   sync_status: string | null;
   sync_error: string | null;
+  suspended_at?: string | null;
+  suspension_reason?: string | null;
   last_sync_at: string | null;
   rule_status: string | null;
   trading_account_nickname?: string | null;
@@ -128,7 +141,7 @@ type AdminSystemStatus = {
 const statusClass = (status?: string | null) => {
   const normalized = String(status || '').toLowerCase();
   if (['active', 'trialing', 'connected', 'success', 'verified', 'configured'].includes(normalized)) return 'bg-success/15 text-success border-0';
-  if (['pending', 'running', 'connecting', 'syncing', 'needs_review', 'incomplete', 'missing', 'past_due'].includes(normalized)) return 'bg-warning/15 text-warning border-0';
+  if (['pending', 'running', 'connecting', 'syncing', 'needs_review', 'incomplete', 'missing', 'past_due', 'suspension_pending'].includes(normalized)) return 'bg-warning/15 text-warning border-0';
   if (['error', 'failed', 'auth_error', 'suspended', 'canceled', 'deprecated', 'invalid'].includes(normalized)) return 'bg-destructive/15 text-destructive border-0';
   return 'bg-muted text-muted-foreground border-0';
 };
@@ -150,6 +163,7 @@ const statusLabel = (status?: string | null) => {
     incomplete: 'Incompleto',
     missing: 'Ausente',
     past_due: 'Pagamento pendente',
+    suspension_pending: 'Suspensão pendente',
     error: 'Erro',
     failed: 'Falhou',
     auth_error: 'Falha de autenticação',
@@ -582,7 +596,9 @@ export default function AdminPage() {
                   <TableHead>Suporte</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Limite</TableHead>
-                  <TableHead>Renovação/fim</TableHead>
+                  <TableHead>Pago até</TableHead>
+                  <TableHead>Falha/Suspensão</TableHead>
+                  <TableHead>MT5</TableHead>
                   <TableHead>Stripe</TableHead>
                 </TableRow>
               </TableHeader>
@@ -594,7 +610,18 @@ export default function AdminPage() {
                     <TableCell>{user.support_tier || '-'}</TableCell>
                     <TableCell><Badge className={statusClass(user.subscription_status)}>{statusLabel(user.subscription_status || 'none')}</Badge></TableCell>
                     <TableCell>{user.account_limit}</TableCell>
-                    <TableCell>{fmtDate(user.subscription?.current_period_end)}</TableCell>
+                    <TableCell>{fmtDate(user.paid_until || user.subscription?.paid_until || user.subscription?.current_period_end)}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      <div>Falha: {fmtDate(user.last_payment_failed_at || user.subscription?.last_payment_failed_at)}</div>
+                      <div>Suspenso: {fmtDate(user.suspended_at || user.subscription?.suspended_at)}</div>
+                      {(user.suspension_reason || user.subscription?.suspension_reason) && (
+                        <div className="max-w-[180px] truncate">Motivo: {user.suspension_reason || user.subscription?.suspension_reason}</div>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      <div>Deployed: {user.deployed_mt5_count ?? 0}</div>
+                      <div>Pendente: {user.suspension_pending_count ?? 0}</div>
+                    </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       <div>{user.subscription?.stripe_customer_id || (user.subscription?.has_stripe_customer ? 'cliente configurado' : 'sem cliente')}</div>
                       <div>{user.subscription?.stripe_subscription_id || (user.subscription?.has_stripe_subscription ? 'assinatura configurada' : 'sem assinatura')}</div>
@@ -701,6 +728,7 @@ export default function AdminPage() {
                   <TableHead>Login</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Sync</TableHead>
+                  <TableHead>Suspensão</TableHead>
                   <TableHead>Regra</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -718,6 +746,14 @@ export default function AdminPage() {
                         <Badge className={statusClass(account.sync_status)}>{statusLabel(account.sync_status || 'none')}</Badge>
                         {account.sync_error && <p className="max-w-[220px] truncate text-xs text-destructive">{account.sync_error}</p>}
                       </div>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {account.suspended_at ? (
+                        <div className="space-y-1">
+                          <p>{fmtDate(account.suspended_at)}</p>
+                          <p className="max-w-[160px] truncate">{account.suspension_reason || 'assinatura inativa'}</p>
+                        </div>
+                      ) : 'Ativa'}
                     </TableCell>
                     <TableCell>{account.rule_status || 'unconfigured'}</TableCell>
                     <TableCell className="text-right">
