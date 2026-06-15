@@ -98,7 +98,14 @@ const SettingsPage = () => {
   }, [user?.id, user?.user_metadata?.full_name]);
 
   const saveProfile = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      toast({
+        title: "Sessão necessária",
+        description: "Entre novamente para salvar suas informações.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setSaving(true);
     const { error } = await (supabase
@@ -107,11 +114,17 @@ const SettingsPage = () => {
         user_id: user.id,
         full_name: fullName.trim() || null,
         phone: phone.trim() || null,
+        updated_at: new Date().toISOString(),
       }, { onConflict: "user_id" }) as any);
 
     setSaving(false);
 
     if (error) {
+      console.error("settings_profile_save_failed", {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+      });
       toast({
         title: "Erro ao salvar",
         description: "Não foi possível salvar suas informações.",
