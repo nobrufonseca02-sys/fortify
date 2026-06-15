@@ -16,6 +16,8 @@ const supportLabels: Record<string, string> = {
   enterprise: "Suporte Enterprise",
 };
 
+const supportWhatsAppUrl = "https://wa.me/5521994177491?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20Fortify.";
+
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const { session } = useAuth();
@@ -27,7 +29,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const showUpgrade = Boolean(session && !isEnterprise);
   const supportTier = String(subscription?.support_tier || currentPlan?.support_tier || "basic");
   const currentPlanName = currentPlan?.name || currentPlan?.plan_name || subscription?.plan_name || "Sem plano";
-  const showSupportBadge = ["priority", "enterprise"].includes(supportTier);
+  const supportLabel = ["priority", "enterprise"].includes(supportTier)
+    ? supportLabels[supportTier] || "Suporte prioritário"
+    : "Suporte";
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -77,15 +81,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   <span className="text-foreground">{currentPlanName}</span>
                   <span className="h-3 w-px bg-border" />
                   <span>{activeAccountCount}/{accountLimit || 0} contas</span>
-                  {showSupportBadge ? (
-                    <>
-                      <span className="h-3 w-px bg-border" />
-                      <span className="inline-flex items-center gap-1 text-primary">
-                        <Headphones className="h-3 w-3" />
-                        {supportLabels[supportTier] || supportTier}
-                      </span>
-                    </>
-                  ) : null}
+                  <span className="h-3 w-px bg-border" />
+                  <a
+                    href={supportWhatsAppUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors"
+                  >
+                    <Headphones className="h-3 w-3" />
+                    {supportLabel}
+                  </a>
                 </div>
               ) : null}
               {showUpgrade ? (

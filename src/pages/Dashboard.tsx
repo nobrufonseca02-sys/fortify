@@ -1,437 +1,187 @@
-import { useAccountsStore } from '@/hooks/useAccountsStore';
-import { useAllRuleEvaluations, type RuleEvaluationRow } from '@/hooks/useRuleEvaluations';
-import { getAccountEvaluationSummary } from '@/lib/ruleEvaluationView';
-import { supabase } from '@/integrations/supabase/client';
-import { TradingAccount, type Mt5ConnectionStatus } from '@/types/fortify';
-import {
-  Shield, ShieldAlert, ShieldX, Lightbulb,
-  TrendingUp, TrendingDown, Activity, Zap, ChevronRight, ArrowUpRight,
-  Link2, RefreshCw, XCircle, AlertTriangle
-} from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { AlertTriangle, ChevronRight, CreditCard, Loader2, Shield, ShieldAlert, ShieldX, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useAccountsStore } from '@/hooks/useAccountsStore';
 import { useAuth } from '@/hooks/useAuth';
-import { useMemo, useState, useEffect } from 'react';
-import { SlideToActivate } from '@/components/SlideToActivate';
-import { toast } from '@/hooks/use-toast';
-import { BetaReadinessChecklist, GuidedEmptyState } from '@/components/BetaReadinessChecklist';
-import { buildBetaChecklist } from '@/lib/betaReadiness';
-import { PlanStatusPanel } from '@/components/PlanStatusPanel';
-import { SaaSOnboardingChecklist } from '@/components/SaaSOnboardingChecklist';
+import { useAllRuleEvaluations, useSyncAndEvaluate, type RuleEvaluationRow } from '@/hooks/useRuleEvaluations';
+import { useSubscriptionPlan } from '@/hooks/useSubscriptionPlan';
+import { getAccountEvaluationSummary } from '@/lib/ruleEvaluationView';
 import { confirmCheckoutSession } from '@/lib/billing';
+import { supabase } from '@/integrations/supabase/client';
+import type { TradingAccount } from '@/types/fortify';
 
-const mt5StatusConfig: Record<Mt5ConnectionStatus, { label: string; icon: typeof Link2; className: string }> = {
-  disconnected: { label: 'Desconectada', icon: XCircle, className: 'bg-muted text-muted-foreground' },
-  connecting: { label: 'Conectando', icon: RefreshCw, className: 'bg-warning/15 text-warning' },
-  connected: { label: 'Conectada', icon: Link2, className: 'bg-success/15 text-success' },
-  syncing: { label: 'Sincronizando', icon: RefreshCw, className: 'bg-primary/15 text-primary' },
-  auth_error: { label: 'Erro de autenticação', icon: AlertTriangle, className: 'bg-destructive/15 text-destructive' },
+type HealthStatus = 'safe' | 'warning' | 'critical' | 'nodata';
+
+type HealthRow = {
+  account: TradingAccount;
+  connection: any | null;
+  evaluations: RuleEvaluationRow[];
+  status: HealthStatus;
+  statusLabel: string;
+  equityLabel: string;
+  dailyRemainingLabel: string;
+  drawdownRemainingLabel: string;
+  openPositions: number;
+  negativeFloatingPnl: number;
+  lastSyncLabel: string;
+  stale: boolean;
+  hasViolation: boolean;
+  hasWarning: boolean;
+  bufferPct: number | null;
 };
 
-const fmt = (v: number) => `$${Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`;
-const pct = (v: number, t: number) => t > 0 ? Math.min(100, (v / t) * 100) : 0;
-
-function getAccountData(account: TradingAccount, ruleRows: RuleEvaluationRow[] = []) {
-  const summary = getAccountEvaluationSummary(account, ruleRows || []);
-  const { dailyLoss, totalLoss, profitTarget, dailyRemaining, closestRule, status, healthScore, avgRisk } = summary;
-
-  let action = 'Manter risco atual';
-  if (avgRisk > 85) action = 'Parar de operar imediatamente';
-  else if (avgRisk > 65) action = 'Reduzir lote significativamente';
-  else if (avgRisk > 45) action = 'Reduzir tamanho do lote';
-  else if (avgRisk > 30) action = 'Recuperação gradual';
-
-  let insight = '';
-  if (dailyLoss && dailyLoss.progressPct > 50) {
-    insight = `Já usou ${fmt(dailyLoss.currentValue)} do limite diário. Restam ${fmt(Math.max(0, dailyLoss.limitValue - dailyLoss.currentValue))}`;
-  } else if (profitTarget && profitTarget.currentValue < 0) {
-    insight = `Precisa de ${fmt(profitTarget.limitValue - profitTarget.currentValue)} para atingir a meta`;
-  } else if (totalLoss && totalLoss.progressPct > 30) {
-    insight = `Margem de perda restante: ${fmt(Math.max(0, totalLoss.limitValue - totalLoss.currentValue))}`;
-  } else if (profitTarget) {
-    insight = `Faltam ${fmt(profitTarget.limitValue - Math.max(0, profitTarget.currentValue))} para a meta de lucro`;
-  } else {
-    insight = summary.evals.length > 0 ? 'Conta dentro dos limites seguros' : 'Sincronize a conta MT5 para calcular regras reais';
-  }
-
-  return { ...summary, dailyLoss, totalLoss, profitTarget, dailyRemaining, closestRule, status, healthScore, action, insight, avgRisk };
-}
-
-type AccountStatus = 'SAFE' | 'WARNING' | 'VIOLATED';
-
-const statusConfig: Record<AccountStatus, { label: string; color: string; bg: string; icon: typeof Shield; border: string; glow: string }> = {
-  SAFE: { label: 'SEGURO', color: 'text-success', bg: 'bg-success/10', icon: Shield, border: 'border-success/20', glow: 'shadow-success/5' },
-  WARNING: { label: 'ATENÇÃO', color: 'text-warning', bg: 'bg-warning/10', icon: ShieldAlert, border: 'border-warning/20', glow: 'shadow-warning/5' },
-  VIOLATED: { label: 'VIOLADO', color: 'text-destructive', bg: 'bg-destructive/10', icon: ShieldX, border: 'border-destructive/20', glow: 'shadow-destructive/20' },
+const statusStyle: Record<HealthStatus, { label: string; icon: typeof Shield; className: string; pill: string }> = {
+  safe: {
+    label: 'Seguro',
+    icon: Shield,
+    className: 'border-success/20 bg-success/5',
+    pill: 'bg-success/15 text-success border-success/20',
+  },
+  warning: {
+    label: 'Atenção',
+    icon: ShieldAlert,
+    className: 'border-warning/25 bg-warning/5',
+    pill: 'bg-warning/15 text-warning border-warning/25',
+  },
+  critical: {
+    label: 'Crítico',
+    icon: ShieldX,
+    className: 'border-destructive/25 bg-destructive/5',
+    pill: 'bg-destructive/15 text-destructive border-destructive/25',
+  },
+  nodata: {
+    label: 'Sem dados',
+    icon: AlertTriangle,
+    className: 'border-border bg-card',
+    pill: 'bg-muted text-muted-foreground border-border',
+  },
 };
 
-function ProgressRing({ value, size = 80, strokeWidth = 6, status }: { value: number; size?: number; strokeWidth?: number; status: AccountStatus }) {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = radius * 2 * Math.PI;
-  const offset = circumference - (value / 100) * circumference;
-  const colorMap = { SAFE: 'hsl(var(--success))', WARNING: 'hsl(var(--warning))', VIOLATED: 'hsl(var(--destructive))' };
-
-  return (
-    <div className="relative" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="hsl(var(--muted))" strokeWidth={strokeWidth} />
-        <motion.circle
-          cx={size / 2} cy={size / 2} r={radius} fill="none"
-          stroke={colorMap[status]}
-          strokeWidth={strokeWidth}
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          initial={{ strokeDashoffset: circumference }}
-          animate={{ strokeDashoffset: offset }}
-          transition={{ duration: 1.2, ease: 'easeOut' }}
-        />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="font-mono font-bold text-lg text-foreground">{value}</span>
-      </div>
-    </div>
-  );
+function money(value: number | null | undefined) {
+  if (!Number.isFinite(Number(value))) return 'Sem dados';
+  return Number(value).toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  });
 }
 
-function GlowBar({ value, max, variant = 'risk' }: { value: number; max: number; variant?: 'risk' | 'profit' }) {
-  const p = pct(value, max);
-  const color = variant === 'profit'
-    ? 'bg-primary'
-    : p > 70 ? 'bg-destructive' : p > 45 ? 'bg-warning' : 'bg-success';
-
-  return (
-    <div className="h-1.5 w-full rounded-full bg-muted/60 overflow-hidden">
-      <motion.div
-        className={`h-full rounded-full ${color}`}
-        initial={{ width: 0 }}
-        animate={{ width: `${Math.min(100, p)}%` }}
-        transition={{ duration: 0.8, ease: 'easeOut' }}
-      />
-    </div>
-  );
+function isStale(value: string | null | undefined) {
+  if (!value) return true;
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) return true;
+  return Date.now() - parsed > 6 * 60 * 60 * 1000;
 }
 
-function HeroCard() {
-  const { accounts } = useAccountsStore();
-  const { data: ruleRows = [] } = useAllRuleEvaluations();
-  const { user } = useAuth();
-  const totalEquity = accounts.reduce((s, a) => s + a.currentEquity, 0);
-  const totalInitial = accounts.reduce((s, a) => s + a.startBalance, 0);
-  const pnl = totalEquity - totalInitial;
-  const pnlPct = totalInitial > 0 ? ((pnl / totalInitial) * 100).toFixed(1) : '0.0';
-  const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 'Trader';
-  const allData = accounts.map(a => getAccountData(a, ruleRows));
-  const activeAccounts = accounts.length;
-  const warnings = allData.filter(d => d.status === 'WARNING').length;
-  const violations = allData.filter(d => d.status === 'VIOLATED').length;
-  const overallStatus: AccountStatus = violations > 0 ? 'VIOLATED' : warnings > 0 ? 'WARNING' : 'SAFE';
-  const sc = statusConfig[overallStatus];
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6 }}
-      className="relative overflow-hidden rounded-2xl hero-surface edge-top"
-    >
-      <div className="relative p-7 md:p-10">
-        {/* status strip */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-2">
-            <span className={`w-1.5 h-1.5 rounded-full ${sc.color.replace('text-', 'bg-')} animate-pulse`} />
-            <span className="text-[10px] font-mono uppercase tracking-[0.22em] text-muted-foreground">
-              Console de risco <span className="text-foreground/40">/</span> {sc.label}
-            </span>
-          </div>
-          <span className="badge-system">
-            <Activity className="w-3 h-3 text-primary" />
-            Ao vivo
-          </span>
-        </div>
-
-        <div className="max-w-3xl mb-10">
-          <motion.p className="eyebrow mb-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}>
-            Bem-vindo, <span className="text-foreground/90">{firstName}</span>
-          </motion.p>
-          <motion.h1
-            className="display-editorial text-gradient-steel"
-            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-          >
-            <span className="text-gradient-primary">Proteja</span> a conta<br/>antes do próximo trade.
-          </motion.h1>
-          <motion.p
-            className="mt-6 text-base md:text-lg text-muted-foreground leading-relaxed max-w-xl"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
-          >
-            Painel de risco em tempo real para suas contas de prop firm — limites, drawdown e regras críticas em uma única superfície.
-          </motion.p>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-          {[
-            { label: 'Equity Total', value: fmt(totalEquity), sub: <span className={`flex items-center gap-1 mt-1.5 text-xs font-mono font-medium ${pnl >= 0 ? 'text-success' : 'text-destructive'}`}>{pnl >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}{pnl >= 0 ? '+' : ''}{pnlPct}%</span> },
-            { label: 'Contas Ativas', value: String(activeAccounts), sub: <span className="text-[11px] text-muted-foreground mt-1.5">em monitoramento</span> },
-            { label: 'Alertas', value: String(warnings), valueClass: warnings > 0 ? 'text-warning' : 'text-success', sub: <span className="text-[11px] text-muted-foreground mt-1.5">{warnings === 0 ? 'tudo certo' : 'requer atenção'}</span> },
-            { label: 'Violações', value: String(violations), valueClass: violations > 0 ? 'text-destructive' : 'text-success', sub: <span className="text-[11px] text-muted-foreground mt-1.5">{violations === 0 ? 'nenhuma' : 'ação necessária'}</span> },
-          ].map((stat, i) => (
-            <motion.div
-              key={stat.label}
-              className="relative rounded-xl border border-border/70 bg-background/40 backdrop-blur-sm p-4 overflow-hidden group"
-              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 + i * 0.07 }}
-            >
-              <div className="absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent opacity-60" />
-              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground mb-2 font-mono">{stat.label}</p>
-              <p className={`font-mono text-xl md:text-2xl font-bold ${(stat as any).valueClass || 'text-foreground'}`}>{stat.value}</p>
-              {stat.sub}
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    </motion.div>
-  );
+function relativeSync(value: string | null | undefined) {
+  if (!value) return 'Sem sincronização';
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) return 'Sem dados';
+  const minutes = Math.max(0, Math.round((Date.now() - parsed) / 60000));
+  if (minutes < 60) return `${minutes} min atrás`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} h atrás`;
+  return new Date(parsed).toLocaleDateString('pt-BR');
 }
 
-function DecisionCard() {
-  const { accounts } = useAccountsStore();
-  const { data: ruleRows = [] } = useAllRuleEvaluations();
-  const primary = accounts[0];
-  if (!primary) return null;
-  const data = getAccountData(primary, ruleRows);
-  const sc = statusConfig[data.status];
-  const StatusIcon = sc.icon;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.3, duration: 0.4 }}
-      className={`rounded-2xl border ${sc.border} bg-card overflow-hidden shadow-lg ${sc.glow}`}
-    >
-      <div className="p-6">
-        <div className="flex items-center gap-2 mb-5">
-          <div className={`w-8 h-8 rounded-lg ${sc.bg} flex items-center justify-center`}>
-            <Zap className={`w-4 h-4 ${sc.color}`} />
-          </div>
-          <div>
-            <p className="text-xs font-bold text-foreground">Próxima Decisão</p>
-            <p className="text-[10px] text-muted-foreground">{primary.nickname}</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">Pode perder hoje</p>
-            <p className="text-3xl font-mono font-black text-foreground mb-3">{fmt(data.dailyRemaining)}</p>
-            {data.dailyLoss && (
-              <>
-                <GlowBar value={data.dailyLoss.currentValue} max={data.dailyLoss.limitValue} />
-                <p className="text-[10px] text-muted-foreground mt-1.5 font-mono">{fmt(data.dailyLoss.currentValue)} / {fmt(data.dailyLoss.limitValue)}</p>
-              </>
-            )}
-          </div>
-
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">Regra mais próxima</p>
-            {data.closestRule ? (
-              <div className="flex items-center gap-4">
-                <ProgressRing value={Math.round(data.closestRule.progressPct)} size={72} status={data.status} />
-                <div>
-                  <p className="text-sm font-bold text-foreground">{data.closestRule.rule.name}</p>
-                  <p className="text-[10px] text-muted-foreground font-mono mt-0.5">{fmt(data.closestRule.currentValue)} / {fmt(data.closestRule.limitValue)}</p>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Shield className="w-5 h-5 text-success" />
-                <span className="text-success font-bold text-sm">Nenhuma em risco</span>
-              </div>
-            )}
-          </div>
-
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">Status</p>
-            <div className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 ${sc.bg} border ${sc.border} mb-3`}>
-              <StatusIcon className={`w-3.5 h-3.5 ${sc.color}`} />
-              <span className={`text-xs font-bold ${sc.color}`}>{sc.label}</span>
-            </div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 font-medium">Recomendacao</p>
-            <p className="text-sm font-bold text-foreground">{data.action}</p>
-          </div>
-        </div>
-
-        <div className="mt-7 pt-6 border-t border-border/40 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono mb-1">Trava de proteção</p>
-            <p className="text-xs text-foreground/80">Deslize para confirmar a meta de risco do dia.</p>
-          </div>
-          <div className="md:w-72">
-            <SlideToActivate
-              label="Deslize para travar dia"
-              activatedLabel="Dia travado"
-              variant={data.status === 'VIOLATED' ? 'destructive' : data.status === 'WARNING' ? 'primary' : 'success'}
-              onActivate={() => toast({ title: 'Risco do dia travado', description: 'Continue acompanhando o painel.' })}
-            />
-          </div>
-        </div>
-      </div>
-    </motion.div>
-  );
+function accountConnection(account: TradingAccount, connections: any[]) {
+  return connections.find((connection) => connection.trading_account_id === account.id) || null;
 }
 
-function AccountCard({ account, index, mt5Connection }: { account: TradingAccount; index: number; mt5Connection?: any }) {
-  const navigate = useNavigate();
-  const { data: ruleRows = [] } = useAllRuleEvaluations();
-  const data = getAccountData(account, ruleRows);
-  const sc = statusConfig[data.status];
-  const StatusIcon = sc.icon;
-  const brokerName = account.broker || '—';
-  
-  // MT5 connection info
-  const rawConnectionStatus = mt5Connection?.connection_status ?? 'disconnected';
-  const connectionStatus = (rawConnectionStatus || 'disconnected') as Mt5ConnectionStatus;
-  const mt5Status = mt5StatusConfig[connectionStatus] || mt5StatusConfig.disconnected;
-  const Mt5StatusIcon = mt5Status.icon;
+function buildHealthRow(account: TradingAccount, connection: any | null, evaluations: RuleEvaluationRow[], positions: any[]): HealthRow {
+  const summary = getAccountEvaluationSummary(account, evaluations);
+  const hasViolation = summary.evals.some((evaluation) => evaluation.status === 'VIOLATED');
+  const hasWarning = summary.evals.some((evaluation) => evaluation.status === 'WARNING');
+  const bufferPct = summary.closestRule ? Math.max(0, 100 - Number(summary.closestRule.progressPct || 0)) : null;
+  const stale = isStale(connection?.last_sync_at || account.mt5LastSyncAt);
+  const accountPositions = connection
+    ? positions.filter((position) => position.connection_id === connection.id)
+    : [];
+  const negativeFloatingPnl = accountPositions.reduce((sum, position) => {
+    const pnl = Number(position.floating_pnl ?? position.profit ?? 0);
+    return pnl < 0 ? sum + pnl : sum;
+  }, 0);
 
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.2 + index * 0.08, duration: 0.4 }}
-      className="group relative card-soft lift cursor-pointer overflow-hidden"
-      onClick={() => navigate(`/accounts/${account.id}`)}
-    >
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br from-primary/[0.03] to-transparent pointer-events-none" />
+  let status: HealthStatus = 'safe';
+  if (!connection || summary.evals.length === 0) status = 'nodata';
+  else if (hasViolation || (bufferPct !== null && bufferPct <= 10)) status = 'critical';
+  else if (hasWarning || stale || (bufferPct !== null && bufferPct <= 30)) status = 'warning';
 
-      <div className="relative p-5">
-        <div className="flex items-start justify-between mb-5">
-          <div>
-            <h3 className="font-bold text-foreground text-sm group-hover:text-primary transition-colors">{account.nickname}</h3>
-            <p className="text-[10px] text-muted-foreground mt-0.5">{brokerName}</p>
-            {mt5Connection && (
-              <div className="flex items-center gap-1.5 mt-1">
-                <span className={`inline-flex items-center gap-0.5 text-[7px] font-semibold uppercase tracking-wider px-1 py-0.5 rounded-full ${mt5Status.className}`}>
-                  <Mt5StatusIcon className={`w-2 h-2 ${connectionStatus === 'connecting' || connectionStatus === 'syncing' ? 'animate-spin' : ''}`} />
-                  {mt5Status.label}
-                </span>
-                <span className="text-[7px] text-muted-foreground">
-                  {mt5Connection.provider || 'mt5'} • {mt5Connection.last_sync_at ? new Date(mt5Connection.last_sync_at).toLocaleDateString('pt-BR') : 'sem sync'}
-                </span>
-              </div>
-            )}
-          </div>
-          <div className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 ${sc.bg} border ${sc.border}`}>
-            <StatusIcon className={`w-3 h-3 ${sc.color}`} />
-            <span className={`text-[10px] font-bold uppercase tracking-wider ${sc.color}`}>{sc.label}</span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-5 mb-5">
-          <ProgressRing value={data.healthScore} size={64} strokeWidth={5} status={data.status} />
-          <div className="flex-1 grid grid-cols-2 gap-3">
-            <div>
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Saldo</p>
-              <p className="font-mono font-bold text-sm text-foreground">{fmt(account.startBalance)}</p>
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Equity</p>
-              <p className="font-mono font-bold text-sm text-foreground">{fmt(account.currentEquity)}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-xl bg-muted/30 border border-border/40 p-3 mb-4">
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Pode perder hoje</p>
-            <p className="font-mono font-bold text-base text-foreground">{fmt(data.dailyRemaining)}</p>
-          </div>
-        </div>
-
-        <div className="space-y-3 mb-4">
-          {data.dailyLoss && (
-            <div>
-              <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-                <span>Perda Diaria</span>
-                <span className="font-mono">{Math.round(pct(data.dailyLoss.currentValue, data.dailyLoss.limitValue))}%</span>
-              </div>
-              <GlowBar value={data.dailyLoss.currentValue} max={data.dailyLoss.limitValue} />
-            </div>
-          )}
-          {data.totalLoss && (
-            <div>
-              <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-                <span>Perda Maxima</span>
-                <span className="font-mono">{Math.round(pct(data.totalLoss.currentValue, data.totalLoss.limitValue))}%</span>
-              </div>
-              <GlowBar value={data.totalLoss.currentValue} max={data.totalLoss.limitValue} />
-            </div>
-          )}
-          {data.profitTarget && (
-            <div>
-              <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-                <span>Meta de Lucro</span>
-                <span className="font-mono">{Math.round(Math.max(0, data.profitTarget.progressPct))}%</span>
-              </div>
-              <GlowBar value={Math.max(0, data.profitTarget.currentValue)} max={data.profitTarget.limitValue} variant="profit" />
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-start gap-2 rounded-xl border border-border/30 bg-muted/20 p-3">
-          <Lightbulb className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
-          <p className="text-[11px] text-foreground/80 leading-relaxed">{data.insight}</p>
-        </div>
-
-        <div className="flex justify-end mt-3">
-          <ArrowUpRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-        </div>
-      </div>
-    </motion.div>
-  );
+  return {
+    account,
+    connection,
+    evaluations,
+    status,
+    statusLabel: statusStyle[status].label,
+    equityLabel: money(account.currentEquity),
+    dailyRemainingLabel: summary.dailyLoss ? money(summary.dailyRemaining) : 'Sem dados suficientes',
+    drawdownRemainingLabel: summary.totalLoss ? money(summary.maxLossRemaining) : 'Sem dados suficientes',
+    openPositions: accountPositions.length,
+    negativeFloatingPnl,
+    lastSyncLabel: relativeSync(connection?.last_sync_at || account.mt5LastSyncAt),
+    stale,
+    hasViolation,
+    hasWarning,
+    bufferPct,
+  };
 }
 
-const Dashboard = () => {
-  const { accounts } = useAccountsStore();
-  const { data: ruleRows = [] } = useAllRuleEvaluations();
-  const { user } = useAuth();
-  const { session } = useAuth();
+function summaryStatus(rows: HealthRow[]) {
+  if (rows.length === 0 || rows.every((row) => row.status === 'nodata')) return 'Sem dados';
+  if (rows.some((row) => row.status === 'critical')) return 'Crítico';
+  if (rows.some((row) => row.status === 'warning')) return 'Atenção';
+  return 'Seguro';
+}
+
+function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { accounts } = useAccountsStore();
+  const { user, session } = useAuth();
+  const { data: ruleRows = [] } = useAllRuleEvaluations();
+  const { accountLimit, activeAccountCount, hasActivePlan } = useSubscriptionPlan();
+  const syncMutation = useSyncAndEvaluate();
+  const [mt5Connections, setMt5Connections] = useState<any[]>([]);
+  const [positions, setPositions] = useState<any[]>([]);
+  const [checkoutMessage, setCheckoutMessage] = useState<string | null>(null);
+  const [checkoutConfirming, setCheckoutConfirming] = useState(false);
   const searchParams = new URLSearchParams(location.search);
   const checkoutSuccess = searchParams.get('checkout') === 'success';
   const checkoutSessionId = searchParams.get('session_id');
-  const [checkoutMessage, setCheckoutMessage] = useState<string | null>(null);
-  const [checkoutConfirming, setCheckoutConfirming] = useState(false);
-  
-  // MT5 connections state
-  const [mt5Connections, setMt5Connections] = useState<any[]>([]);
-  const [loadingConnections, setLoadingConnections] = useState(false);
 
-  // Load MT5 connections from Supabase
   useEffect(() => {
-    const loadMt5Connections = async () => {
-      setLoadingConnections(true);
-      try {
-        if (!user?.id) {
-          setMt5Connections([]);
-          return;
-        }
-        const { data, error } = await supabase
-          .from('mt5_connections')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        setMt5Connections((data || []).filter((conn: any) => conn.sync_status !== 'removed'));
-      } catch (error) {
-        console.error('Failed to load MT5 connections:', error);
-      } finally {
-        setLoadingConnections(false);
+    async function loadConnections() {
+      if (!user?.id) {
+        setMt5Connections([]);
+        return;
       }
-    };
-
-    loadMt5Connections();
+      const { data, error } = await supabase
+        .from('mt5_connections')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      if (!error) setMt5Connections((data || []).filter((connection: any) => connection.sync_status !== 'removed'));
+    }
+    loadConnections();
   }, [user?.id]);
+
+  useEffect(() => {
+    async function loadPositions() {
+      const ids = mt5Connections.map((connection) => connection.id).filter(Boolean);
+      if (ids.length === 0) {
+        setPositions([]);
+        return;
+      }
+      const { data, error } = await supabase
+        .from('mt5_positions')
+        .select('*')
+        .in('connection_id', ids)
+        .order('updated_at', { ascending: false });
+      if (!error) setPositions(data || []);
+    }
+    loadPositions();
+  }, [mt5Connections]);
 
   useEffect(() => {
     if (!checkoutSuccess || !checkoutSessionId || !session?.access_token) return;
@@ -439,12 +189,10 @@ const Dashboard = () => {
     setCheckoutConfirming(true);
     confirmCheckoutSession(checkoutSessionId, session.access_token)
       .then(() => {
-        if (!active) return;
-        setCheckoutMessage('Pagamento confirmado. Seu plano foi ativado.');
+        if (active) setCheckoutMessage('Pagamento confirmado. Seu plano foi ativado.');
       })
       .catch((error) => {
-        if (!active) return;
-        setCheckoutMessage(error?.message || 'Pagamento recebido. Seu plano será ativado em instantes.');
+        if (active) setCheckoutMessage(error?.message || 'Pagamento recebido. Seu plano será ativado em instantes.');
       })
       .finally(() => {
         if (active) setCheckoutConfirming(false);
@@ -454,71 +202,200 @@ const Dashboard = () => {
     };
   }, [checkoutSessionId, checkoutSuccess, session?.access_token]);
 
-  // Helper to get MT5 connection for an account
-  const getMt5Connection = (accountId: string) => {
-    return mt5Connections.find(conn => conn.trading_account_id === accountId);
-  };
-  const primaryAccount = accounts[0];
-  const primaryConnection = primaryAccount ? getMt5Connection(primaryAccount.id) : null;
-  const primaryEvaluations = primaryAccount ? ruleRows.filter(row => row.trading_account_id === primaryAccount.id) : [];
+  const rows = useMemo(() => {
+    return accounts.map((account) => {
+      const connection = accountConnection(account, mt5Connections);
+      const evaluations = ruleRows.filter((row) => row.trading_account_id === account.id);
+      return buildHealthRow(account, connection, evaluations, positions);
+    });
+  }, [accounts, mt5Connections, positions, ruleRows]);
+
+  const riskyAccount = rows.find((row) => row.status === 'critical') || rows.find((row) => row.status === 'warning') || null;
+  const openPositions = rows.reduce((sum, row) => sum + row.openPositions, 0);
+  const negativeFloating = rows.some((row) => row.negativeFloatingPnl < 0);
+  const staleRow = rows.find((row) => row.stale && row.connection);
+  const noConnectedAccounts = mt5Connections.filter((connection) => ['connected', 'syncing'].includes(String(connection.connection_status))).length === 0;
+  const overall = summaryStatus(rows);
+
+  const recommendedAction = useMemo(() => {
+    const violated = rows.find((row) => row.hasViolation);
+    const critical = rows.find((row) => row.status === 'critical');
+    if (accounts.length === 0 || noConnectedAccounts) {
+      return {
+        message: 'Conecte sua primeira conta MT5 para iniciar o monitoramento.',
+        label: 'Conectar conta MT5',
+        onClick: () => navigate('/mt5'),
+      };
+    }
+    if (violated) {
+      return {
+        message: 'Existe uma conta com regra violada. Pare de operar e revise os limites.',
+        label: 'Ver conta',
+        onClick: () => navigate(`/accounts/${violated.account.id}`),
+      };
+    }
+    if (critical) {
+      return {
+        message: 'Uma conta está próxima do limite. Reduza risco ou interrompa novas entradas.',
+        label: 'Ver regras',
+        onClick: () => navigate(`/accounts/${critical.account.id}/rules`),
+      };
+    }
+    if (negativeFloating) {
+      return {
+        message: 'Há operações abertas com perda flutuante. Verifique se ainda existe margem segura antes de manter o trade.',
+        label: 'Ver posições',
+        onClick: () => navigate('/mt5'),
+      };
+    }
+    if (staleRow) {
+      return {
+        message: 'Sincronize suas contas antes de tomar nova decisão.',
+        label: syncMutation.isPending ? 'Sincronizando...' : 'Sincronizar agora',
+        onClick: () => staleRow.connection?.id && syncMutation.mutate(staleRow.connection.id),
+      };
+    }
+    return {
+      message: 'Tudo certo. Suas contas estão dentro dos limites monitorados.',
+      label: 'Ver contas',
+      onClick: () => navigate('/accounts'),
+    };
+  }, [accounts.length, navigate, negativeFloating, noConnectedAccounts, rows, staleRow, syncMutation]);
+
+  const alerts = useMemo(() => {
+    const items: string[] = [];
+    rows.forEach((row) => {
+      if (row.hasViolation) items.push(`${row.account.nickname}: regra violada`);
+      if (row.bufferPct !== null && row.bufferPct <= 30) items.push(`${row.account.nickname}: conta próxima do limite diário`);
+      if (row.hasWarning) items.push(`${row.account.nickname}: drawdown total em atenção`);
+      if (row.negativeFloatingPnl < 0) items.push(`${row.account.nickname}: operação aberta em prejuízo`);
+      if (row.stale && row.connection) items.push(`${row.account.nickname}: conta sem sincronização recente`);
+      if (row.evaluations.length === 0) items.push(`${row.account.nickname}: conta sem regra configurada`);
+    });
+    return Array.from(new Set(items)).slice(0, 5);
+  }, [rows]);
+
+  const summaryCards = [
+    { label: 'Saúde geral', value: overall, icon: overall === 'Crítico' ? ShieldX : overall === 'Atenção' ? ShieldAlert : Shield },
+    { label: 'Contas monitoradas', value: `${activeAccountCount}/${accountLimit || 0} contas`, icon: CreditCard },
+    { label: 'Conta mais em risco', value: riskyAccount?.account.nickname || 'Nenhuma conta em risco', icon: AlertTriangle },
+    { label: 'Posições abertas', value: `${openPositions} abertas`, icon: Zap },
+  ];
 
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
-      <HeroCard />
+      <motion.header
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="rounded-2xl hero-surface edge-top p-6 md:p-7"
+      >
+        <p className="eyebrow mb-3">Console operacional</p>
+        <h1 className="text-2xl md:text-3xl font-black tracking-tight text-foreground">Painel de saúde das contas</h1>
+        <p className="text-sm text-muted-foreground mt-3 max-w-2xl">
+          Monitore risco, drawdown, posições abertas e regras críticas antes do próximo trade.
+        </p>
+      </motion.header>
+
       {checkoutSuccess && (
         <div className="rounded-xl border border-success/25 bg-success/10 p-4">
           <p className="text-sm font-semibold text-foreground">
             {checkoutConfirming ? 'Confirmando pagamento com a Stripe...' : checkoutMessage || 'Pagamento recebido. Seu plano será ativado em instantes.'}
           </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Se o webhook ainda estiver processando, o status pode aparecer como pendente por alguns segundos.
-          </p>
         </div>
       )}
-      <PlanStatusPanel compact />
-      <SaaSOnboardingChecklist />
-      <DecisionCard />
 
-      {primaryAccount ? (
-        <BetaReadinessChecklist
-          items={buildBetaChecklist({
-            account: {
-              ...primaryAccount,
-              rule_selection_status: primaryAccount.ruleSelectionStatus,
-              rule_set_id: primaryAccount.ruleSetId,
-            },
-            connection: primaryConnection,
-            evaluations: primaryEvaluations,
-          })}
-          title="Checklist do beta controlado"
-          description="Use como ponto de partida da conta selecionada antes de tomar decisões de trade."
-          compact
-        />
-      ) : (
-        <GuidedEmptyState
-          icon={Shield}
-          title="Nenhuma conta pronta para monitoramento"
-          description="Conecte o MT5, configure as regras e rode o primeiro sync para liberar o console de risco."
-          actionLabel="Conectar MT5"
-          onAction={() => navigate('/mt5')}
-        />
-      )}
-
-      <section>
-        <div className="flex items-end justify-between mb-5">
-          <div>
-            <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground/70 mb-1">Portfólio</p>
-            <h2 className="text-xl font-bold text-foreground tracking-tight">Suas Contas</h2>
-          </div>
-          <button onClick={() => navigate('/accounts')} className="text-xs text-primary hover:text-primary/80 transition-colors flex items-center gap-1 font-medium">
-            Ver todas <ChevronRight className="w-3 h-3" />
+      {!hasActivePlan && (
+        <section className="rounded-xl border border-warning/25 bg-warning/5 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <p className="text-sm text-foreground">Escolha um plano para liberar o monitoramento de contas.</p>
+          <button type="button" onClick={() => navigate('/pricing')} className="pill-btn pill-btn-primary">
+            Ver planos
           </button>
+        </section>
+      )}
+
+      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {summaryCards.map((card) => {
+          const Icon = card.icon;
+          return (
+            <div key={card.label} className="rounded-xl border border-border bg-card p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">{card.label}</p>
+                <Icon className="w-4 h-4 text-primary" />
+              </div>
+              <p className="text-lg font-bold text-foreground mt-3">{card.value}</p>
+            </div>
+          );
+        })}
+      </section>
+
+      <section className="rounded-2xl border border-primary/25 bg-primary/5 p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-primary font-mono">Próxima ação recomendada</p>
+          <p className="text-sm md:text-base font-semibold text-foreground mt-2">{recommendedAction.message}</p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-          {accounts.map((account, i) => (
-            <AccountCard key={account.id} account={account} index={i} mt5Connection={getMt5Connection(account.id)} />
-          ))}
-        </div>
+        <button type="button" onClick={recommendedAction.onClick} disabled={syncMutation.isPending} className="pill-btn pill-btn-primary">
+          {syncMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
+          {recommendedAction.label}
+        </button>
+      </section>
+
+      {accounts.length === 0 ? (
+        <section className="rounded-2xl border border-border bg-card p-6 text-center">
+          <Shield className="w-9 h-9 text-primary mx-auto mb-3" />
+          <p className="text-sm font-semibold text-foreground">Você ainda não conectou uma conta MT5.</p>
+          <button type="button" onClick={() => navigate('/mt5')} className="pill-btn pill-btn-primary mt-4">
+            Conectar conta MT5
+          </button>
+        </section>
+      ) : (
+        <section className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="p-5 border-b border-border/60">
+            <h2 className="text-sm font-bold text-foreground">Saúde por conta</h2>
+            <p className="text-xs text-muted-foreground mt-1">Status operacional de cada conta monitorada.</p>
+          </div>
+          <div className="divide-y divide-border/60">
+            {rows.map((row) => {
+              const style = statusStyle[row.status];
+              const Icon = style.icon;
+              return (
+                <div key={row.account.id} className={`p-4 grid grid-cols-1 lg:grid-cols-[1.4fr_1fr_0.8fr_0.9fr_0.9fr_0.7fr_0.9fr_auto] gap-3 lg:items-center ${style.className}`}>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{row.account.nickname}</p>
+                    <p className="text-xs text-muted-foreground">{row.account.broker || row.connection?.mt5_server || 'Mesa/servidor não informado'}</p>
+                  </div>
+                  <div className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 ${style.pill}`}>
+                    <Icon className="w-3.5 h-3.5" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">{row.statusLabel}</span>
+                  </div>
+                  <Metric label="Equity" value={row.equityLabel} />
+                  <Metric label="Limite diário restante" value={row.dailyRemainingLabel} />
+                  <Metric label="Drawdown restante" value={row.drawdownRemainingLabel} />
+                  <Metric label="Posições abertas" value={String(row.openPositions)} />
+                  <Metric label="Última sincronização" value={row.lastSyncLabel} />
+                  <button type="button" onClick={() => navigate(`/accounts/${row.account.id}/rules`)} className="pill-btn">
+                    Ver regras
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      <section className="rounded-2xl border border-border bg-card p-5">
+        <h2 className="text-sm font-bold text-foreground">Alertas rápidos</h2>
+        {alerts.length === 0 ? (
+          <p className="text-sm text-muted-foreground mt-3">Sem alertas críticos no momento.</p>
+        ) : (
+          <div className="mt-4 space-y-2">
+            {alerts.map((alert) => (
+              <div key={alert} className="flex items-start gap-2 rounded-lg border border-warning/20 bg-warning/5 p-3">
+                <AlertTriangle className="w-4 h-4 text-warning mt-0.5 shrink-0" />
+                <p className="text-sm text-foreground">{alert}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <footer className="pt-4 border-t border-border/30">
@@ -528,6 +405,15 @@ const Dashboard = () => {
       </footer>
     </div>
   );
-};
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{label}</p>
+      <p className="text-xs font-semibold text-foreground mt-1">{value}</p>
+    </div>
+  );
+}
 
 export default Dashboard;
