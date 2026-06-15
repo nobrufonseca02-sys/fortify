@@ -9,6 +9,7 @@ import { useSubscriptionPlan } from '@/hooks/useSubscriptionPlan';
 import { getAccountEvaluationSummary } from '@/lib/ruleEvaluationView';
 import { confirmCheckoutSession } from '@/lib/billing';
 import { supabase } from '@/integrations/supabase/client';
+import { MarketTicker } from '@/components/MarketTicker';
 import type { TradingAccount } from '@/types/fortify';
 
 type HealthStatus = 'safe' | 'warning' | 'critical' | 'nodata';
@@ -295,6 +296,8 @@ function Dashboard() {
           Monitore risco, drawdown, posições abertas e regras críticas antes do próximo trade.
         </p>
       </motion.header>
+
+      <MarketTicker />
 
       {checkoutSuccess && (
         <div className="rounded-xl border border-success/25 bg-success/10 p-4">
