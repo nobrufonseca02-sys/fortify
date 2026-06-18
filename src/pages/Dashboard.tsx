@@ -29,6 +29,7 @@ type HealthRow = {
   stale: boolean;
   hasViolation: boolean;
   hasWarning: boolean;
+  hasSyncError: boolean;
   bufferPct: number | null;
 };
 
@@ -94,6 +95,12 @@ function buildHealthRow(account: TradingAccount, connection: any | null, evaluat
   const summary = getAccountEvaluationSummary(account, evaluations);
   const hasViolation = summary.evals.some((evaluation) => evaluation.status === 'VIOLATED');
   const hasWarning = summary.evals.some((evaluation) => evaluation.status === 'WARNING');
+  const connectionStatus = String(connection?.connection_status || '').toLowerCase();
+  const syncStatus = String(connection?.sync_status || '').toLowerCase();
+  const hasSyncError =
+    Boolean(connection?.sync_error) ||
+    ['auth_error', 'error', 'failed', 'suspension_pending'].includes(connectionStatus) ||
+    ['auth_error', 'error', 'failed', 'suspension_pending'].includes(syncStatus);
   const bufferPct = summary.closestRule ? Math.max(0, 100 - Number(summary.closestRule.progressPct || 0)) : null;
   const stale = isStale(connection?.last_sync_at || account.mt5LastSyncAt);
   const accountPositions = connection
@@ -106,7 +113,7 @@ function buildHealthRow(account: TradingAccount, connection: any | null, evaluat
 
   let status: HealthStatus = 'safe';
   if (!connection || summary.evals.length === 0) status = 'nodata';
-  else if (hasViolation || (bufferPct !== null && bufferPct <= 10)) status = 'critical';
+  else if (hasSyncError || hasViolation || (bufferPct !== null && bufferPct <= 10)) status = 'critical';
   else if (hasWarning || stale || (bufferPct !== null && bufferPct <= 30)) status = 'warning';
 
   return {
@@ -124,6 +131,7 @@ function buildHealthRow(account: TradingAccount, connection: any | null, evaluat
     stale,
     hasViolation,
     hasWarning,
+    hasSyncError,
     bufferPct,
   };
 }
@@ -133,6 +141,28 @@ function summaryStatus(rows: HealthRow[]) {
   if (rows.some((row) => row.status === 'critical')) return 'Crítico';
   if (rows.some((row) => row.status === 'warning')) return 'Atenção';
   return 'Seguro';
+}
+
+function fortifyScore(rows: HealthRow[]) {
+  if (rows.length === 0) return 'Sem dados';
+  const score = rows.reduce((sum, row) => {
+    if (row.status === 'safe') return sum + 100;
+    if (row.status === 'warning') return sum + 68;
+    if (row.status === 'critical') return sum + 28;
+    return sum + 45;
+  }, 0) / rows.length;
+  return `${Math.round(score)}/100`;
+}
+
+function latestSyncLabel(rows: HealthRow[]) {
+  const latest = rows
+    .map((row) => row.connection?.last_sync_at || row.account.mt5LastSyncAt)
+    .filter(Boolean)
+    .map((value) => Date.parse(String(value)))
+    .filter(Number.isFinite)
+    .sort((a, b) => b - a)[0];
+  if (!latest) return 'Não sincronizado';
+  return relativeSync(new Date(latest).toISOString());
 }
 
 function Dashboard() {
@@ -212,32 +242,57 @@ function Dashboard() {
   }, [accounts, mt5Connections, positions, ruleRows]);
 
   const riskyAccount = rows.find((row) => row.status === 'critical') || rows.find((row) => row.status === 'warning') || null;
+  const riskyAccountsCount = rows.filter((row) => row.status === 'critical' || row.status === 'warning').length;
   const openPositions = rows.reduce((sum, row) => sum + row.openPositions, 0);
   const negativeFloating = rows.some((row) => row.negativeFloatingPnl < 0);
+  const failedSyncRow = rows.find((row) => row.hasSyncError);
   const staleRow = rows.find((row) => row.stale && row.connection);
   const noConnectedAccounts = mt5Connections.filter((connection) => ['connected', 'syncing'].includes(String(connection.connection_status))).length === 0;
   const overall = summaryStatus(rows);
+  const score = fortifyScore(rows);
+  const latestSync = latestSyncLabel(rows);
 
   const recommendedAction = useMemo(() => {
     const violated = rows.find((row) => row.hasViolation);
     const critical = rows.find((row) => row.status === 'critical');
-    if (accounts.length === 0 || noConnectedAccounts) {
+    if (accounts.length === 0) {
       return {
         message: 'Conecte sua primeira conta MT5 para iniciar o monitoramento.',
         label: 'Conectar conta MT5',
         onClick: () => navigate('/mt5'),
       };
     }
+    if (failedSyncRow) {
+      return {
+        message: 'Revise a conexão MT5 antes de operar.',
+        label: 'Ver conta',
+        onClick: () => navigate(`/accounts/${failedSyncRow.account.id}`),
+      };
+    }
+    if (noConnectedAccounts) {
+      return {
+        message: 'Sincronize suas contas antes do próximo trade.',
+        label: 'Conectar conta MT5',
+        onClick: () => navigate('/mt5'),
+      };
+    }
+    if (staleRow) {
+      return {
+        message: 'Sincronize suas contas antes do próximo trade.',
+        label: syncMutation.isPending ? 'Sincronizando...' : 'Sincronizar agora',
+        onClick: () => staleRow.connection?.id && syncMutation.mutate(staleRow.connection.id),
+      };
+    }
     if (violated) {
       return {
-        message: 'Existe uma conta com regra violada. Pare de operar e revise os limites.',
+        message: 'Conta em zona de atenção. Reduza risco antes de operar.',
         label: 'Ver conta',
         onClick: () => navigate(`/accounts/${violated.account.id}`),
       };
     }
     if (critical) {
       return {
-        message: 'Uma conta está próxima do limite. Reduza risco ou interrompa novas entradas.',
+        message: 'Conta em zona de atenção. Reduza risco antes de operar.',
         label: 'Ver regras',
         onClick: () => navigate(`/accounts/${critical.account.id}/rules`),
       };
@@ -249,23 +304,18 @@ function Dashboard() {
         onClick: () => navigate('/mt5'),
       };
     }
-    if (staleRow) {
-      return {
-        message: 'Sincronize suas contas antes de tomar nova decisão.',
-        label: syncMutation.isPending ? 'Sincronizando...' : 'Sincronizar agora',
-        onClick: () => staleRow.connection?.id && syncMutation.mutate(staleRow.connection.id),
-      };
-    }
     return {
       message: 'Tudo certo. Suas contas estão dentro dos limites monitorados.',
       label: 'Ver contas',
       onClick: () => navigate('/accounts'),
     };
-  }, [accounts.length, navigate, negativeFloating, noConnectedAccounts, rows, staleRow, syncMutation]);
+  }, [accounts.length, failedSyncRow, navigate, negativeFloating, noConnectedAccounts, rows, staleRow, syncMutation]);
 
-  const alerts = useMemo(() => {
+  const insights = useMemo(() => {
     const items: string[] = [];
+    if (accounts.length === 0) items.push('Nenhuma conta conectada');
     rows.forEach((row) => {
+      if (row.hasSyncError) items.push(`${row.account.nickname}: erro de autenticação ou sync`);
       if (row.hasViolation) items.push(`${row.account.nickname}: regra violada`);
       if (row.bufferPct !== null && row.bufferPct <= 30) items.push(`${row.account.nickname}: conta próxima do limite diário`);
       if (row.hasWarning) items.push(`${row.account.nickname}: drawdown total em atenção`);
@@ -273,14 +323,15 @@ function Dashboard() {
       if (row.stale && row.connection) items.push(`${row.account.nickname}: conta sem sincronização recente`);
       if (row.evaluations.length === 0) items.push(`${row.account.nickname}: conta sem regra configurada`);
     });
-    return Array.from(new Set(items)).slice(0, 5);
-  }, [rows]);
+    return Array.from(new Set(items)).slice(0, 6);
+  }, [accounts.length, rows]);
 
   const summaryCards = [
-    { label: 'Saúde geral', value: overall, icon: overall === 'Crítico' ? ShieldX : overall === 'Atenção' ? ShieldAlert : Shield },
-    { label: 'Contas monitoradas', value: `${activeAccountCount}/${accountLimit || 0} contas`, icon: CreditCard },
-    { label: 'Conta mais em risco', value: riskyAccount?.account.nickname || 'Nenhuma conta em risco', icon: AlertTriangle },
+    { label: 'Fortify Score', value: score, detail: overall, icon: overall === 'Crítico' ? ShieldX : overall === 'Atenção' ? ShieldAlert : Shield },
+    { label: 'Contas monitoradas', value: `${rows.length}/${accountLimit || 0}`, detail: `${activeAccountCount} ativas no plano`, icon: CreditCard },
+    { label: 'Contas em risco', value: String(riskyAccountsCount), detail: riskyAccount?.account.nickname || 'Sem risco crítico', icon: AlertTriangle },
     { label: 'Posições abertas', value: `${openPositions} abertas`, icon: Zap },
+    { label: 'Última sincronização', value: latestSync, detail: staleRow ? 'Revisar antes de operar' : 'Dados recentes', icon: Loader2 },
   ];
 
   return (
@@ -290,12 +341,12 @@ function Dashboard() {
       <motion.header
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl hero-surface edge-top p-6 md:p-7"
+        className="rounded-2xl hero-surface edge-top p-5 md:p-6"
       >
         <p className="eyebrow mb-3">Console operacional</p>
         <h1 className="text-2xl md:text-3xl font-black tracking-tight text-foreground">Painel de saúde das contas</h1>
-        <p className="text-sm text-muted-foreground mt-3 max-w-2xl">
-          Monitore risco, drawdown, posições abertas e regras críticas antes do próximo trade.
+        <p className="text-sm text-muted-foreground mt-2 max-w-2xl">
+          Veja risco, drawdown, posições abertas e regras críticas antes do próximo trade.
         </p>
       </motion.header>
 
@@ -316,16 +367,17 @@ function Dashboard() {
         </section>
       )}
 
-      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
         {summaryCards.map((card) => {
           const Icon = card.icon;
           return (
-            <div key={card.label} className="rounded-xl border border-border bg-card p-4">
+            <div key={card.label} className="rounded-xl border border-border bg-card p-4 min-h-[104px]">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">{card.label}</p>
                 <Icon className="w-4 h-4 text-primary" />
               </div>
               <p className="text-lg font-bold text-foreground mt-3">{card.value}</p>
+              {'detail' in card && card.detail && <p className="text-[11px] text-muted-foreground mt-1 truncate">{card.detail}</p>}
             </div>
           );
         })}
@@ -345,7 +397,7 @@ function Dashboard() {
       {accounts.length === 0 ? (
         <section className="rounded-2xl border border-border bg-card p-6 text-center">
           <Shield className="w-9 h-9 text-primary mx-auto mb-3" />
-          <p className="text-sm font-semibold text-foreground">Você ainda não conectou uma conta MT5.</p>
+          <p className="text-sm font-semibold text-foreground">Nenhuma conta MT5 conectada ainda.</p>
           <button type="button" onClick={() => navigate('/mt5')} className="pill-btn pill-btn-primary mt-4">
             Conectar conta MT5
           </button>
@@ -361,7 +413,7 @@ function Dashboard() {
               const style = statusStyle[row.status];
               const Icon = style.icon;
               return (
-                <div key={row.account.id} className={`p-4 grid grid-cols-1 lg:grid-cols-[1.4fr_1fr_0.8fr_0.9fr_0.9fr_0.7fr_0.9fr_auto] gap-3 lg:items-center ${style.className}`}>
+                <div key={row.account.id} className={`p-4 grid grid-cols-1 lg:grid-cols-[1.5fr_1fr_0.8fr_0.8fr_1fr_auto] gap-3 lg:items-center ${style.className}`}>
                   <div>
                     <p className="text-sm font-semibold text-foreground">{row.account.nickname}</p>
                     <p className="text-xs text-muted-foreground">{row.account.broker || row.connection?.mt5_server || 'Mesa/servidor não informado'}</p>
@@ -371,12 +423,10 @@ function Dashboard() {
                     <span className="text-[10px] font-bold uppercase tracking-wider">{row.statusLabel}</span>
                   </div>
                   <Metric label="Equity" value={row.equityLabel} />
-                  <Metric label="Limite diário restante" value={row.dailyRemainingLabel} />
-                  <Metric label="Drawdown restante" value={row.drawdownRemainingLabel} />
                   <Metric label="Posições abertas" value={String(row.openPositions)} />
                   <Metric label="Última sincronização" value={row.lastSyncLabel} />
-                  <button type="button" onClick={() => navigate(`/accounts/${row.account.id}/rules`)} className="pill-btn">
-                    Ver regras
+                  <button type="button" onClick={() => navigate(row.status === 'safe' ? `/accounts/${row.account.id}` : `/accounts/${row.account.id}/rules`)} className="pill-btn">
+                    {row.status === 'safe' ? 'Ver conta' : 'Ver regras'}
                   </button>
                 </div>
               );
@@ -386,15 +436,15 @@ function Dashboard() {
       )}
 
       <section className="rounded-2xl border border-border bg-card p-5">
-        <h2 className="text-sm font-bold text-foreground">Alertas rápidos</h2>
-        {alerts.length === 0 ? (
+        <h2 className="text-sm font-bold text-foreground">Insights rápidos</h2>
+        {insights.length === 0 ? (
           <p className="text-sm text-muted-foreground mt-3">Sem alertas críticos no momento.</p>
         ) : (
           <div className="mt-4 space-y-2">
-            {alerts.map((alert) => (
-              <div key={alert} className="flex items-start gap-2 rounded-lg border border-warning/20 bg-warning/5 p-3">
+            {insights.map((insight) => (
+              <div key={insight} className="flex items-start gap-2 rounded-lg border border-warning/20 bg-warning/5 p-3">
                 <AlertTriangle className="w-4 h-4 text-warning mt-0.5 shrink-0" />
-                <p className="text-sm text-foreground">{alert}</p>
+                <p className="text-sm text-foreground">{insight}</p>
               </div>
             ))}
           </div>
