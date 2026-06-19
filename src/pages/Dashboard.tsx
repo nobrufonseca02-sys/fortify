@@ -33,6 +33,12 @@ type HealthRow = {
   bufferPct: number | null;
 };
 
+type AssetRiskSummary = {
+  symbol: string;
+  openPositions: number;
+  floatingPnl: number;
+};
+
 const statusStyle: Record<HealthStatus, { label: string; icon: typeof Shield; className: string; pill: string }> = {
   safe: {
     label: 'Seguro',
@@ -67,6 +73,19 @@ function money(value: number | null | undefined) {
     currency: 'USD',
     maximumFractionDigits: 0,
   });
+}
+
+function signedMoney(value: number | null | undefined) {
+  if (!Number.isFinite(Number(value))) return 'Sem dados';
+  const amount = Number(value);
+  const formatted = Math.abs(amount).toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  });
+  if (amount > 0) return `+${formatted}`;
+  if (amount < 0) return `-${formatted}`;
+  return formatted;
 }
 
 function isStale(value: string | null | undefined) {
@@ -106,6 +125,24 @@ function formatSyncedCount(count: number) {
 
 function formatPositionCount(count: number) {
   return count === 1 ? '1 posição' : `${count} posições`;
+}
+
+function getPositionSymbol(position: any) {
+  return String(position?.symbol || position?.instrument || 'Sem ativo').trim().toUpperCase();
+}
+
+function buildAssetRiskSummary(positions: any[]): AssetRiskSummary[] {
+  const bySymbol = new Map<string, AssetRiskSummary>();
+
+  positions.forEach((position) => {
+    const symbol = getPositionSymbol(position);
+    const current = bySymbol.get(symbol) || { symbol, openPositions: 0, floatingPnl: 0 };
+    current.openPositions += 1;
+    current.floatingPnl += Number(position?.floating_pnl ?? position?.profit ?? 0) || 0;
+    bySymbol.set(symbol, current);
+  });
+
+  return Array.from(bySymbol.values()).sort((a, b) => Math.abs(b.floatingPnl) - Math.abs(a.floatingPnl));
 }
 
 function accountConnection(account: TradingAccount, connections: any[]) {
@@ -277,6 +314,20 @@ function Dashboard() {
   const overall = summaryStatus(rows);
   const score = fortifyScore(rows);
   const latestSync = latestSyncInfo(rows, Boolean(staleRow));
+  const recentTrades: any[] = [];
+  const assetSummaries = useMemo(() => buildAssetRiskSummary(positions), [positions]);
+  const biggestAssetLoss = assetSummaries.filter((asset) => asset.floatingPnl < 0).sort((a, b) => a.floatingPnl - b.floatingPnl)[0] || null;
+  const biggestAssetProfit = assetSummaries.filter((asset) => asset.floatingPnl > 0).sort((a, b) => b.floatingPnl - a.floatingPnl)[0] || null;
+  const mostExposedAsset = [...assetSummaries].sort((a, b) => b.openPositions - a.openPositions)[0] || null;
+
+  const assetRiskMessages = useMemo(() => {
+    if (assetSummaries.length === 0) return ['Ainda não há dados suficientes para gerar análise.'];
+    const messages: string[] = [];
+    if (biggestAssetLoss) messages.push(`${biggestAssetLoss.symbol} concentra a maior parte do prejuízo aberto.`);
+    if (mostExposedAsset && mostExposedAsset.openPositions >= 3) messages.push(`${mostExposedAsset.symbol} concentra muitas posições abertas. Atenção ao overtrade.`);
+    if (messages.length === 0) messages.push('Nenhum padrão crítico identificado nas posições abertas.');
+    return messages;
+  }, [assetSummaries.length, biggestAssetLoss, mostExposedAsset]);
 
   const recommendedAction = useMemo(() => {
     const violated = rows.find((row) => row.hasViolation);
@@ -475,11 +526,89 @@ function Dashboard() {
         )}
       </section>
 
+      <section className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="p-5 border-b border-border/60">
+            <h2 className="text-sm font-bold text-foreground">Últimos trades</h2>
+            <p className="text-xs text-muted-foreground mt-1">Histórico recente será exibido com base nas sincronizações MT5.</p>
+          </div>
+          {recentTrades.length === 0 ? (
+            <div className="p-5">
+              <p className="text-sm text-muted-foreground">Os últimos trades aparecerão aqui após a próxima sincronização.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-border/60 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Ativo</th>
+                    <th className="px-4 py-3 font-medium">Resultado</th>
+                    <th className="px-4 py-3 font-medium">Conta</th>
+                    <th className="px-4 py-3 font-medium">Horário</th>
+                    <th className="px-4 py-3 font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentTrades.map((trade, index) => (
+                    <tr key={trade.id || index} className="border-b border-border/40 last:border-0">
+                      <td className="px-4 py-3 font-mono font-semibold text-foreground">{trade.symbol || 'Sem ativo'}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{signedMoney(trade.result)}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{trade.accountName || 'Sem conta'}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{trade.time || 'Sem horário'}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{trade.status || 'Sincronizado'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="p-5 border-b border-border/60">
+            <h2 className="text-sm font-bold text-foreground">Análise rápida por ativo</h2>
+            <p className="text-xs text-muted-foreground mt-1">Leitura simples de exposição e prejuízo usando dados já sincronizados.</p>
+          </div>
+          {assetSummaries.length === 0 ? (
+            <div className="p-5">
+              <p className="text-sm text-muted-foreground">Conecte e sincronize uma conta MT5 para visualizar análise por ativo.</p>
+            </div>
+          ) : (
+            <div className="p-5 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <AssetMetric label="Ativo mais exposto" value={mostExposedAsset?.symbol || 'Sem dados'} detail={mostExposedAsset ? formatPositionCount(mostExposedAsset.openPositions) : 'Sem posições'} />
+                <AssetMetric label="Maior lucro aberto" value={biggestAssetProfit?.symbol || 'Sem lucro aberto'} detail={biggestAssetProfit ? signedMoney(biggestAssetProfit.floatingPnl) : 'Sem dados'} />
+                <AssetMetric label="Maior prejuízo aberto" value={biggestAssetLoss?.symbol || 'Sem prejuízo aberto'} detail={biggestAssetLoss ? signedMoney(biggestAssetLoss.floatingPnl) : 'Sem dados'} />
+                <AssetMetric label="Risco concentrado" value={biggestAssetLoss?.symbol || mostExposedAsset?.symbol || 'Sem padrão'} detail={biggestAssetLoss ? 'Maior perda flutuante' : 'Sem concentração crítica'} />
+              </div>
+              <div className="space-y-2">
+                {assetRiskMessages.map((message) => (
+                  <div key={message} className="flex items-start gap-2 rounded-lg border border-border/60 bg-background/30 p-3">
+                    <AlertTriangle className="w-4 h-4 text-warning mt-0.5 shrink-0" />
+                    <p className="text-sm text-foreground">{message}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
       <footer className="pt-4 border-t border-border/30">
         <p className="text-[10px] text-muted-foreground/50 font-mono">
           Última atualização: {new Date().toLocaleString('pt-BR')}
         </p>
       </footer>
+    </div>
+  );
+}
+
+function AssetMetric({ label, value, detail }: { label: string; value: string; detail: string }) {
+  return (
+    <div className="rounded-xl border border-border/60 bg-background/30 p-3">
+      <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-mono">{label}</p>
+      <p className="text-sm font-bold text-foreground mt-2">{value}</p>
+      <p className="text-[11px] text-muted-foreground mt-1">{detail}</p>
     </div>
   );
 }
