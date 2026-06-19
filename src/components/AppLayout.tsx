@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 import { createPortalSession, isBillingEnabled } from "@/lib/billing";
 import { toast } from "@/hooks/use-toast";
+import { TradingViewProvider } from "@/components/tradingview/TradingViewProvider";
 
 const supportLabels: Record<string, string> = {
   basic: "Suporte básico",
@@ -57,14 +58,15 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
-        <AppSidebar />
-        <div className="flex-1 flex flex-col min-w-0 relative">
-          {/* ambient backdrop glow */}
-          <div className="pointer-events-none fixed inset-0 -z-10">
-            <div className="absolute top-0 left-1/3 w-[800px] h-[600px] rounded-full bg-primary/[0.04] blur-[120px]" />
-            <div className="absolute bottom-0 right-0 w-[600px] h-[500px] rounded-full bg-success/[0.025] blur-[120px]" />
-          </div>
+      <TradingViewProvider>
+        <div className="min-h-screen flex w-full bg-background">
+          <AppSidebar />
+          <div className="flex-1 flex flex-col min-w-0 relative">
+            {/* ambient backdrop glow */}
+            <div className="pointer-events-none fixed inset-0 -z-10">
+              <div className="absolute top-0 left-1/3 w-[800px] h-[600px] rounded-full bg-primary/[0.04] blur-[120px]" />
+              <div className="absolute bottom-0 right-0 w-[600px] h-[500px] rounded-full bg-success/[0.025] blur-[120px]" />
+            </div>
 
           <header className="h-12 flex items-center justify-between px-4 sticky top-0 z-30 glass-header">
             <div className="flex items-center gap-3">
@@ -121,11 +123,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           </header>
 
-          <main className="flex-1 overflow-auto">
-            <PageTransition>{children}</PageTransition>
-          </main>
+            <main className="flex-1 overflow-auto">
+              <PageTransition>{children}</PageTransition>
+            </main>
+          </div>
         </div>
-      </div>
+      </TradingViewProvider>
     </SidebarProvider>
   );
 }

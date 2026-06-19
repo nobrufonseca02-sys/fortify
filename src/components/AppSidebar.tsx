@@ -20,7 +20,7 @@ const groups = [
     label: "Operação",
     items: [
       { title: "Painel", url: "/", icon: LayoutDashboard },
-      { title: "Calculadora de Risco", url: "/calculator", icon: Calculator },
+      { title: "Calculadora de Risco", url: "/risk-calculator", icon: Calculator },
       
     ],
   },

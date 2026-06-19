@@ -51,7 +51,8 @@ function ProtectedRoutes() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/calculator" element={<RiskCalculator />} />
+        <Route path="/calculator" element={<Navigate to="/risk-calculator" replace />} />
+        <Route path="/risk-calculator" element={<RiskCalculator />} />
         <Route path="/accounts" element={<Accounts />} />
         <Route path="/accounts/new" element={<CreateAccount />} />
         <Route path="/accounts/:id" element={<AccountDashboard />} />
