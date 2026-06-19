@@ -47,7 +47,11 @@ const METAAPI_TOKEN = process.env.METAAPI_TOKEN!;
 const METAAPI_REGION = process.env.METAAPI_REGION || 'new-york';
 const METAAPI_PROVISIONING_MAX_ATTEMPTS = Number(process.env.METAAPI_PROVISIONING_MAX_ATTEMPTS || 4);
 const METAAPI_PROVISIONING_MAX_WAIT_MS = Number(process.env.METAAPI_PROVISIONING_MAX_WAIT_MS || 30000);
-const FORTIFY_ALLOW_BETA_FALLBACK = process.env.FORTIFY_ALLOW_BETA_FALLBACK === 'true';
+const NODE_ENV = process.env.NODE_ENV || 'development';
+const FORTIFY_ALLOW_BETA_FALLBACK_REQUESTED = process.env.FORTIFY_ALLOW_BETA_FALLBACK === 'true';
+const FORTIFY_ENABLE_PRODUCTION_BETA_FALLBACK = process.env.FORTIFY_ENABLE_PRODUCTION_BETA_FALLBACK === 'true';
+const FORTIFY_ALLOW_BETA_FALLBACK =
+  FORTIFY_ALLOW_BETA_FALLBACK_REQUESTED && (NODE_ENV !== 'production' || FORTIFY_ENABLE_PRODUCTION_BETA_FALLBACK);
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
 const STRIPE_SUCCESS_URL = process.env.STRIPE_SUCCESS_URL || 'http://localhost:8081/dashboard?checkout=success&session_id={CHECKOUT_SESSION_ID}';
@@ -83,11 +87,29 @@ fastify.log.info({
   metaapiTokenPresent: !!METAAPI_TOKEN,
   metaapiRegion: METAAPI_REGION,
   betaFallbackEnabled: FORTIFY_ALLOW_BETA_FALLBACK,
+  betaFallbackRequested: FORTIFY_ALLOW_BETA_FALLBACK_REQUESTED,
+  productionBetaFallbackOverride: FORTIFY_ENABLE_PRODUCTION_BETA_FALLBACK,
   stripeConfigured: !!STRIPE_SECRET_KEY,
   stripeWebhookConfigured: !!STRIPE_WEBHOOK_SECRET,
   supabaseUrlHost: hostOnly(SUPABASE_URL),
   port: PORT,
 });
+
+if (FORTIFY_ALLOW_BETA_FALLBACK_REQUESTED && !FORTIFY_ALLOW_BETA_FALLBACK) {
+  fastify.log.warn({
+    event: 'beta_fallback_requested_but_blocked',
+    nodeEnv: NODE_ENV,
+    productionOverrideEnabled: FORTIFY_ENABLE_PRODUCTION_BETA_FALLBACK,
+  });
+}
+
+if (FORTIFY_ALLOW_BETA_FALLBACK && !['development', 'test', 'local'].includes(NODE_ENV)) {
+  fastify.log.warn({
+    event: 'beta_fallback_enabled_outside_local_dev',
+    nodeEnv: NODE_ENV,
+    productionOverrideEnabled: FORTIFY_ENABLE_PRODUCTION_BETA_FALLBACK,
+  });
+}
 
 type JsonRecord = Record<string, any>;
 
@@ -2157,6 +2179,20 @@ async function undeployMetaApiAccount(providerAccountId: string) {
   return { ok: res.ok, status: res.status, body };
 }
 
+function isLocallySuspendedMetaApiConnection(connection: JsonRecord) {
+  const connectionStatus = String(connection.connection_status || '').toLowerCase();
+  const syncStatus = String(connection.sync_status || '').toLowerCase();
+  const syncError = String(connection.sync_error || '').toLowerCase();
+  const suspensionReason = String(connection.suspension_reason || connection.metaapi_suspension_reason || '').toLowerCase();
+
+  if (syncStatus === 'removed' || syncStatus === 'suspension_pending') return true;
+  if (connection.suspended_at || connection.metaapi_suspended_at) return true;
+  if (connectionStatus === 'disconnected' && (suspensionReason || syncError.includes('assinatura') || syncError.includes('suspens'))) {
+    return true;
+  }
+  return false;
+}
+
 async function suspendUserMetaApiAccounts(userId: string, reason: string) {
   const now = new Date().toISOString();
   const { data: connections, error } = await (supabase
@@ -2169,12 +2205,27 @@ async function suspendUserMetaApiAccounts(userId: string, reason: string) {
 
   let suspended = 0;
   let pending = 0;
+  let skipped = 0;
   const errors: JsonRecord[] = [];
 
   for (const connection of connections || []) {
     const providerAccountId = String(connection.provider_account_id || '').trim();
     let syncStatus = 'error';
     let syncError = 'MetaApi suspenso por assinatura Fortify inativa.';
+
+    if (isLocallySuspendedMetaApiConnection(connection)) {
+      skipped++;
+      fastify.log.info({
+        event: 'metaapi_account_already_suspended_skipped_undeploy',
+        userId: maskForLog(userId),
+        connectionId: maskForLog(connection.id),
+        providerAccountId: maskForLog(providerAccountId),
+        connectionStatus: connection.connection_status || null,
+        syncStatus: connection.sync_status || null,
+        reason,
+      });
+      continue;
+    }
 
     if (providerAccountId) {
       try {
@@ -2212,14 +2263,14 @@ async function suspendUserMetaApiAccounts(userId: string, reason: string) {
         errors.push({
           connectionId: maskForLog(connection.id),
           providerAccountId: maskForLog(providerAccountId),
-          error: undeployError?.message,
+          error: clampSyncError(String(undeployError?.message || 'undeploy_failed')),
         });
         fastify.log.warn({
           event: 'metaapi_undeploy_error',
           userId: maskForLog(userId),
           connectionId: maskForLog(connection.id),
           providerAccountId: maskForLog(providerAccountId),
-          error: undeployError?.message,
+          error: clampSyncError(String(undeployError?.message || 'undeploy_failed')),
         });
       }
     } else {
@@ -2268,7 +2319,7 @@ async function suspendUserMetaApiAccounts(userId: string, reason: string) {
     .eq('user_id', userId) as any);
   if (subError) throw subError;
 
-  return { checked: (connections || []).length, suspended, pending, errors };
+  return { checked: (connections || []).length, suspended, skipped, pending, errors };
 }
 
 async function reactivateUserMetaApiAccess(userId: string) {
@@ -3852,20 +3903,30 @@ fastify.post('/internal/billing/reconcile-subscriptions', async (request, reply)
     const limit = checkRateLimit(request, 'billing-reconcile', 20, 60_000);
     if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
 
+    if (!INTERNAL_CRON_SECRET) {
+      fastify.log.error({ event: 'billing_reconcile_secret_missing' });
+      return reply.status(503).send({
+        error: 'Reconciliação indisponível: segredo interno não configurado.',
+        code: 'internal_cron_secret_missing',
+      });
+    }
+
     const cronHeader = Array.isArray(request.headers['x-internal-cron-secret'])
       ? request.headers['x-internal-cron-secret'][0]
       : request.headers['x-internal-cron-secret'];
-    const bearer = getBearerToken(request);
-    const hasCronSecret = Boolean(INTERNAL_CRON_SECRET && (cronHeader === INTERNAL_CRON_SECRET || bearer === INTERNAL_CRON_SECRET));
 
-    if (!hasCronSecret) {
-      const adminResult = await verifyAdminRequest(request);
-      if (isAuthError(adminResult)) {
-        return reply.status(INTERNAL_CRON_SECRET ? 401 : adminResult.status).send({
-          error: 'Reconciliação não autorizada.',
-          code: 'internal_reconcile_unauthorized',
-        });
-      }
+    if (!cronHeader) {
+      return reply.status(401).send({
+        error: 'Reconciliação não autorizada.',
+        code: 'internal_reconcile_secret_required',
+      });
+    }
+
+    if (cronHeader !== INTERNAL_CRON_SECRET) {
+      return reply.status(403).send({
+        error: 'Reconciliação não autorizada.',
+        code: 'internal_reconcile_secret_invalid',
+      });
     }
 
     const { data: subscriptions, error } = await (supabase
@@ -3876,6 +3937,8 @@ fastify.post('/internal/billing/reconcile-subscriptions', async (request, reply)
 
     let checked = 0;
     let suspended = 0;
+    let skipped = 0;
+    let pending = 0;
     const errors: JsonRecord[] = [];
 
     for (const subscription of subscriptions || []) {
@@ -3910,18 +3973,23 @@ fastify.post('/internal/billing/reconcile-subscriptions', async (request, reply)
 
       if (shouldSuspend) {
         try {
-          await suspendUserMetaApiAccounts(String(current.user_id), entitlement.reason || `reconcile_${status || 'invalid'}`);
-          suspended++;
+          const result = await suspendUserMetaApiAccounts(String(current.user_id), entitlement.reason || `reconcile_${status || 'invalid'}`);
+          suspended += result.suspended;
+          skipped += result.skipped;
+          pending += result.pending;
+          for (const detail of result.errors || []) errors.push(detail);
         } catch (suspendError: any) {
           errors.push({
             userId: maskForLog(current.user_id),
             error: suspendError?.message,
           });
         }
+      } else {
+        skipped++;
       }
     }
 
-    return reply.send({ checked, suspended, errors: errors.length, errorDetails: errors.slice(0, 10) });
+    return reply.send({ checked, suspended, skipped, pending, errors: errors.length, errorDetails: errors.slice(0, 10) });
   } catch (error: any) {
     fastify.log.error({
       event: 'billing_reconcile_failed',
