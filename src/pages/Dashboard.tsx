@@ -87,6 +87,27 @@ function relativeSync(value: string | null | undefined) {
   return new Date(parsed).toLocaleDateString('pt-BR');
 }
 
+function relativeDelay(value: number) {
+  const minutes = Math.max(0, Math.round((Date.now() - value) / 60000));
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} h`;
+  const days = Math.round(hours / 24);
+  return days === 1 ? 'há 1 dia' : `há ${days} dias`;
+}
+
+function formatAccountCount(count: number, limit: number) {
+  return `${count}/${limit || 0} ${count === 1 ? 'conta' : 'contas'}`;
+}
+
+function formatSyncedCount(count: number) {
+  return count === 1 ? '1 sincronizada' : `${count} sincronizadas`;
+}
+
+function formatPositionCount(count: number) {
+  return count === 1 ? '1 posição' : `${count} posições`;
+}
+
 function accountConnection(account: TradingAccount, connections: any[]) {
   return connections.find((connection) => connection.trading_account_id === account.id) || null;
 }
@@ -154,15 +175,19 @@ function fortifyScore(rows: HealthRow[]) {
   return `${Math.round(score)}/100`;
 }
 
-function latestSyncLabel(rows: HealthRow[]) {
+function latestSyncInfo(rows: HealthRow[], hasStaleSync: boolean) {
   const latest = rows
     .map((row) => row.connection?.last_sync_at || row.account.mt5LastSyncAt)
     .filter(Boolean)
     .map((value) => Date.parse(String(value)))
     .filter(Number.isFinite)
     .sort((a, b) => b - a)[0];
-  if (!latest) return 'Não sincronizado';
-  return relativeSync(new Date(latest).toISOString());
+  if (!latest) return { value: 'Não sincronizado', detail: 'Conecte ou sincronize uma conta' };
+  const date = new Date(latest);
+  return {
+    value: date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
+    detail: hasStaleSync ? `Sync atrasado - ${relativeDelay(latest)}` : `Atualizado ${relativeDelay(latest)}`,
+  };
 }
 
 function Dashboard() {
@@ -171,7 +196,7 @@ function Dashboard() {
   const { accounts } = useAccountsStore();
   const { user, session } = useAuth();
   const { data: ruleRows = [] } = useAllRuleEvaluations();
-  const { accountLimit, activeAccountCount, hasActivePlan } = useSubscriptionPlan();
+  const { accountLimit, hasActivePlan } = useSubscriptionPlan();
   const syncMutation = useSyncAndEvaluate();
   const [mt5Connections, setMt5Connections] = useState<any[]>([]);
   const [positions, setPositions] = useState<any[]>([]);
@@ -244,13 +269,14 @@ function Dashboard() {
   const riskyAccount = rows.find((row) => row.status === 'critical') || rows.find((row) => row.status === 'warning') || null;
   const riskyAccountsCount = rows.filter((row) => row.status === 'critical' || row.status === 'warning').length;
   const openPositions = rows.reduce((sum, row) => sum + row.openPositions, 0);
+  const syncedAccountsCount = rows.filter((row) => row.connection?.last_sync_at && !row.hasSyncError).length;
   const negativeFloating = rows.some((row) => row.negativeFloatingPnl < 0);
   const failedSyncRow = rows.find((row) => row.hasSyncError);
   const staleRow = rows.find((row) => row.stale && row.connection);
   const noConnectedAccounts = mt5Connections.filter((connection) => ['connected', 'syncing'].includes(String(connection.connection_status))).length === 0;
   const overall = summaryStatus(rows);
   const score = fortifyScore(rows);
-  const latestSync = latestSyncLabel(rows);
+  const latestSync = latestSyncInfo(rows, Boolean(staleRow));
 
   const recommendedAction = useMemo(() => {
     const violated = rows.find((row) => row.hasViolation);
@@ -265,8 +291,8 @@ function Dashboard() {
     if (failedSyncRow) {
       return {
         message: 'Revise a conexão MT5 antes de operar.',
-        label: 'Ver conta',
-        onClick: () => navigate(`/accounts/${failedSyncRow.account.id}`),
+        label: 'Corrigir conexão',
+        onClick: () => navigate('/mt5'),
       };
     }
     if (noConnectedAccounts) {
@@ -314,24 +340,21 @@ function Dashboard() {
   const insights = useMemo(() => {
     const items: string[] = [];
     if (accounts.length === 0) items.push('Nenhuma conta conectada');
-    rows.forEach((row) => {
-      if (row.hasSyncError) items.push(`${row.account.nickname}: erro de autenticação ou sync`);
-      if (row.hasViolation) items.push(`${row.account.nickname}: regra violada`);
-      if (row.bufferPct !== null && row.bufferPct <= 30) items.push(`${row.account.nickname}: conta próxima do limite diário`);
-      if (row.hasWarning) items.push(`${row.account.nickname}: drawdown total em atenção`);
-      if (row.negativeFloatingPnl < 0) items.push(`${row.account.nickname}: operação aberta em prejuízo`);
-      if (row.stale && row.connection) items.push(`${row.account.nickname}: conta sem sincronização recente`);
-      if (row.evaluations.length === 0) items.push(`${row.account.nickname}: conta sem regra configurada`);
-    });
+    rows.filter((row) => row.hasSyncError).forEach((row) => items.push(`${row.account.nickname}: erro de autenticação/sync - corrija antes de operar.`));
+    rows.filter((row) => row.stale && row.connection).forEach((row) => items.push(`${row.account.nickname}: conta sem sincronização recente - dados podem estar desatualizados.`));
+    rows.filter((row) => row.negativeFloatingPnl < 0).forEach((row) => items.push(`${row.account.nickname}: existe posição aberta em prejuízo - revise o risco antes de manter a operação.`));
+    rows.filter((row) => row.hasViolation).forEach((row) => items.push(`${row.account.nickname}: regra violada - reduza risco antes de operar.`));
+    rows.filter((row) => row.bufferPct !== null && row.bufferPct <= 30).forEach((row) => items.push(`${row.account.nickname}: conta próxima do limite - evite novas entradas.`));
+    rows.filter((row) => row.evaluations.length === 0).forEach((row) => items.push(`${row.account.nickname}: conta sem regra configurada.`));
     return Array.from(new Set(items)).slice(0, 6);
   }, [accounts.length, rows]);
 
   const summaryCards = [
     { label: 'Fortify Score', value: score, detail: overall, icon: overall === 'Crítico' ? ShieldX : overall === 'Atenção' ? ShieldAlert : Shield },
-    { label: 'Contas monitoradas', value: `${rows.length}/${accountLimit || 0}`, detail: `${activeAccountCount} ativas no plano`, icon: CreditCard },
+    { label: 'Contas monitoradas', value: formatAccountCount(rows.length, accountLimit || 0), detail: formatSyncedCount(syncedAccountsCount), icon: CreditCard },
     { label: 'Contas em risco', value: String(riskyAccountsCount), detail: riskyAccount?.account.nickname || 'Sem risco crítico', icon: AlertTriangle },
-    { label: 'Posições abertas', value: `${openPositions} abertas`, icon: Zap },
-    { label: 'Última sincronização', value: latestSync, detail: staleRow ? 'Revisar antes de operar' : 'Dados recentes', icon: Loader2 },
+    { label: 'Posições abertas', value: formatPositionCount(openPositions), icon: Zap },
+    { label: 'Última sincronização', value: latestSync.value, detail: latestSync.detail, icon: Loader2 },
   ];
 
   return (
@@ -412,6 +435,7 @@ function Dashboard() {
             {rows.map((row) => {
               const style = statusStyle[row.status];
               const Icon = style.icon;
+              const needsConnectionFix = row.hasSyncError || row.stale || !row.connection;
               return (
                 <div key={row.account.id} className={`p-4 grid grid-cols-1 lg:grid-cols-[1.5fr_1fr_0.8fr_0.8fr_1fr_auto] gap-3 lg:items-center ${style.className}`}>
                   <div>
@@ -423,10 +447,10 @@ function Dashboard() {
                     <span className="text-[10px] font-bold uppercase tracking-wider">{row.statusLabel}</span>
                   </div>
                   <Metric label="Equity" value={row.equityLabel} />
-                  <Metric label="Posições abertas" value={String(row.openPositions)} />
+                  <Metric label="Posições abertas" value={formatPositionCount(row.openPositions)} />
                   <Metric label="Última sincronização" value={row.lastSyncLabel} />
-                  <button type="button" onClick={() => navigate(row.status === 'safe' ? `/accounts/${row.account.id}` : `/accounts/${row.account.id}/rules`)} className="pill-btn">
-                    {row.status === 'safe' ? 'Ver conta' : 'Ver regras'}
+                  <button type="button" onClick={() => navigate(needsConnectionFix ? '/mt5' : `/accounts/${row.account.id}/rules`)} className="pill-btn">
+                    {needsConnectionFix ? 'Corrigir conexão' : 'Ver regras'}
                   </button>
                 </div>
               );
