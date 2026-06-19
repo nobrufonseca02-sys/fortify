@@ -39,6 +39,14 @@ type AssetRiskSummary = {
   floatingPnl: number;
 };
 
+type ChecklistState = 'ok' | 'warning' | 'critical' | 'nodata';
+
+type ChecklistItem = {
+  label: string;
+  state: ChecklistState;
+  detail: string;
+};
+
 const statusStyle: Record<HealthStatus, { label: string; icon: typeof Shield; className: string; pill: string }> = {
   safe: {
     label: 'Seguro',
@@ -63,6 +71,29 @@ const statusStyle: Record<HealthStatus, { label: string; icon: typeof Shield; cl
     icon: AlertTriangle,
     className: 'border-border bg-card',
     pill: 'bg-muted text-muted-foreground border-border',
+  },
+};
+
+const checklistStyle: Record<ChecklistState, { label: string; icon: typeof Shield; className: string }> = {
+  ok: {
+    label: 'OK',
+    icon: Shield,
+    className: 'bg-success/15 text-success border-success/20',
+  },
+  warning: {
+    label: 'Atenção',
+    icon: ShieldAlert,
+    className: 'bg-warning/15 text-warning border-warning/25',
+  },
+  critical: {
+    label: 'Crítico',
+    icon: ShieldX,
+    className: 'bg-destructive/15 text-destructive border-destructive/25',
+  },
+  nodata: {
+    label: 'Sem dados',
+    icon: AlertTriangle,
+    className: 'bg-muted text-muted-foreground border-border',
   },
 };
 
@@ -227,6 +258,84 @@ function latestSyncInfo(rows: HealthRow[], hasStaleSync: boolean) {
   };
 }
 
+function riskDataState(rows: HealthRow[], field: 'dailyRemainingLabel' | 'drawdownRemainingLabel'): ChecklistState {
+  if (rows.length === 0) return 'nodata';
+  const rowsWithData = rows.filter((row) => row[field] !== 'Sem dados suficientes');
+  if (rowsWithData.length === 0) return 'nodata';
+  if (rowsWithData.some((row) => row.hasViolation || (row.bufferPct !== null && row.bufferPct <= 10))) return 'critical';
+  if (rowsWithData.some((row) => row.hasWarning || (row.bufferPct !== null && row.bufferPct <= 30))) return 'warning';
+  return 'ok';
+}
+
+function buildPreTradeChecklist(rows: HealthRow[]) {
+  const hasAccounts = rows.length > 0;
+  const hasSyncError = rows.some((row) => row.hasSyncError);
+  const hasStaleSync = rows.some((row) => row.stale && row.connection);
+  const hasSyncedAccount = rows.some((row) => row.connection?.last_sync_at && !row.hasSyncError);
+  const hasNegativeOpenPosition = rows.some((row) => row.negativeFloatingPnl < 0);
+  const hasCriticalOpenPosition = rows.some((row) => row.negativeFloatingPnl < 0 && row.hasViolation);
+  const hasRules = rows.some((row) => row.evaluations.length > 0);
+  const dailyState = riskDataState(rows, 'dailyRemainingLabel');
+  const drawdownState = riskDataState(rows, 'drawdownRemainingLabel');
+
+  const items: ChecklistItem[] = [
+    {
+      label: 'Conta MT5 sincronizada',
+      state: !hasAccounts ? 'nodata' : hasSyncError ? 'critical' : hasStaleSync || !hasSyncedAccount ? 'warning' : 'ok',
+      detail: !hasAccounts
+        ? 'Conecte uma conta para iniciar.'
+        : hasSyncError
+          ? 'Corrija autenticação ou sync antes de operar.'
+          : hasStaleSync || !hasSyncedAccount
+            ? 'Atualize o sync antes da próxima entrada.'
+            : 'Sync disponível para análise.',
+    },
+    {
+      label: 'Limite diário em zona segura',
+      state: dailyState,
+      detail: dailyState === 'nodata' ? 'Sem dados suficientes.' : dailyState === 'ok' ? 'Sem alerta diário ativo.' : 'Revise o limite diário antes de operar.',
+    },
+    {
+      label: 'Drawdown total em zona segura',
+      state: drawdownState,
+      detail: drawdownState === 'nodata' ? 'Sem dados suficientes.' : drawdownState === 'ok' ? 'Sem alerta de drawdown ativo.' : 'Revise o drawdown total antes de operar.',
+    },
+    {
+      label: 'Sem posição aberta crítica',
+      state: !hasAccounts ? 'nodata' : hasCriticalOpenPosition ? 'critical' : hasNegativeOpenPosition ? 'warning' : 'ok',
+      detail: !hasAccounts
+        ? 'Sem conta monitorada.'
+        : hasCriticalOpenPosition
+          ? 'Há posição em prejuízo com alerta crítico.'
+          : hasNegativeOpenPosition
+            ? 'Há posição aberta em prejuízo.'
+            : 'Nenhuma posição crítica detectada.',
+    },
+    {
+      label: 'Sem erro de autenticação/sync',
+      state: !hasAccounts ? 'nodata' : hasSyncError ? 'critical' : 'ok',
+      detail: !hasAccounts ? 'Sem conexão MT5.' : hasSyncError ? 'Corrija a conexão MT5.' : 'Nenhum erro ativo detectado.',
+    },
+    {
+      label: 'Lote e risco definidos antes da entrada',
+      state: !hasAccounts ? 'nodata' : hasRules ? 'ok' : 'nodata',
+      detail: !hasAccounts ? 'Conecte uma conta MT5.' : hasRules ? 'Regras disponíveis para consulta.' : 'Configure regras antes de operar.',
+    },
+  ];
+
+  const hasCritical = items.some((item) => item.state === 'critical');
+  const hasWarning = items.some((item) => item.state === 'warning');
+  const recommendation = !hasAccounts
+    ? 'Conecte uma conta MT5 para liberar o checklist operacional.'
+    : hasCritical
+      ? 'Não recomendamos abrir novas operações antes de corrigir os alertas críticos.'
+      : hasWarning
+        ? 'Opere com risco reduzido e revise os pontos de atenção.'
+        : 'Checklist liberado. As contas estão dentro dos limites monitorados.';
+
+  return { items, recommendation };
+}
+
 function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -328,6 +437,7 @@ function Dashboard() {
     if (messages.length === 0) messages.push('Nenhum padrão crítico identificado nas posições abertas.');
     return messages;
   }, [assetSummaries.length, biggestAssetLoss, mostExposedAsset]);
+  const preTradeChecklist = useMemo(() => buildPreTradeChecklist(rows), [rows]);
 
   const recommendedAction = useMemo(() => {
     const violated = rows.find((row) => row.hasViolation);
@@ -594,6 +704,24 @@ function Dashboard() {
         </div>
       </section>
 
+      <section className="rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="p-5 border-b border-border/60">
+          <h2 className="text-sm font-bold text-foreground">Checklist pré-trade</h2>
+          <p className="text-xs text-muted-foreground mt-1">Confirme os pontos críticos antes de abrir uma nova operação.</p>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {preTradeChecklist.items.map((item) => (
+              <ChecklistRow key={item.label} item={item} />
+            ))}
+          </div>
+          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-primary font-mono">Recomendação</p>
+            <p className="text-sm font-semibold text-foreground mt-2">{preTradeChecklist.recommendation}</p>
+          </div>
+        </div>
+      </section>
+
       <footer className="pt-4 border-t border-border/30">
         <p className="text-[10px] text-muted-foreground/50 font-mono">
           Última atualização: {new Date().toLocaleString('pt-BR')}
@@ -609,6 +737,26 @@ function AssetMetric({ label, value, detail }: { label: string; value: string; d
       <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-mono">{label}</p>
       <p className="text-sm font-bold text-foreground mt-2">{value}</p>
       <p className="text-[11px] text-muted-foreground mt-1">{detail}</p>
+    </div>
+  );
+}
+
+function ChecklistRow({ item }: { item: ChecklistItem }) {
+  const style = checklistStyle[item.state];
+  const Icon = style.icon;
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-background/30 p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-foreground">{item.label}</p>
+          <p className="text-[11px] text-muted-foreground mt-1">{item.detail}</p>
+        </div>
+        <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${style.className}`}>
+          <Icon className="h-3.5 w-3.5" />
+          {style.label}
+        </span>
+      </div>
     </div>
   );
 }
