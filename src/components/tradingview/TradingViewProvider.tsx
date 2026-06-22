@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { BarChart3, ExternalLink, Maximize2, X } from "lucide-react";
+import { Activity, BarChart3, Cloud, Maximize2, RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DEFAULT_TRADINGVIEW_SYMBOL, TRADINGVIEW_SYMBOLS, mapFortifyToTradingView } from "./tradingViewSymbols";
@@ -37,12 +37,15 @@ export function TradingViewProvider({ children }: { children: React.ReactNode })
       <button
         type="button"
         onClick={() => openChart()}
-        className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-full border border-primary/35 bg-background/95 px-4 py-3 text-xs font-bold text-primary shadow-2xl shadow-black/40 backdrop-blur hover:bg-primary/10 transition-colors"
-        title="Abrir gráfico"
-        aria-label="Abrir gráfico TradingView"
+        className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-3 rounded-full border border-cyan-300/35 bg-[#06111f]/95 px-4 py-3 text-xs font-black text-cyan-100 shadow-[0_0_0_1px_rgba(34,211,238,0.08),0_12px_42px_rgba(8,145,178,0.28)] backdrop-blur hover:border-cyan-300/60 hover:bg-[#082033] hover:text-white transition-all"
+        title="Abrir TradingView dentro do Fortify"
+        aria-label="Abrir TradingView dentro do Fortify"
       >
-        <BarChart3 className="h-4 w-4" />
-        <span className="hidden sm:inline">TradingView</span>
+        <span className="relative inline-flex h-8 w-8 items-center justify-center rounded-full bg-cyan-400/15 text-cyan-200">
+          <Cloud className="h-5 w-5" />
+          <Activity className="absolute h-3 w-3 translate-x-1 translate-y-1 text-cyan-50" />
+        </span>
+        <span className="tracking-wide">TradingView</span>
       </button>
       <TradingViewPanel open={open} onClose={() => setOpen(false)} symbol={symbol} setSymbol={setSymbol} />
     </TradingViewContext.Provider>
@@ -61,8 +64,17 @@ function TradingViewPanel({
   setSymbol: (value: string) => void;
 }) {
   const widgetRef = useRef<HTMLDivElement | null>(null);
+  const widgetIdRef = useRef(`fortify-tv-${Math.random().toString(36).slice(2)}`);
   const [manualSymbol, setManualSymbol] = useState(symbol);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  const reloadChart = () => setReloadKey((value) => value + 1);
+  const loadManualSymbol = () => {
+    const nextSymbol = manualSymbol.trim().toUpperCase();
+    if (!nextSymbol) return;
+    setSymbol(nextSymbol);
+    reloadChart();
+  };
 
   useEffect(() => {
     setManualSymbol(symbol);
@@ -81,45 +93,52 @@ function TradingViewPanel({
     if (!open || !widgetRef.current) return;
     setLoadFailed(false);
     const container = widgetRef.current;
+    const widgetId = widgetIdRef.current;
     container.innerHTML = "";
+    container.className = "tradingview-widget-container h-full w-full";
 
     const wrapper = document.createElement("div");
-    wrapper.className = "tradingview-widget-container__widget h-full w-full";
+    wrapper.id = widgetId;
+    wrapper.className = "tradingview-widget-container__widget";
+    wrapper.style.height = "100%";
+    wrapper.style.width = "100%";
     container.appendChild(wrapper);
 
     const script = document.createElement("script");
+    script.type = "text/javascript";
     script.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
     script.async = true;
     script.onerror = () => setLoadFailed(true);
     script.innerHTML = JSON.stringify({
       autosize: true,
+      container_id: widgetId,
       symbol,
       interval: "15",
       timezone: "Etc/UTC",
       theme: "dark",
       style: "1",
       locale: "br",
-      allow_symbol_change: true,
+      allow_symbol_change: false,
       hide_side_toolbar: false,
       save_image: false,
+      details: true,
+      hotlist: false,
       calendar: false,
       support_host: "https://www.tradingview.com",
     });
     container.appendChild(script);
 
     const timer = window.setTimeout(() => {
-      if (container.childElementCount <= 1) setLoadFailed(true);
-    }, 7000);
+      if (!container.querySelector("iframe")) setLoadFailed(true);
+    }, 8000);
 
     return () => {
       window.clearTimeout(timer);
       container.innerHTML = "";
     };
-  }, [open, symbol]);
+  }, [open, reloadKey, symbol]);
 
   if (!open) return null;
-
-  const tradingViewUrl = `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(symbol)}`;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm">
@@ -148,23 +167,24 @@ function TradingViewPanel({
               value={manualSymbol}
               onChange={(event) => setManualSymbol(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === "Enter" && manualSymbol.trim()) setSymbol(manualSymbol.trim().toUpperCase());
+                if (event.key === "Enter") loadManualSymbol();
               }}
               className="h-9 w-40 text-xs"
               placeholder="Ex.: OANDA:XAUUSD"
             />
-            <Button type="button" size="sm" variant="outline" onClick={() => manualSymbol.trim() && setSymbol(manualSymbol.trim().toUpperCase())}>
+            <Button type="button" size="sm" variant="outline" onClick={loadManualSymbol}>
               Carregar
             </Button>
-            <a
-              href={tradingViewUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border px-3 text-xs text-muted-foreground hover:text-foreground"
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={reloadChart}
+              className="gap-1.5"
             >
-              <ExternalLink className="h-3.5 w-3.5" />
-              Abrir no TradingView
-            </a>
+              <RefreshCw className="h-3.5 w-3.5" />
+              Recarregar gráfico
+            </Button>
             <button
               type="button"
               onClick={onClose}
@@ -176,21 +196,22 @@ function TradingViewPanel({
           </div>
         </div>
         <div className="relative min-h-0 flex-1 bg-[#05070b]">
-          <div ref={widgetRef} className="h-full w-full" />
+          <div ref={widgetRef} className="tradingview-widget-container h-full w-full" />
           {loadFailed ? (
             <div className="absolute inset-0 flex items-center justify-center bg-background/90 p-6 text-center">
               <div className="max-w-md rounded-lg border border-border bg-card p-5">
                 <Maximize2 className="mx-auto mb-3 h-6 w-6 text-primary" />
                 <p className="text-sm font-semibold text-foreground">Não foi possível carregar o gráfico embutido.</p>
-                <p className="mt-2 text-xs text-muted-foreground">Tente abrir diretamente no TradingView ou informe outro símbolo.</p>
-                <a
-                  href={tradingViewUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-4 inline-flex rounded-md bg-primary px-4 py-2 text-xs font-bold text-primary-foreground"
+                <p className="mt-2 text-xs text-muted-foreground">Verifique o símbolo e tente recarregar.</p>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={reloadChart}
+                  className="mt-4 gap-2"
                 >
-                  Abrir no TradingView
-                </a>
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Recarregar gráfico
+                </Button>
               </div>
             </div>
           ) : null}
