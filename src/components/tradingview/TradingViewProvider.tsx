@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Activity, BarChart3, Cloud, Maximize2, RefreshCw, X } from "lucide-react";
+import { Maximize2, RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DEFAULT_TRADINGVIEW_SYMBOL, TRADINGVIEW_SYMBOLS, mapFortifyToTradingView } from "./tradingViewSymbols";
@@ -9,6 +9,34 @@ type TradingViewContextValue = {
 };
 
 const TradingViewContext = createContext<TradingViewContextValue | null>(null);
+
+function TradingViewLogo({ compact = false }: { compact?: boolean }) {
+  return (
+    <span className="inline-flex items-center gap-2" aria-hidden="true">
+      <svg
+        width="30"
+        height="22"
+        viewBox="0 0 30 22"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className="shrink-0"
+      >
+        <path
+          d="M9.8 17.6h12.4a5.7 5.7 0 0 0 .5-11.37 7.35 7.35 0 0 0-13.8-1.9A6.75 6.75 0 0 0 9.8 17.6Z"
+          fill="white"
+        />
+        <path
+          d="M9.1 11.25h3.3l2.15-3.6 2.35 6.65 2.1-3.05h3.3"
+          stroke="#0B1220"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+      {!compact ? <span className="text-sm font-black tracking-tight text-white">TradingView</span> : null}
+    </span>
+  );
+}
 
 export function useTradingView() {
   const value = useContext(TradingViewContext);
@@ -37,15 +65,11 @@ export function TradingViewProvider({ children }: { children: React.ReactNode })
       <button
         type="button"
         onClick={() => openChart()}
-        className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-3 rounded-full border border-cyan-300/35 bg-[#06111f]/95 px-4 py-3 text-xs font-black text-cyan-100 shadow-[0_0_0_1px_rgba(34,211,238,0.08),0_12px_42px_rgba(8,145,178,0.28)] backdrop-blur hover:border-cyan-300/60 hover:bg-[#082033] hover:text-white transition-all"
+        className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-full border border-white/15 bg-[#05060a]/95 px-4 py-2.5 text-white shadow-[0_0_0_1px_rgba(96,165,250,0.12),0_16px_46px_rgba(37,99,235,0.28)] backdrop-blur transition-all hover:-translate-y-0.5 hover:border-sky-300/45 hover:bg-[#0a1020] hover:shadow-[0_0_0_1px_rgba(125,211,252,0.2),0_18px_56px_rgba(79,70,229,0.34)]"
         title="Abrir TradingView dentro do Fortify"
         aria-label="Abrir TradingView dentro do Fortify"
       >
-        <span className="relative inline-flex h-8 w-8 items-center justify-center rounded-full bg-cyan-400/15 text-cyan-200">
-          <Cloud className="h-5 w-5" />
-          <Activity className="absolute h-3 w-3 translate-x-1 translate-y-1 text-cyan-50" />
-        </span>
-        <span className="tracking-wide">TradingView</span>
+        <TradingViewLogo />
       </button>
       <TradingViewPanel open={open} onClose={() => setOpen(false)} symbol={symbol} setSymbol={setSymbol} />
     </TradingViewContext.Provider>
@@ -141,21 +165,26 @@ function TradingViewPanel({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm">
-      <div className="absolute inset-2 md:inset-8 rounded-none md:rounded-lg border border-border bg-background shadow-2xl overflow-hidden flex flex-col">
-        <div className="flex flex-col gap-3 border-b border-border bg-card/95 px-4 py-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4 text-primary" />
-              <h2 className="text-sm font-bold text-foreground">TradingView — Análise gráfica</h2>
+    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm">
+      <div className="absolute inset-0 md:inset-x-[5vw] md:inset-y-[6vh] overflow-hidden rounded-none border border-white/10 bg-[#05060a] shadow-[0_28px_90px_rgba(0,0,0,0.75)] md:rounded-xl flex flex-col">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-[radial-gradient(circle_at_25%_0%,rgba(56,189,248,0.20),transparent_38%),radial-gradient(circle_at_72%_0%,rgba(124,58,237,0.18),transparent_34%)]" />
+        <div className="relative flex flex-col gap-3 border-b border-white/10 bg-[#070914]/92 px-4 py-3 md:flex-row md:items-center md:justify-between">
+          <div className="min-w-0">
+            <div className="flex items-center gap-3">
+              <TradingViewLogo />
+              <div className="h-8 w-px bg-white/10" />
+              <div>
+                <h2 className="text-sm font-black text-white">TradingView</h2>
+                <p className="text-[11px] font-medium text-slate-400">Análise gráfica dentro do Fortify</p>
+              </div>
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">Ferramenta apenas para análise. Ordens não são executadas pelo Fortify.</p>
+            <p className="mt-2 text-xs text-slate-400">Ferramenta apenas para análise. Ordens não são executadas pelo Fortify.</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 md:justify-end">
             <select
               value={symbol}
               onChange={(event) => setSymbol(event.target.value)}
-              className="h-9 rounded-md border border-border bg-muted px-3 text-xs text-foreground outline-none"
+              className="h-9 rounded-md border border-white/10 bg-white/[0.08] px-3 text-xs text-white outline-none transition-colors hover:border-sky-300/35"
             >
               {TRADINGVIEW_SYMBOLS.map((option) => (
                 <option key={option.tradingViewSymbol} value={option.tradingViewSymbol}>
@@ -169,7 +198,7 @@ function TradingViewPanel({
               onKeyDown={(event) => {
                 if (event.key === "Enter") loadManualSymbol();
               }}
-              className="h-9 w-40 text-xs"
+              className="h-9 w-40 border-white/10 bg-white/[0.08] text-xs text-white placeholder:text-slate-500"
               placeholder="Ex.: OANDA:XAUUSD"
             />
             <Button type="button" size="sm" variant="outline" onClick={loadManualSymbol}>
@@ -188,14 +217,14 @@ function TradingViewPanel({
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border text-muted-foreground hover:text-foreground"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-white/10 text-slate-400 transition-colors hover:border-white/25 hover:text-white"
               aria-label="Fechar TradingView"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
         </div>
-        <div className="relative min-h-0 flex-1 bg-[#05070b]">
+        <div className="relative min-h-0 flex-1 bg-[#05070b] p-0">
           <div ref={widgetRef} className="tradingview-widget-container h-full w-full" />
           {loadFailed ? (
             <div className="absolute inset-0 flex items-center justify-center bg-background/90 p-6 text-center">
