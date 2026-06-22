@@ -10,30 +10,40 @@ type TradingViewContextValue = {
 
 const TradingViewContext = createContext<TradingViewContextValue | null>(null);
 
-function TradingViewLogo({ compact = false }: { compact?: boolean }) {
+function TradingViewLogo({ className = "" }: { className?: string }) {
   return (
-    <span className="inline-flex items-center gap-2" aria-hidden="true">
+    <span className={`inline-flex items-center ${className}`} aria-hidden="true">
       <svg
-        width="30"
-        height="22"
-        viewBox="0 0 30 22"
+        width="144"
+        height="30"
+        viewBox="0 0 144 30"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        className="shrink-0"
+        className="h-[30px] w-auto shrink-0"
       >
         <path
-          d="M9.8 17.6h12.4a5.7 5.7 0 0 0 .5-11.37 7.35 7.35 0 0 0-13.8-1.9A6.75 6.75 0 0 0 9.8 17.6Z"
+          d="M9.62 23.64h15.1c3.78 0 6.84-3.02 6.84-6.74 0-3.46-2.65-6.3-6.05-6.68C24.36 5.45 20.04 2 14.9 2 9.95 2 5.78 5.22 4.4 9.66 1.77 10.82 0 13.43 0 16.36c0 4.02 3.43 7.28 7.67 7.28h1.95Z"
           fill="white"
         />
         <path
-          d="M9.1 11.25h3.3l2.15-3.6 2.35 6.65 2.1-3.05h3.3"
+          d="M8.48 14.86h4.02l2.58-4.38 3.02 8.04 2.72-3.66h4.38"
           stroke="#0B1220"
-          strokeWidth="1.8"
+          strokeWidth="2.15"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
+        <text
+          x="39"
+          y="21.6"
+          fill="white"
+          fontFamily="Inter, Arial, Helvetica, sans-serif"
+          fontSize="19"
+          fontWeight="800"
+          letterSpacing="-0.7"
+        >
+          TradingView
+        </text>
       </svg>
-      {!compact ? <span className="text-sm font-black tracking-tight text-white">TradingView</span> : null}
     </span>
   );
 }
@@ -174,7 +184,6 @@ function TradingViewPanel({
               <TradingViewLogo />
               <div className="h-8 w-px bg-white/10" />
               <div>
-                <h2 className="text-sm font-black text-white">TradingView</h2>
                 <p className="text-[11px] font-medium text-slate-400">Análise gráfica dentro do Fortify</p>
               </div>
             </div>
