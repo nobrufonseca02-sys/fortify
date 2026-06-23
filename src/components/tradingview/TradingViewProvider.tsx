@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { Maximize2, RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import tradingViewWordmarkWhite from "@/assets/brands/tradingview-wordmark-white.png";
+import tradingViewWordmarkTransparent from "@/assets/brands/tradingview-wordmark-transparent.png";
 import { DEFAULT_TRADINGVIEW_SYMBOL, TRADINGVIEW_SYMBOLS, mapFortifyToTradingView } from "./tradingViewSymbols";
 
 type TradingViewContextValue = {
@@ -12,13 +12,13 @@ type TradingViewContextValue = {
 const TradingViewContext = createContext<TradingViewContextValue | null>(null);
 
 function TradingViewLogo({ className = "", size = "button" }: { className?: string; size?: "button" | "header" }) {
-  const frameClassName = size === "header" ? "h-9 w-[190px]" : "h-7 w-[148px]";
+  const imageClassName = size === "header" ? "h-10" : "h-7";
   return (
-    <span className={`inline-flex items-center overflow-hidden ${frameClassName} ${className}`} aria-hidden="true">
+    <span className={`inline-flex items-center ${className}`} aria-hidden="true">
       <img
-        src={tradingViewWordmarkWhite}
+        src={tradingViewWordmarkTransparent}
         alt=""
-        className="h-full w-full object-cover object-center invert"
+        className={`${imageClassName} w-auto object-contain`}
         draggable={false}
       />
     </span>
