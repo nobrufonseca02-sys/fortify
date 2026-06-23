@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { Maximize2, RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import tradingViewMarkTransparent from "@/assets/brands/tradingview-mark-transparent.png";
 import { DEFAULT_TRADINGVIEW_SYMBOL, TRADINGVIEW_SYMBOLS, mapFortifyToTradingView } from "./tradingViewSymbols";
 
 type TradingViewContextValue = {
@@ -12,17 +13,13 @@ const TradingViewContext = createContext<TradingViewContextValue | null>(null);
 
 function TradingViewMarkIcon({ className = "" }: { className?: string }) {
   return (
-    <svg
-      viewBox="0 0 120 72"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
+    <img
+      src={tradingViewMarkTransparent}
+      alt=""
+      className={`${className} object-contain`}
+      draggable={false}
       aria-hidden="true"
-    >
-      <path d="M8 10h50v14H40v38H24V24H8V10Z" fill="currentColor" />
-      <path d="M66 10h16l14 33 14-33h16L103 62H89L66 10Z" fill="currentColor" />
-      <circle cx="62" cy="18" r="8" fill="currentColor" />
-    </svg>
+    />
   );
 }
 
