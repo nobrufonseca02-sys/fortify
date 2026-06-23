@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { Maximize2, RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import tradingViewWordmarkWhite from "@/assets/brands/tradingview-wordmark-white.png";
 import { DEFAULT_TRADINGVIEW_SYMBOL, TRADINGVIEW_SYMBOLS, mapFortifyToTradingView } from "./tradingViewSymbols";
 
 type TradingViewContextValue = {
@@ -10,40 +11,16 @@ type TradingViewContextValue = {
 
 const TradingViewContext = createContext<TradingViewContextValue | null>(null);
 
-function TradingViewLogo({ className = "" }: { className?: string }) {
+function TradingViewLogo({ className = "", size = "button" }: { className?: string; size?: "button" | "header" }) {
+  const frameClassName = size === "header" ? "h-9 w-[190px]" : "h-7 w-[148px]";
   return (
-    <span className={`inline-flex items-center ${className}`} aria-hidden="true">
-      <svg
-        width="144"
-        height="30"
-        viewBox="0 0 144 30"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className="h-[30px] w-auto shrink-0"
-      >
-        <path
-          d="M9.62 23.64h15.1c3.78 0 6.84-3.02 6.84-6.74 0-3.46-2.65-6.3-6.05-6.68C24.36 5.45 20.04 2 14.9 2 9.95 2 5.78 5.22 4.4 9.66 1.77 10.82 0 13.43 0 16.36c0 4.02 3.43 7.28 7.67 7.28h1.95Z"
-          fill="white"
-        />
-        <path
-          d="M8.48 14.86h4.02l2.58-4.38 3.02 8.04 2.72-3.66h4.38"
-          stroke="#0B1220"
-          strokeWidth="2.15"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <text
-          x="39"
-          y="21.6"
-          fill="white"
-          fontFamily="Inter, Arial, Helvetica, sans-serif"
-          fontSize="19"
-          fontWeight="800"
-          letterSpacing="-0.7"
-        >
-          TradingView
-        </text>
-      </svg>
+    <span className={`inline-flex items-center overflow-hidden ${frameClassName} ${className}`} aria-hidden="true">
+      <img
+        src={tradingViewWordmarkWhite}
+        alt=""
+        className="h-full w-full object-cover object-center invert"
+        draggable={false}
+      />
     </span>
   );
 }
@@ -181,7 +158,7 @@ function TradingViewPanel({
         <div className="relative flex flex-col gap-3 border-b border-white/10 bg-[#070914]/92 px-4 py-3 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-3">
-              <TradingViewLogo />
+              <TradingViewLogo size="header" />
               <div className="h-8 w-px bg-white/10" />
               <div>
                 <p className="text-[11px] font-medium text-slate-400">Análise gráfica dentro do Fortify</p>
