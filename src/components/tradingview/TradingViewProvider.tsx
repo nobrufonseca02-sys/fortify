@@ -10,39 +10,29 @@ type TradingViewContextValue = {
 
 const TradingViewContext = createContext<TradingViewContextValue | null>(null);
 
-function TradingViewLogo({ className = "", size = "button" }: { className?: string; size?: "button" | "header" }) {
-  const svgClassName = size === "header" ? "h-10 w-[210px]" : "h-8 w-[184px]";
+function TradingViewMarkIcon({ className = "" }: { className?: string }) {
   return (
-    <span className={`inline-flex items-center justify-center ${className}`} aria-hidden="true">
-      <svg
-        viewBox="0 0 210 40"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className={`${svgClassName} block`}
-      >
-        <path
-          d="M11.7 30.5h20.6c5.2 0 9.4-4.12 9.4-9.2 0-4.77-3.68-8.7-8.38-9.14C31.85 5.85 26.14 1.25 19.3 1.25 12.62 1.25 7.05 5.65 5.28 11.68 2.12 13.25 0 16.5 0 20.18c0 5.7 4.95 10.32 11.05 10.32h.65Z"
-          fill="white"
-        />
-        <path
-          d="M11.2 19.7h5.1l3.22-5.45 3.88 10.25 3.52-4.8h5.45"
-          stroke="#07111F"
-          strokeWidth="2.55"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <text
-          x="52"
-          y="27.6"
-          fill="white"
-          fontFamily="Inter, Arial, Helvetica, sans-serif"
-          fontSize="25"
-          fontWeight="800"
-          letterSpacing="-1.1"
-        >
-          TradingView
-        </text>
-      </svg>
+    <svg
+      viewBox="0 0 120 72"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M8 10h50v14H40v38H24V24H8V10Z" fill="currentColor" />
+      <path d="M66 10h16l14 33 14-33h16L103 62H89L66 10Z" fill="currentColor" />
+      <circle cx="62" cy="18" r="8" fill="currentColor" />
+    </svg>
+  );
+}
+
+function TradingViewLogo({ className = "", size = "button" }: { className?: string; size?: "button" | "header" }) {
+  const iconClassName = size === "header" ? "h-8 w-12" : "h-7 w-10";
+  const textClassName = size === "header" ? "text-[26px]" : "text-[22px]";
+  return (
+    <span className={`inline-flex items-center justify-center gap-3 text-white ${className}`} aria-hidden="true">
+      <TradingViewMarkIcon className={`${iconClassName} shrink-0 text-white`} />
+      <span className={`${textClassName} font-black leading-none tracking-[-0.06em] text-white`}>TradingView</span>
     </span>
   );
 }
