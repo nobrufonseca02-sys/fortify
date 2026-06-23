@@ -1,531 +1,566 @@
-import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import { RULE_SET_TEMPLATES } from '@/data/mockData';
-import { AccountSelector } from '@/components/AccountSelector';
-import { TradingAccount, RuleEvaluation, STATUS_CONFIG, RULE_TYPE_DESCRIPTIONS, RuleType } from '@/types/fortify';
-import { useAccountsStore } from '@/hooks/useAccountsStore';
-import { useRuleEvaluations } from '@/hooks/useRuleEvaluations';
-import { mapRuleEvaluationRow } from '@/lib/ruleEvaluationView';
-import { Shield, ShieldAlert, ShieldX, AlertTriangle, CheckCircle2, XCircle, Info, Lightbulb, ChevronRight } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useMemo, useState } from 'react';
+import {
+  AlertTriangle,
+  ArrowUpDown,
+  BookOpen,
+  CheckCircle2,
+  ExternalLink,
+  Filter,
+  Info,
+  Search,
+  ShieldAlert,
+  X,
+} from 'lucide-react';
+import {
+  PropFirmRuleProgram,
+  propFirmFilterOptions,
+  propFirmRulePrograms,
+} from '@/data/propFirmRules';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
-// === Helpers ===
-const fmt = (v: number) => `$${Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`;
+const allValue = 'Todos';
 
-const CRITICAL_TYPES: RuleType[] = ['MAX_DAILY_LOSS', 'MAX_TOTAL_LOSS', 'TRAILING_MAX_LOSS'];
-const EVALUATION_TYPES: RuleType[] = ['PROFIT_TARGET', 'MIN_TRADING_DAYS', 'CONSISTENCY_BEST_DAY_CAP'];
-const OPERATIONAL_TYPES: RuleType[] = ['NEWS_RESTRICTION_WINDOW', 'SCALPING_RULE', 'MAX_STACKING_TRADES', 'INACTIVITY_LIMIT'];
-
-// === Avoidance tips by rule type ===
-const AVOIDANCE_TIPS: Record<RuleType, { title: string; explanation: string; tips: string[] }> = {
-  MAX_DAILY_LOSS: {
-    title: 'Como evitar violação de Perda Diária',
-    explanation: 'Esta regra limita quanto você pode perder em um único dia. Se o valor for atingido, a conta pode ser encerrada imediatamente (hard stop).',
-    tips: [
-      'Defina um stop loss antes de cada trade',
-      'Reduza o tamanho do lote quando já tiver perda no dia',
-      'Pare de operar após 2 trades perdedores consecutivos',
-      'Nunca mova o stop loss para aumentar a perda',
-      'Use no máximo 1-2% do limite diário por trade',
-    ],
-  },
-  MAX_TOTAL_LOSS: {
-    title: 'Como evitar violação de Perda Total',
-    explanation: 'Esta regra limita a perda acumulada desde o início da conta. Se atingida, a conta é reprovada.',
-    tips: [
-      'Monitore sua perda acumulada diariamente',
-      'Reduza o lote progressivamente conforme a perda aumenta',
-      'Considere parar por 1-2 dias após uma série negativa',
-      'Foque em trades de alta probabilidade quando a margem estiver curta',
-      'Nunca tente recuperar perdas grandes de uma vez',
-    ],
-  },
-  TRAILING_MAX_LOSS: {
-    title: 'Como evitar violação de Trailing Drawdown',
-    explanation: 'O limite acompanha o maior saldo atingido. Conforme você lucra, o "piso" sobe junto. Isso significa que ganhos anteriores apertam sua margem.',
-    tips: [
-      'Entenda que cada novo high eleva o piso de perda',
-      'Proteja lucros parciais usando trailing stop nos trades',
-      'Evite devolver ganhos grandes em uma única sessão',
-      'Reduza o risco após atingir um novo high significativo',
-    ],
-  },
-  PROFIT_TARGET: {
-    title: 'Como atingir a Meta de Lucro',
-    explanation: 'Você precisa atingir um valor de lucro específico para ser aprovado. Não apresse o processo.',
-    tips: [
-      'Divida a meta em micro-metas semanais',
-      'Mantenha consistência ao invés de buscar trades grandes',
-      'Não force trades para atingir a meta rapidamente',
-      'Foque na qualidade dos setups, não na quantidade',
-    ],
-  },
-  MIN_TRADING_DAYS: {
-    title: 'Como cumprir os Dias Mínimos',
-    explanation: 'A prop firm exige que você opere em pelo menos X dias diferentes. Um dia com pelo menos 1 trade conta.',
-    tips: [
-      'Planeje operar pelo menos 1 trade por dia nos dias necessários',
-      'Mesmo um micro-lote conta como dia ativo',
-      'Não deixe para os últimos dias — distribua ao longo do período',
-    ],
-  },
-  CONSISTENCY_BEST_DAY_CAP: {
-    title: 'Como manter Consistência',
-    explanation: 'O lucro do seu melhor dia não pode representar mais do que X% do lucro total. Isso evita que uma única "sorte grande" aprove a conta.',
-    tips: [
-      'Distribua seus lucros de forma uniforme entre os dias',
-      'Evite arriscar tudo em um único trade',
-      'Se tiver um dia excepcional, pare e proteja o resultado',
-      'Busque lucros moderados e consistentes',
-    ],
-  },
-  NEWS_RESTRICTION_WINDOW: {
-    title: 'Como respeitar a Restrição de Notícias',
-    explanation: 'Algumas prop firms proíbem operar durante janelas de notícias de alto impacto (ex: NFP, FOMC).',
-    tips: [
-      'Consulte o calendário econômico diariamente antes de operar',
-      'Feche posições abertas antes da janela restrita',
-      'Não abra novas posições durante o período de restrição',
-      'Use alertas para lembrar dos horários de notícias',
-    ],
-  },
-  SCALPING_RULE: {
-    title: 'Como evitar violação de Scalping',
-    explanation: 'Trades com duração muito curta (geralmente menos de 2-3 minutos) podem ser considerados scalping e limitados.',
-    tips: [
-      'Mantenha trades abertos por pelo menos 3 minutos',
-      'Evite entrar e sair rapidamente só para marcar lucro',
-      'Se o trade atingir o target rápido, espere o tempo mínimo antes de fechar',
-    ],
-  },
-  MAX_STACKING_TRADES: {
-    title: 'Como evitar Stacking de Trades',
-    explanation: 'Algumas prop firms limitam o número de posições abertas simultaneamente no mesmo ativo.',
-    tips: [
-      'Abra apenas 1 posição por ativo por vez',
-      'Use ordens parciais ao invés de múltiplas posições',
-      'Feche a posição anterior antes de abrir uma nova no mesmo ativo',
-    ],
-  },
-  INACTIVITY_LIMIT: {
-    title: 'Como evitar violação de Inatividade',
-    explanation: 'Você não pode ficar muitos dias consecutivos sem operar. A conta pode ser cancelada por inatividade.',
-    tips: [
-      'Configure lembretes para operar mesmo em dias de baixa convicção',
-      'Um micro-lote já conta como atividade',
-      'Planeje suas férias considerando o limite de inatividade',
-    ],
-  },
-  PROFIT_CAP_PAYOUT: {
-    title: 'Como funciona o Teto de Lucro',
-    explanation: 'Há um limite máximo de lucro que pode ser sacado por ciclo de payout.',
-    tips: [
-      'Conheça o limite de saque do seu plano',
-      'Planeje seus ciclos de payout com antecedência',
-      'Lucros acima do teto geralmente ficam retidos para o próximo ciclo',
-    ],
-  },
+const riskClass: Record<PropFirmRuleProgram['riskLevel'], string> = {
+  Baixo: 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200',
+  Médio: 'border-amber-400/30 bg-amber-400/10 text-amber-200',
+  Alto: 'border-red-400/30 bg-red-400/10 text-red-200',
 };
 
-// === Progress Bar ===
-function ProgressBar({ value, max, status }: { value: number; max: number; status: string }) {
-  const p = max > 0 ? Math.min(100, (value / max) * 100) : 0;
-  const barColor =
-    status === 'VIOLATED' ? 'bg-destructive' :
-    status === 'WARNING' ? 'bg-warning' :
-    p > 70 ? 'bg-warning' :
-    'bg-success';
+const sourceByFirm: Record<string, string> = {
+  FTMO: 'https://ftmo.com/en/trading-objectives/',
+  'Apex Trader Funding': 'https://apextraderfunding.com/help-center/',
+  'Hantec Trader': 'https://htrader.hmarkets.com/programs/rules/',
+};
 
+function SelectFilter({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+}) {
   return (
-    <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-      <div className={`h-full rounded-full transition-all duration-700 ${barColor}`} style={{ width: `${Math.min(100, p)}%` }} />
+    <label className="space-y-2">
+      <span className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">{label}</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-10 w-full rounded-md border border-border bg-background/80 px-3 text-sm text-foreground outline-none transition-colors focus:border-primary"
+      >
+        <option value={allValue}>{allValue}</option>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function InfoPill({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="rounded-full border border-border bg-muted/40 px-3 py-1 text-xs text-muted-foreground">
+      {children}
+    </span>
+  );
+}
+
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-border/80 bg-background/40 p-3">
+      <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">{label}</p>
+      <p className="mt-1 text-sm font-medium text-foreground">{value}</p>
     </div>
   );
 }
 
-// === Status Icon ===
-function StatusIcon({ status }: { status: string }) {
-  switch (status) {
-    case 'APPROVING': return <CheckCircle2 className="w-4 h-4 text-success" />;
-    case 'WARNING': return <AlertTriangle className="w-4 h-4 text-warning" />;
-    case 'VIOLATED': return <XCircle className="w-4 h-4 text-destructive" />;
-    default: return <Shield className="w-4 h-4 text-muted-foreground" />;
+function ProgramCard({
+  program,
+  isCompared,
+  compareDisabled,
+  onDetails,
+  onCompare,
+}: {
+  program: PropFirmRuleProgram;
+  isCompared: boolean;
+  compareDisabled: boolean;
+  onDetails: () => void;
+  onCompare: () => void;
+}) {
+  return (
+    <article className="flex h-full flex-col rounded-xl border border-border bg-card/80 p-5 shadow-sm shadow-black/10">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">{program.firm}</p>
+          <h3 className="mt-2 text-lg font-semibold text-foreground">{program.programName}</h3>
+        </div>
+        <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${riskClass[program.riskLevel]}`}>
+          Risco {program.riskLevel}
+        </span>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <InfoPill>{program.programType}</InfoPill>
+        <InfoPill>{program.market}</InfoPill>
+        <InfoPill>{program.drawdownType}</InfoPill>
+      </div>
+
+      <div className="mt-5 grid grid-cols-2 gap-3">
+        <Field label="Meta" value={program.profitTarget} />
+        <Field label="Perda diaria" value={program.dailyLoss} />
+        <Field label="Perda maxima" value={program.maxLoss} />
+        <Field label="Dias min." value={program.minTradingDays} />
+      </div>
+
+      <div className="mt-4 space-y-3 text-sm text-muted-foreground">
+        <p>
+          <span className="font-medium text-foreground">Tamanhos:</span> {program.accountSizes.join(', ')}
+        </p>
+        <p>
+          <span className="font-medium text-foreground">Plataformas:</span> {program.platforms.join(', ')}
+        </p>
+        <p>
+          <span className="font-medium text-foreground">Risco principal:</span> {program.mainRisk}
+        </p>
+        <p>
+          <span className="font-medium text-foreground">Melhor para:</span> {program.bestFor}
+        </p>
+      </div>
+
+      <div className="mt-auto flex flex-col gap-2 pt-5 sm:flex-row">
+        <Button onClick={onDetails} className="flex-1">
+          Ver detalhes
+        </Button>
+        <Button
+          type="button"
+          variant={isCompared ? 'secondary' : 'outline'}
+          onClick={onCompare}
+          disabled={!isCompared && compareDisabled}
+          className="flex-1"
+        >
+          {isCompared ? 'Remover' : 'Comparar'}
+        </Button>
+      </div>
+    </article>
+  );
+}
+
+function DetailsDrawer({
+  program,
+  onClose,
+}: {
+  program: PropFirmRuleProgram | null;
+  onClose: () => void;
+}) {
+  if (!program) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm" role="dialog" aria-modal="true">
+      <div className="ml-auto flex h-full w-full max-w-3xl flex-col border-l border-border bg-card shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-border p-5">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">{program.firm}</p>
+            <h2 className="mt-2 text-2xl font-semibold text-foreground">{program.programName}</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Revisado em {program.lastReviewedAt}. Dados informativos para triagem de risco.
+            </p>
+          </div>
+          <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Fechar detalhes">
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5">
+          <div className="grid gap-3 md:grid-cols-3">
+            <Field label="Programa" value={program.programType} />
+            <Field label="Mercado" value={program.market} />
+            <Field label="Drawdown" value={program.drawdownType} />
+          </div>
+
+          <section className="mt-6">
+            <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-muted-foreground">Tamanhos e limites</h3>
+            <div className="mt-3 overflow-x-auto rounded-lg border border-border">
+              <table className="w-full min-w-[620px] text-left text-sm">
+                <thead className="bg-muted/40 text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-3">Conta</th>
+                    <th className="px-4 py-3">Meta</th>
+                    <th className="px-4 py-3">Perda diaria</th>
+                    <th className="px-4 py-3">Perda maxima</th>
+                    <th className="px-4 py-3">Contratos</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {program.accountSizeRows.map((row) => (
+                    <tr key={`${program.id}-${row.label}`} className="text-foreground">
+                      <td className="px-4 py-3 font-medium">{row.label}</td>
+                      <td className="px-4 py-3">{row.profitTarget}</td>
+                      <td className="px-4 py-3">{row.dailyLoss}</td>
+                      <td className="px-4 py-3">{row.maxLoss}</td>
+                      <td className="px-4 py-3">{row.maxContracts ?? '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            <DetailList title="Objetivos de trading" items={program.tradingObjectives} />
+            <DetailList title="Regras de risco" items={program.riskRules} tone="risk" />
+            <DetailList title="Pontos de atencao" items={program.attentionRules} tone="warning" />
+            <DetailList title="Notas operacionais" items={program.operationalNotes} />
+          </div>
+
+          <section className="mt-6 rounded-xl border border-amber-400/25 bg-amber-400/10 p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 text-amber-300" />
+              <div>
+                <h3 className="font-semibold text-amber-100">Aviso importante</h3>
+                <p className="mt-1 text-sm text-amber-100/80">
+                  As regras podem mudar sem aviso. Confirme sempre os termos oficiais da mesa antes de operar.
+                </p>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div className="flex flex-col gap-3 border-t border-border p-5 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-muted-foreground">Fonte: {program.sourceLabel}</p>
+          <Button asChild variant="outline">
+            <a href={program.officialSourceUrl} target="_blank" rel="noopener noreferrer">
+              Abrir fonte oficial
+              <ExternalLink className="ml-2 h-4 w-4" />
+            </a>
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DetailList({
+  title,
+  items,
+  tone = 'default',
+}: {
+  title: string;
+  items: string[];
+  tone?: 'default' | 'risk' | 'warning';
+}) {
+  const iconClass = tone === 'risk' ? 'text-red-300' : tone === 'warning' ? 'text-amber-300' : 'text-primary';
+
+  return (
+    <section className="rounded-xl border border-border bg-background/35 p-4">
+      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+      <ul className="mt-3 space-y-2">
+        {items.map((item) => (
+          <li key={item} className="flex items-start gap-2 text-sm text-muted-foreground">
+            <CheckCircle2 className={`mt-0.5 h-4 w-4 flex-shrink-0 ${iconClass}`} />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function ComparisonPanel({
+  programs,
+  onRemove,
+}: {
+  programs: PropFirmRuleProgram[];
+  onRemove: (id: string) => void;
+}) {
+  if (programs.length === 0) {
+    return (
+      <section className="rounded-xl border border-dashed border-border bg-card/60 p-5">
+        <div className="flex items-center gap-3">
+          <ArrowUpDown className="h-5 w-5 text-primary" />
+          <div>
+            <h2 className="font-semibold text-foreground">Comparacao</h2>
+            <p className="text-sm text-muted-foreground">Selecione ate 3 programas para comparar limites criticos lado a lado.</p>
+          </div>
+        </div>
+      </section>
+    );
   }
-}
 
-// === Avoidance Modal ===
-function AvoidanceModal({ ruleType, open, onClose }: { ruleType: RuleType | null; open: boolean; onClose: () => void }) {
-  if (!ruleType) return null;
-  const data = AVOIDANCE_TIPS[ruleType];
-  if (!data) return null;
+  const rows: Array<[string, keyof PropFirmRuleProgram]> = [
+    ['Mesa', 'firm'],
+    ['Programa', 'programName'],
+    ['Tipo', 'programType'],
+    ['Mercado', 'market'],
+    ['Meta', 'profitTarget'],
+    ['Perda diaria', 'dailyLoss'],
+    ['Perda maxima', 'maxLoss'],
+    ['Drawdown', 'drawdownType'],
+    ['Dias minimos', 'minTradingDays'],
+    ['Consistencia', 'consistencyRule'],
+    ['Noticias', 'newsRule'],
+    ['Fim de semana', 'weekendRule'],
+    ['Payout', 'payout'],
+    ['Risco', 'riskLevel'],
+  ];
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="bg-card border-border max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-foreground">
-            <Shield className="w-5 h-5 text-primary" />
-            {data.title}
-          </DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="rounded-lg bg-muted/50 p-4">
-            <div className="flex items-start gap-2">
-              <Info className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-muted-foreground">{data.explanation}</p>
-            </div>
-          </div>
+    <section className="rounded-xl border border-border bg-card/80 p-5">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">Comparacao de programas</h2>
+          <p className="text-sm text-muted-foreground">Limites e regras que mais reprovam contas.</p>
+        </div>
+        <span className="text-xs text-muted-foreground">{programs.length}/3 selecionados</span>
+      </div>
 
-          <div>
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Dicas práticas</h4>
-            <div className="space-y-2">
-              {data.tips.map((tip, i) => (
-                <div key={i} className="flex items-start gap-2">
-                  <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-[10px] font-bold text-primary">{i + 1}</span>
+      <div className="mt-4 overflow-x-auto rounded-lg border border-border">
+        <table className="w-full min-w-[760px] text-left text-sm">
+          <thead className="bg-muted/40 text-xs uppercase tracking-[0.14em] text-muted-foreground">
+            <tr>
+              <th className="px-4 py-3">Campo</th>
+              {programs.map((program) => (
+                <th key={program.id} className="px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span>{program.programName}</span>
+                    <button
+                      type="button"
+                      onClick={() => onRemove(program.id)}
+                      className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      aria-label={`Remover ${program.programName} da comparacao`}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
                   </div>
-                  <p className="text-sm text-foreground">{tip}</p>
-                </div>
+                </th>
               ))}
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-warning/20 bg-warning/5 p-3">
-            <div className="flex items-center gap-2">
-              <Lightbulb className="w-4 h-4 text-warning flex-shrink-0" />
-              <p className="text-xs text-warning">Lembre-se: proteger a conta é mais importante do que lucrar.</p>
-            </div>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {rows.map(([label, key]) => (
+              <tr key={label}>
+                <td className="px-4 py-3 font-medium text-foreground">{label}</td>
+                {programs.map((program) => (
+                  <td key={`${program.id}-${String(key)}`} className="px-4 py-3 text-muted-foreground">
+                    {String(program[key])}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 
-// === Critical Rule Card (large) ===
-function CriticalRuleCard({ evaluation, index }: { evaluation: RuleEvaluation; index: number }) {
-  const [showModal, setShowModal] = useState(false);
-  const config = STATUS_CONFIG[evaluation.status];
-  const remaining = Math.max(0, evaluation.limitValue - evaluation.currentValue);
-  const description = RULE_TYPE_DESCRIPTIONS[evaluation.rule.type];
+export default function AccountRules() {
+  const [query, setQuery] = useState('');
+  const [firm, setFirm] = useState(allValue);
+  const [programType, setProgramType] = useState(allValue);
+  const [market, setMarket] = useState(allValue);
+  const [drawdownType, setDrawdownType] = useState(allValue);
+  const [accountSize, setAccountSize] = useState(allValue);
+  const [riskLevel, setRiskLevel] = useState(allValue);
+  const [detailsProgram, setDetailsProgram] = useState<PropFirmRuleProgram | null>(null);
+  const [comparisonIds, setComparisonIds] = useState<string[]>([]);
 
-  // Practical tip inline
-  let tip = '';
-  if (evaluation.progressPct > 80) tip = 'Pare de operar até o próximo dia';
-  else if (evaluation.progressPct > 60) tip = 'Reduza o lote pela metade';
-  else if (evaluation.progressPct > 40) tip = 'Mantenha stop loss apertado';
-  else tip = 'Situação confortável, mantenha a disciplina';
-
-  return (
-    <>
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: index * 0.06, duration: 0.3 }}
-        className="rounded-xl border border-border bg-card p-5"
-      >
-        {/* Status line */}
-        <div className={`h-[2px] rounded-full mb-4 ${
-          evaluation.status === 'APPROVING' ? 'bg-success' :
-          evaluation.status === 'WARNING' ? 'bg-warning' :
-          evaluation.status === 'VIOLATED' ? 'bg-destructive' :
-          'bg-muted-foreground/30'
-        }`} />
-
-        {/* Header */}
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <StatusIcon status={evaluation.status} />
-            <h3 className="font-semibold text-foreground">{evaluation.rule.name}</h3>
-          </div>
-          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${config.bgClass} ${config.textClass}`}>
-            {config.label}
-          </span>
-        </div>
-
-        {/* Description */}
-        <p className="text-xs text-muted-foreground mb-4">{description}</p>
-
-        {/* Values grid */}
-        <div className="grid grid-cols-3 gap-3 mb-4">
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Limite</p>
-            <p className="font-mono font-bold text-sm text-foreground">{fmt(evaluation.limitValue)}</p>
-          </div>
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Atual</p>
-            <p className="font-mono font-bold text-sm text-foreground">{fmt(evaluation.currentValue)}</p>
-          </div>
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Restante</p>
-            <p className="font-mono font-bold text-sm text-success">{fmt(remaining)}</p>
-          </div>
-        </div>
-
-        {/* Progress */}
-        <ProgressBar value={evaluation.currentValue} max={evaluation.limitValue} status={evaluation.status} />
-        <p className="text-[10px] text-muted-foreground font-mono mt-1">{Math.round(evaluation.progressPct)}% utilizado</p>
-
-        {/* Tip */}
-        <div className="mt-4 rounded-lg bg-muted/50 p-3 flex items-start gap-2">
-          <Lightbulb className="w-3.5 h-3.5 text-primary mt-0.5 flex-shrink-0" />
-          <p className="text-xs text-foreground">{tip}</p>
-        </div>
-
-        {/* Severity + Action */}
-        <div className="mt-4 flex items-center justify-between">
-          {evaluation.rule.severity === 'hard' && (
-            <span className="text-[10px] font-mono uppercase tracking-wider text-destructive/70">HARD — violação = reprovação</span>
-          )}
-          {evaluation.rule.severity === 'soft' && (
-            <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Regra SOFT</span>
-          )}
-          <button
-            onClick={() => setShowModal(true)}
-            className="text-[10px] font-semibold text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
-          >
-            Como evitar violação <ChevronRight className="w-3 h-3" />
-          </button>
-        </div>
-      </motion.div>
-
-      <AvoidanceModal ruleType={evaluation.rule.type} open={showModal} onClose={() => setShowModal(false)} />
-    </>
+  const accountSizeOptions = useMemo(
+    () => Array.from(new Set(propFirmRulePrograms.flatMap((program) => program.accountSizes))).sort(),
+    [],
   );
-}
 
-// === Evaluation Rule Card ===
-function EvaluationRuleCard({ evaluation, index }: { evaluation: RuleEvaluation; index: number }) {
-  const [showModal, setShowModal] = useState(false);
-  const config = STATUS_CONFIG[evaluation.status];
-  const remaining = Math.max(0, evaluation.limitValue - Math.max(0, evaluation.currentValue));
+  const filteredPrograms = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
 
-  const formatVal = (v: number) => {
-    if (evaluation.rule.type === 'MIN_TRADING_DAYS') return `${v}`;
-    if (evaluation.rule.type === 'CONSISTENCY_BEST_DAY_CAP') return `${v}%`;
-    return fmt(v);
+    return propFirmRulePrograms.filter((program) => {
+      const matchesQuery =
+        !normalizedQuery ||
+        [program.firm, program.programName, program.market, program.programType, program.bestFor]
+          .join(' ')
+          .toLowerCase()
+          .includes(normalizedQuery);
+
+      return (
+        matchesQuery &&
+        (firm === allValue || program.firm === firm) &&
+        (programType === allValue || program.programType === programType) &&
+        (market === allValue ||
+          program.market === market ||
+          (market === 'MT4/MT5' && (program.platforms.includes('MT4') || program.platforms.includes('MT5')))) &&
+        (drawdownType === allValue || program.drawdownType === drawdownType) &&
+        (accountSize === allValue || program.accountSizes.includes(accountSize)) &&
+        (riskLevel === allValue || program.riskLevel === riskLevel)
+      );
+    });
+  }, [accountSize, drawdownType, firm, market, programType, query, riskLevel]);
+
+  const comparedPrograms = comparisonIds
+    .map((id) => propFirmRulePrograms.find((program) => program.id === id))
+    .filter(Boolean) as PropFirmRuleProgram[];
+
+  const toggleComparison = (id: string) => {
+    setComparisonIds((current) => {
+      if (current.includes(id)) return current.filter((item) => item !== id);
+      if (current.length >= 3) return current;
+      return [...current, id];
+    });
+  };
+
+  const resetFilters = () => {
+    setQuery('');
+    setFirm(allValue);
+    setProgramType(allValue);
+    setMarket(allValue);
+    setDrawdownType(allValue);
+    setAccountSize(allValue);
+    setRiskLevel(allValue);
   };
 
   return (
-    <>
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: index * 0.06, duration: 0.3 }}
-        className="rounded-xl border border-border bg-card p-5"
-      >
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <StatusIcon status={evaluation.status} />
-            <h3 className="font-semibold text-foreground text-sm">{evaluation.rule.name}</h3>
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto max-w-7xl space-y-8 px-4 py-6 sm:px-6 lg:px-8">
+        <section className="rounded-2xl border border-border bg-card/80 p-6">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-3xl">
+              <span className="inline-flex rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+                MVP • Dados informativos
+              </span>
+              <h1 className="mt-4 text-3xl font-bold tracking-tight text-foreground">Biblioteca de Regras</h1>
+              <p className="mt-3 text-base text-muted-foreground">
+                Compare regras de mesas proprietarias, veja limites criticos e entenda o que pode reprovar sua conta.
+              </p>
+            </div>
+            <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-100 lg:max-w-md">
+              <div className="flex gap-3">
+                <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0" />
+                <p>As regras podem mudar sem aviso. Confirme sempre os termos oficiais da mesa antes de operar.</p>
+              </div>
+            </div>
           </div>
-          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${config.bgClass} ${config.textClass}`}>
-            {config.label}
-          </span>
-        </div>
+        </section>
 
-        <p className="text-xs text-muted-foreground mb-4">{RULE_TYPE_DESCRIPTIONS[evaluation.rule.type]}</p>
-
-        <div className="grid grid-cols-2 gap-3 mb-3">
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Progresso</p>
-            <p className="font-mono font-bold text-sm text-foreground">{formatVal(evaluation.currentValue)}</p>
+        <section className="rounded-xl border border-border bg-card/80 p-5">
+          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <Filter className="h-4 w-4 text-primary" />
+            Filtros da biblioteca
           </div>
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Meta</p>
-            <p className="font-mono font-bold text-sm text-muted-foreground">{formatVal(evaluation.limitValue)}</p>
+          <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <label className="space-y-2 xl:col-span-2">
+              <span className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Buscar</span>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Buscar por mesa, programa ou mercado"
+                  className="pl-9"
+                />
+              </div>
+            </label>
+            <SelectFilter label="Mesa" value={firm} options={propFirmFilterOptions.firms} onChange={setFirm} />
+            <SelectFilter label="Tipo" value={programType} options={propFirmFilterOptions.programTypes} onChange={setProgramType} />
+            <SelectFilter label="Mercado" value={market} options={propFirmFilterOptions.markets} onChange={setMarket} />
+            <SelectFilter label="Drawdown" value={drawdownType} options={propFirmFilterOptions.drawdownTypes} onChange={setDrawdownType} />
+            <SelectFilter label="Tamanho" value={accountSize} options={accountSizeOptions} onChange={setAccountSize} />
+            <SelectFilter label="Risco" value={riskLevel} options={propFirmFilterOptions.riskLevels} onChange={setRiskLevel} />
           </div>
-        </div>
-
-        <div className="h-2 w-full rounded-full bg-muted overflow-hidden mb-1">
-          <div
-            className="h-full rounded-full transition-all duration-700 bg-primary"
-            style={{ width: `${Math.min(100, Math.max(0, evaluation.progressPct))}%` }}
-          />
-        </div>
-        <div className="flex justify-between">
-          <p className="text-[10px] text-muted-foreground font-mono">{Math.round(evaluation.progressPct)}% concluído</p>
-          {evaluation.rule.type === 'PROFIT_TARGET' && evaluation.currentValue >= 0 && (
-            <p className="text-[10px] text-muted-foreground font-mono">Faltam {fmt(remaining)}</p>
-          )}
-        </div>
-
-        <div className="mt-3 flex justify-end">
-          <button
-            onClick={() => setShowModal(true)}
-            className="text-[10px] font-semibold text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
-          >
-            Como evitar violação <ChevronRight className="w-3 h-3" />
-          </button>
-        </div>
-      </motion.div>
-
-      <AvoidanceModal ruleType={evaluation.rule.type} open={showModal} onClose={() => setShowModal(false)} />
-    </>
-  );
-}
-
-// === Operational Rule Card (smaller) ===
-function OperationalRuleCard({ evaluation, index }: { evaluation: RuleEvaluation; index: number }) {
-  const [showModal, setShowModal] = useState(false);
-  const config = STATUS_CONFIG[evaluation.status];
-
-  return (
-    <>
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: index * 0.06, duration: 0.3 }}
-        className="rounded-xl border border-border bg-card p-4"
-      >
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <StatusIcon status={evaluation.status} />
-            <h3 className="font-medium text-foreground text-sm">{evaluation.rule.name}</h3>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted-foreground">{filteredPrograms.length} programas encontrados</p>
+            <Button type="button" variant="ghost" onClick={resetFilters}>
+              Limpar filtros
+            </Button>
           </div>
-          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${config.bgClass} ${config.textClass}`}>
-            {config.label}
-          </span>
-        </div>
+        </section>
 
-        <p className="text-xs text-muted-foreground mb-3">{RULE_TYPE_DESCRIPTIONS[evaluation.rule.type]}</p>
+        <ComparisonPanel programs={comparedPrograms} onRemove={(id) => setComparisonIds((current) => current.filter((item) => item !== id))} />
 
-        <p className="text-[10px] text-muted-foreground font-mono mb-3">{evaluation.message}</p>
+        {filteredPrograms.length > 0 ? (
+          <section className="grid gap-4 lg:grid-cols-2">
+            {filteredPrograms.map((program) => (
+              <ProgramCard
+                key={program.id}
+                program={program}
+                isCompared={comparisonIds.includes(program.id)}
+                compareDisabled={comparisonIds.length >= 3}
+                onDetails={() => setDetailsProgram(program)}
+                onCompare={() => toggleComparison(program.id)}
+              />
+            ))}
+          </section>
+        ) : (
+          <section className="rounded-xl border border-dashed border-border bg-card/60 p-8 text-center">
+            <BookOpen className="mx-auto h-8 w-8 text-muted-foreground" />
+            <h2 className="mt-3 text-lg font-semibold text-foreground">Nenhuma regra encontrada</h2>
+            <p className="mt-2 text-sm text-muted-foreground">Nenhuma regra encontrada para os filtros selecionados.</p>
+          </section>
+        )}
 
-        <button
-          onClick={() => setShowModal(true)}
-          className="text-[10px] font-semibold text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
-        >
-          Como evitar violação <ChevronRight className="w-3 h-3" />
-        </button>
-      </motion.div>
+        <section className="grid gap-4 lg:grid-cols-3">
+          {[
+            {
+              title: 'Drawdown e perda diaria',
+              text: 'A maioria das reprovas acontece quando o trader olha apenas saldo fechado e ignora posicoes abertas.',
+            },
+            {
+              title: 'Consistencia e saque',
+              text: 'Programas com regra de consistencia podem bloquear payout mesmo quando a conta esta lucrativa.',
+            },
+            {
+              title: 'Noticias e fim de semana',
+              text: 'Regras operacionais variam por programa. Abrir, fechar ou segurar posicoes no horario errado pode reprovar.',
+            },
+          ].map((item) => (
+            <article key={item.title} className="rounded-xl border border-red-400/20 bg-red-400/10 p-5">
+              <ShieldAlert className="h-5 w-5 text-red-300" />
+              <h2 className="mt-3 font-semibold text-red-100">{item.title}</h2>
+              <p className="mt-2 text-sm text-red-100/80">{item.text}</p>
+            </article>
+          ))}
+        </section>
 
-      <AvoidanceModal ruleType={evaluation.rule.type} open={showModal} onClose={() => setShowModal(false)} />
-    </>
-  );
-}
+        <section className="rounded-xl border border-primary/20 bg-primary/10 p-5">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <Info className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold text-foreground">Como o Fortify le isso</h2>
+              </div>
+              <p className="mt-3 max-w-3xl text-sm text-muted-foreground">
+                O Fortify transforma limites como perda diaria, perda maxima, trailing drawdown, consistencia e regras
+                operacionais em alertas de risco. A biblioteca ajuda voce a entender o contrato; as protecoes reais devem
+                ser configuradas na conta MT5 monitorada.
+              </p>
+            </div>
+            <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-3 md:min-w-[420px]">
+              <InfoPill>Alertas antes da violacao</InfoPill>
+              <InfoPill>Leitura por conta</InfoPill>
+              <InfoPill>Foco em prop firms</InfoPill>
+            </div>
+          </div>
+        </section>
 
-const AccountRules = () => {
-  const { accounts } = useAccountsStore();
-  const [selectedAccount, setSelectedAccount] = useState<TradingAccount | undefined>(accounts[0]);
-  const { data: ruleRows = [] } = useRuleEvaluations(selectedAccount?.id);
-
-  useEffect(() => {
-    if (!selectedAccount && accounts.length > 0) {
-      setSelectedAccount(accounts[0]);
-      return;
-    }
-    if (selectedAccount && accounts.length > 0 && !accounts.some(account => account.id === selectedAccount.id)) {
-      setSelectedAccount(accounts[0]);
-    }
-  }, [accounts, selectedAccount]);
-
-  if (!selectedAccount) {
-    return <div className="p-6 text-center text-muted-foreground">Nenhuma conta cadastrada.</div>;
-  }
-
-  const evals = ruleRows.map(mapRuleEvaluationRow);
-  const ruleSet = RULE_SET_TEMPLATES.find(r => r.id === selectedAccount.ruleSetId);
-
-  const criticalEvals = evals.filter(e => CRITICAL_TYPES.includes(e.rule.type));
-  const evaluationEvals = evals.filter(e => EVALUATION_TYPES.includes(e.rule.type));
-  const operationalEvals = evals.filter(e => OPERATIONAL_TYPES.includes(e.rule.type));
-
-  const atRiskCount = evals.filter(e => e.status === 'WARNING' || e.status === 'VIOLATED').length;
-
-  return (
-    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-lg font-bold text-foreground mb-1">Regras da Conta</h1>
-        <p className="text-xs text-muted-foreground">Todas as regras que a conta precisa respeitar para evitar violação.</p>
+        <section className="rounded-xl border border-border bg-card/80 p-5">
+          <h2 className="text-lg font-semibold text-foreground">Fontes oficiais</h2>
+          <div className="mt-4 flex flex-wrap gap-3">
+            {Object.entries(sourceByFirm).map(([label, url]) => (
+              <Button key={label} asChild variant="outline">
+                <a href={url} target="_blank" rel="noopener noreferrer">
+                  {label}
+                  <ExternalLink className="ml-2 h-4 w-4" />
+                </a>
+              </Button>
+            ))}
+          </div>
+        </section>
       </div>
 
-      {/* Account Selector */}
-      <AccountSelector accounts={accounts} selected={selectedAccount} onSelect={setSelectedAccount} />
-
-      {/* Overview */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="rounded-xl border border-border bg-card p-5"
-      >
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Conta</p>
-            <p className="font-semibold text-foreground text-sm mt-1">{selectedAccount.nickname}</p>
-          </div>
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Modelo de Regras</p>
-            <p className="font-semibold text-foreground text-sm mt-1">{ruleSet?.firmName || ruleSet?.name || 'Custom'}</p>
-          </div>
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Total Monitoradas</p>
-            <p className="font-mono font-bold text-lg text-foreground mt-1">{evals.length}</p>
-          </div>
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Em Risco</p>
-            <p className={`font-mono font-bold text-lg mt-1 ${atRiskCount > 0 ? 'text-warning' : 'text-success'}`}>{atRiskCount}</p>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Critical Rules */}
-      {criticalEvals.length > 0 && (
-        <section>
-          <div className="flex items-center gap-2 mb-4">
-            <ShieldX className="w-4 h-4 text-destructive" />
-            <h2 className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Regras Críticas</h2>
-            <span className="text-[10px] text-destructive/70 font-mono">— podem quebrar a conta</span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {criticalEvals.map((ev, i) => (
-              <CriticalRuleCard key={ev.id} evaluation={ev} index={i} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Evaluation Rules */}
-      {evaluationEvals.length > 0 && (
-        <section>
-          <div className="flex items-center gap-2 mb-4">
-            <ShieldAlert className="w-4 h-4 text-primary" />
-            <h2 className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Regras de Avaliação</h2>
-            <span className="text-[10px] text-muted-foreground font-mono">— progresso para aprovação</span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {evaluationEvals.map((ev, i) => (
-              <EvaluationRuleCard key={ev.id} evaluation={ev} index={i} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Operational Rules */}
-      {operationalEvals.length > 0 && (
-        <section>
-          <div className="flex items-center gap-2 mb-4">
-            <Shield className="w-4 h-4 text-muted-foreground" />
-            <h2 className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Regras Operacionais</h2>
-            <span className="text-[10px] text-muted-foreground font-mono">— restrições específicas da firma</span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {operationalEvals.map((ev, i) => (
-              <OperationalRuleCard key={ev.id} evaluation={ev} index={i} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Footer */}
-      <footer className="pt-4 border-t border-border">
-        <p className="text-[10px] text-muted-foreground font-mono">
-          Última atualização: {new Date().toLocaleString('pt-BR')}
-        </p>
-      </footer>
+      <DetailsDrawer program={detailsProgram} onClose={() => setDetailsProgram(null)} />
     </div>
   );
-};
-
-export default AccountRules;
+}
