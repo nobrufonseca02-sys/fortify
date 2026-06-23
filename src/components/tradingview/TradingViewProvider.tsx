@@ -12,9 +12,9 @@ type TradingViewContextValue = {
 const TradingViewContext = createContext<TradingViewContextValue | null>(null);
 
 function TradingViewLogo({ className = "", size = "button" }: { className?: string; size?: "button" | "header" }) {
-  const imageClassName = size === "header" ? "h-10 w-auto" : "h-full w-full";
+  const imageClassName = size === "header" ? "h-10 max-w-[210px]" : "h-auto max-h-[30px] w-full max-w-[184px]";
   return (
-    <span className={`inline-flex items-center ${className}`} aria-hidden="true">
+    <span className={`inline-flex items-center justify-center ${className}`} aria-hidden="true">
       <img
         src={tradingViewWordmarkTransparent}
         alt=""
@@ -52,11 +52,11 @@ export function TradingViewProvider({ children }: { children: React.ReactNode })
       <button
         type="button"
         onClick={() => openChart()}
-        className="fixed bottom-5 right-5 z-40 h-14 w-[198px] cursor-pointer overflow-visible rounded-full border-0 bg-transparent p-0 shadow-[0_16px_46px_rgba(37,99,235,0.22)] transition-all hover:-translate-y-0.5 hover:scale-[1.03] hover:drop-shadow-[0_0_18px_rgba(125,211,252,0.38)] focus:outline-none focus:ring-2 focus:ring-sky-300/60 focus:ring-offset-2 focus:ring-offset-background"
+        className="fixed bottom-5 right-5 z-40 flex h-[62px] w-[224px] cursor-pointer items-center justify-center overflow-hidden rounded-full border border-cyan-300/20 bg-[linear-gradient(135deg,rgba(3,7,18,0.96),rgba(7,18,35,0.96))] px-[22px] py-[14px] shadow-[0_0_0_1px_rgba(14,165,233,0.08),0_18px_48px_rgba(8,145,178,0.22)] backdrop-blur transition-all hover:-translate-y-0.5 hover:border-cyan-300/45 hover:shadow-[0_0_0_1px_rgba(125,211,252,0.18),0_20px_58px_rgba(79,70,229,0.34)] focus:outline-none focus:ring-2 focus:ring-sky-300/60 focus:ring-offset-2 focus:ring-offset-background"
         title="Abrir TradingView dentro do Fortify"
         aria-label="Abrir TradingView dentro do Fortify"
       >
-        <TradingViewLogo className="h-full w-full" />
+        <TradingViewLogo className="w-full" />
       </button>
       <TradingViewPanel open={open} onClose={() => setOpen(false)} symbol={symbol} setSymbol={setSymbol} />
     </TradingViewContext.Provider>
