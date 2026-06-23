@@ -12,13 +12,13 @@ type TradingViewContextValue = {
 const TradingViewContext = createContext<TradingViewContextValue | null>(null);
 
 function TradingViewLogo({ className = "", size = "button" }: { className?: string; size?: "button" | "header" }) {
-  const imageClassName = size === "header" ? "h-10" : "h-7";
+  const imageClassName = size === "header" ? "h-10 w-auto" : "h-full w-full";
   return (
     <span className={`inline-flex items-center ${className}`} aria-hidden="true">
       <img
         src={tradingViewWordmarkTransparent}
         alt=""
-        className={`${imageClassName} w-auto object-contain`}
+        className={`${imageClassName} block object-contain`}
         draggable={false}
       />
     </span>
@@ -52,11 +52,11 @@ export function TradingViewProvider({ children }: { children: React.ReactNode })
       <button
         type="button"
         onClick={() => openChart()}
-        className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-full border border-white/15 bg-[#05060a]/95 px-4 py-2.5 text-white shadow-[0_0_0_1px_rgba(96,165,250,0.12),0_16px_46px_rgba(37,99,235,0.28)] backdrop-blur transition-all hover:-translate-y-0.5 hover:border-sky-300/45 hover:bg-[#0a1020] hover:shadow-[0_0_0_1px_rgba(125,211,252,0.2),0_18px_56px_rgba(79,70,229,0.34)]"
+        className="fixed bottom-5 right-5 z-40 h-14 w-[198px] cursor-pointer overflow-visible rounded-full border-0 bg-transparent p-0 shadow-[0_16px_46px_rgba(37,99,235,0.22)] transition-all hover:-translate-y-0.5 hover:scale-[1.03] hover:drop-shadow-[0_0_18px_rgba(125,211,252,0.38)] focus:outline-none focus:ring-2 focus:ring-sky-300/60 focus:ring-offset-2 focus:ring-offset-background"
         title="Abrir TradingView dentro do Fortify"
         aria-label="Abrir TradingView dentro do Fortify"
       >
-        <TradingViewLogo />
+        <TradingViewLogo className="h-full w-full" />
       </button>
       <TradingViewPanel open={open} onClose={() => setOpen(false)} symbol={symbol} setSymbol={setSymbol} />
     </TradingViewContext.Provider>
