@@ -2,7 +2,6 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { Maximize2, RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import tradingViewWordmarkTransparent from "@/assets/brands/tradingview-wordmark-transparent.png";
 import { DEFAULT_TRADINGVIEW_SYMBOL, TRADINGVIEW_SYMBOLS, mapFortifyToTradingView } from "./tradingViewSymbols";
 
 type TradingViewContextValue = {
@@ -12,15 +11,38 @@ type TradingViewContextValue = {
 const TradingViewContext = createContext<TradingViewContextValue | null>(null);
 
 function TradingViewLogo({ className = "", size = "button" }: { className?: string; size?: "button" | "header" }) {
-  const imageClassName = size === "header" ? "h-10 max-w-[210px]" : "h-auto max-h-[30px] w-full max-w-[184px]";
+  const svgClassName = size === "header" ? "h-10 w-[210px]" : "h-8 w-[184px]";
   return (
     <span className={`inline-flex items-center justify-center ${className}`} aria-hidden="true">
-      <img
-        src={tradingViewWordmarkTransparent}
-        alt=""
-        className={`${imageClassName} block object-contain`}
-        draggable={false}
-      />
+      <svg
+        viewBox="0 0 210 40"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className={`${svgClassName} block`}
+      >
+        <path
+          d="M11.7 30.5h20.6c5.2 0 9.4-4.12 9.4-9.2 0-4.77-3.68-8.7-8.38-9.14C31.85 5.85 26.14 1.25 19.3 1.25 12.62 1.25 7.05 5.65 5.28 11.68 2.12 13.25 0 16.5 0 20.18c0 5.7 4.95 10.32 11.05 10.32h.65Z"
+          fill="white"
+        />
+        <path
+          d="M11.2 19.7h5.1l3.22-5.45 3.88 10.25 3.52-4.8h5.45"
+          stroke="#07111F"
+          strokeWidth="2.55"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <text
+          x="52"
+          y="27.6"
+          fill="white"
+          fontFamily="Inter, Arial, Helvetica, sans-serif"
+          fontSize="25"
+          fontWeight="800"
+          letterSpacing="-1.1"
+        >
+          TradingView
+        </text>
+      </svg>
     </span>
   );
 }
