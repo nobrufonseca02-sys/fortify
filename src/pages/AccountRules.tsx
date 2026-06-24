@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   ArrowUpDown,
@@ -369,6 +369,8 @@ export default function AccountRules() {
   const [riskLevel, setRiskLevel] = useState(allValue);
   const [detailsProgram, setDetailsProgram] = useState<PropFirmRuleProgram | null>(null);
   const [comparisonIds, setComparisonIds] = useState<string[]>([]);
+  const filtersRef = useRef<HTMLElement | null>(null);
+  const comparisonRef = useRef<HTMLDivElement | null>(null);
 
   const accountSizeOptions = useMemo(
     () => Array.from(new Set(propFirmRulePrograms.flatMap((program) => program.accountSizes))).sort(),
@@ -422,30 +424,122 @@ export default function AccountRules() {
     setRiskLevel(allValue);
   };
 
+  const scrollToFilters = () => {
+    filtersRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const scrollToComparison = () => {
+    comparisonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const selectFirm = (selectedFirm: string) => {
+    setFirm(selectedFirm);
+    scrollToFilters();
+  };
+
+  const heroFirmCards = [
+    {
+      firm: 'FTMO',
+      label: 'FTMO',
+      description: 'Forex/CFD • MT4/MT5',
+      risk: 'Daily Loss e Max Loss',
+    },
+    {
+      firm: 'Apex Trader Funding',
+      label: 'Apex',
+      description: 'Futures • Manual reference',
+      risk: 'Trailing Drawdown',
+    },
+    {
+      firm: 'Hantec Trader',
+      label: 'Hantec',
+      description: 'Forex/CFD • MT5',
+      risk: 'Daily Loss, Total Loss e Consistência',
+    },
+  ];
+
+  const heroStats = [
+    { value: String(new Set(propFirmRulePrograms.map((program) => program.firm)).size), label: 'mesas' },
+    { value: String(propFirmRulePrograms.length), label: 'programas' },
+    { value: 'Regras', label: 'críticas' },
+    { value: 'Comparação', label: 'rápida' },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-7xl space-y-8 px-4 py-6 sm:px-6 lg:px-8">
-        <section className="rounded-2xl border border-border bg-card/80 p-6">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-            <div className="max-w-3xl">
-              <span className="inline-flex rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-                MVP • Dados informativos
+        <section className="relative overflow-hidden rounded-3xl border border-primary/20 bg-slate-950 p-5 shadow-2xl shadow-cyan-950/20 sm:p-7">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(34,211,238,0.18),transparent_32%),radial-gradient(circle_at_80%_10%,rgba(59,130,246,0.16),transparent_30%),linear-gradient(135deg,rgba(15,23,42,0.96),rgba(2,6,23,0.98))]" />
+          <div className="absolute inset-0 opacity-[0.18] [background-image:linear-gradient(rgba(148,163,184,0.22)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.22)_1px,transparent_1px)] [background-size:32px_32px]" />
+
+          <div className="relative grid gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+            <div>
+              <span className="inline-flex rounded-full border border-cyan-300/30 bg-cyan-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-100">
+                MVP • Biblioteca informativa
               </span>
-              <h1 className="mt-4 text-3xl font-bold tracking-tight text-foreground">Biblioteca de Regras</h1>
-              <p className="mt-3 text-base text-muted-foreground">
-                Compare regras de mesas proprietarias, veja limites criticos e entenda o que pode reprovar sua conta.
+              <h1 className="mt-5 text-4xl font-bold tracking-tight text-white sm:text-5xl">Escolha sua PropFirm</h1>
+              <p className="mt-3 text-xl font-semibold text-cyan-100">Gerencie o risco da sua conta antes do próximo trade.</p>
+              <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
+                Compare regras, limites de perda, drawdown, consistência e restrições operacionais das principais mesas
+                proprietarias.
               </p>
-            </div>
-            <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-100 lg:max-w-md">
-              <div className="flex gap-3">
-                <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0" />
-                <p>As regras podem mudar sem aviso. Confirme sempre os termos oficiais da mesa antes de operar.</p>
+
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <Button type="button" onClick={scrollToFilters} className="bg-cyan-400 text-slate-950 hover:bg-cyan-300">
+                  Ver regras
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={scrollToComparison}
+                  className="border-cyan-300/30 bg-white/5 text-cyan-50 hover:bg-cyan-300/10 hover:text-white"
+                >
+                  Comparar programas
+                </Button>
               </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-3 shadow-xl shadow-cyan-950/20 backdrop-blur">
+              <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+                {heroFirmCards.map((card) => (
+                  <button
+                    key={card.firm}
+                    type="button"
+                    onClick={() => selectFirm(card.firm)}
+                    className="group rounded-2xl border border-white/10 bg-slate-950/55 p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-cyan-300/40 hover:bg-cyan-300/10 hover:shadow-lg hover:shadow-cyan-950/30"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-lg font-semibold text-white">{card.label}</span>
+                      <span className="h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_18px_rgba(34,211,238,0.8)]" />
+                    </div>
+                    <p className="mt-2 text-sm text-slate-300">{card.description}</p>
+                    <p className="mt-3 rounded-full border border-red-300/20 bg-red-400/10 px-3 py-1 text-xs font-medium text-red-100">
+                      {card.risk}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="relative mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {heroStats.map((stat) => (
+              <div key={`${stat.value}-${stat.label}`} className="rounded-2xl border border-white/10 bg-white/[0.05] p-4 backdrop-blur">
+                <p className="text-2xl font-bold text-white">{stat.value}</p>
+                <p className="mt-1 text-xs font-medium uppercase tracking-[0.18em] text-slate-400">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="relative mt-4 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4 text-sm text-amber-50">
+            <div className="flex gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0" />
+              <p>As regras podem mudar sem aviso. Confirme sempre os termos oficiais da mesa antes de operar.</p>
             </div>
           </div>
         </section>
 
-        <section className="rounded-xl border border-border bg-card/80 p-5">
+        <section ref={filtersRef} className="scroll-mt-6 rounded-xl border border-border bg-card/80 p-5">
           <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
             <Filter className="h-4 w-4 text-primary" />
             Filtros da biblioteca
@@ -478,7 +572,9 @@ export default function AccountRules() {
           </div>
         </section>
 
-        <ComparisonPanel programs={comparedPrograms} onRemove={(id) => setComparisonIds((current) => current.filter((item) => item !== id))} />
+        <div ref={comparisonRef} className="scroll-mt-6">
+          <ComparisonPanel programs={comparedPrograms} onRemove={(id) => setComparisonIds((current) => current.filter((item) => item !== id))} />
+        </div>
 
         {filteredPrograms.length > 0 ? (
           <section className="grid gap-4 lg:grid-cols-2">
