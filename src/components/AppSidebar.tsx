@@ -1,5 +1,5 @@
 import { LayoutDashboard, ScrollText, PlusCircle, Settings, BarChart3, Shield, BookOpen, Archive, LogOut, Server, Calculator, CreditCard } from "lucide-react";
-import fortifyIcon from "@/assets/brand/fortify-icon-white.svg";
+import fortifyIcon from "@/assets/brand/fortify-icon-exact.png";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -56,8 +56,8 @@ export function AppSidebar() {
         {/* Brand */}
         <div className={`px-4 mb-6 ${collapsed ? "px-2" : ""}`}>
           <div className="flex items-center gap-3">
-            <div className="relative w-9 h-9 rounded-lg flex items-center justify-center bg-gradient-to-br from-primary/15 to-primary/0 border border-primary/20">
-              <img src={fortifyIcon} alt="Fortify" className="h-7 w-7 object-contain opacity-95" />
+            <div className="relative w-10 h-10 rounded-lg flex items-center justify-center bg-gradient-to-br from-primary/15 to-primary/0 border border-primary/20">
+              <img src={fortifyIcon} alt="Fortify" className="h-9 w-9 object-contain opacity-95" />
               <div className="absolute inset-0 rounded-lg bg-primary/20 blur-md -z-10" />
             </div>
             {!collapsed && (

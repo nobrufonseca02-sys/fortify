@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
-import fortifyIcon from "@/assets/brand/fortify-icon-white.svg";
+import fortifyIcon from "@/assets/brand/fortify-icon-exact.png";
 import AuthPage from "./pages/AuthPage";
 import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
