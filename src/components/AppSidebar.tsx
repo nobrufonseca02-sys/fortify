@@ -1,6 +1,5 @@
 import { LayoutDashboard, ScrollText, PlusCircle, Settings, BarChart3, Shield, BookOpen, Archive, LogOut, Server, Calculator, CreditCard } from "lucide-react";
 import fortifyIcon from "@/assets/brand/fortify-icon-white.svg";
-import fortifyWordmark from "@/assets/brand/fortify-wordmark-white.svg";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -58,13 +57,13 @@ export function AppSidebar() {
         <div className={`px-4 mb-6 ${collapsed ? "px-2" : ""}`}>
           <div className="flex items-center gap-3">
             <div className="relative w-9 h-9 rounded-lg flex items-center justify-center bg-gradient-to-br from-primary/15 to-primary/0 border border-primary/20">
-              <img src={fortifyIcon} alt="Fortify" className="w-6 h-6 opacity-95" />
+              <img src={fortifyIcon} alt="Fortify" className="h-7 w-7 object-contain opacity-95" />
               <div className="absolute inset-0 rounded-lg bg-primary/20 blur-md -z-10" />
             </div>
             {!collapsed && (
-              <div className="flex flex-col leading-none">
-                <img src={fortifyWordmark} alt="Fortify" className="h-4 w-24 object-contain object-left" />
-                <span className="text-[9px] font-mono uppercase tracking-[0.2em] text-muted-foreground/70 mt-1">Sistema de risco · v1</span>
+              <div className="flex min-w-0 flex-col leading-none">
+                <h1 className="text-[14px] font-black text-foreground tracking-[0.24em] uppercase">FORTIFY</h1>
+                <span className="mt-1 text-[9px] font-mono uppercase tracking-[0.18em] text-muted-foreground/70">SISTEMA DE RISCO • V1</span>
               </div>
             )}
           </div>
