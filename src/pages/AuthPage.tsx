@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { GlobeAnimation } from "@/components/GlobeAnimation";
-import fortifyLogo from "@/assets/fortify-eagle.png";
+import fortifyIcon from "@/assets/brand/fortify-icon-white.svg";
+import fortifyWordmark from "@/assets/brand/fortify-wordmark-white.svg";
 import { Shield, Lock, Mail, User, ArrowRight, Eye, EyeOff, ChevronRight, CheckCircle2 } from "lucide-react";
 
 type AuthMode = "login" | "signup" | "forgot";
@@ -107,8 +108,8 @@ export default function AuthPage() {
           transition={{ duration: 0.8 }}
         >
           <div className="flex items-center gap-3">
-            <img src={fortifyLogo} alt="Fortify" className="w-10 h-10 invert mix-blend-screen opacity-90" />
-            <h1 className="text-lg font-bold text-foreground tracking-[0.12em] uppercase">Fortify</h1>
+            <img src={fortifyIcon} alt="Fortify" className="w-10 h-10 opacity-95" />
+            <img src={fortifyWordmark} alt="Fortify" className="h-5 w-32 object-contain object-left" />
           </div>
         </motion.div>
 
@@ -174,8 +175,8 @@ export default function AuthPage() {
         >
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
-            <img src={fortifyLogo} alt="Fortify" className="w-8 h-8 invert mix-blend-screen" />
-            <h1 className="text-lg font-bold text-foreground tracking-[0.12em] uppercase">Fortify</h1>
+            <img src={fortifyIcon} alt="Fortify" className="w-8 h-8" />
+            <img src={fortifyWordmark} alt="Fortify" className="h-5 w-32 object-contain" />
           </div>
 
           {/* Auth card */}

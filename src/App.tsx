@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
-import fortifyLogo from "@/assets/fortify-eagle.png";
+import fortifyIcon from "@/assets/brand/fortify-icon-white.svg";
 import AuthPage from "./pages/AuthPage";
 import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
@@ -35,7 +35,7 @@ function ProtectedRoutes() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
-          <img src={fortifyLogo} alt="Fortify" className="w-12 h-12 animate-pulse invert mix-blend-screen" />
+          <img src={fortifyIcon} alt="Fortify" className="w-12 h-12 animate-pulse" />
           <p className="text-xs text-muted-foreground uppercase tracking-wider">Carregando...</p>
         </div>
       </div>
