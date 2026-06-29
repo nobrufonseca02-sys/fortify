@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:app": "vite",
+    "dev:gateway": "npm --prefix services/metaapi-gateway run dev",
+    "dev:all": "node scripts/dev-all.mjs",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",

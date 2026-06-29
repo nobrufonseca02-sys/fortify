@@ -1,9 +1,23 @@
 import { gatewayJsonHeaders } from '@/lib/gateway';
 
 const gatewayUrl = () => {
-  const configuredUrl = String(import.meta.env.VITE_METAAPI_GATEWAY_URL || '').trim();
-  return (configuredUrl || 'http://localhost:3001').replace(/\/+$/, '');
+  const configuredUrl = String(
+    import.meta.env.VITE_BILLING_API_URL ||
+      import.meta.env.VITE_API_URL ||
+      import.meta.env.VITE_BACKEND_URL ||
+      import.meta.env.VITE_PUBLIC_BACKEND_URL ||
+      '',
+  ).trim();
+
+  if (configuredUrl) return configuredUrl.replace(/\/+$/, '');
+  if (import.meta.env.DEV) return '/api';
+
+  const legacyGatewayUrl = String(import.meta.env.VITE_METAAPI_GATEWAY_URL || '').trim();
+  return legacyGatewayUrl ? legacyGatewayUrl.replace(/\/+$/, '') : '';
 };
+
+const gatewayHelpMessage = () =>
+  'Gateway Fortify indisponível. Inicie o backend com npm run dev:gateway ou use npm run dev:all.';
 
 export function isBillingEnabled() {
   return import.meta.env.VITE_BILLING_ENABLED !== 'false';
@@ -34,13 +48,27 @@ async function billingFetch(path: string, init: RequestInit) {
     return await fetch(`${gatewayUrl()}${path}`, init);
   } catch (error: any) {
     if (error?.name === 'TypeError') {
-      throw new Error(`Backend de cobrança indisponível. Verifique se o gateway Fortify está rodando em ${gatewayUrl()}.`);
+      throw new Error(gatewayHelpMessage());
     }
     throw error;
   }
 }
 
+async function assertBillingGatewayAvailable() {
+  try {
+    const response = await fetch(`${gatewayUrl()}/health`, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    });
+    if (!response.ok) throw new Error(`gateway_health_${response.status}`);
+  } catch {
+    throw new Error(gatewayHelpMessage());
+  }
+}
+
 export async function createCheckoutSession(planSlug: string, accessToken: string) {
+  await assertBillingGatewayAvailable();
+
   const response = await billingFetch('/billing/create-checkout-session', {
     method: 'POST',
     headers: gatewayJsonHeaders(accessToken),
@@ -101,6 +129,8 @@ export async function createPortalSession(accessToken: string) {
 }
 
 export async function createAddonCheckoutSession(addonSlug: string, accessToken: string) {
+  await assertBillingGatewayAvailable();
+
   const response = await billingFetch('/billing/create-addon-checkout-session', {
     method: 'POST',
     headers: gatewayJsonHeaders(accessToken),
