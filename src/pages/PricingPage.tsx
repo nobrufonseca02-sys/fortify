@@ -83,6 +83,8 @@ export default function PricingPage() {
   const [busyAddon, setBusyAddon] = useState(false);
   const [openingPortal, setOpeningPortal] = useState(false);
   const [resumeAttempted, setResumeAttempted] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [checkoutNotice, setCheckoutNotice] = useState<string | null>(null);
   const billingEnabled = isBillingEnabled();
   const currentPlanId = subscription?.plan_id;
   const hasActivePaidStripeSubscription = Boolean(
@@ -111,77 +113,112 @@ export default function PricingPage() {
   );
 
   const startCheckout = async (plan: FortifyPlan) => {
+    const planSelector = plan.slug || plan.id;
+    setCheckoutError(null);
+    setCheckoutNotice(null);
+
     if (plan.id === 'beta_free') {
-      toast({ title: 'Plano beta', description: 'Seu acesso beta é liberado pelo Fortify, sem checkout Stripe.' });
+      const message = 'Seu acesso beta é liberado pelo Fortify, sem checkout Stripe.';
+      setCheckoutNotice(message);
+      toast({ title: 'Plano beta', description: message });
       return;
     }
 
     if (!session?.access_token) {
-      window.sessionStorage.setItem('fortify_intended_plan', plan.slug || plan.id);
-      window.sessionStorage.setItem('intended_plan_slug', plan.slug || plan.id);
-      toast({ title: 'Sessão necessária', description: 'Entre ou crie sua conta para continuar o checkout.' });
+      window.sessionStorage.setItem('fortify_intended_plan', planSelector);
+      window.sessionStorage.setItem('intended_plan_slug', planSelector);
+      const message = 'Entre ou crie sua conta para continuar o checkout.';
+      setCheckoutNotice(message);
+      toast({ title: 'Sessão necessária', description: message });
       navigate('/auth');
       return;
     }
 
     if (!hasConfiguredPrice(plan)) {
-      toast({ title: 'Plano indisponível', description: 'Este plano ainda não possui um Price ID válido da Stripe.', variant: 'destructive' });
+      const message = 'Este plano ainda não possui um Price ID válido da Stripe.';
+      setCheckoutError(message);
+      toast({ title: 'Plano indisponível', description: message, variant: 'destructive' });
       return;
     }
 
     if (!billingEnabled) {
-      toast({ title: 'Checkout desativado', description: 'O checkout Stripe foi desativado neste ambiente.', variant: 'destructive' });
+      const message = 'O checkout Stripe foi desativado neste ambiente.';
+      setCheckoutError(message);
+      toast({ title: 'Checkout desativado', description: message, variant: 'destructive' });
       return;
     }
 
     setBusyPlan(plan.id);
     try {
-      const checkout = await createCheckoutSession(plan.slug || plan.id, session.access_token);
-      if (!checkout.checkout_url.includes('checkout.stripe.com')) {
+      const checkout = await createCheckoutSession(planSelector, session.access_token);
+      const checkoutUrl = String(checkout.checkout_url || '');
+      if (!checkoutUrl.startsWith('https://checkout.stripe.com/')) {
         throw new Error('A Stripe retornou uma URL inválida para checkout.');
       }
-      window.location.assign(checkout.checkout_url);
+      setCheckoutNotice('Checkout criado. Redirecionando para a Stripe...');
+      window.location.href = checkoutUrl;
     } catch (error: any) {
-      toast({ title: 'Checkout indisponível', description: error?.message || 'Revise a configuração Stripe do gateway.', variant: 'destructive' });
+      const message = error?.message || 'Revise a configuração Stripe do gateway.';
+      console.error('Fortify checkout failed', { plan: planSelector, message });
+      setCheckoutError(message);
+      toast({ title: 'Checkout indisponível', description: message, variant: 'destructive' });
     } finally {
       setBusyPlan(null);
     }
   };
 
   const startAddonCheckout = async () => {
+    setCheckoutError(null);
+    setCheckoutNotice(null);
+
     if (!session?.access_token) {
-      toast({ title: 'Sessão necessária', description: 'Entre ou crie sua conta para adicionar contas extras.' });
+      const message = 'Entre ou crie sua conta para adicionar contas extras.';
+      setCheckoutNotice(message);
+      toast({ title: 'Sessão necessária', description: message });
       navigate('/auth');
       return;
     }
 
     if (!hasActivePaidStripeSubscription) {
-      toast({ title: 'Plano necessário', description: 'Você precisa ter um plano ativo para adicionar contas extras.', variant: 'destructive' });
+      const message = 'Você precisa ter um plano ativo para adicionar contas extras.';
+      setCheckoutError(message);
+      toast({ title: 'Plano necessário', description: message, variant: 'destructive' });
       return;
     }
 
     if (!addonPlan || !isValidStripePrice(addonPlan.stripe_price_id)) {
-      toast({ title: 'Conta extra indisponível', description: 'Este plano ainda não possui um Price ID válido da Stripe.', variant: 'destructive' });
+      const message = 'Este plano ainda não possui um Price ID válido da Stripe.';
+      setCheckoutError(message);
+      toast({ title: 'Conta extra indisponível', description: message, variant: 'destructive' });
       return;
     }
 
     if (!billingEnabled) {
-      toast({ title: 'Checkout desativado', description: 'O checkout Stripe foi desativado neste ambiente.', variant: 'destructive' });
+      const message = 'O checkout Stripe foi desativado neste ambiente.';
+      setCheckoutError(message);
+      toast({ title: 'Checkout desativado', description: message, variant: 'destructive' });
       return;
     }
 
     setBusyAddon(true);
     try {
       const checkout = await createAddonCheckoutSession(addonPlan.slug || addonPlan.id, session.access_token);
-      window.location.assign(checkout.checkout_url);
+      setCheckoutNotice('Checkout criado. Redirecionando para a Stripe...');
+      window.location.href = checkout.checkout_url;
     } catch (error: any) {
-      toast({ title: 'Conta extra indisponível', description: error?.message || 'Revise a configuração Stripe do gateway.', variant: 'destructive' });
+      const message = error?.message || 'Revise a configuração Stripe do gateway.';
+      console.error('Fortify add-on checkout failed', { plan: addonPlan.slug || addonPlan.id, message });
+      setCheckoutError(message);
+      toast({ title: 'Conta extra indisponível', description: message, variant: 'destructive' });
     } finally {
       setBusyAddon(false);
     }
   };
 
   const openPortal = async () => {
+    setCheckoutError(null);
+    setCheckoutNotice(null);
+
     if (!session?.access_token) {
       navigate('/auth');
       return;
@@ -189,9 +226,11 @@ export default function PricingPage() {
     setOpeningPortal(true);
     try {
       const portal = await createPortalSession(session.access_token);
-      window.location.assign(portal.portal_url);
+      window.location.href = portal.portal_url;
     } catch (error: any) {
-      toast({ title: 'Portal indisponível', description: error?.message || 'Escolha um plano para começar.', variant: 'destructive' });
+      const message = error?.message || 'Escolha um plano para começar.';
+      setCheckoutError(message);
+      toast({ title: 'Portal indisponível', description: message, variant: 'destructive' });
     } finally {
       setOpeningPortal(false);
     }
@@ -247,6 +286,15 @@ export default function PricingPage() {
         </div>
       )}
 
+      {(checkoutError || checkoutNotice) && (
+        <div className={`rounded-xl border p-4 ${checkoutError ? 'border-destructive/35 bg-destructive/10' : 'border-primary/30 bg-primary/10'}`}>
+          <p className="text-sm font-medium text-foreground">
+            {checkoutError ? 'Checkout indisponível' : 'Checkout Stripe'}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">{checkoutError || checkoutNotice}</p>
+        </div>
+      )}
+
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <p className="text-sm font-medium text-foreground">Planos mensais</p>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -266,6 +314,22 @@ export default function PricingPage() {
             : [`Até ${plan.account_limit} conta${plan.account_limit === 1 ? '' : 's'} MT5`, support, 'Regras e alertas Fortify'];
 
           const hasValidPrice = hasConfiguredPrice(plan);
+          const disabledReason = !hasValidPrice
+            ? 'Este plano ainda não possui um Price ID válido da Stripe.'
+            : '';
+          const buttonLabel = !hasValidPrice
+            ? 'Indisponível'
+            : isCurrent
+              ? hasActivePaidStripeSubscription ? 'Gerenciar assinatura' : 'Plano atual'
+              : hasActivePaidStripeSubscription ? 'Alterar plano' : 'Assinar';
+          const handlePlanClick = () => {
+            if (isCurrent && hasActivePaidStripeSubscription) {
+              openPortal();
+              return;
+            }
+            if (isCurrent) return;
+            startCheckout(plan);
+          };
 
           return (
             <section key={plan.id} className={`rounded-xl border bg-card p-5 space-y-5 ${plan.highlighted ? 'border-primary/50 shadow-lg shadow-primary/5' : 'border-border'}`}>
@@ -301,14 +365,15 @@ export default function PricingPage() {
 
               <Button
                 type="button"
-                disabled={isCurrent || isBusy || !hasValidPrice}
-                onClick={() => startCheckout(plan)}
-                className={`w-full gap-2 ${isCurrent || isBusy || !hasValidPrice ? '' : 'cursor-pointer'}`}
+                disabled={isBusy || !hasValidPrice || (isCurrent && !hasActivePaidStripeSubscription)}
+                onClick={handlePlanClick}
+                className={`w-full gap-2 ${isBusy || !hasValidPrice || (isCurrent && !hasActivePaidStripeSubscription) ? '' : 'cursor-pointer'}`}
                 variant={plan.highlighted ? 'premium' : 'default'}
               >
                 {isBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                {!hasValidPrice ? 'Indisponível' : isCurrent ? 'Plano atual' : hasActivePaidStripeSubscription ? 'Trocar plano' : currentPlanId === 'beta_free' ? 'Fazer upgrade' : 'Assinar'}
+                {buttonLabel}
               </Button>
+              {disabledReason ? <p className="text-[11px] text-destructive">{disabledReason}</p> : null}
             </section>
           );
         })}
