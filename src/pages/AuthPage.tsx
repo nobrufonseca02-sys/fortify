@@ -51,6 +51,8 @@ export default function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({ email: "", password: "", name: "" });
   const authCardRef = useRef<HTMLDivElement | null>(null);
+  const supportWhatsAppUrl =
+    "https://wa.me/5521994177491?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20Fortify.";
 
   const updateField = (field: string, value: string) =>
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -153,29 +155,36 @@ export default function AuthPage() {
     <div className="relative min-h-screen overflow-hidden bg-[#030712] text-white">
       <AuthBackground />
 
-      <button
-        type="button"
-        onClick={focusLoginCard}
-        className="fixed right-5 top-5 z-20 rounded-full border border-white/12 bg-white/[0.055] px-5 py-2 text-sm font-semibold text-white backdrop-blur-xl transition-colors hover:border-cyan-200/30 hover:bg-cyan-200/10"
-      >
-        Login
-      </button>
+      <div className="fixed left-4 top-4 z-20 flex items-center gap-3 sm:left-7 sm:top-6">
+        <img src={fortifyIcon} alt="Fortify" className="h-10 w-10 object-contain opacity-95 sm:h-12 sm:w-12" />
+        <div className="flex flex-col leading-none">
+          <span className="text-lg font-black uppercase tracking-[0.24em] text-white sm:text-2xl">FORTIFY</span>
+          <span className="mt-1 text-[9px] font-mono uppercase tracking-[0.18em] text-cyan-100/70 sm:text-[11px]">
+            Sistema de gestão de risco
+          </span>
+        </div>
+      </div>
 
-      <main className="relative z-10 flex min-h-screen items-center justify-center px-5 py-20 sm:px-8 lg:px-12">
-        <section className="mx-auto flex w-full max-w-[720px] flex-col items-center text-center">
-          <motion.div
-            className="mb-7 flex items-center gap-3"
-            initial={{ opacity: 0, x: -24 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.65 }}
-          >
-            <img src={fortifyIcon} alt="Fortify" className="h-10 w-10 opacity-95" />
-            <div className="flex flex-col leading-none">
-              <span className="text-lg font-black uppercase tracking-[0.22em] text-white">FORTIFY</span>
-              <span className="mt-1 text-[9px] font-mono uppercase tracking-[0.18em] text-cyan-100/60">Sistema de risco</span>
-            </div>
-          </motion.div>
+      <div className="fixed right-4 top-16 z-20 flex items-center gap-2 sm:right-7 sm:top-6">
+        <a
+          href={supportWhatsAppUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rounded-full border border-white/12 bg-white/[0.055] px-4 py-2 text-xs font-semibold text-white backdrop-blur-xl transition-colors hover:border-cyan-200/30 hover:bg-cyan-200/10 sm:px-5 sm:text-sm"
+        >
+          Suporte
+        </a>
+        <button
+          type="button"
+          onClick={focusLoginCard}
+          className="rounded-full border border-white/12 bg-white/[0.055] px-4 py-2 text-xs font-semibold text-white backdrop-blur-xl transition-colors hover:border-cyan-200/30 hover:bg-cyan-200/10 sm:px-5 sm:text-sm"
+        >
+          Login
+        </button>
+      </div>
 
+      <main className="relative z-10 flex min-h-screen items-center justify-center px-5 pb-12 pt-36 sm:px-8 sm:pt-36 lg:px-12 lg:pt-28">
+        <section className="mx-auto flex w-full max-w-[900px] flex-col items-center text-center">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
@@ -183,23 +192,24 @@ export default function AuthPage() {
             className="mb-8"
           >
             <p className="text-[11px] font-mono uppercase tracking-[0.28em] text-cyan-100/70">Risk command center</p>
-            <h1 className="mt-4 text-4xl font-black leading-tight text-white sm:text-6xl">Entre no Fortify</h1>
-            <p className="mt-4 text-lg font-semibold text-cyan-100">Proteja sua conta antes do próximo trade.</p>
-            <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-slate-300 sm:text-base">
+            <h1 className="mx-auto mt-4 max-w-4xl text-4xl font-black leading-tight text-white sm:text-6xl lg:text-7xl">
+              Proteja sua conta antes do próximo trade.
+            </h1>
+            <p className="mx-auto mt-5 max-w-2xl text-sm leading-6 text-slate-200 sm:text-lg sm:leading-8">
               Monitore risco, drawdown, regras críticas e posições MT5 em um único painel.
             </p>
           </motion.div>
 
-          <div className="mb-6 grid w-full max-w-2xl gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mb-8 grid w-full max-w-4xl gap-3 sm:grid-cols-2 lg:grid-cols-5">
             {bullets.map((bullet, index) => (
               <motion.div
                 key={bullet}
-                className="flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] px-3 py-2 text-sm text-slate-200 backdrop-blur"
+                className="flex min-h-[72px] flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-center text-xs font-medium leading-5 text-slate-100 backdrop-blur-md sm:text-sm lg:text-xs"
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.45, delay: 0.22 + index * 0.06 }}
               >
-                <CheckCircle2 className="h-3.5 w-3.5 text-cyan-200" />
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-200" />
                 {bullet}
               </motion.div>
             ))}
@@ -207,7 +217,7 @@ export default function AuthPage() {
 
           <motion.div
             ref={authCardRef}
-            className="relative w-full max-w-[460px] overflow-hidden rounded-[1.75rem] border border-white/12 bg-slate-950/72 p-6 text-left shadow-2xl shadow-cyan-950/35 backdrop-blur-xl sm:p-8"
+            className="relative w-full max-w-[460px] overflow-hidden rounded-[1.75rem] border border-white/12 bg-slate-950/82 p-6 text-left shadow-2xl shadow-cyan-950/35 backdrop-blur-xl sm:p-8"
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.65, delay: 0.28 }}
