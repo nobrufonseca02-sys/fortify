@@ -4,8 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "dev:app": "vite",
+    "dev": "node scripts/dev-all.mjs",
+    "dev:app": "vite --host 0.0.0.0 --port 8080 --strictPort",
     "dev:gateway": "npm --prefix services/metaapi-gateway run dev",
     "dev:all": "node scripts/dev-all.mjs",
     "build": "vite build",

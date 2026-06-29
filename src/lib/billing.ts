@@ -17,7 +17,7 @@ const gatewayUrl = () => {
 };
 
 const gatewayHelpMessage = () =>
-  'Gateway Fortify indisponível. Inicie o backend com npm run dev:gateway ou use npm run dev:all.';
+  'Gateway Fortify indisponível. Rode npm run dev para iniciar frontend e gateway juntos.';
 
 export function isBillingEnabled() {
   return import.meta.env.VITE_BILLING_ENABLED !== 'false';
