@@ -137,6 +137,9 @@ export default function PricingPage() {
     setBusyPlan(plan.id);
     try {
       const checkout = await createCheckoutSession(plan.slug || plan.id, session.access_token);
+      if (!checkout.checkout_url.includes('checkout.stripe.com')) {
+        throw new Error('A Stripe retornou uma URL inválida para checkout.');
+      }
       window.location.assign(checkout.checkout_url);
     } catch (error: any) {
       toast({ title: 'Checkout indisponível', description: error?.message || 'Revise a configuração Stripe do gateway.', variant: 'destructive' });
@@ -299,12 +302,12 @@ export default function PricingPage() {
               <Button
                 type="button"
                 disabled={isCurrent || isBusy || !hasValidPrice}
-                onClick={() => hasActivePaidStripeSubscription && !isCurrent ? openPortal() : startCheckout(plan)}
+                onClick={() => startCheckout(plan)}
                 className={`w-full gap-2 ${isCurrent || isBusy || !hasValidPrice ? '' : 'cursor-pointer'}`}
                 variant={plan.highlighted ? 'premium' : 'default'}
               >
                 {isBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                {!hasValidPrice ? 'Indisponível' : isCurrent ? 'Plano atual' : hasActivePaidStripeSubscription ? 'Gerenciar assinatura' : currentPlanId === 'beta_free' ? 'Fazer upgrade' : 'Assinar'}
+                {!hasValidPrice ? 'Indisponível' : isCurrent ? 'Plano atual' : hasActivePaidStripeSubscription ? 'Trocar plano' : currentPlanId === 'beta_free' ? 'Fazer upgrade' : 'Assinar'}
               </Button>
             </section>
           );
