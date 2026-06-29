@@ -14,41 +14,20 @@ type AuthMode = "login" | "signup" | "forgot";
 function AuthBackground() {
   return (
     <div className="pointer-events-none fixed inset-0 overflow-hidden bg-black" aria-hidden="true">
-      <style>{`
-        @media (prefers-reduced-motion: no-preference) {
-          @keyframes fortify-accretion-spin {
-            from { transform: translate(-50%, -50%) rotate(0deg) scaleX(1.82) scaleY(.34); }
-            to { transform: translate(-50%, -50%) rotate(360deg) scaleX(1.82) scaleY(.34); }
-          }
-          @keyframes fortify-accretion-counter {
-            from { transform: translate(-50%, -50%) rotate(360deg) scaleX(1.46) scaleY(.24); }
-            to { transform: translate(-50%, -50%) rotate(0deg) scaleX(1.46) scaleY(.24); }
-          }
-          @keyframes fortify-lensing-shimmer {
-            0%, 100% { opacity: .68; filter: blur(13px); }
-            50% { opacity: .9; filter: blur(17px); }
-          }
-          @keyframes fortify-outer-glow-breathe {
-            0%, 100% { opacity: .58; filter: blur(42px); }
-            50% { opacity: .88; filter: blur(56px); }
-          }
-          @keyframes fortify-star-shift {
-            0%, 100% { transform: translate3d(0, 0, 0); opacity: .6; }
-            50% { transform: translate3d(-12px, 10px, 0); opacity: .85; }
-          }
-        }
-      `}</style>
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(56,189,248,0.12),transparent_22%),radial-gradient(circle_at_46%_44%,rgba(251,191,36,0.08),transparent_30%),radial-gradient(circle_at_58%_34%,rgba(109,40,217,0.15),transparent_34%),linear-gradient(180deg,#000_0%,#020617_58%,#000_100%)]" />
-      <div className="absolute inset-0 opacity-70 motion-safe:animate-[fortify-star-shift_18s_ease-in-out_infinite] [background-image:radial-gradient(circle_at_12%_18%,rgba(255,255,255,.75)_0_1px,transparent_1.5px),radial-gradient(circle_at_34%_72%,rgba(125,211,252,.75)_0_1px,transparent_1.5px),radial-gradient(circle_at_68%_24%,rgba(216,180,254,.7)_0_1px,transparent_1.5px),radial-gradient(circle_at_82%_78%,rgba(255,255,255,.5)_0_1px,transparent_1.5px)] [background-size:180px_180px,240px_240px,210px_210px,300px_300px]" />
-      <div className="absolute left-1/2 top-[44%] h-[860px] w-[860px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(14,165,233,0.18),rgba(250,204,21,0.1)_22%,rgba(88,28,135,0.12)_38%,transparent_68%)] motion-safe:animate-[fortify-outer-glow-breathe_12s_ease-in-out_infinite]" />
-      <div className="absolute left-1/2 top-[44%] h-[560px] w-[560px] rounded-full bg-[conic-gradient(from_24deg,transparent_0deg,rgba(14,165,233,0.08)_22deg,rgba(125,211,252,0.92)_54deg,rgba(255,247,237,0.98)_78deg,rgba(217,119,6,0.66)_112deg,rgba(30,64,175,0.48)_148deg,transparent_206deg,rgba(147,197,253,0.78)_252deg,rgba(250,204,21,0.8)_300deg,transparent_360deg)] blur-[1px] motion-safe:animate-[fortify-accretion-spin_64s_linear_infinite]" />
-      <div className="absolute left-1/2 top-[44%] h-[470px] w-[470px] rounded-full bg-[conic-gradient(from_180deg,transparent_0deg,rgba(59,130,246,0.7)_40deg,rgba(255,255,255,0.95)_72deg,rgba(245,158,11,0.72)_108deg,transparent_170deg,rgba(56,189,248,0.6)_230deg,rgba(251,191,36,0.72)_290deg,transparent_360deg)] blur-md opacity-80 motion-safe:animate-[fortify-accretion-counter_90s_linear_infinite]" />
-      <div className="absolute left-1/2 top-[44%] h-[760px] w-[150px] -translate-x-1/2 -translate-y-1/2 rotate-[-7deg] bg-[linear-gradient(180deg,transparent_0%,rgba(29,78,216,0.06)_10%,rgba(125,211,252,0.32)_31%,rgba(255,255,255,0.76)_47%,rgba(251,191,36,0.5)_56%,rgba(56,189,248,0.26)_70%,transparent_100%)] mix-blend-screen motion-safe:animate-[fortify-lensing-shimmer_8s_ease-in-out_infinite]" />
-      <div className="absolute left-1/2 top-[44%] h-[640px] w-[78px] -translate-x-1/2 -translate-y-1/2 rotate-[4deg] bg-[linear-gradient(180deg,transparent_0%,rgba(6,182,212,0.16)_22%,rgba(255,255,255,0.56)_45%,rgba(217,119,6,0.34)_58%,rgba(14,165,233,0.18)_78%,transparent_100%)] blur-xl mix-blend-screen" />
-      <div className="absolute left-1/2 top-[44%] h-[430px] w-[650px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,transparent_28%,rgba(250,250,250,0.12)_34%,rgba(125,211,252,0.28)_43%,rgba(251,191,36,0.24)_52%,rgba(15,23,42,0.2)_62%,transparent_72%)] blur-[1px]" />
-      <div className="absolute left-1/2 top-[44%] h-[248px] w-[248px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,#000_0%,#000_58%,rgba(0,0,0,0.98)_65%,rgba(15,23,42,0.82)_72%,transparent_78%)] shadow-[0_0_110px_46px_rgba(0,0,0,0.98),0_0_34px_2px_rgba(255,255,255,0.18),inset_0_0_90px_rgba(0,0,0,1)]" />
-      <div className="absolute left-1/2 top-[44%] h-[276px] w-[276px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10" />
-      <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black via-black/75 to-transparent" />
+      <video
+        className="absolute inset-0 h-full w-full object-cover object-center"
+        src="/backgrounds/fortify-blackhole-auth.mp4"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+        aria-hidden="true"
+      />
+      <div className="absolute inset-0 bg-black/35" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,transparent_0%,transparent_36%,rgba(0,0,0,0.24)_58%,rgba(0,0,0,0.86)_100%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.86)_0%,rgba(0,0,0,0.18)_35%,rgba(0,0,0,0.1)_52%,rgba(0,0,0,0.58)_100%)]" />
+      <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-black via-black/75 to-transparent" />
     </div>
   );
 }
