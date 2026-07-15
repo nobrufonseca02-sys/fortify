@@ -124,6 +124,8 @@ O agregador público fica em `src/data/propFirmRules.ts`; módulos revisados por
 - monitorabilidade em `automatic_mt5`, `manual_check` e `not_supported_yet`;
 - fase e plataforma separadas quando as regras mudarem.
 
-ASAP Funding Prop e NP Future foram normalizadas em 2026-07-15. Evidências e lacunas estão em `docs/fortify/research/prop-firms/`. Para a NP Future, o regulamento prevalece sobre a apresentação comercial: o DD diário 200K adotado é $3.600, enquanto a apresentação ainda mostra $3.500.
+ASAP Funding Prop e NP Future foram normalizadas no Sprint 1. No Sprint 2, FTMO, Apex Trader Funding, Hantec Trader, Topstep, The Trading Pit, FundingPips, FundedNext e The5ers receberam módulos auditáveis, fontes oficiais e matriz de monitorabilidade. Evidências e lacunas ficam em `docs/fortify/research/prop-firms/`.
+
+Entradas legadas de FTMO, Apex e Hantec não são mais publicadas pelo agregador. Mesas sem fonte oficial revisada permanecem sem programas no dataset. Para a NP Future, o regulamento prevalece sobre a apresentação comercial: o DD diário 200K adotado é $3.600, enquanto a apresentação ainda mostra $3.500. Para FundedNext 1-Step, a FAQ específica de 2 dias prevalece, mas a divergência da página genérica de add-ons permanece registrada.
 
 O dataset estático informa e compara regras. Ele não substitui as versões persistidas no banco nem deve ativar automaticamente uma regra ambígua no motor de avaliação.

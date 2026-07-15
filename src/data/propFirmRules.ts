@@ -1,18 +1,32 @@
 import { asapFundingPropPrograms } from './prop-firms/asapFundingProp';
+import { apexTraderFundingPrograms } from './prop-firms/apexTraderFunding';
+import { ftmoPrograms } from './prop-firms/ftmo';
+import { fundedNextPrograms } from './prop-firms/fundedNext';
+import { fundingPipsPrograms } from './prop-firms/fundingPips';
+import { hantecTraderPrograms } from './prop-firms/hantecTrader';
 import { npFuturePrograms } from './prop-firms/npFuture';
+import { the5ersPrograms } from './prop-firms/the5ers';
+import { topstepPrograms } from './prop-firms/topstep';
+import { tradingPitPrograms } from './prop-firms/tradingPit';
 
 export type PropFirmName =
   | 'FTMO'
   | 'Apex Trader Funding'
   | 'Hantec Trader'
   | 'ASAP Funding Prop'
-  | 'NP Future';
+  | 'NP Future'
+  | 'Topstep'
+  | 'The Trading Pit'
+  | 'FundingPips'
+  | 'FundedNext'
+  | 'The5ers';
 export type ProgramType = '1-Step' | '2-Step' | 'Instant' | 'EOD' | 'Intraday' | 'Funded/PA';
 export type MarketType = 'MT4/MT5' | 'Futures' | 'CFD/Forex';
 export type DrawdownType = 'Static' | 'Daily' | 'Trailing' | 'EOD' | 'Intraday';
 export type RiskLevel = 'Baixo' | 'Médio' | 'Alto';
 export type EvidenceConfidence = 'high' | 'medium' | 'low';
 export type EvidenceCompleteness = 'complete' | 'partial' | 'legacy';
+export type EvidenceStatus = 'verified' | 'official_source_unavailable' | 'legacy';
 export type OfficialSourceKind = 'official_regulation' | 'official_terms' | 'official_website';
 
 export interface OfficialRuleSource {
@@ -49,6 +63,7 @@ export interface AccountSizeRule {
 export interface PropFirmRuleProgram {
   id: string;
   firm: PropFirmName;
+  firmSlug?: string;
   programName: string;
   programType: ProgramType;
   market: MarketType;
@@ -74,9 +89,12 @@ export interface PropFirmRuleProgram {
   lastReviewedAt: string;
   confidence?: EvidenceConfidence;
   completeness?: EvidenceCompleteness;
+  dataCompleteness?: EvidenceCompleteness;
+  evidenceStatus?: EvidenceStatus;
   officialSources?: OfficialRuleSource[];
   conflicts?: RuleConflict[];
   monitorability?: RuleMonitorability;
+  prohibitedPractices?: string[];
   notes: string[];
   tradingObjectives: string[];
   riskRules: string[];
@@ -432,13 +450,34 @@ const legacyPropFirmRulePrograms: PropFirmRuleProgram[] = [
 ];
 
 export const propFirmRulePrograms: PropFirmRuleProgram[] = [
-  ...legacyPropFirmRulePrograms,
+  ...legacyPropFirmRulePrograms.filter(
+    (program) => !['FTMO', 'Apex Trader Funding', 'Hantec Trader'].includes(program.firm),
+  ),
   ...asapFundingPropPrograms,
   ...npFuturePrograms,
+  ...ftmoPrograms,
+  ...apexTraderFundingPrograms,
+  ...hantecTraderPrograms,
+  ...topstepPrograms,
+  ...tradingPitPrograms,
+  ...fundingPipsPrograms,
+  ...fundedNextPrograms,
+  ...the5ersPrograms,
 ];
 
 export const propFirmFilterOptions = {
-  firms: ['FTMO', 'Apex Trader Funding', 'Hantec Trader', 'ASAP Funding Prop', 'NP Future'] satisfies PropFirmName[],
+  firms: [
+    'FTMO',
+    'Apex Trader Funding',
+    'Hantec Trader',
+    'ASAP Funding Prop',
+    'NP Future',
+    'Topstep',
+    'The Trading Pit',
+    'FundingPips',
+    'FundedNext',
+    'The5ers',
+  ] satisfies PropFirmName[],
   programTypes: ['1-Step', '2-Step', 'Instant', 'EOD', 'Intraday', 'Funded/PA'] satisfies ProgramType[],
   markets: ['MT4/MT5', 'Futures', 'CFD/Forex'] satisfies MarketType[],
   drawdownTypes: ['Static', 'Daily', 'Trailing', 'EOD', 'Intraday'] satisfies DrawdownType[],

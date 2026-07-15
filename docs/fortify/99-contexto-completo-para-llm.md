@@ -156,5 +156,8 @@ Para detalhes, comece em [00 - Índice](./00-indice.md) e [12 - Guia Codex](./12
 - A matriz canônica de 16 mesas fica em `coverage-matrix.md`.
 - ASAP Funding Prop possui Challenge Express, Funded Express e Instant Account separados.
 - NP Future possui Standard, Funded e Flash separados entre BlackArrow e MT5.
+- O Sprint 2 adicionou cobertura oficial para FTMO, Apex, Hantec, Topstep, The Trading Pit, FundingPips, FundedNext e The5ers.
+- FTMO/Apex/Hantec deixaram de publicar os placeholders legados; o histórico continua preservado no código para rastreabilidade.
+- Mesas ainda no backlog não recebem programas fictícios ou inferidos.
 - O regulamento oficial possui precedência sobre material comercial; conflitos permanecem visíveis no dataset e na UI.
 - Apenas regras classificadas como `automatic_mt5` e com semântica completa podem alimentar avaliação automática. As demais permanecem manuais ou não suportadas.
