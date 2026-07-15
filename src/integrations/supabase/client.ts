@@ -2,16 +2,70 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL?.trim();
+const SUPABASE_PUBLISHABLE_KEY = (
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY
+)?.trim();
+
+const FALLBACK_SUPABASE_URL = 'http://127.0.0.1:54321';
+const FALLBACK_SUPABASE_KEY = 'supabase-not-configured';
+
+function getValidSupabaseUrl(value?: string) {
+  if (!value) return null;
+
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url : null;
+  } catch {
+    return null;
+  }
+}
+
+const parsedSupabaseUrl = getValidSupabaseUrl(SUPABASE_URL);
+
+export const supabaseStartupConfig = Object.freeze({
+  configured: Boolean(parsedSupabaseUrl && SUPABASE_PUBLISHABLE_KEY),
+  host: parsedSupabaseUrl?.host ?? null,
+});
+
+export async function checkSupabaseConnection(signal?: AbortSignal) {
+  if (!parsedSupabaseUrl || !SUPABASE_PUBLISHABLE_KEY) {
+    throw new Error('supabase_config_missing');
+  }
+
+  const healthUrl = new URL('/auth/v1/health', parsedSupabaseUrl);
+
+  try {
+    const response = await fetch(healthUrl, {
+      method: 'GET',
+      headers: { apikey: SUPABASE_PUBLISHABLE_KEY },
+      cache: 'no-store',
+      signal,
+    });
+
+    if (!response.ok) {
+      throw new Error('supabase_health_unavailable');
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message === 'supabase_health_unavailable') {
+      throw error;
+    }
+
+    throw new Error(signal?.aborted ? 'supabase_connection_timeout' : 'supabase_unreachable');
+  }
+}
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    storage: localStorage,
-    persistSession: true,
-    autoRefreshToken: true,
-  }
-});
+export const supabase = createClient<Database>(
+  parsedSupabaseUrl?.toString() ?? FALLBACK_SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY || FALLBACK_SUPABASE_KEY,
+  {
+    auth: {
+      storage: localStorage,
+      persistSession: true,
+      autoRefreshToken: true,
+    },
+  },
+);
