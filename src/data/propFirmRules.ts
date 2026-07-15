@@ -1,8 +1,41 @@
-export type PropFirmName = 'FTMO' | 'Apex Trader Funding' | 'Hantec Trader';
+import { asapFundingPropPrograms } from './prop-firms/asapFundingProp';
+import { npFuturePrograms } from './prop-firms/npFuture';
+
+export type PropFirmName =
+  | 'FTMO'
+  | 'Apex Trader Funding'
+  | 'Hantec Trader'
+  | 'ASAP Funding Prop'
+  | 'NP Future';
 export type ProgramType = '1-Step' | '2-Step' | 'Instant' | 'EOD' | 'Intraday' | 'Funded/PA';
 export type MarketType = 'MT4/MT5' | 'Futures' | 'CFD/Forex';
 export type DrawdownType = 'Static' | 'Daily' | 'Trailing' | 'EOD' | 'Intraday';
 export type RiskLevel = 'Baixo' | 'Médio' | 'Alto';
+export type EvidenceConfidence = 'high' | 'medium' | 'low';
+export type EvidenceCompleteness = 'complete' | 'partial' | 'legacy';
+export type OfficialSourceKind = 'official_regulation' | 'official_terms' | 'official_website';
+
+export interface OfficialRuleSource {
+  label: string;
+  url: string;
+  kind: OfficialSourceKind;
+  precedence: number;
+  lastAccessedAt: string;
+}
+
+export interface RuleConflict {
+  field: string;
+  summary: string;
+  preferredValue: string;
+  resolution: string;
+  sourceUrls: string[];
+}
+
+export interface RuleMonitorability {
+  automatic_mt5: string[];
+  manual_check: string[];
+  not_supported_yet: string[];
+}
 
 export interface AccountSizeRule {
   label: string;
@@ -39,6 +72,11 @@ export interface PropFirmRuleProgram {
   officialSourceUrl: string;
   sourceLabel: string;
   lastReviewedAt: string;
+  confidence?: EvidenceConfidence;
+  completeness?: EvidenceCompleteness;
+  officialSources?: OfficialRuleSource[];
+  conflicts?: RuleConflict[];
+  monitorability?: RuleMonitorability;
   notes: string[];
   tradingObjectives: string[];
   riskRules: string[];
@@ -50,7 +88,7 @@ export interface PropFirmRuleProgram {
 const reviewedAt = '2026-06-23';
 const confirm = 'Confirmar no termo oficial';
 
-export const propFirmRulePrograms: PropFirmRuleProgram[] = [
+const legacyPropFirmRulePrograms: PropFirmRuleProgram[] = [
   {
     id: 'ftmo-challenge-2-step',
     firm: 'FTMO',
@@ -393,8 +431,14 @@ export const propFirmRulePrograms: PropFirmRuleProgram[] = [
   },
 ];
 
+export const propFirmRulePrograms: PropFirmRuleProgram[] = [
+  ...legacyPropFirmRulePrograms,
+  ...asapFundingPropPrograms,
+  ...npFuturePrograms,
+];
+
 export const propFirmFilterOptions = {
-  firms: ['FTMO', 'Apex Trader Funding', 'Hantec Trader'] satisfies PropFirmName[],
+  firms: ['FTMO', 'Apex Trader Funding', 'Hantec Trader', 'ASAP Funding Prop', 'NP Future'] satisfies PropFirmName[],
   programTypes: ['1-Step', '2-Step', 'Instant', 'EOD', 'Intraday', 'Funded/PA'] satisfies ProgramType[],
   markets: ['MT4/MT5', 'Futures', 'CFD/Forex'] satisfies MarketType[],
   drawdownTypes: ['Static', 'Daily', 'Trailing', 'EOD', 'Intraday'] satisfies DrawdownType[],

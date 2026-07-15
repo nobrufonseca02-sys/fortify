@@ -31,6 +31,20 @@ const sourceByFirm: Record<string, string> = {
   FTMO: 'https://ftmo.com/en/trading-objectives/',
   'Apex Trader Funding': 'https://apextraderfunding.com/help-center/',
   'Hantec Trader': 'https://htrader.hmarkets.com/programs/rules/',
+  'ASAP Funding Prop': 'https://asapfundingprop.com/pt/termos/',
+  'NP Future': 'https://npfuture.com/regulamento/',
+};
+
+const completenessLabel = {
+  complete: 'Evidência completa',
+  partial: 'Evidência parcial',
+  legacy: 'Revisão legada',
+};
+
+const confidenceLabel = {
+  high: 'Confiança alta',
+  medium: 'Confiança média',
+  low: 'Confiança baixa',
 };
 
 function SelectFilter({
@@ -109,6 +123,7 @@ function ProgramCard({
         <InfoPill>{program.programType}</InfoPill>
         <InfoPill>{program.market}</InfoPill>
         <InfoPill>{program.drawdownType}</InfoPill>
+        {program.completeness && <InfoPill>{completenessLabel[program.completeness]}</InfoPill>}
       </div>
 
       <div className="mt-5 grid grid-cols-2 gap-3">
@@ -170,6 +185,12 @@ function DetailsDrawer({
             <p className="mt-2 text-sm text-muted-foreground">
               Revisado em {program.lastReviewedAt}. Dados informativos para triagem de risco.
             </p>
+            {(program.confidence || program.completeness) && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {program.confidence && <InfoPill>{confidenceLabel[program.confidence]}</InfoPill>}
+                {program.completeness && <InfoPill>{completenessLabel[program.completeness]}</InfoPill>}
+              </div>
+            )}
           </div>
           <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Fechar detalhes">
             <X className="h-5 w-5" />
@@ -218,6 +239,31 @@ function DetailsDrawer({
             <DetailList title="Notas operacionais" items={program.operationalNotes} />
           </div>
 
+          {program.conflicts && program.conflicts.length > 0 && (
+            <section className="mt-6 border-l-2 border-amber-300 bg-amber-300/5 px-4 py-3">
+              <h3 className="font-semibold text-amber-100">Conflitos de fonte registrados</h3>
+              <ul className="mt-3 space-y-3">
+                {program.conflicts.map((conflict) => (
+                  <li key={`${program.id}-${conflict.field}`} className="text-sm text-amber-100/80">
+                    <span className="font-medium text-amber-50">{conflict.field}:</span> {conflict.summary}{' '}
+                    <span className="text-foreground">Valor adotado: {conflict.preferredValue}.</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {program.monitorability && (
+            <section className="mt-6">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-muted-foreground">Monitorabilidade</h3>
+              <div className="mt-3 grid gap-4 md:grid-cols-3">
+                <DetailList title="Automático via MT5" items={program.monitorability.automatic_mt5.length > 0 ? program.monitorability.automatic_mt5 : ['Não disponível para esta plataforma']} />
+                <DetailList title="Verificação manual" items={program.monitorability.manual_check} tone="warning" />
+                <DetailList title="Ainda não suportado" items={program.monitorability.not_supported_yet} />
+              </div>
+            </section>
+          )}
+
           <section className="mt-6 rounded-xl border border-amber-400/25 bg-amber-400/10 p-4">
             <div className="flex items-start gap-3">
               <AlertTriangle className="mt-0.5 h-5 w-5 text-amber-300" />
@@ -231,14 +277,18 @@ function DetailsDrawer({
           </section>
         </div>
 
-        <div className="flex flex-col gap-3 border-t border-border p-5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-muted-foreground">Fonte: {program.sourceLabel}</p>
-          <Button asChild variant="outline">
-            <a href={program.officialSourceUrl} target="_blank" rel="noopener noreferrer">
-              Abrir fonte oficial
-              <ExternalLink className="ml-2 h-4 w-4" />
-            </a>
-          </Button>
+        <div className="flex flex-col gap-3 border-t border-border p-5">
+          <p className="text-xs text-muted-foreground">Fonte principal: {program.sourceLabel}</p>
+          <div className="flex flex-wrap gap-2">
+            {(program.officialSources ?? [{ label: program.sourceLabel, url: program.officialSourceUrl }]).map((source) => (
+              <Button key={source.url} asChild variant="outline" size="sm">
+                <a href={source.url} target="_blank" rel="noopener noreferrer">
+                  {source.label}
+                  <ExternalLink className="ml-2 h-4 w-4" />
+                </a>
+              </Button>
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -383,7 +433,15 @@ export default function AccountRules() {
     return propFirmRulePrograms.filter((program) => {
       const matchesQuery =
         !normalizedQuery ||
-        [program.firm, program.programName, program.market, program.programType, program.bestFor]
+        [
+          program.firm,
+          program.programName,
+          program.market,
+          program.programType,
+          program.bestFor,
+          program.platforms.join(' '),
+          program.criticalRules.join(' '),
+        ]
           .join(' ')
           .toLowerCase()
           .includes(normalizedQuery);

@@ -147,3 +147,14 @@ RLS isola usuários. A service role existe somente no gateway, que ainda deve ve
 ```
 
 Para detalhes, comece em [00 - Índice](./00-indice.md) e [12 - Guia Codex](./12-guia-codex-fortify.md).
+
+## Biblioteca de regras auditável
+
+- A rota `/rules` usa o dataset público de `src/data/propFirmRules.ts`.
+- Entradas novas e auditáveis ficam em `src/data/prop-firms/`.
+- Evidências oficiais ficam em `docs/fortify/research/prop-firms/`.
+- A matriz canônica de 16 mesas fica em `coverage-matrix.md`.
+- ASAP Funding Prop possui Challenge Express, Funded Express e Instant Account separados.
+- NP Future possui Standard, Funded e Flash separados entre BlackArrow e MT5.
+- O regulamento oficial possui precedência sobre material comercial; conflitos permanecem visíveis no dataset e na UI.
+- Apenas regras classificadas como `automatic_mt5` e com semântica completa podem alimentar avaliação automática. As demais permanecem manuais ou não suportadas.

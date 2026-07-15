@@ -113,3 +113,17 @@ Sem copiar TradeZella ou transformar Fortify em journal completo:
 - [ ] Ausência de dados não aparece como situação segura.
 - [ ] Mobile não corta valores ou CTAs.
 - [ ] TradingView continua análise interna, sem ordem ou navegação externa.
+
+## Dataset estático auditável do MVP
+
+O agregador público fica em `src/data/propFirmRules.ts`; módulos revisados por mesa ficam em `src/data/prop-firms/`. Cada programa novo deve registrar:
+
+- `lastReviewedAt`, `confidence` e `completeness`;
+- todas as fontes oficiais com precedência;
+- conflitos sem apagar o valor divergente;
+- monitorabilidade em `automatic_mt5`, `manual_check` e `not_supported_yet`;
+- fase e plataforma separadas quando as regras mudarem.
+
+ASAP Funding Prop e NP Future foram normalizadas em 2026-07-15. Evidências e lacunas estão em `docs/fortify/research/prop-firms/`. Para a NP Future, o regulamento prevalece sobre a apresentação comercial: o DD diário 200K adotado é $3.600, enquanto a apresentação ainda mostra $3.500.
+
+O dataset estático informa e compara regras. Ele não substitui as versões persistidas no banco nem deve ativar automaticamente uma regra ambígua no motor de avaliação.
