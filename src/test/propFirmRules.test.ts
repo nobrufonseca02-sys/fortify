@@ -15,6 +15,8 @@ describe('prop firm rules dataset', () => {
     'The5ers',
   ];
   const sprint2Programs = propFirmRulePrograms.filter((program) => sprint2Firms.includes(program.firm));
+  const sprint3Firms = ['FXIFY', 'E8 Markets', 'BrightFunded', 'Alpha Capital Group', 'MyFundedFX', 'Fundscap'];
+  const sprint3Programs = propFirmRulePrograms.filter((program) => sprint3Firms.includes(program.firm));
 
   it('publishes the required ASAP and NP Future programs with unique ids', () => {
     expect(asapPrograms.map((program) => program.programName)).toEqual([
@@ -73,10 +75,60 @@ describe('prop firm rules dataset', () => {
     expect(new Set(propFirmFilterOptions.firms)).toEqual(new Set(propFirmRulePrograms.map((program) => program.firm)));
   });
 
-  it('does not publish backlog firms without reviewed official programs', () => {
-    const backlogFirms = ['FXIFY', 'E8 Markets', 'BrightFunded', 'Alpha Capital Group', 'MyFundedFX', 'Fundscap'];
+  it('publishes every Sprint 3 firm with unique ids and official evidence', () => {
+    expect(new Set(sprint3Programs.map((program) => program.firm))).toEqual(new Set(sprint3Firms));
+    expect(sprint3Programs).toHaveLength(28);
+    expect(propFirmRulePrograms).toHaveLength(54);
+    expect(new Set(propFirmRulePrograms.map((program) => program.id)).size).toBe(propFirmRulePrograms.length);
 
-    expect(propFirmRulePrograms.some((program) => backlogFirms.includes(program.firm))).toBe(false);
+    for (const program of sprint3Programs) {
+      expect(program.firmSlug).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+      expect(program.officialSources?.length).toBeGreaterThan(0);
+      expect(program.officialSources?.every((source) => source.url.startsWith('https://'))).toBe(true);
+      expect(program.evidenceStatus).toMatch(/^(verified|official_source_unavailable)$/);
+      expect(program.criticalRules.length).toBeGreaterThan(0);
+      if (program.evidenceStatus === 'verified') {
+        expect(program.monitorability).toBeDefined();
+        expect(program.prohibitedPractices?.length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('keeps unavailable official catalogs explicit instead of inventing rules', () => {
+    const unavailablePrograms = sprint3Programs.filter(
+      (program) => program.evidenceStatus === 'official_source_unavailable',
+    );
+    const unavailablePattern = /indisponível|unavailable|unknown/i;
+
+    expect(unavailablePrograms.map((program) => program.firm)).toEqual(['MyFundedFX', 'Fundscap']);
+    for (const program of unavailablePrograms) {
+      expect(program.profitTarget).toMatch(unavailablePattern);
+      expect(program.dailyLoss).toMatch(unavailablePattern);
+      expect(program.maxLoss).toMatch(unavailablePattern);
+      expect(program.minTradingDays).toMatch(unavailablePattern);
+      expect(program.consistencyRule).toMatch(unavailablePattern);
+      expect(program.newsRule).toMatch(unavailablePattern);
+      expect(program.weekendRule).toMatch(unavailablePattern);
+      expect(program.payout).toMatch(unavailablePattern);
+    }
+  });
+
+  it('keeps Sprint 3 programs compatible with search and derived filters', () => {
+    const search = (term: string) => {
+      const normalizedTerm = term.toLocaleLowerCase('pt-BR');
+      return propFirmRulePrograms.filter((program) =>
+        [program.firm, program.programName, program.programType, program.market]
+          .join(' ')
+          .toLocaleLowerCase('pt-BR')
+          .includes(normalizedTerm),
+      );
+    };
+
+    expect(search('FXIFY').length).toBe(8);
+    expect(search('E8 Zero')).toHaveLength(2);
+    expect(search('Alpha Three').map((program) => program.id)).toEqual(['alpha-capital-three-2026']);
+    expect(new Set(propFirmFilterOptions.firms)).toEqual(new Set(propFirmRulePrograms.map((program) => program.firm)));
+    expect(propFirmFilterOptions.programTypes).toContain('3-Step');
     expect(sprint2Programs.some((program) => program.criticalRules.length === 0)).toBe(false);
   });
 });
