@@ -19,15 +19,18 @@ const instantLiteUrl = 'https://fxify.com/blog/introducing-fxify-instant-funding
 const lightningUrl = 'https://fxify.com/faqs/lightning-plan/';
 const twoPhaseProUrl = 'https://fxify.com/blog/introducing-fxify-2-phase-pro/';
 const staticDrawdownUrl = 'https://fxify.com/faqs/all-faqs/what-is-static-drawdown/';
+const accountSizesUrl = 'https://fxify.com/blog/how-to-pick-account-size-prop-firm-challenge/';
 
 const sharedSources: OfficialRuleSource[] = [
   { label: 'FXIFY assessment rules', url: assessmentUrl, kind: 'official_terms', precedence: 2, lastAccessedAt: reviewedAt },
   { label: 'FXIFY payout rules', url: payoutUrl, kind: 'official_website', precedence: 3, lastAccessedAt: reviewedAt },
   { label: 'FXIFY prohibited strategies', url: prohibitedUrl, kind: 'official_terms', precedence: 4, lastAccessedAt: reviewedAt },
   { label: 'FXIFY restricted jurisdictions', url: countriesUrl, kind: 'official_terms', precedence: 5, lastAccessedAt: reviewedAt },
+  { label: 'FXIFY program and account size guide', url: accountSizesUrl, kind: 'official_website', precedence: 6, lastAccessedAt: '2026-07-17' },
 ];
 
 const platforms = ['MT4', 'MT5', 'DXtrade', 'TradingView'];
+const standardAccountSizes = ['$10K', '$25K', '$50K', '$100K', '$250K'];
 const prohibitedPractices = [
   'Explorar latência, erros de preço, arbitragem ou falhas da plataforma.',
   'HFT, spam de ordens, herd trading, hedge reverso coordenado ou collusion.',
@@ -103,7 +106,7 @@ export const fxifyPrograms: PropFirmRuleProgram[] = [
     id: 'fxify-one-phase-2026',
     programName: 'One Phase',
     programType: '1-Step',
-    accountSizes: ['$5K a $400K; confirmar disponibilidade no checkout'],
+    accountSizes: standardAccountSizes,
     accountSizeRows: [{ label: 'Todos os tamanhos', profitTarget: '10%', dailyLoss: '3%', maxLoss: '6% trailing' }],
     profitTarget: '10%',
     dailyLoss: '3% sobre o saldo do dia anterior às 17:00 EST',
@@ -133,7 +136,7 @@ export const fxifyPrograms: PropFirmRuleProgram[] = [
     id: 'fxify-two-phase-standard-2026',
     programName: 'Two Phase Standard',
     programType: '2-Step',
-    accountSizes: ['$5K a $400K; confirmar disponibilidade no checkout'],
+    accountSizes: standardAccountSizes,
     accountSizeRows: [{ label: 'Todos os tamanhos', profitTarget: '10% / 5%', dailyLoss: '4%', maxLoss: '10% trailing' }],
     profitTarget: '10% na Fase 1; 5% na Fase 2',
     dailyLoss: '4% sobre o saldo do dia anterior às 17:00 EST',
@@ -232,7 +235,7 @@ export const fxifyPrograms: PropFirmRuleProgram[] = [
     id: 'fxify-three-phase-2026',
     programName: 'Three Phase',
     programType: '3-Step',
-    accountSizes: ['Confirmar no checkout oficial'],
+    accountSizes: standardAccountSizes,
     accountSizeRows: [{ label: 'Todos os tamanhos', profitTarget: '5% / 5% / 5%', dailyLoss: '5%', maxLoss: '5% estático' }],
     profitTarget: '5% em cada uma das três fases',
     dailyLoss: '5% sobre o saldo do dia anterior às 17:00 EST',

@@ -61,4 +61,13 @@ Revisão oficial em 2026-07-15. Três avaliações foram separadas porque usam m
 
 - Nenhum conflito material entre as páginas oficiais consultadas. Add-ons podem alterar payout, frequência e leverage; o dataset preserva a regra padrão e sinaliza a dependência contratual.
 
+## Account-level review
+
+- Revisão: 2026-07-17; 3 programas e 18 tamanhos normalizados.
+- A grade vigente coberta é $5K/$10K/$25K/$50K/$100K/$200K.
+- BrightFunded 2.0 (desde 13/04/2026) e Original Accounts anteriores foram versionados separadamente.
+- Lacunas: preços e leverage/lotes que variam por plataforma ou add-on.
+- Fontes adicionais: [Account Merge](https://help.brightfunded.com/en/articles/9436456-how-the-account-merge-works) e [Original Accounts](https://help.brightfunded.com/en/articles/14285762-brightfunded-original-accounts).
+- Matriz consolidada: [account-rules-matrix.md](account-level/account-rules-matrix.md).
+
 > Regras podem mudar sem aviso. Confirme sempre os termos oficiais antes de operar.

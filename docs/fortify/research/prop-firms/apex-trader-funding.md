@@ -53,4 +53,13 @@
 - `manual_check`: metas, DLL, trailing, contratos, consistência, Safety Net, payout e inatividade.
 - `not_supported_yet`: conectores Rithmic, Tradovate e WealthCharts.
 
+## Account-level review
+
+- Revisão: 2026-07-17; 2 evaluations e 8 tamanhos/variantes.
+- EOD e Intraday preservam $25K/$50K/$100K/$150K com meta, drawdown e contratos próprios.
+- O Intraday inclui lucro não realizado no peak; o EOD recalcula no fechamento e aplica o piso intraday na sessão seguinte.
+- Produtos Legacy não foram misturados com as regras atuais.
+- Lacunas: preço público estável, payout EOD por versão de PA e conectores futures.
+- Matriz consolidada: [account-rules-matrix.md](account-level/account-rules-matrix.md).
+
 > As regras podem mudar sem aviso. Confirme sempre os termos oficiais da mesa antes de operar.

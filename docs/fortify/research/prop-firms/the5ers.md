@@ -45,4 +45,12 @@
 - As variantes New e Classic coexistem; o usuário deve escolher a versão exata contratada.
 - Benefícios de HUB credit/refund dependem da data e pagamento utilizado.
 
+## Account-level review
+
+- Revisão: 2026-07-17; 2 programas e 12 tamanhos normalizados.
+- New e Classic cobrem $2.5K/$5K/$10K/$25K/$50K/$100K, com metas de primeira fase diferentes.
+- Daily, max loss, dias lucrativos, news ±2 minutos, weekend e payout foram herdados por tamanho sem misturar versões.
+- Lacunas: preços, regra detalhada de copy trading e refund/HUB por data.
+- Matriz consolidada: [account-rules-matrix.md](account-level/account-rules-matrix.md).
+
 > As regras podem mudar sem aviso. Confirme sempre os termos oficiais da mesa antes de operar.

@@ -44,4 +44,13 @@
 - Weekend/leverage estão sob medidas temporárias e exigem revisão frequente.
 - Add-ons podem alterar payout e critérios sem alterar a regra base publicada aqui.
 
+## Account-level review
+
+- Revisão: 2026-07-17; 2 programas e 11 tamanhos normalizados.
+- 1-Step cobre $5K–$100K; 2-Step inclui $2.5K em países selecionados.
+- A Profit Concentration Policy foi versionada para novas evaluations de $25K+ desde 27/06/2026.
+- Risk Per Trade Idea, 20 lots por clique, leverage, news/weekend e ciclos de reward foram separados entre evaluation e Master.
+- Lacunas: preços e scaling; condições temporárias exigem nova revisão.
+- Matriz consolidada: [account-rules-matrix.md](account-level/account-rules-matrix.md).
+
 > As regras podem mudar sem aviso. Confirme sempre os termos oficiais da mesa antes de operar.

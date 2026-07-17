@@ -47,4 +47,12 @@ Daily Loss usa o maior entre balance/equity anterior às 00:00 server time. O tr
 - `manual_check`: news, add-ons, KYC, payout e estratégias restritas.
 - `not_supported_yet`: calendário Forex Factory e verificação automática de jurisdição.
 
+## Account-level review
+
+- Revisão: 2026-07-17; 4 programas e 26 tamanhos/variantes.
+- Enhanced vigente cobre $5K–$200K; Express/EnhancedX preservam suas grades e Instant cobre $1K–$50K.
+- O cálculo diário foi versionado: contas desde 01/02/2026 usam o maior entre balance/equity; contas anteriores têm regra balance-only.
+- Lacunas: preços, tamanhos vigentes do EnhancedX, leverage EnhancedX e mínimo de saque.
+- Matriz consolidada: [account-rules-matrix.md](account-level/account-rules-matrix.md).
+
 > As regras podem mudar sem aviso. Confirme sempre os termos oficiais da mesa antes de operar.

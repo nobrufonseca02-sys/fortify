@@ -43,4 +43,12 @@ Revisão oficial em 2026-07-15. A operação atual está vinculada à Fundscap M
 
 - Não há conflito numérico verificável porque os parâmetros legados não estão publicados. A existência de contas funded migradas não é evidência suficiente para reconstruir o catálogo antigo.
 
+## Account-level review
+
+- Revisão: 2026-07-17; zero contas operacionais.
+- O domínio oficial não publica rulebook prop vigente com tamanhos, metas ou drawdown auditáveis.
+- O dataset mantém somente um perfil de indisponibilidade e não gera contas a partir de históricos, reviews ou migração comercial.
+- Próxima ação: revisar apenas quando surgir fonte oficial pública e vigente.
+- Matriz consolidada: [account-rules-matrix.md](account-level/account-rules-matrix.md).
+
 > Esta ficha evita apresentar PRIME/Arena ou dados históricos de terceiros como programas prop vigentes.

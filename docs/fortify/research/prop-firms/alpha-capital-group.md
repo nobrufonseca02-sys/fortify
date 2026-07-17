@@ -70,4 +70,12 @@ Revisão oficial em 2026-07-15. Os seis programas atuais foram separados para pr
 
 - Nenhum conflito numérico material encontrado. As páginas de produto e as FAQs operacionais se complementam; o dataset mantém diferenças entre evaluation e Qualified Analyst para news/weekend.
 
+## Account-level review
+
+- Revisão: 2026-07-17; 6 programas e 42 tamanhos normalizados.
+- Tamanhos oficiais: $5K, $10K, $25K, $50K, $100K, $200K e $300K.
+- Limites de lotes variam por tamanho e permanecem separados de leverage, fases e regras de news.
+- Lacunas: preço vigente, símbolos/plataformas do checkout e valor mínimo de saque.
+- Matriz consolidada: [account-rules-matrix.md](account-level/account-rules-matrix.md).
+
 > Regras podem mudar sem aviso. Confirme os termos oficiais e a modalidade de payout antes de operar.

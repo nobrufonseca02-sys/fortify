@@ -46,4 +46,13 @@
 - `manual_check`: futures, payout, KYC, news/weekend, HFT e consistência.
 - `not_supported_yet`: conectores futures e calendário externo.
 
+## Account-level review
+
+- Revisão: 2026-07-17; 2 programas e 10 tamanhos normalizados.
+- Prime Futures registra por tamanho preço (€99/€189/€289), contratos, meta, Daily Pause, drawdown, reset e extensão.
+- Contas novas Prime Futures desde 26/03/2026 foram versionadas sem activation fee.
+- CFD preserva sete tamanhos; regras por data desde 06/07/2026 foram registradas sem aplicar retroativamente.
+- Lacunas: preço CFD, news/weekend por contratação e conectores futures.
+- Matriz consolidada: [account-rules-matrix.md](account-level/account-rules-matrix.md).
+
 > As regras podem mudar sem aviso. Confirme sempre os termos oficiais da mesa antes de operar.

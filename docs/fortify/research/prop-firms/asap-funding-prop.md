@@ -86,4 +86,12 @@ Os Termos prevalecem sobre material comercial. Quando dashboard, plataforma ou c
 - Holding de fim de semana não foi informada publicamente.
 - O método técnico exato de reset da perda diária pode depender da plataforma/dashboard.
 
+## Account-level review
+
+- Revisão: 2026-07-17; 3 produtos e 20 tamanhos/variantes.
+- Challenge e Funded cobrem $3K a $200K; Instant cobre $3K a $100K.
+- Percentuais são iguais por tamanho, mas dias válidos, floating loss, Trade Value Score, notícia e payout mudam por produto.
+- Lacunas: preços, weekend, scaling, mínimo de saque e leverage da Funded Express.
+- Matriz consolidada: [account-rules-matrix.md](account-level/account-rules-matrix.md).
+
 > As regras podem mudar sem aviso. Confirme sempre os termos oficiais da mesa antes de operar.

@@ -77,4 +77,14 @@ Revisão oficial em 2026-07-15. O dataset publica oito programas vigentes ou ain
 - A comparação oficial do Two Phase Classic informa metas 5%/10%, 4 dias, max loss estático e consistência funded de 25%, divergindo da FAQ genérica do Standard. O dataset prioriza a página específica da variante.
 - A coleção atual do Lightning indica prazo de 5 dias, enquanto a comunicação de lançamento indicava 7. O dataset usa 5 dias por atualidade e mantém o conflito registrado.
 
+## Account-level review
+
+- Revisão: 2026-07-17; 8 programas e 31 tamanhos/variantes.
+- A fonte oficial de 29/06/2026 confirma grade padrão $10K/$25K/$50K/$100K/$250K para One Phase, Two Phase Standard e Three Phase.
+- Pro e Instant Lite permanecem com tamanhos explícitos; Classic/Instant usam faixa oficial e Lightning depende do checkout.
+- Diferenças de meta, drawdown, consistência, copy trading e payout permanecem por variante.
+- Lacunas: preços, tamanhos Lightning, grade exata Classic/Instant e leverage/weekend de variantes específicas.
+- Fonte adicional: [FXIFY account size guide](https://fxify.com/blog/how-to-pick-account-size-prop-firm-challenge/).
+- Matriz consolidada: [account-rules-matrix.md](account-level/account-rules-matrix.md).
+
 > Regras podem mudar sem aviso. O trader deve confirmar os termos oficiais da contratação antes de operar.

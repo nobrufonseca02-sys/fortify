@@ -46,4 +46,13 @@
 - Ofertas temporárias de DLL/caps e Topstep Labs não foram tratadas como programa padrão.
 - Horários e produtos devem ser confirmados na fonte oficial vigente.
 
+## Account-level review
+
+- Revisão: 2026-07-17; 1 programa e 3 tamanhos normalizados.
+- $50K/$100K/$150K incluem preço Standard e No Activation Fee, reset, contratos, meta e MLL.
+- Políticas antes/depois de 12/01/2026 foram versionadas; ofertas Labs continuam fora do programa padrão.
+- Lacunas: mínimo de saque da XFA, restrições temporárias e conector TopstepX.
+- Fonte adicional: [Topstep Pricing and Payment Questions](https://help.topstep.com/en/articles/14289835-topstep-pricing-and-payment-questions).
+- Matriz consolidada: [account-rules-matrix.md](account-level/account-rules-matrix.md).
+
 > As regras podem mudar sem aviso. Confirme sempre os termos oficiais da mesa antes de operar.

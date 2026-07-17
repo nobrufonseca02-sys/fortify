@@ -68,4 +68,13 @@ Revisão oficial em 2026-07-15. O catálogo foi modelado por produto e mercado p
 - Páginas atuais do Signature coexistem com coleção identificada como legado. A disponibilidade comercial deve ser confirmada no checkout.
 - A página de plataformas futures afirma que somente Zero está disponível, enquanto a página Signature Futures permanece atualizada. O programa é mantido com completude parcial e conflito explícito.
 
+## Account-level review
+
+- Revisão: 2026-07-17; 9 programas e 22 tamanhos/variantes.
+- Signature e Zero têm linhas explícitas por tamanho; One permanece como faixa customizável e Pro depende do checkout.
+- Regras Forex, Crypto e Futures não foram combinadas; contratos futures e forced close permanecem específicos.
+- Lacunas: tamanhos/preços E8 Pro, contratos Zero e disponibilidade comercial Signature.
+- A coexistência de páginas Signature e a indicação de disponibilidade futures continua registrada como conflito.
+- Matriz consolidada: [account-rules-matrix.md](account-level/account-rules-matrix.md).
+
 > Regras podem mudar por data de compra. Confirme sempre o produto e os termos exibidos no checkout oficial.

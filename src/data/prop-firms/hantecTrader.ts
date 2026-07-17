@@ -6,10 +6,13 @@ const expressUrl = 'https://htrader.hmarkets.com/programs/express-challenge/';
 const enhancedUrl = 'https://htrader.hmarkets.com/programs/enhanced-challenge/';
 const enhancedXUrl = 'https://help.htrader.hmarkets.com/en/support/solutions/articles/158000445799-enhancedx-2-step-consistency-';
 const rulesUrl = 'https://help.htrader.hmarkets.com/en/support/solutions/folders/158001038630';
+const currentRulesUrl = 'https://htrader.hmarkets.com/programs/rules/';
 
 const standardSizes = ['$2K', '$5K', '$10K', '$25K', '$50K', '$100K', '$200K'];
+const enhancedSizes = ['$5K', '$10K', '$25K', '$50K', '$100K', '$200K'];
 const commonSources: OfficialRuleSource[] = [
   { label: 'Hantec Trader Challenge Types', url: rulesUrl, kind: 'official_website', precedence: 2, lastAccessedAt: reviewedAt },
+  { label: 'Hantec Trader current program rules', url: currentRulesUrl, kind: 'official_terms', precedence: 1, lastAccessedAt: '2026-07-17' },
 ];
 
 const monitorability = {
@@ -110,8 +113,8 @@ export const hantecTraderPrograms: PropFirmRuleProgram[] = [
     id: 'hantec-enhanced-2026',
     programName: 'Enhanced Challenge',
     programType: '2-Step',
-    accountSizes: standardSizes,
-    accountSizeRows: [{ label: '$2K a $200K', profitTarget: '10% / 5%', dailyLoss: '5%', maxLoss: '10% estático' }],
+    accountSizes: enhancedSizes,
+    accountSizeRows: [{ label: '$5K a $200K', profitTarget: '10% / 5%', dailyLoss: '5%', maxLoss: '10% estático' }],
     profitTarget: '10% na Stage 1; 5% na Stage 2',
     dailyLoss: '5% do maior entre balance/equity anterior',
     maxLoss: '10%',

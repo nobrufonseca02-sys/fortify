@@ -66,4 +66,12 @@ O Daily Loss é recalculado às 00:00 CE(S)T e inclui P&L fechado, P&L flutuante
 
 - Calendário FTMO de eventos restritos e identificação automatizada de manipulação multi-conta.
 
+## Account-level review
+
+- Revisão: 2026-07-17; 2 produtos e 10 tamanhos normalizados.
+- 1-Step e 2-Step cobrem $10K/$25K/$50K/$100K/$200K, preservando fases e cálculo de drawdown distintos.
+- Standard e Swing continuam separados por regra operacional de news/weekend; 1-Step não oferece Swing.
+- Lacunas: preços por tamanho/país, lote máximo, mínimo de saque e calendário de eventos restritos.
+- Matriz consolidada: [account-rules-matrix.md](account-level/account-rules-matrix.md).
+
 > As regras podem mudar sem aviso. Confirme sempre os termos oficiais da mesa antes de operar.

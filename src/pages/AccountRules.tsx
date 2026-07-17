@@ -174,6 +174,21 @@ function DetailsDrawer({
   onClose: () => void;
 }) {
   if (!program) return null;
+  const accountRows =
+    program.accountLevelRules && program.accountLevelRules.length > 0
+      ? program.accountLevelRules.map((account) => ({
+          label: account.label,
+          profitTarget: account.phases.map((phase) => `${phase.label}: ${phase.profitTarget}`).join(' | '),
+          dailyLoss: account.dailyLoss,
+          maxLoss: account.maxLoss,
+          maxContracts:
+            account.maxContracts !== 'Não aplicável'
+              ? account.maxContracts
+              : account.maxLots !== 'Não aplicável'
+                ? account.maxLots
+                : '-',
+        }))
+      : program.accountSizeRows;
 
   return (
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm" role="dialog" aria-modal="true">
@@ -214,11 +229,11 @@ function DetailsDrawer({
                     <th className="px-4 py-3">Meta</th>
                     <th className="px-4 py-3">Perda diaria</th>
                     <th className="px-4 py-3">Perda maxima</th>
-                    <th className="px-4 py-3">Contratos</th>
+                    <th className="px-4 py-3">Contratos / lotes</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {program.accountSizeRows.map((row) => (
+                  {accountRows.map((row) => (
                     <tr key={`${program.id}-${row.label}`} className="text-foreground">
                       <td className="px-4 py-3 font-medium">{row.label}</td>
                       <td className="px-4 py-3">{row.profitTarget}</td>
@@ -441,6 +456,30 @@ export default function AccountRules() {
           program.bestFor,
           program.platforms.join(' '),
           program.criticalRules.join(' '),
+          program.accountLevelRules
+            .flatMap((account) => [
+              account.label,
+              account.initialBalance,
+              account.price,
+              account.platforms.join(' '),
+              account.phases.map((phase) => phase.profitTarget).join(' '),
+              account.dailyLoss,
+              account.maxLoss,
+              account.drawdownCalculation,
+              account.consistencyRule,
+              account.newsRule,
+              account.weekendRule,
+              account.payoutSplit,
+              account.versions
+                .flatMap((version) => [
+                  version.label,
+                  version.effectiveFrom ?? '',
+                  version.effectiveTo ?? '',
+                  version.condition ?? '',
+                ])
+                .join(' '),
+            ])
+            .join(' '),
         ]
           .join(' ')
           .toLowerCase()

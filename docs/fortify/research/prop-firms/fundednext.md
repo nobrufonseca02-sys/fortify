@@ -48,4 +48,12 @@ A FAQ específica do 1-Step informa 2 dias. A página genérica de add-ons ainda
 - `manual_check`: titularidade/copy, IP/VPN/VPS, KYC, news e Reward review.
 - `not_supported_yet`: correlação entre titulares e detecção de manipulação.
 
+## Account-level review
+
+- Revisão: 2026-07-17; 2 programas e 12 tamanhos normalizados.
+- Stellar 1-Step e 2-Step cobrem $6K/$15K/$25K/$50K/$100K/$200K.
+- Fases, dias/trades mínimos, limites e ciclos de reward permanecem separados por programa.
+- Lacunas: preços, lotes máximos e política news/weekend/add-on vigente por contratação.
+- Matriz consolidada: [account-rules-matrix.md](account-level/account-rules-matrix.md).
+
 > As regras podem mudar sem aviso. Confirme sempre os termos oficiais da mesa antes de operar.

@@ -86,4 +86,13 @@ O instante exato de medição do Max Loss Standard deve ser confirmado antes de 
 - Monitoramento automático BlackArrow.
 - Aprovação de payout e calendário externos da NP Future.
 
+## Account-level review
+
+- Revisão: 2026-07-17; 6 variantes de programa e 30 contas normalizadas.
+- Standard, Funded e Flash permanecem separados entre BlackArrow e MT5.
+- A grade $25K/$50K/$100K/$150K/$200K preserva metas, daily, max loss, contratos e payout por plano.
+- O Regulamento continua como autoridade primária; o conflito conhecido de Daily Loss $200K permanece resolvido em $3.600.
+- Lacunas: preços, prazo/reset, mínimo de saque, scaling e detalhes de automação.
+- Matriz consolidada: [account-rules-matrix.md](account-level/account-rules-matrix.md).
+
 > As regras podem mudar sem aviso. Confirme sempre os termos oficiais da mesa antes de operar.

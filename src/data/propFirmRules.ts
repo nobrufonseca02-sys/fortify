@@ -14,6 +14,7 @@ import { the5ersPrograms } from './prop-firms/the5ers';
 import { topstepPrograms } from './prop-firms/topstep';
 import { tradingPitPrograms } from './prop-firms/tradingPit';
 import { fxifyPrograms } from './prop-firms/fxify';
+import { normalizeAccountLevelPrograms } from './prop-firms/accountLevelRules';
 
 export type PropFirmName =
   | 'FTMO'
@@ -72,6 +73,66 @@ export interface AccountSizeRule {
   notes?: string;
 }
 
+export interface RulePhase {
+  id: string;
+  label: string;
+  profitTarget: string;
+}
+
+export interface RuleVersion {
+  label: string;
+  effectiveFrom?: string;
+  effectiveTo?: string;
+  condition?: string;
+  notes: string[];
+}
+
+export interface RuleAccountSize {
+  id: string;
+  label: string;
+  initialBalance: string;
+  price: string;
+  currency: string;
+  platforms: string[];
+  market: MarketType;
+  programType: ProgramType;
+  phases: RulePhase[];
+  dailyLoss: string;
+  maxLoss: string;
+  drawdownType: DrawdownType;
+  drawdownCalculation: string;
+  minTradingDays: string;
+  maxTradingDays: string;
+  maxContracts: string;
+  maxLots: string;
+  leverage: string;
+  newsRule: string;
+  weekendRule: string;
+  overnightRule: string;
+  eaRule: string;
+  copyTradingRule: string;
+  consistencyRule: string;
+  bestDayRule: string;
+  inactivityRule: string;
+  payoutSplit: string;
+  firstPayoutTiming: string;
+  subsequentPayoutTiming: string;
+  minimumWithdrawal: string;
+  scalingPlan: string;
+  resetRefundRule: string;
+  kycRule: string;
+  prohibitedPractices: string[];
+  breachConditions: string[];
+  sourceRefs: string[];
+  lastReviewedAt: string;
+  confidence: EvidenceConfidence;
+  dataCompleteness: EvidenceCompleteness;
+  monitorability: RuleMonitorability;
+  notes: string[];
+  conflicts: string[];
+  versions: RuleVersion[];
+}
+
 export interface PropFirmRuleProgram {
   id: string;
   firm: PropFirmName;
@@ -82,6 +143,7 @@ export interface PropFirmRuleProgram {
   platforms: string[];
   accountSizes: string[];
   accountSizeRows: AccountSizeRule[];
+  accountLevelRules?: RuleAccountSize[];
   profitTarget: string;
   dailyLoss: string;
   maxLoss: string;
@@ -461,7 +523,7 @@ const legacyPropFirmRulePrograms: PropFirmRuleProgram[] = [
   },
 ];
 
-export const propFirmRulePrograms: PropFirmRuleProgram[] = [
+const sourcePropFirmRulePrograms: PropFirmRuleProgram[] = [
   ...legacyPropFirmRulePrograms.filter(
     (program) => !['FTMO', 'Apex Trader Funding', 'Hantec Trader'].includes(program.firm),
   ),
@@ -482,6 +544,8 @@ export const propFirmRulePrograms: PropFirmRuleProgram[] = [
   ...myFundedFxPrograms,
   ...fundscapPrograms,
 ];
+
+export const propFirmRulePrograms = normalizeAccountLevelPrograms(sourcePropFirmRulePrograms);
 
 export const propFirmFilterOptions = {
   firms: [

@@ -131,4 +131,86 @@ describe('prop firm rules dataset', () => {
     expect(propFirmFilterOptions.programTypes).toContain('3-Step');
     expect(sprint2Programs.some((program) => program.criticalRules.length === 0)).toBe(false);
   });
+
+  it('publishes explicit account-level rules for every active program', () => {
+    const activePrograms = propFirmRulePrograms.filter(
+      (program) => program.evidenceStatus !== 'official_source_unavailable',
+    );
+    const accountRules = activePrograms.flatMap((program) => program.accountLevelRules);
+
+    expect(activePrograms).toHaveLength(52);
+    expect(accountRules).toHaveLength(255);
+    expect(new Set(accountRules.map((account) => account.id)).size).toBe(accountRules.length);
+
+    for (const program of activePrograms) {
+      expect(program.lastReviewedAt).toBeTruthy();
+      expect(program.confidence).toMatch(/^(high|medium|low)$/);
+      expect(program.dataCompleteness).toMatch(/^(complete|partial|legacy)$/);
+      expect(program.officialSources?.length).toBeGreaterThan(0);
+      expect(program.accountLevelRules.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('keeps every account critical field explicit and officially sourced', () => {
+    const accountRules = propFirmRulePrograms.flatMap((program) => program.accountLevelRules);
+
+    for (const account of accountRules) {
+      expect(account.label.trim()).not.toBe('');
+      expect(account.initialBalance.trim()).not.toBe('');
+      expect(account.platforms.length).toBeGreaterThan(0);
+      expect(account.phases.length).toBeGreaterThan(0);
+      expect(account.phases.every((phase) => phase.profitTarget.trim().length > 0)).toBe(true);
+      expect(account.dailyLoss.trim()).not.toBe('');
+      expect(account.maxLoss.trim()).not.toBe('');
+      expect(account.drawdownCalculation.trim()).not.toBe('');
+      expect(account.payoutSplit.trim()).not.toBe('');
+      expect(account.sourceRefs.length).toBeGreaterThan(0);
+      expect(account.sourceRefs.every((url) => url.startsWith('https://'))).toBe(true);
+      expect(account.lastReviewedAt).toBe('2026-07-17');
+      expect(account.confidence).toMatch(/^(high|medium|low)$/);
+      expect(account.dataCompleteness).toMatch(/^(complete|partial|legacy)$/);
+    }
+  });
+
+  it('does not create fake operational accounts for unavailable firms', () => {
+    const unavailablePrograms = propFirmRulePrograms.filter(
+      (program) => program.evidenceStatus === 'official_source_unavailable',
+    );
+
+    expect(unavailablePrograms.map((program) => program.firm)).toEqual(['MyFundedFX', 'Fundscap']);
+    expect(unavailablePrograms.every((program) => program.accountLevelRules.length === 0)).toBe(true);
+  });
+
+  it('keeps account-level official price and version evidence searchable', () => {
+    const searchNested = (term: string) => {
+      const query = term.toLocaleLowerCase('pt-BR');
+      return propFirmRulePrograms.filter((program) =>
+        program.accountLevelRules
+          .flatMap((account) => [
+            account.label,
+            account.price,
+            account.dailyLoss,
+            account.maxLoss,
+            account.consistencyRule,
+            ...account.versions.flatMap((version) => [
+              version.label,
+              version.effectiveFrom ?? '',
+              version.effectiveTo ?? '',
+              version.condition ?? '',
+            ]),
+          ])
+          .join(' ')
+          .toLocaleLowerCase('pt-BR')
+          .includes(query),
+      );
+    };
+
+    expect(searchNested('US$95/mês').map((program) => program.id)).toEqual([
+      'topstep-trading-combine-2026',
+    ]);
+    expect(searchNested('2026-06-27').map((program) => program.firm)).toEqual([
+      'FundingPips',
+      'FundingPips',
+    ]);
+  });
 });

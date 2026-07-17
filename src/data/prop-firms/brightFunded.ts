@@ -9,6 +9,8 @@ const payoutUrl = 'https://help.brightfunded.com/en/articles/9268736-how-does-my
 const prohibitedUrl = 'https://help.brightfunded.com/en/articles/9241704-which-strategies-are-prohibited-at-brightfunded';
 const platformsUrl = 'https://help.brightfunded.com/en/articles/10855521-what-trading-platform-does-brightfunded-offer';
 const countriesUrl = 'https://help.brightfunded.com/en/articles/9286630-what-countries-are-restricted-at-brightfunded';
+const mergeUrl = 'https://help.brightfunded.com/en/articles/9436456-how-the-account-merge-works';
+const originalAccountsUrl = 'https://help.brightfunded.com/en/articles/14285762-brightfunded-original-accounts';
 
 const sharedSources: OfficialRuleSource[] = [
   { label: 'BrightFunded evaluation rules', url: rulesUrl, kind: 'official_terms', precedence: 1, lastAccessedAt: reviewedAt },
@@ -18,6 +20,8 @@ const sharedSources: OfficialRuleSource[] = [
   { label: 'BrightFunded prohibited strategies', url: prohibitedUrl, kind: 'official_terms', precedence: 5, lastAccessedAt: reviewedAt },
   { label: 'BrightFunded platforms', url: platformsUrl, kind: 'official_website', precedence: 6, lastAccessedAt: reviewedAt },
   { label: 'BrightFunded restricted countries', url: countriesUrl, kind: 'official_terms', precedence: 7, lastAccessedAt: reviewedAt },
+  { label: 'BrightFunded account merge and offered sizes', url: mergeUrl, kind: 'official_website', precedence: 8, lastAccessedAt: '2026-07-17' },
+  { label: 'BrightFunded Original Accounts', url: originalAccountsUrl, kind: 'official_terms', precedence: 9, lastAccessedAt: '2026-07-17' },
 ];
 
 const prohibitedPractices = [
@@ -40,7 +44,7 @@ const common = {
   firmSlug: 'brightfunded',
   market: 'CFD/Forex' as const,
   platforms,
-  accountSizes: ['Confirmar tamanhos no checkout oficial'],
+  accountSizes: ['$5K', '$10K', '$25K', '$50K', '$100K', '$200K'],
   consistencyRule: 'Sem regra de consistência vigente',
   weekendRule: 'Holding overnight e fim de semana permitido; crypto pode operar quando o mercado estiver aberto',
   payout: '80% padrão; primeiro após 30 dias, depois 14 dias; add-ons de 14/7 dias e 90%; escala até 100%',

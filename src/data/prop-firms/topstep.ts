@@ -6,6 +6,7 @@ const maxLossUrl = 'https://help.topstep.com/en/articles/8284204-what-is-the-max
 const consistencyUrl = 'https://help.topstep.com/en/articles/8284208-consistency-at-topstep';
 const payoutUrl = 'https://help.topstep.com/en/articles/8284233-topstep-payout-policy';
 const prohibitedUrl = 'https://help.topstep.com/en/articles/10305426-prohibited-trading-strategies-at-topstep';
+const pricingUrl = 'https://help.topstep.com/en/articles/14289835-topstep-pricing-and-payment-questions';
 
 const officialSources: OfficialRuleSource[] = [
   { label: 'Topstep Trading Combine Parameters', url: parametersUrl, kind: 'official_website', precedence: 1, lastAccessedAt: reviewedAt },
@@ -13,6 +14,7 @@ const officialSources: OfficialRuleSource[] = [
   { label: 'Topstep Consistency', url: consistencyUrl, kind: 'official_website', precedence: 3, lastAccessedAt: reviewedAt },
   { label: 'Topstep Payout Policy', url: payoutUrl, kind: 'official_terms', precedence: 4, lastAccessedAt: reviewedAt },
   { label: 'Topstep Prohibited Strategies', url: prohibitedUrl, kind: 'official_terms', precedence: 5, lastAccessedAt: reviewedAt },
+  { label: 'Topstep Pricing and Payment Questions', url: pricingUrl, kind: 'official_website', precedence: 6, lastAccessedAt: '2026-07-17' },
 ];
 
 export const topstepPrograms: PropFirmRuleProgram[] = [

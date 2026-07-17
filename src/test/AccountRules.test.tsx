@@ -53,4 +53,24 @@ describe('AccountRules', () => {
     expect(screen.getByText('3/3 selecionados')).toBeInTheDocument();
     expect(programCard('Funded - MT5').getByRole('button', { name: 'Comparar' })).toBeDisabled();
   });
+
+  it('searches nested account-level fields and renders expanded account rows', () => {
+    render(<AccountRules />);
+
+    fireEvent.change(screen.getByPlaceholderText('Buscar por mesa, programa ou mercado'), {
+      target: { value: 'US$95/mês' },
+    });
+
+    expect(screen.getByRole('heading', { name: 'Trading Combine' })).toBeInTheDocument();
+    expect(screen.getByText('1 programas encontrados')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText('Buscar por mesa, programa ou mercado'), {
+      target: { value: '' },
+    });
+    fireEvent.click(programCard('FTMO Challenge 2-Step').getByRole('button', { name: 'Ver detalhes' }));
+
+    const dialog = within(screen.getByRole('dialog'));
+    expect(dialog.getByText('$200K')).toBeInTheDocument();
+    expect(dialog.getAllByText(/Fase 1: 10%/).length).toBeGreaterThan(0);
+  });
 });

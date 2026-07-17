@@ -42,4 +42,12 @@ Todos os campos críticos são marcados como **Indisponível em fonte oficial vi
 
 - Não há conflito entre fontes vigentes: o domínio oficial e a página de destino apontam encerramento. Eventuais catálogos históricos externos foram descartados por não atenderem ao critério oficial/atual.
 
+## Account-level review
+
+- Revisão: 2026-07-17; zero contas operacionais.
+- A operação encerrada não possui catálogo atual, rulebook ou tamanhos vigentes auditáveis.
+- O dataset mantém somente perfil de status; nenhuma regra histórica foi transformada em conta selecionável.
+- Próxima ação: revisar apenas se uma fonte oficial anunciar retomada com novos termos.
+- Matriz consolidada: [account-rules-matrix.md](account-level/account-rules-matrix.md).
+
 > Esta ficha existe para impedir que dados antigos sejam apresentados como regra operacional vigente.
