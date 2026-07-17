@@ -129,3 +129,7 @@ ASAP Funding Prop e NP Future foram normalizadas no Sprint 1. No Sprint 2, FTMO,
 Entradas legadas de FTMO, Apex e Hantec não são mais publicadas pelo agregador. Mesas sem fonte oficial revisada permanecem sem programas no dataset. Para a NP Future, o regulamento prevalece sobre a apresentação comercial: o DD diário 200K adotado é $3.600, enquanto a apresentação ainda mostra $3.500. Para FundedNext 1-Step, a FAQ específica de 2 dias prevalece, mas a divergência da página genérica de add-ons permanece registrada.
 
 O dataset estático informa e compara regras. Ele não substitui as versões persistidas no banco nem deve ativar automaticamente uma regra ambígua no motor de avaliação.
+
+## Vínculo por conta
+
+A seleção versionada por conta usa `account_rule_bindings`, com snapshot, hash, evidências, monitorabilidade automática/manual e histórico por status. O fluxo e as limitações estão documentados em [Vínculo versionado de regras por conta](./rule-binding.md).

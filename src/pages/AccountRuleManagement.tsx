@@ -8,6 +8,14 @@ import { hydrateRuleEvaluationRows, type RuleEvaluationRow } from '@/hooks/useRu
 import { BetaReadinessChecklist, BetaResponsibilityNotice } from '@/components/BetaReadinessChecklist';
 import { buildBetaChecklist, getConnectionStatusMeta, getRulesStatusMeta, getSyncErrorMessage, getSyncStatusMeta } from '@/lib/betaReadiness';
 import { gatewayJsonHeaders } from '@/lib/gateway';
+import { RuleBindingSelector } from '@/components/rules/RuleBindingSelector';
+import {
+  emptyRuleBindingDraft,
+  isRuleBindingDraftComplete,
+  saveAccountRuleBinding,
+  type AccountRuleBindingRow,
+  type RuleBindingDraft,
+} from '@/lib/ruleBinding';
 
 type RuleStatus = 'APPROVING' | 'WARNING' | 'VIOLATED' | 'NOT_MET';
 
@@ -80,6 +88,12 @@ export default function AccountRuleManagement() {
   const [ruleSets, setRuleSets] = useState<any[]>([]);
   const [definitions, setDefinitions] = useState<any[]>([]);
   const [customRules, setCustomRules] = useState<any[]>([]);
+  const [ruleBinding, setRuleBinding] = useState<AccountRuleBindingRow | null>(null);
+  const [bindingDraft, setBindingDraft] = useState<RuleBindingDraft>(
+    emptyRuleBindingDraft,
+  );
+  const [editingBinding, setEditingBinding] = useState(false);
+  const [savingBinding, setSavingBinding] = useState(false);
   const [selectedRuleSetId, setSelectedRuleSetId] = useState('');
   const [customDefinitionId, setCustomDefinitionId] = useState('');
   const [customLimit, setCustomLimit] = useState('');
@@ -98,7 +112,7 @@ export default function AccountRuleManagement() {
     }
     setLoading(true);
 
-    const [accountRes, connRes, ruleSetRes, defRes, evalRes, customRes] = await Promise.all([
+    const [accountRes, connRes, ruleSetRes, defRes, evalRes, customRes, bindingRes] = await Promise.all([
       (supabase.from('trading_accounts').select('*').eq('id', accountId).eq('user_id', user.id).maybeSingle() as any),
       (supabase.from('mt5_connections').select('*').eq('trading_account_id', accountId).eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle() as any),
       (supabase
@@ -117,6 +131,15 @@ export default function AccountRuleManagement() {
         .eq('trading_account_id', accountId)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false }) as any),
+      (supabase
+        .from('account_rule_bindings' as any)
+        .select('*')
+        .eq('trading_account_id', accountId)
+        .eq('user_id', user.id)
+        .eq('binding_status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle() as any),
     ]);
 
     if (accountRes.error) toast({ title: 'Erro ao carregar conta', description: accountRes.error.message, variant: 'destructive' });
@@ -125,6 +148,7 @@ export default function AccountRuleManagement() {
     if (defRes.error) toast({ title: 'Erro ao carregar definições', description: defRes.error.message, variant: 'destructive' });
     if (evalRes.error) toast({ title: 'Erro ao carregar avaliações', description: evalRes.error.message, variant: 'destructive' });
     if (customRes.error) toast({ title: 'Erro ao carregar regras customizadas', description: customRes.error.message, variant: 'destructive' });
+    if (bindingRes.error) toast({ title: 'Erro ao carregar vínculo versionado', description: bindingRes.error.message, variant: 'destructive' });
 
     const loadedAccount = accountRes.data ?? null;
     const loadedConnection = connRes.data ?? null;
@@ -135,6 +159,20 @@ export default function AccountRuleManagement() {
     setEvaluations(evalRes.error ? [] : await hydrateRuleEvaluationRows((evalRes.data ?? []) as RuleEvaluationRow[]));
     setCustomRules(customRes.data ?? []);
     setSelectedRuleSetId(loadedAccount?.rule_set_id ?? '');
+    const loadedBinding = bindingRes.data as AccountRuleBindingRow | null;
+    setRuleBinding(loadedBinding ?? null);
+    if (loadedBinding) {
+      setBindingDraft({
+        propFirmSlug: loadedBinding.prop_firm_slug,
+        programSlug: loadedBinding.program_slug,
+        accountSizeId: loadedBinding.account_size_id,
+        platform: loadedBinding.platform,
+        ruleVersionId: loadedBinding.rule_version_id,
+        manualRuleAcknowledgement: loadedBinding.manual_rule_acknowledgement,
+      });
+    } else {
+      setBindingDraft(emptyRuleBindingDraft());
+    }
 
     if (loadedConnection?.id) {
       const snapRes = await (supabase
@@ -228,6 +266,33 @@ export default function AccountRuleManagement() {
       return;
     }
     await loadData();
+  };
+
+  const saveVersionedBinding = async () => {
+    if (!accountId || !user?.id || !isRuleBindingDraftComplete(bindingDraft)) return;
+    setSavingBinding(true);
+    try {
+      await saveAccountRuleBinding({
+        userId: user.id,
+        tradingAccountId: accountId,
+        mt5ConnectionId: connection?.id ?? null,
+        draft: bindingDraft,
+      });
+      toast({
+        title: 'Regra vinculada',
+        description: 'A versão e o snapshot oficial foram salvos para esta conta.',
+      });
+      setEditingBinding(false);
+      await loadData();
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao vincular regra',
+        description: error?.message || 'Não foi possível salvar o vínculo versionado.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingBinding(false);
+    }
   };
 
   const startEditingRule = (rule: any) => {
@@ -341,7 +406,7 @@ export default function AccountRuleManagement() {
         : evaluations.length === 0
           ? 'attention'
           : 'safe';
-  const isMissingRuleSet = !account.rule_set_id || account.rule_selection_status === 'unconfigured';
+  const isMissingRuleSet = !ruleBinding && (!account.rule_set_id || account.rule_selection_status === 'unconfigured');
   const isAutoGeneric = account.rule_selection_status === 'auto_generic';
   const needsReview = currentRuleSet?.review_status === 'needs_review';
   const betaChecklist = buildBetaChecklist({
@@ -354,7 +419,12 @@ export default function AccountRuleManagement() {
   });
   const connectionMeta = getConnectionStatusMeta(connection?.connection_status || account.mt5_connection_status);
   const syncMeta = getSyncStatusMeta(connection?.sync_status, connection?.last_sync_at || account.mt5_last_sync_at, connection?.sync_error || account.mt5_sync_error);
-  const rulesMeta = getRulesStatusMeta({ account, ruleSet: currentRuleSet, customRulesCount: customRules.length });
+  const rulesMeta = ruleBinding
+    ? {
+        label: 'Regra vinculada',
+        className: 'bg-success/15 text-success',
+      }
+    : getRulesStatusMeta({ account, ruleSet: currentRuleSet, customRulesCount: customRules.length });
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -424,6 +494,86 @@ export default function AccountRuleManagement() {
           </div>
         </div>
       </section>
+
+      {ruleBinding && !editingBinding ? (
+        <section className="rounded-xl border border-success/30 bg-success/5 p-5 space-y-4">
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-success" />
+                <h2 className="text-sm font-semibold text-foreground">Regra vinculada</h2>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                {ruleBinding.rule_snapshot.propFirm.name} · {ruleBinding.rule_snapshot.program.name} · {ruleBinding.rule_snapshot.accountSize.label}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {ruleBinding.platform} · {ruleBinding.rule_snapshot.version.label} · revisão {new Date(`${ruleBinding.rules_last_reviewed_at}T00:00:00`).toLocaleDateString('pt-BR')}
+              </p>
+            </div>
+            <button type="button" className="pill-btn" onClick={() => setEditingBinding(true)}>
+              <Pencil className="w-3 h-3" />
+              Atualizar vínculo
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+            <div className="rounded-lg bg-background/70 p-3">
+              <p className="text-muted-foreground">Snapshot</p>
+              <p className="font-mono text-foreground mt-1">{ruleBinding.rule_snapshot_hash.slice(0, 22)}...</p>
+            </div>
+            <div className="rounded-lg bg-background/70 p-3">
+              <p className="text-muted-foreground">Monitoramento automático</p>
+              <p className="font-medium text-foreground mt-1">
+                {ruleBinding.automatic_monitoring_enabled ? 'Habilitado para regras compatíveis' : 'Não compatível com MT5'}
+              </p>
+            </div>
+            <div className="rounded-lg bg-background/70 p-3">
+              <p className="text-muted-foreground">Regras manuais</p>
+              <p className="font-medium text-foreground mt-1">
+                {ruleBinding.manual_rules_status === 'acknowledged' ? 'Termos reconhecidos' : 'Aceite pendente'}
+              </p>
+            </div>
+          </div>
+        </section>
+      ) : (
+        <div className="space-y-3">
+          {!ruleBinding && (
+            <div className="rounded-xl border border-warning/30 bg-warning/5 p-4 flex items-start gap-3">
+              <AlertTriangle className="w-4 h-4 text-warning mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-foreground">Regra pendente de vínculo</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Esta conta foi criada antes do vínculo versionado ou ainda não concluiu a seleção oficial.
+                </p>
+              </div>
+            </div>
+          )}
+          <RuleBindingSelector
+            value={bindingDraft}
+            onChange={setBindingDraft}
+            platformConstraint={
+              connection || String(account.detected_platform ?? '').toLowerCase() === 'mt5'
+                ? 'MT5'
+                : undefined
+            }
+            disabled={savingBinding}
+          />
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              className="pill-btn pill-btn-primary"
+              disabled={savingBinding || !isRuleBindingDraftComplete(bindingDraft)}
+              onClick={saveVersionedBinding}
+            >
+              {savingBinding ? 'Salvando vínculo...' : 'Salvar vínculo versionado'}
+            </button>
+            {ruleBinding && (
+              <button type="button" className="pill-btn" onClick={() => setEditingBinding(false)}>
+                Cancelar
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       <BetaReadinessChecklist
         items={betaChecklist}

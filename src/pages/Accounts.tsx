@@ -19,6 +19,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { GuidedEmptyState } from '@/components/BetaReadinessChecklist';
 import { getRulesStatusMeta, getSyncErrorMessage, getSyncStatusMeta, maskLogin } from '@/lib/betaReadiness';
 import { gatewayJsonHeaders } from '@/lib/gateway';
+import {
+  fetchActiveRuleBindings,
+  getAccountRuleBindingStatus,
+  type AccountRuleBindingRow,
+} from '@/lib/ruleBinding';
 
 // Re-export for backward compatibility
 export { useAccountsStore } from '@/hooks/useAccountsStore';
@@ -59,6 +64,7 @@ const Accounts = () => {
   const [mt5Connections, setMt5Connections] = useState<any[]>([]);
   const [loadingConnections, setLoadingConnections] = useState(false);
   const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [ruleBindings, setRuleBindings] = useState<Record<string, AccountRuleBindingRow>>({});
 
   // Form state
   const [nickname, setNickname] = useState('');
@@ -87,6 +93,19 @@ const Accounts = () => {
 
         if (error) throw error;
         setMt5Connections((data || []).filter((conn: any) => conn.sync_status !== 'removed'));
+        try {
+          const bindings = await fetchActiveRuleBindings(user.id);
+          setRuleBindings(
+            Object.fromEntries(
+              bindings
+                .filter((binding) => binding.trading_account_id)
+                .map((binding) => [binding.trading_account_id as string, binding]),
+            ),
+          );
+        } catch (bindingError) {
+          console.warn('Failed to load account rule bindings:', bindingError);
+          setRuleBindings({});
+        }
       } catch (error) {
         console.error('Failed to load MT5 connections:', error);
       } finally {
@@ -290,6 +309,8 @@ const Accounts = () => {
           const loginLabel = maskLogin(account.mt5Login || mt5Connection?.mt5_login);
           const serverLabel = account.mt5Server || mt5Connection?.mt5_server || 'Servidor não informado';
           const detectedBroker = account.detectedBroker || mt5Connection?.broker_name || account.broker || 'Broker não detectado';
+          const ruleBinding = ruleBindings[account.id];
+          const ruleBindingStatus = getAccountRuleBindingStatus(ruleBinding);
 
           // Compute account health
           const hasViolation = evals.some(e => e.status === 'VIOLATED');
@@ -341,6 +362,11 @@ const Accounts = () => {
                     <span>Login {loginLabel} · {serverLabel}</span>
                     {account.detectedPropFirm ? <span>Mesa detectada: {account.detectedPropFirm}</span> : null}
                     <span>Último sync: {mt5Connection?.last_sync_at ? new Date(mt5Connection.last_sync_at).toLocaleString('pt-BR') : 'nunca'}</span>
+                    <span className={ruleBinding ? 'text-success' : 'text-warning'}>
+                      {ruleBinding
+                        ? `Regra vinculada: ${ruleBinding.rule_snapshot.propFirm.name} · ${ruleBinding.rule_snapshot.accountSize.label}`
+                        : ruleBindingStatus.label}
+                    </span>
                   </div>
                 </div>
                 <StatusBadge status={healthStatus} />
@@ -455,7 +481,7 @@ const Accounts = () => {
                     className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[10px] text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
                   >
                     <Shield className="w-3 h-3" />
-                    {account.ruleSetId ? 'Ver regras' : 'Configurar regras'}
+                    {ruleBindingStatus.actionLabel}
                   </button>
                   <button
                     type="button"

@@ -18,6 +18,13 @@ import { getConnectErrorMessage, getSyncErrorMessage, getSyncStatusMeta, maskLog
 import { gatewayJsonHeaders } from '@/lib/gateway';
 import { useSubscriptionPlan } from '@/hooks/useSubscriptionPlan';
 import { PlanStatusPanel } from '@/components/PlanStatusPanel';
+import { RuleBindingSelector } from '@/components/rules/RuleBindingSelector';
+import {
+  emptyRuleBindingDraft,
+  isRuleBindingDraftComplete,
+  saveAccountRuleBinding,
+  type RuleBindingDraft,
+} from '@/lib/ruleBinding';
 
 type Mt5ConnectionRow = Tables<'mt5_connections'>;
 
@@ -54,6 +61,9 @@ export default function MT5Connections() {
   const [brokerName, setBrokerName] = useState('');
   const [provider, setProvider] = useState<'metaapi'>('metaapi');
   const [mt5Password, setMt5Password] = useState('');
+  const [ruleBindingDraft, setRuleBindingDraft] = useState<RuleBindingDraft>(
+    emptyRuleBindingDraft,
+  );
 
   const canUse = Boolean(userId);
   const canConnectNewAccount = plan.hasActivePlan && plan.remainingAccounts > 0;
@@ -100,6 +110,14 @@ export default function MT5Connections() {
     e.preventDefault();
     if (!userId) return;
     if (!accountName || !mt5Login || !mt5Server || !brokerName || !mt5Password) return;
+    if (!isRuleBindingDraftComplete(ruleBindingDraft)) {
+      toast({
+        title: 'Vínculo de regras obrigatório',
+        description: 'Complete a regra oficial e confirme os itens manuais antes de conectar.',
+        variant: 'destructive',
+      });
+      return;
+    }
     if (!session?.access_token) {
       toast({ title: 'Sessão necessária', description: 'Faça login novamente antes de conectar o MT5.', variant: 'destructive' });
       return;
@@ -134,18 +152,50 @@ export default function MT5Connections() {
           }),
         });
         const data = await res.json();
-        setSaving(false);
 
         if (!res.ok) {
+          setSaving(false);
           console.error('MetaApi connection failed:', data);
           const errorMessage = getConnectErrorMessage(data);
           toast({ title: 'Erro ao registrar conta', description: errorMessage, variant: 'destructive' });
           return;
         }
 
-        if (data?.requiresRuleConfiguration && data?.tradingAccountId) {
+        if (!data?.tradingAccountId || !data?.connection?.id) {
+          setSaving(false);
+          toast({
+            title: 'Conta criada com regra pendente',
+            description: 'O gateway não retornou os identificadores necessários para salvar o vínculo.',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        try {
+          await saveAccountRuleBinding({
+            userId,
+            tradingAccountId: data.tradingAccountId,
+            mt5ConnectionId: data.connection.id,
+            draft: ruleBindingDraft,
+          });
+        } catch (error: any) {
+          setSaving(false);
           routeToRules = `/accounts/${data.tradingAccountId}/rules`;
-          toast({ title: 'Conta MetaApi registrada', description: 'Configure a prop firm, programa e regras antes de operar.' });
+          toast({
+            title: 'Conta criada com regra pendente',
+            description: error?.message || 'Abra a conta para concluir o vínculo de regras.',
+            variant: 'destructive',
+          });
+          setShowForm(false);
+          fetchRows();
+          navigate(routeToRules);
+          return;
+        }
+
+        setSaving(false);
+        if (data?.tradingAccountId) {
+          routeToRules = `/accounts/${data.tradingAccountId}/rules`;
+          toast({ title: 'Conta MetaApi registrada', description: 'Conexão e vínculo versionado de regras salvos com sucesso.' });
         } else {
           toast({ title: 'Conta MetaApi registrada', description: 'Conexão criada com sucesso.' });
         }
@@ -159,6 +209,7 @@ export default function MT5Connections() {
 
     setShowForm(false);
     setAccountName(''); setMt5Login(''); setMt5Server(''); setBrokerName(''); setMt5Password('');
+    setRuleBindingDraft(emptyRuleBindingDraft());
     fetchRows();
     if (routeToRules) navigate(routeToRules);
   };
@@ -359,8 +410,15 @@ export default function MT5Connections() {
             )}
           </div>
 
+          <RuleBindingSelector
+            value={ruleBindingDraft}
+            onChange={setRuleBindingDraft}
+            platformConstraint="MT5"
+            disabled={saving}
+          />
+
           <div className="flex items-center gap-3">
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" disabled={saving || !isRuleBindingDraftComplete(ruleBindingDraft)}>
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               Salvar
             </Button>

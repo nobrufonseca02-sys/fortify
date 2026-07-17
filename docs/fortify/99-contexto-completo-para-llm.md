@@ -161,3 +161,4 @@ Para detalhes, comece em [00 - Índice](./00-indice.md) e [12 - Guia Codex](./12
 - Mesas ainda no backlog não recebem programas fictícios ou inferidos.
 - O regulamento oficial possui precedência sobre material comercial; conflitos permanecem visíveis no dataset e na UI.
 - Apenas regras classificadas como `automatic_mt5` e com semântica completa podem alimentar avaliação automática. As demais permanecem manuais ou não suportadas.
+- O vínculo auditável por conta fica em `account_rule_bindings`; detalhes de snapshot, hash, RLS e compatibilidade estão em `docs/fortify/rule-binding.md`.

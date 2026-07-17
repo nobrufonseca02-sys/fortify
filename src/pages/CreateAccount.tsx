@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { useAccountsStore } from '@/hooks/useAccountsStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, ArrowRight, Check, Shield, AlertTriangle, Zap, TrendingUp,
@@ -9,7 +8,7 @@ import {
   ChevronDown, ChevronUp, Wallet, Flame, Award, Building2, Globe,
   ChevronRight, ExternalLink, BookOpen, Cloud, Cpu
 } from 'lucide-react';
-import { RuleType, type Mt5ConnectionStatus } from '@/types/fortify';
+import { RuleType } from '@/types/fortify';
 import { type TemplateRule } from '@/data/propFirmLibrary';
 import { RuleExtractor } from '@/components/RuleExtractor';
 import {
@@ -23,6 +22,14 @@ import { BetaResponsibilityNotice } from '@/components/BetaReadinessChecklist';
 import { getConnectErrorMessage } from '@/lib/betaReadiness';
 import { gatewayJsonHeaders } from '@/lib/gateway';
 import { useSubscriptionPlan } from '@/hooks/useSubscriptionPlan';
+import { RuleBindingSelector } from '@/components/rules/RuleBindingSelector';
+import {
+  emptyRuleBindingDraft,
+  isRuleBindingDraftComplete,
+  resolveRuleBinding,
+  saveAccountRuleBinding,
+  type RuleBindingDraft,
+} from '@/lib/ruleBinding';
 
 const RISK_OPTIONS = [
   { label: '0.25%', value: 0.25, desc: 'Ultra conservador' },
@@ -125,7 +132,6 @@ const CreateAccount = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const { addAccount } = useAccountsStore();
   const { user, session } = useAuth();
   const subscriptionPlan = useSubscriptionPlan();
   const [step, setStep] = useState(0);
@@ -172,6 +178,9 @@ const CreateAccount = () => {
   const [mt5Broker, setMt5Broker] = useState('');
   const [mt5PropFirm, setMt5PropFirm] = useState('');
   const [mt5InvestorPassword, setMt5InvestorPassword] = useState('');
+  const [ruleBindingDraft, setRuleBindingDraft] = useState<RuleBindingDraft>(
+    emptyRuleBindingDraft,
+  );
   
   // Internally preselect provider as 'metaapi'
   const connectionProvider = 'metaapi' as const;
@@ -322,13 +331,24 @@ const CreateAccount = () => {
   };
 
   const handleCreate = async () => {
-    const initialConnectionStatus: Mt5ConnectionStatus = 'disconnected';
     let nextRoute = '/accounts';
 
     if (!user?.id || !session?.access_token) {
       toast({ title: 'Sessão necessária', description: 'Faça login novamente antes de criar e conectar uma conta.', variant: 'destructive' });
       return;
     }
+
+    if (!isRuleBindingDraftComplete(ruleBindingDraft)) {
+      toast({
+        title: 'Vínculo de regras obrigatório',
+        description: 'Complete a seleção oficial e confirme as regras manuais antes de criar a conta.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const resolvedBinding = resolveRuleBinding(ruleBindingDraft);
+    if (!resolvedBinding) return;
 
     if (mt5Login && mt5Server && mt5InvestorPassword && !subscriptionPlan.isLoading) {
       if (!subscriptionPlan.hasActivePlan || subscriptionPlan.remainingAccounts <= 0) {
@@ -345,12 +365,12 @@ const CreateAccount = () => {
     if (supabase && user?.id) {
       try {
         const insertPayload = {
-          nickname: accountName || `${selectedFirm?.name || 'Custom'} ${balance / 1000}k`,
-          broker: mt5Broker.trim() || (selectedFirm?.name || 'Custom'),
+          nickname: accountName || `${resolvedBinding.program.firm} ${resolvedBinding.accountSize.label}`,
+          broker: mt5Broker.trim() || resolvedBinding.program.firm,
           mt5Server: mt5Server.trim(),
           mt5Login: mt5Login.trim(),
-          accountType: accountType || null,
-          propFirm: (mt5PropFirm.trim() || selectedFirm?.name || '') || null,
+          accountType: accountType || resolvedBinding.program.programType,
+          propFirm: resolvedBinding.program.firm,
           startBalance: balance,
           status: 'active',
         };
@@ -367,7 +387,7 @@ const CreateAccount = () => {
             prop_firm: insertPayload.propFirm,
             start_balance: insertPayload.startBalance,
             rule_set_id: programData?.version?.id || null,
-            program: selectedProgram?.name || null,
+            program: resolvedBinding.program.programName,
             status: insertPayload.status,
           })
           .select('id,user_id,nickname,broker,mt5_server,mt5_login,account_type,prop_firm,start_balance,status,created_at,updated_at')
@@ -376,6 +396,7 @@ const CreateAccount = () => {
         if (res.error) throw res.error;
 
         queryClient.invalidateQueries({ queryKey: ['trading_accounts'] });
+        let mt5ConnectionId: string | null = null;
 
         // MetaApi provision - always enabled
         if (mt5Login && mt5Server && mt5InvestorPassword) {
@@ -402,14 +423,12 @@ const CreateAccount = () => {
             }
             
             const newConnId = (connData as any)?.connection?.id;
+            mt5ConnectionId = newConnId || null;
             console.log('MetaApi connection created:', newConnId, 'for trading account:', res.data.id);
-            const shouldConfigureRules = Boolean((connData as any)?.requiresRuleConfiguration || !selectedProgramId);
-            nextRoute = shouldConfigureRules ? `/accounts/${res.data.id}/rules` : '/accounts';
+            nextRoute = `/accounts/${res.data.id}/rules`;
             toast({
               title: 'Conta + MetaApi conectada',
-              description: shouldConfigureRules
-                ? 'Provisionamento iniciado. Confirme o rule set antes do primeiro sync.'
-                : 'Provisionamento iniciado. Use Sincronizar agora para puxar os dados.',
+              description: 'Provisionamento iniciado. O vínculo auditado será salvo antes do monitoramento.',
             });
           } catch (e: any) {
             console.error('MetaApi provisioning failed:', e);
@@ -418,38 +437,45 @@ const CreateAccount = () => {
         } else {
           toast({ title: 'Conta criada', description: 'Configure a conexão MT5 em Integrações quando desejar.' });
         }
+
+        try {
+          await saveAccountRuleBinding({
+            userId: user.id,
+            tradingAccountId: res.data.id,
+            mt5ConnectionId,
+            draft: ruleBindingDraft,
+          });
+          toast({
+            title: 'Regra vinculada',
+            description: 'Snapshot e versão da regra foram salvos para esta conta.',
+          });
+        } catch (error: any) {
+          toast({
+            title: 'Conta criada com regra pendente',
+            description: error?.message || 'Abra a conta para concluir o vínculo de regras.',
+            variant: 'destructive',
+          });
+          navigate(`/accounts/${res.data.id}/rules`);
+          return;
+        }
+
         navigate(nextRoute);
         return;
-      } catch {
-        toast({ title: 'Erro ao criar conta', description: 'Falha ao salvar no Supabase. Usando fallback local.', variant: 'destructive' });
+      } catch (error: any) {
+        toast({
+          title: 'Erro ao criar conta',
+          description: error?.message || 'Não foi possível salvar a conta no Supabase.',
+          variant: 'destructive',
+        });
+        return;
       }
     }
 
-    // Fallback (store local) - secundário/temporário
-    const newAccount = {
-      id: `acc-${Date.now()}`,
-      userId: user?.id || 'u1',
-      nickname: accountName || `${selectedFirm?.name || 'Custom'} ${balance / 1000}k`,
-      broker: `${selectedFirm?.name || 'Custom'} - ${accountType}`,
-      baseCurrency: currency,
-      startBalance: balance,
-      currentBalance: balance,
-      currentEquity: balance,
-      highestEquityAllTime: balance,
-      status: 'active' as const,
-      ruleSetId: selectedFirmId || 'custom',
-      createdAt: new Date().toISOString().split('T')[0],
-
-      mt5Login: mt5Login.trim() || undefined,
-      mt5Server: mt5Server.trim() || undefined,
-      accountType: accountType || undefined,
-      propFirm: (mt5PropFirm.trim() || selectedFirm?.name || '') || undefined,
-      mt5ConnectionStatus: initialConnectionStatus,
-      mt5LastSyncAt: undefined,
-      mt5SyncError: undefined,
-    };
-    addAccount(newAccount as any);
-    navigate('/accounts');
+    toast({
+      title: 'Supabase indisponível',
+      description: 'A conta não foi criada para evitar um cadastro sem vínculo auditado.',
+      variant: 'destructive',
+    });
   };
 
   const STEPS = ['Biblioteca', 'Conta', 'Regras', 'Risco', 'Conexão MT5', 'Revisão'];
@@ -1034,6 +1060,12 @@ const CreateAccount = () => {
               </div>
             </div>
 
+            <RuleBindingSelector
+              value={ruleBindingDraft}
+              onChange={setRuleBindingDraft}
+              platformConstraint="MT5"
+            />
+
             {/* Difficulty Index */}
             {difficultyIndex && (
               <div className="rounded-xl border border-border bg-card p-5">
@@ -1092,6 +1124,7 @@ const CreateAccount = () => {
         ) : (
           <button
             onClick={handleCreate}
+            disabled={!isRuleBindingDraftComplete(ruleBindingDraft)}
             className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors glow-primary"
           >
             <Check className="w-4 h-4" />
