@@ -107,6 +107,8 @@ function ProgramCard({
   onDetails: () => void;
   onCompare: () => void;
 }) {
+  const isUnavailable = program.evidenceStatus === 'official_source_unavailable';
+
   return (
     <article className="flex h-full flex-col rounded-xl border border-border bg-card/80 p-5 shadow-sm shadow-black/10">
       <div className="flex items-start justify-between gap-3">
@@ -114,8 +116,14 @@ function ProgramCard({
           <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">{program.firm}</p>
           <h3 className="mt-2 text-lg font-semibold text-foreground">{program.programName}</h3>
         </div>
-        <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${riskClass[program.riskLevel]}`}>
-          Risco {program.riskLevel}
+        <span
+          className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+            isUnavailable
+              ? 'border-slate-500/40 bg-slate-500/10 text-slate-300'
+              : riskClass[program.riskLevel]
+          }`}
+        >
+          {isUnavailable ? 'Indisponível' : `Risco ${program.riskLevel}`}
         </span>
       </div>
 
@@ -150,16 +158,16 @@ function ProgramCard({
 
       <div className="mt-auto flex flex-col gap-2 pt-5 sm:flex-row">
         <Button onClick={onDetails} className="flex-1">
-          Ver detalhes
+          {isUnavailable ? 'Ver status' : 'Ver detalhes'}
         </Button>
         <Button
           type="button"
           variant={isCompared ? 'secondary' : 'outline'}
           onClick={onCompare}
-          disabled={!isCompared && compareDisabled}
+          disabled={isUnavailable || (!isCompared && compareDisabled)}
           className="flex-1"
         >
-          {isCompared ? 'Remover' : 'Comparar'}
+          {isUnavailable ? 'Não operacional' : isCompared ? 'Remover' : 'Comparar'}
         </Button>
       </div>
     </article>
@@ -186,7 +194,7 @@ function DetailsDrawer({
               ? account.maxContracts
               : account.maxLots !== 'Não aplicável'
                 ? account.maxLots
-                : '-',
+                : 'Não aplicável',
         }))
       : program.accountSizeRows;
 
@@ -239,7 +247,7 @@ function DetailsDrawer({
                       <td className="px-4 py-3">{row.profitTarget}</td>
                       <td className="px-4 py-3">{row.dailyLoss}</td>
                       <td className="px-4 py-3">{row.maxLoss}</td>
-                      <td className="px-4 py-3">{row.maxContracts ?? '-'}</td>
+                      <td className="px-4 py-3">{row.maxContracts ?? 'Não aplicável'}</td>
                     </tr>
                   ))}
                 </tbody>

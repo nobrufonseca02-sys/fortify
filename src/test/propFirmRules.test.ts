@@ -143,12 +143,28 @@ describe('prop firm rules dataset', () => {
     expect(new Set(accountRules.map((account) => account.id)).size).toBe(accountRules.length);
 
     for (const program of activePrograms) {
+      expect(program.id).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+      expect(program.firmSlug).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+      expect(program.programSlug).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+      expect(program.programName.trim()).not.toBe('');
+      expect(program.programType).toBeTruthy();
+      expect(program.market).toBeTruthy();
+      expect(program.platforms.length).toBeGreaterThan(0);
       expect(program.lastReviewedAt).toBeTruthy();
       expect(program.confidence).toMatch(/^(high|medium|low)$/);
       expect(program.dataCompleteness).toMatch(/^(complete|partial|legacy)$/);
       expect(program.officialSources?.length).toBeGreaterThan(0);
+      expect(program.officialSourceUrls.length).toBeGreaterThan(0);
+      expect(program.officialSourceUrls.every((url) => url.startsWith('https://'))).toBe(true);
+      expect(program.monitorability).toEqual({
+        automatic_mt5: expect.any(Array),
+        manual_check: expect.any(Array),
+        not_supported_yet: expect.any(Array),
+      });
       expect(program.accountLevelRules.length).toBeGreaterThan(0);
     }
+
+    expect(new Set(activePrograms.map((program) => program.programSlug)).size).toBe(activePrograms.length);
   });
 
   it('keeps every account critical field explicit and officially sourced', () => {
@@ -169,6 +185,48 @@ describe('prop firm rules dataset', () => {
       expect(account.lastReviewedAt).toBe('2026-07-17');
       expect(account.confidence).toMatch(/^(high|medium|low)$/);
       expect(account.dataCompleteness).toMatch(/^(complete|partial|legacy)$/);
+      expect(account.versions.length).toBeGreaterThan(0);
+      expect(account.versions.every((version) => version.id.trim().length > 0)).toBe(true);
+      expect(new Set(account.versions.map((version) => version.id)).size).toBe(account.versions.length);
+    }
+  });
+
+  it('standardizes unknown critical values and keeps account labels unique per program', () => {
+    const invalidUnknown = /^(?:N\/A|-|TBD|undefined|null)$/i;
+
+    for (const program of propFirmRulePrograms) {
+      const labels = program.accountLevelRules.map((account) => account.label.toLocaleLowerCase('pt-BR'));
+      expect(new Set(labels).size).toBe(labels.length);
+
+      for (const account of program.accountLevelRules) {
+        const criticalValues = [
+          account.label,
+          account.initialBalance,
+          account.dailyLoss,
+          account.maxLoss,
+          account.drawdownCalculation,
+          account.payoutSplit,
+          ...account.phases.map((phase) => phase.profitTarget),
+        ];
+
+        expect(criticalValues.every((value) => value.trim().length > 0)).toBe(true);
+        expect(criticalValues.some((value) => invalidUnknown.test(value.trim()))).toBe(false);
+      }
+    }
+  });
+
+  it('does not classify futures or BlackArrow programs as automatic MT5 monitoring', () => {
+    const externallyConnectedPrograms = propFirmRulePrograms.filter(
+      (program) =>
+        program.evidenceStatus !== 'official_source_unavailable' &&
+        (program.market === 'Futures' || program.platforms.some((platform) => /BlackArrow/i.test(platform))),
+    );
+
+    expect(externallyConnectedPrograms.length).toBeGreaterThan(0);
+    for (const program of externallyConnectedPrograms) {
+      expect(program.monitorability?.automatic_mt5).toEqual([]);
+      expect(program.monitorability?.manual_check.length).toBeGreaterThan(0);
+      expect(program.monitorability?.not_supported_yet.length).toBeGreaterThan(0);
     }
   });
 

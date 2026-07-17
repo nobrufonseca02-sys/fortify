@@ -35,9 +35,10 @@ type AccountOverride = Partial<
     | 'scalingPlan'
     | 'resetRefundRule'
     | 'kycRule'
-    | 'versions'
   >
->;
+> & {
+  versions?: RuleVersion[];
+};
 
 const firmOperationalRules: Record<
   PropFirmName,
@@ -346,6 +347,15 @@ function versionsFor(program: PropFirmRuleProgram): RuleVersion[] {
   return [current];
 }
 
+function normalizeVersions(program: PropFirmRuleProgram, versions: RuleVersion[]): RuleAccountSize['versions'] {
+  return versions.map((version, index) => ({
+    ...version,
+    id:
+      version.id ??
+      `${program.id}-rules-${slugify(version.label) || `version-${index + 1}`}`,
+  }));
+}
+
 function accountOverride(program: PropFirmRuleProgram, label: string): AccountOverride {
   const common: AccountOverride = {
     ...firmOperationalRules[program.firm],
@@ -559,12 +569,14 @@ function normalizeAccount(program: PropFirmRuleProgram, label: string, index: nu
     conflicts: (program.conflicts ?? []).map(
       (conflict) => `${conflict.field}: ${conflict.summary} Valor adotado: ${conflict.preferredValue}.`,
     ),
-    versions: overrides.versions ?? versionsFor(program),
+    versions: normalizeVersions(program, overrides.versions ?? versionsFor(program)),
   };
 }
 
 export type AccountLevelPropFirmRuleProgram = PropFirmRuleProgram & {
   firmSlug: string;
+  programSlug: string;
+  officialSourceUrls: string[];
   accountLevelRules: RuleAccountSize[];
 };
 
@@ -574,10 +586,14 @@ export function normalizeAccountLevelPrograms(
   return programs.map((program) => {
     const unavailable = program.evidenceStatus === 'official_source_unavailable';
     const firmSlug = program.firmSlug ?? slugify(program.firm);
+    const officialSourceUrls = officialSourceRefs(program);
 
     return {
       ...program,
       firmSlug,
+      programSlug: program.programSlug ?? program.id,
+      officialSourceUrls:
+        officialSourceUrls.length > 0 ? officialSourceUrls : [program.officialSourceUrl],
       confidence: program.confidence ?? 'medium',
       completeness: program.completeness ?? 'partial',
       dataCompleteness: program.dataCompleteness ?? program.completeness ?? 'partial',

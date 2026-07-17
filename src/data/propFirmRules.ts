@@ -80,11 +80,16 @@ export interface RulePhase {
 }
 
 export interface RuleVersion {
+  id?: string;
   label: string;
   effectiveFrom?: string;
   effectiveTo?: string;
   condition?: string;
   notes: string[];
+}
+
+export interface RuleAccountVersion extends RuleVersion {
+  id: string;
 }
 
 export interface RuleAccountSize {
@@ -130,13 +135,14 @@ export interface RuleAccountSize {
   monitorability: RuleMonitorability;
   notes: string[];
   conflicts: string[];
-  versions: RuleVersion[];
+  versions: RuleAccountVersion[];
 }
 
 export interface PropFirmRuleProgram {
   id: string;
   firm: PropFirmName;
   firmSlug?: string;
+  programSlug?: string;
   programName: string;
   programType: ProgramType;
   market: MarketType;
@@ -159,6 +165,7 @@ export interface PropFirmRuleProgram {
   mainRisk: string;
   bestFor: string;
   officialSourceUrl: string;
+  officialSourceUrls?: string[];
   sourceLabel: string;
   lastReviewedAt: string;
   confidence?: EvidenceConfidence;

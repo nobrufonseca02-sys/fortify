@@ -57,14 +57,36 @@ describe('AccountRules', () => {
   it('searches nested account-level fields and renders expanded account rows', () => {
     render(<AccountRules />);
 
-    fireEvent.change(screen.getByPlaceholderText('Buscar por mesa, programa ou mercado'), {
+    const searchInput = screen.getByPlaceholderText('Buscar por mesa, programa ou mercado');
+
+    fireEvent.change(searchInput, {
       target: { value: 'US$95/mês' },
     });
 
     expect(screen.getByRole('heading', { name: 'Trading Combine' })).toBeInTheDocument();
     expect(screen.getByText('1 programas encontrados')).toBeInTheDocument();
 
-    fireEvent.change(screen.getByPlaceholderText('Buscar por mesa, programa ou mercado'), {
+    fireEvent.change(searchInput, {
+      target: { value: '$200K' },
+    });
+    expect(screen.getByRole('heading', { name: 'FTMO Challenge 2-Step' })).toBeInTheDocument();
+
+    fireEvent.change(searchInput, {
+      target: { value: '$3,600' },
+    });
+    expect(screen.getByRole('heading', { name: 'Standard - MT5' })).toBeInTheDocument();
+
+    fireEvent.change(searchInput, {
+      target: { value: '8% trailing' },
+    });
+    expect(screen.getByRole('heading', { name: 'Instant Funding' })).toBeInTheDocument();
+
+    fireEvent.change(searchInput, {
+      target: { value: 'BlackArrow' },
+    });
+    expect(screen.getByRole('heading', { name: 'Standard - BlackArrow' })).toBeInTheDocument();
+
+    fireEvent.change(searchInput, {
       target: { value: '' },
     });
     fireEvent.click(programCard('FTMO Challenge 2-Step').getByRole('button', { name: 'Ver detalhes' }));
@@ -72,5 +94,19 @@ describe('AccountRules', () => {
     const dialog = within(screen.getByRole('dialog'));
     expect(dialog.getByText('$200K')).toBeInTheDocument();
     expect(dialog.getAllByText(/Fase 1: 10%/).length).toBeGreaterThan(0);
+  });
+
+  it('marks unavailable firms as non-operational and excludes them from comparison', () => {
+    render(<AccountRules />);
+
+    const unavailableCard = programCard('Operação encerrada - catálogo indisponível');
+
+    expect(unavailableCard.getByText('Indisponível')).toBeInTheDocument();
+    expect(unavailableCard.getByRole('button', { name: 'Não operacional' })).toBeDisabled();
+
+    fireEvent.click(unavailableCard.getByRole('button', { name: 'Ver status' }));
+
+    const dialog = within(screen.getByRole('dialog'));
+    expect(dialog.getAllByText('Não aplicável').length).toBeGreaterThan(0);
   });
 });
