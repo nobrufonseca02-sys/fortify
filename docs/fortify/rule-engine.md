@@ -119,6 +119,80 @@ A meta de lucro informa progresso ou meta atingida e não é tratada como viola�
 - `src/components/rules/BoundRuleEvaluationCard.tsx`: apresentação compacta.
 - `src/pages/AccountRuleManagement.tsx`: leitura dos dados já sincronizados e integração.
 
+## Validação runtime — Sprint 8
+
+### Fluxo auditado
+
+`/accounts/:accountId/rules` executa a seguinte sequência:
+
+1. valida `accountId` e usuário autenticado;
+2. lê `trading_accounts` com filtro de proprietário;
+3. localiza a conexão em `mt5_connections`;
+4. lê o vínculo ativo em `account_rule_bindings`;
+5. carrega até 120 snapshots, 500 trades fechados e posições abertas da conexão;
+6. converte os campos Supabase para os tipos puros do motor;
+7. executa `evaluateBoundAccountRules`;
+8. exibe `BoundRuleEvaluationCard` somente quando existe vínculo ativo;
+9. sem vínculo, preserva “Regra pendente de vínculo” e não executa conclusão automática.
+
+Erros de leitura mantêm coleções vazias. Nesse caso, cada cálculo dependente desses dados deve retornar `not_monitorable`; valores legados não podem preencher silenciosamente a ausência.
+
+### Conta real disponível
+
+A sessão autenticada possui somente `Demo EasyMarkets`, uma conta claramente demo/broker-only. Ela não corresponde a uma mesa proprietária auditada e permaneceu sem vínculo. A validação confirmou:
+
+- página carregada sem erro;
+- estado “Regra pendente de vínculo”;
+- seletor oficial disponível para recuperação;
+- catálogo UUID anterior rotulado como legado;
+- nenhum vínculo falso, conta MetaApi, deploy ou credencial foi criado/alterado.
+
+Não foi possível validar um painel vinculado com dados reais sem associar uma regra de mesa incorreta à conta. O estado vinculado foi validado com fixture completa apenas em testes.
+
+### Fixture controlada
+
+`src/test/fixtures/ruleEngineFixtures.ts` representa uma conta MT5 de US$100K com:
+
+- snapshot e hash versionados;
+- fase atual;
+- saldo, equity e maior saldo;
+- P&L diário e posição flutuante;
+- regras automáticas, manuais e não suportadas.
+
+A fixture não é importada pelo código de produção. Ela valida daily loss, drawdown, profit target, pior severidade, dados parciais e renderização do componente.
+
+### Endurecimento do histórico diário
+
+O Sprint 8 removeu dois fallbacks perigosos:
+
+1. `daily_loss_used` só é aceito quando `daily_loss_reset_date` corresponde à janela calculada;
+2. trades/posições só formam P&L diário quando `historyComplete = true` e a base é `closed_pnl`, `closed_and_floating` ou `equity`.
+
+Sem histórico confiável, a mensagem é:
+
+```text
+Histórico diário insuficiente para calcular esta regra com precisão.
+```
+
+### Contrato de timezone e reset
+
+`EvaluateBoundAccountRulesInput.dailyRuleContext` está preparado para receber:
+
+| Campo | Uso |
+| --- | --- |
+| `timezone` | Timezone IANA da mesa ou servidor, quando oficialmente confirmado. |
+| `resetTime` | Horário `HH:mm` do reset oficial. |
+| `calculationBasis` | `balance`, `equity`, `closed_pnl`, `closed_and_floating`, `server_time`, `local_time` ou `unknown`. |
+| `historyComplete` | Confirma que o conjunto de trades cobre a janela regulatória inteira. |
+
+O motor usa timezone válido para agrupar a data, mas ainda não desloca a janela por resets diferentes de meia-noite. Quando timezone e reset não estão configurados, uma avaliação baseada em snapshot informa:
+
+```text
+Cálculo usando janela local estimada. Reset diário oficial não configurado.
+```
+
+Nenhum timezone foi inferido a partir do nome da mesa.
+
 ## Legado
 
 O catálogo UUID (`rule_set_versions`, `rule_instances`, `rule_evaluations`) continua visível para compatibilidade, agora rotulado como configuração legada. Ele não substitui o snapshot versionado.

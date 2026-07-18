@@ -1,103 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { evaluateBoundAccountRules } from '../lib/ruleEngine/evaluateAccountRules';
-import type {
-  AccountRuleBindingRow,
-  RuleBindingSnapshot,
-} from '../lib/ruleBinding';
-
-const now = new Date('2026-07-18T15:00:00.000Z');
-
-function snapshot(
-  overrides: Partial<RuleBindingSnapshot> = {},
-): RuleBindingSnapshot {
-  return {
-    schemaVersion: 'fortify.rule-binding.v1',
-    propFirm: { slug: 'mesa-teste', name: 'Mesa Teste' },
-    program: {
-      id: 'programa-teste',
-      slug: 'programa-teste',
-      name: 'Programa Teste',
-      type: '2-Step',
-      market: 'CFDs',
-    },
-    accountSize: {
-      id: 'programa-teste-100k',
-      label: '$100K',
-      initialBalance: '$100K',
-      currency: 'USD',
-    },
-    platform: 'MT5',
-    version: {
-      id: 'rules-v1',
-      label: 'Regras vigentes',
-      effectiveFrom: '2026-07-01',
-      effectiveTo: null,
-      condition: null,
-      notes: [],
-    },
-    criticalRules: {
-      phases: [
-        { id: 'phase-1', label: 'Fase 1', profitTarget: '8%' },
-        { id: 'phase-2', label: 'Fase 2', profitTarget: '5%' },
-      ],
-      dailyLoss: '5%',
-      maxLoss: '10%',
-      drawdownType: 'Static',
-      drawdownCalculation: 'Estático sobre saldo inicial, considerando equity.',
-      minTradingDays: '4 dias',
-      consistencyRule: 'Não aplicável',
-      newsRule: 'Validação manual',
-      weekendRule: 'Validação manual',
-      overnightRule: 'Validação manual',
-      payoutSplit: '80%',
-      firstPayoutTiming: '14 dias',
-      maxContracts: 'Não aplicável',
-      maxLots: 'Não informado publicamente',
-      leverage: '1:100',
-      breachConditions: ['Atingir o limite diário ou máximo.'],
-    },
-    monitorability: {
-      automaticMt5: ['Meta de lucro', 'Perda diária', 'Perda máxima'],
-      manualCheck: ['Notícias', 'Fim de semana'],
-      notSupportedYet: ['Detecção de copy trading'],
-    },
-    evidence: {
-      officialSourceUrls: ['https://example.com/rules'],
-      confidence: 'high',
-      dataCompleteness: 'complete',
-      lastReviewedAt: '2026-07-18',
-      conflicts: [],
-    },
-    ...overrides,
-  };
-}
-
-function binding(
-  snapshotOverrides: Partial<RuleBindingSnapshot> = {},
-): AccountRuleBindingRow {
-  const ruleSnapshot = snapshot(snapshotOverrides);
-  return {
-    id: 'binding-1',
-    user_id: 'user-1',
-    trading_account_id: 'account-1',
-    mt5_connection_id: 'connection-1',
-    prop_firm_slug: ruleSnapshot.propFirm.slug,
-    program_slug: ruleSnapshot.program.slug,
-    account_size_id: ruleSnapshot.accountSize.id,
-    platform: ruleSnapshot.platform,
-    rule_version_id: ruleSnapshot.version.id,
-    rule_profile_id: 'mesa-teste:programa-teste:100k:mt5:rules-v1',
-    rules_last_reviewed_at: '2026-07-18',
-    rule_snapshot: ruleSnapshot,
-    rule_snapshot_hash: 'sha256:abc123',
-    automatic_monitoring_enabled: true,
-    manual_rule_acknowledgement: true,
-    manual_rules_status: 'acknowledged',
-    binding_status: 'active',
-    created_at: '2026-07-18T12:00:00.000Z',
-    updated_at: '2026-07-18T12:00:00.000Z',
-  };
-}
+import type { RuleBindingSnapshot } from '../lib/ruleBinding';
+import {
+  RULE_ENGINE_TEST_NOW as now,
+  createRuleBinding as binding,
+  createRuleSnapshot as snapshot,
+} from './fixtures/ruleEngineFixtures';
 
 function evaluate(dailyPnl: number, currentBalance = 100_000, currentEquity = 100_000) {
   return evaluateBoundAccountRules({
@@ -140,6 +48,69 @@ describe('versioned MT5 rule engine', () => {
     expect(result.automaticRules.find((rule) => rule.key === 'daily_loss')?.status).toBe(
       expected,
     );
+  });
+
+  it('marks the daily window as estimated when official reset metadata is absent', () => {
+    const result = evaluate(-1_000);
+    const daily = result.automaticRules.find((rule) => rule.key === 'daily_loss');
+
+    expect(daily?.detail).toContain('Cálculo usando janela local estimada');
+    expect(daily?.detail).toContain('Reset diário oficial não configurado');
+  });
+
+  it('does not trust daily_loss_used without a compatible reset date', () => {
+    const result = evaluateBoundAccountRules({
+      binding: binding(),
+      account: {
+        currentBalance: 99_000,
+        currentEquity: 99_000,
+        dailyLossUsed: 1_000,
+        phase: 'Fase 1',
+      },
+      snapshots: [],
+      trades: [],
+      positions: [],
+      now,
+    });
+    const daily = result.automaticRules.find((rule) => rule.key === 'daily_loss');
+
+    expect(daily?.status).toBe('not_monitorable');
+    expect(daily?.message).toBe(
+      'Histórico diário insuficiente para calcular esta regra com precisão.',
+    );
+  });
+
+  it('accepts a complete controlled daily history and configured reset context', () => {
+    const result = evaluateBoundAccountRules({
+      binding: binding(),
+      account: {
+        currentBalance: 99_000,
+        currentEquity: 99_000,
+        phase: 'Fase 1',
+      },
+      snapshots: [],
+      trades: [
+        {
+          profit: -1_000,
+          commission: -10,
+          swap: 0,
+          closeTime: '2026-07-18T14:00:00.000Z',
+        },
+      ],
+      positions: [{ floatingPnl: -200 }],
+      dailyRuleContext: {
+        timezone: 'UTC',
+        resetTime: '00:00',
+        calculationBasis: 'closed_and_floating',
+        historyComplete: true,
+      },
+      now,
+    });
+    const daily = result.automaticRules.find((rule) => rule.key === 'daily_loss');
+
+    expect(daily?.currentValue).toBe(1_210);
+    expect(daily?.detail).toContain('UTC');
+    expect(daily?.detail).toContain('reset 00:00');
   });
 
   it('keeps static max drawdown safe below the consumption thresholds', () => {

@@ -141,3 +141,5 @@ O Sprint 7 adiciona avaliação pura e tipada de perda diária, drawdown máximo
 Regras ambíguas, fase ausente, histórico insuficiente e plataformas sem conector retornam `not_monitorable`. Conta sem vínculo retorna `pending_binding`. Nenhuma ausência de dado vira conclusão segura.
 
 Fórmulas, precedência, faixas de status, limitações de timezone/trailing e estratégia de retirada do catálogo legado estão em [Motor operacional de regras vinculadas](./rule-engine.md).
+
+Na validação Sprint 8, `daily_loss_used` deixou de ser aceito sem reset compatível e o fallback por trades passou a exigir histórico explicitamente completo e base de cálculo informada. Sem isso, o estado é não monitorável, nunca seguro.

@@ -197,6 +197,7 @@ export function evaluateBoundAccountRules(
           snapshots,
           trades,
           positions,
+          context: input.dailyRuleContext,
           now,
         });
 

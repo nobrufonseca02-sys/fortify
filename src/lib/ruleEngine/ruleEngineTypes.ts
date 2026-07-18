@@ -68,12 +68,29 @@ export interface RuleEnginePositionInput {
   floatingPnl?: number | null;
 }
 
+export type DailyCalculationBasis =
+  | 'balance'
+  | 'equity'
+  | 'closed_pnl'
+  | 'closed_and_floating'
+  | 'server_time'
+  | 'local_time'
+  | 'unknown';
+
+export interface DailyRuleContextInput {
+  timezone?: string | null;
+  resetTime?: string | null;
+  calculationBasis?: DailyCalculationBasis | null;
+  historyComplete?: boolean;
+}
+
 export interface EvaluateBoundAccountRulesInput {
   binding?: AccountRuleBindingRow | null;
   account?: RuleEngineAccountInput | null;
   snapshots?: RuleEngineSnapshotInput[] | null;
   trades?: RuleEngineTradeInput[] | null;
   positions?: RuleEnginePositionInput[] | null;
+  dailyRuleContext?: DailyRuleContextInput | null;
   now?: Date | string;
 }
 
