@@ -133,3 +133,11 @@ O dataset estático informa e compara regras. Ele não substitui as versões per
 ## Vínculo por conta
 
 A seleção versionada por conta usa `account_rule_bindings`, com snapshot, hash, evidências, monitorabilidade automática/manual e histórico por status. O fluxo e as limitações estão documentados em [Vínculo versionado de regras por conta](./rule-binding.md).
+
+## Motor operacional do snapshot
+
+O Sprint 7 adiciona avaliação pura e tipada de perda diária, drawdown máximo e meta de lucro. O limite vem somente do snapshot vinculado; saldo, equity, P&L, trades e posições vêm dos dados MT5 já sincronizados.
+
+Regras ambíguas, fase ausente, histórico insuficiente e plataformas sem conector retornam `not_monitorable`. Conta sem vínculo retorna `pending_binding`. Nenhuma ausência de dado vira conclusão segura.
+
+Fórmulas, precedência, faixas de status, limitações de timezone/trailing e estratégia de retirada do catálogo legado estão em [Motor operacional de regras vinculadas](./rule-engine.md).

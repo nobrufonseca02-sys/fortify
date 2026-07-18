@@ -1,12 +1,12 @@
 # Vínculo versionado de regras por conta
 
-Última revisão: 2026-07-17
+Última revisão: 2026-07-18
 
 ## Objetivo
 
 Cada conta do cliente deve apontar para uma mesa, programa, variante, plataforma e versão auditados. O vínculo preserva um snapshot imutável dos parâmetros escolhidos e uma assinatura determinística, evitando que uma atualização futura do dataset altere silenciosamente o histórico da conta.
 
-Esta camada não substitui ainda o catálogo UUID legado nem ativa todo o motor automático. Ela registra a fonte de verdade selecionada para que as próximas sprints convertam somente regras compatíveis em avaliações executáveis.
+Esta camada não substitui ainda o catálogo UUID legado. Desde o Sprint 7, ela é a fonte de verdade do primeiro motor operacional para perda diária, drawdown máximo e meta de lucro compatíveis com MT5.
 
 ## Auditoria do fluxo anterior
 
@@ -49,7 +49,7 @@ Um trigger marca o vínculo anterior como `superseded` antes de inserir uma nova
 
 ## Segurança e RLS
 
-Usuários autenticados podem ler, inserir, atualizar e excluir somente os próprios vínculos. As políticas também verificam que `trading_account_id` e `mt5_connection_id`, quando informados, pertencem ao mesmo `auth.uid()`.
+Usuários autenticados podem ler e inserir somente os próprios vínculos. Snapshots existentes são imutáveis para o cliente: não há política de `UPDATE` ou `DELETE`. A inserção de uma nova versão supersede a anterior por trigger `security definer`. As políticas também verificam que `trading_account_id` e `mt5_connection_id`, quando informados, pertencem ao mesmo `auth.uid()`.
 
 Um vínculo `active` só é válido com aceite manual verdadeiro e status `acknowledged`. O snapshot precisa conter versão de schema, regras críticas, monitorabilidade e evidência.
 
@@ -85,22 +85,16 @@ Nos fluxos MT5, o seletor filtra plataformas compatíveis com MT5. O botão de c
 
 Contas antigas não são alteradas ou removidas. Sem registro ativo em `account_rule_bindings`, aparecem como `Regra pendente de vínculo`, com a ação `Vincular regra agora` apontando para `/accounts/:accountId/rules`.
 
-O catálogo UUID e suas avaliações continuam funcionando em paralelo. O vínculo versionado é a fonte auditável; a transformação do snapshot em `rule_instances` executáveis fica para uma sprint posterior.
+O catálogo UUID e suas avaliações continuam funcionando em paralelo, rotulados como legado na gestão da conta. O vínculo versionado é a fonte auditável do motor descrito em [Motor operacional de regras vinculadas](./rule-engine.md).
 
 ## Aplicação da migration
 
-A migration não foi executada nesta sprint. Depois de revisar o projeto Supabase vinculado:
-
-```powershell
-npx supabase db push
-```
-
-Não use reset. Após aplicar, regenere os tipos Supabase no fluxo padrão do projeto se desejar remover os casts temporários da nova tabela.
+A migration foi aplicada e validada no Sprint 6.1. O teste remoto confirmou inserção própria, bloqueio de referências de outro usuário, imutabilidade do snapshot e superseding do vínculo anterior. Não execute reset.
 
 ## Limitações atuais
 
 - não há bloqueio técnico de trade;
-- o gateway ainda não calcula avaliações diretamente a partir do snapshot;
+- o motor atual é uma avaliação frontend pura; o gateway ainda não persiste avaliações do snapshot;
 - o catálogo UUID legado ainda não foi totalmente sincronizado com os 52 programas;
 - Futures e BlackArrow continuam sem conector automático;
 - a detecção de hash desatualizado já tem estado de domínio, mas a revisão periódica do dataset ainda não dispara atualização automática;
@@ -108,4 +102,4 @@ Não use reset. Após aplicar, regenere os tipos Supabase no fluxo padrão do pr
 
 ## Próxima etapa
 
-Converter, com fixtures por mesa, apenas os campos `automatic_mt5` do snapshot em instâncias executáveis. A conversão deve preservar o hash original, timezone, base de cálculo, reset e regra de floating loss. Itens manuais continuam como checklist e nunca devem virar conclusão automática por inferência.
+Persistir resultados somente depois de modelar timezone/reset e revisar fixtures por mesa. Itens manuais continuam como checklist e nunca devem virar conclusão automática por inferência. Futures e BlackArrow exigem conector próprio.

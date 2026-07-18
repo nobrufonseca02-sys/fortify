@@ -9,6 +9,8 @@ import { BetaReadinessChecklist, BetaResponsibilityNotice } from '@/components/B
 import { buildBetaChecklist, getConnectionStatusMeta, getRulesStatusMeta, getSyncErrorMessage, getSyncStatusMeta } from '@/lib/betaReadiness';
 import { gatewayJsonHeaders } from '@/lib/gateway';
 import { RuleBindingSelector } from '@/components/rules/RuleBindingSelector';
+import { BoundRuleEvaluationCard } from '@/components/rules/BoundRuleEvaluationCard';
+import { evaluateBoundAccountRules } from '@/lib/ruleEngine/evaluateAccountRules';
 import {
   emptyRuleBindingDraft,
   isRuleBindingDraftComplete,
@@ -84,6 +86,9 @@ export default function AccountRuleManagement() {
   const [account, setAccount] = useState<any | null>(null);
   const [connection, setConnection] = useState<any | null>(null);
   const [snapshot, setSnapshot] = useState<any | null>(null);
+  const [snapshots, setSnapshots] = useState<any[]>([]);
+  const [trades, setTrades] = useState<any[]>([]);
+  const [positions, setPositions] = useState<any[]>([]);
   const [evaluations, setEvaluations] = useState<any[]>([]);
   const [ruleSets, setRuleSets] = useState<any[]>([]);
   const [definitions, setDefinitions] = useState<any[]>([]);
@@ -175,14 +180,35 @@ export default function AccountRuleManagement() {
     }
 
     if (loadedConnection?.id) {
-      const snapRes = await (supabase
-        .from('mt5_account_snapshots')
-        .select('*')
-        .eq('connection_id', loadedConnection.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle() as any);
-      if (!snapRes.error) setSnapshot(snapRes.data ?? null);
+      const [snapRes, tradesRes, positionsRes] = await Promise.all([
+        (supabase
+          .from('mt5_account_snapshots')
+          .select('*')
+          .eq('connection_id', loadedConnection.id)
+          .order('created_at', { ascending: false })
+          .limit(120) as any),
+        (supabase
+          .from('mt5_trades')
+          .select('profit, commission, swap, close_time')
+          .eq('connection_id', loadedConnection.id)
+          .not('close_time', 'is', null)
+          .order('close_time', { ascending: false })
+          .limit(500) as any),
+        (supabase
+          .from('mt5_positions')
+          .select('floating_pnl')
+          .eq('connection_id', loadedConnection.id) as any),
+      ]);
+      const loadedSnapshots = snapRes.error ? [] : (snapRes.data ?? []);
+      setSnapshots(loadedSnapshots);
+      setSnapshot(loadedSnapshots[0] ?? null);
+      setTrades(tradesRes.error ? [] : (tradesRes.data ?? []));
+      setPositions(positionsRes.error ? [] : (positionsRes.data ?? []));
+    } else {
+      setSnapshot(null);
+      setSnapshots([]);
+      setTrades([]);
+      setPositions([]);
     }
 
     setLoading(false);
@@ -237,6 +263,41 @@ export default function AccountRuleManagement() {
       next: nextBestAction(evaluations, account),
     };
   }, [account, evaluations]);
+
+  const boundRuleEvaluation = useMemo(
+    () =>
+      evaluateBoundAccountRules({
+        binding: ruleBinding,
+        account: {
+          startBalance: account?.start_balance,
+          currentBalance: account?.current_balance,
+          currentEquity: account?.current_equity,
+          highestEquity: account?.highest_equity,
+          dailyLossUsed: snapshot ? account?.daily_loss_used : null,
+          dailyLossResetDate: account?.daily_loss_reset_date,
+          phase: account?.phase,
+        },
+        snapshots: snapshots.map((item) => ({
+          balance: item.balance,
+          equity: item.equity,
+          dailyPnl: item.daily_pnl,
+          floatingPnl: item.floating_pnl,
+          maxBalance: item.max_balance,
+          date: item.date,
+          createdAt: item.created_at,
+        })),
+        trades: trades.map((trade) => ({
+          profit: trade.profit,
+          commission: trade.commission,
+          swap: trade.swap,
+          closeTime: trade.close_time,
+        })),
+        positions: positions.map((position) => ({
+          floatingPnl: position.floating_pnl,
+        })),
+      }),
+    [account, positions, ruleBinding, snapshot, snapshots, trades],
+  );
 
   const saveRuleSet = async () => {
     if (!accountId || !user?.id) return;
@@ -575,6 +636,10 @@ export default function AccountRuleManagement() {
         </div>
       )}
 
+      {ruleBinding ? (
+        <BoundRuleEvaluationCard evaluation={boundRuleEvaluation} />
+      ) : null}
+
       <BetaReadinessChecklist
         items={betaChecklist}
           title="Checklist do beta"
@@ -606,8 +671,17 @@ export default function AccountRuleManagement() {
         <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <div className="flex items-center gap-2">
             <SlidersHorizontal className="w-4 h-4 text-primary" />
-            <h2 className="font-semibold text-foreground">Configurar regras</h2>
+            <h2 className="font-semibold text-foreground">
+              Configuração legada de regras
+            </h2>
+            <span className="rounded-full border border-warning/20 bg-warning/5 px-2 py-0.5 text-[9px] font-semibold uppercase text-warning">
+              Legado
+            </span>
           </div>
+          <p className="text-xs text-muted-foreground">
+            Compatibilidade temporária com o catálogo UUID anterior. Este bloco não
+            substitui o vínculo versionado exibido acima.
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3">
             <select
               value={selectedRuleSetId}

@@ -162,3 +162,5 @@ Para detalhes, comece em [00 - Índice](./00-indice.md) e [12 - Guia Codex](./12
 - O regulamento oficial possui precedência sobre material comercial; conflitos permanecem visíveis no dataset e na UI.
 - Apenas regras classificadas como `automatic_mt5` e com semântica completa podem alimentar avaliação automática. As demais permanecem manuais ou não suportadas.
 - O vínculo auditável por conta fica em `account_rule_bindings`; detalhes de snapshot, hash, RLS e compatibilidade estão em `docs/fortify/rule-binding.md`.
+- O motor operacional inicial fica em `src/lib/ruleEngine/` e usa o snapshot vinculado para perda diária, drawdown máximo e meta de lucro. Ausência de fase, base, histórico ou semântica confiável retorna `not_monitorable`; sem vínculo retorna `pending_binding`.
+- A UI operacional fica em `/accounts/:accountId/rules`; o catálogo UUID anterior permanece apenas como configuração legada durante a migração controlada.
