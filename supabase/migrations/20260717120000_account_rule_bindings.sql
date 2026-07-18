@@ -91,37 +91,12 @@ for insert with check (
 );
 
 drop policy if exists account_rule_bindings_update_own on public.account_rule_bindings;
-create policy account_rule_bindings_update_own on public.account_rule_bindings
-for update using (auth.uid() = user_id)
-with check (
-  auth.uid() = user_id
-  and (
-    trading_account_id is null
-    or exists (
-      select 1
-      from public.trading_accounts account
-      where account.id = trading_account_id
-        and account.user_id = auth.uid()
-    )
-  )
-  and (
-    mt5_connection_id is null
-    or exists (
-      select 1
-      from public.mt5_connections connection
-      where connection.id = mt5_connection_id
-        and connection.user_id = auth.uid()
-    )
-  )
-);
-
 drop policy if exists account_rule_bindings_delete_own on public.account_rule_bindings;
-create policy account_rule_bindings_delete_own on public.account_rule_bindings
-for delete using (auth.uid() = user_id);
 
 create or replace function public.supersede_previous_account_rule_binding()
 returns trigger
 language plpgsql
+security definer
 set search_path = public
 as $$
 begin
@@ -151,6 +126,7 @@ for each row execute function public.supersede_previous_account_rule_binding();
 create or replace function public.sync_trading_account_rule_binding_status()
 returns trigger
 language plpgsql
+security definer
 set search_path = public
 as $$
 begin
@@ -181,6 +157,9 @@ drop trigger if exists account_rule_bindings_sync_account_status
 create trigger account_rule_bindings_sync_account_status
 after insert or update of binding_status on public.account_rule_bindings
 for each row execute function public.sync_trading_account_rule_binding_status();
+
+revoke execute on function public.supersede_previous_account_rule_binding() from public;
+revoke execute on function public.sync_trading_account_rule_binding_status() from public;
 
 drop trigger if exists account_rule_bindings_set_updated_at
   on public.account_rule_bindings;

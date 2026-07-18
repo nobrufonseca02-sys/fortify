@@ -57,6 +57,9 @@ const FIRM_LOGOS: Record<string, string> = {
   fundscap: 'FC', custom: 'C',
 };
 
+const BLOCKED_OPERATIONAL_FIRMS = new Set(['fundscap', 'myfundedfx']);
+const normalizeFirmName = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
+
 // Map DB rule_definition key → local RuleType
 const DB_KEY_TO_RULE_TYPE: Record<string, RuleType> = {
   max_daily_loss: 'MAX_DAILY_LOSS',
@@ -156,7 +159,11 @@ const CreateAccount = () => {
   const { data: programs = [], isLoading: programsLoading } = usePrograms(selectedFirmId);
   const { data: programData, isLoading: rulesLoading } = useProgramRules(selectedProgramId);
 
-  const selectedFirm = firms.find(f => f.id === selectedFirmId);
+  const operationalFirms = useMemo(
+    () => firms.filter((firm) => !BLOCKED_OPERATIONAL_FIRMS.has(normalizeFirmName(firm.name))),
+    [firms],
+  );
+  const selectedFirm = operationalFirms.find(f => f.id === selectedFirmId);
   const selectedProgram = programs.find(p => p.id === selectedProgramId);
 
   // Step 1: Account Info
@@ -191,14 +198,14 @@ const CreateAccount = () => {
   // Handle incoming state from Library page
   useEffect(() => {
     const state = location.state as { firmId?: string; programId?: string; firmName?: string; programName?: string } | null;
-    if (state?.firmId) {
+    if (state?.firmId && operationalFirms.some((firm) => firm.id === state.firmId)) {
       setSelectedFirmId(state.firmId);
       if (state.programId) {
         setSelectedProgramId(state.programId);
         setFirmStep('program');
       }
     }
-  }, [location.state]);
+  }, [location.state, operationalFirms]);
 
   // Auto-load rules when program data arrives (only when using template mode)
   useEffect(() => {
@@ -520,7 +527,7 @@ const CreateAccount = () => {
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {firms.map(firm => {
+                    {operationalFirms.map(firm => {
                       const logo = FIRM_LOGOS[firm.slug] || firm.name.charAt(0);
                       const firmColor = firm.color ? `hsl(${firm.color})` : 'hsl(var(--primary))';
                       return (
