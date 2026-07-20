@@ -1,99 +1,120 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import PropFirmLibrary from '../pages/PropFirmLibrary';
 
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="location">{location.pathname}{location.search}</div>;
+}
+
 function renderLibrary() {
   return render(
-    <MemoryRouter>
-      <PropFirmLibrary />
+    <MemoryRouter initialEntries={['/library']}>
+      <Routes>
+        <Route path="/library" element={<PropFirmLibrary />} />
+        <Route path="/accounts/new" element={<LocationProbe />} />
+      </Routes>
     </MemoryRouter>,
   );
 }
 
+function selectFtmoTwoStep() {
+  fireEvent.click(screen.getByTestId('firm-FTMO'));
+  fireEvent.click(screen.getByTestId('program-ftmo-challenge-2-step-2026'));
+}
+
 describe('PropFirmLibrary', () => {
-  it('guides the user from prop firm to account-level rules', () => {
+  it('starts with only the prop firm selection', () => {
     renderLibrary();
 
     expect(screen.getByRole('heading', { name: 'Biblioteca de Mesas Proprietárias' })).toBeInTheDocument();
-    expect(screen.getByTestId('firm-FTMO')).toBeInTheDocument();
-    expect(screen.queryByText('Regras de Prop Firms')).not.toBeInTheDocument();
+    expect(screen.getByTestId('firm-step')).toBeInTheDocument();
+    expect(screen.getAllByTestId(/^firm-(?!step$)/)).toHaveLength(16);
+    expect(screen.queryByTestId('program-step')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('account-step')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('account-rules')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Conectar essa conta' })).not.toBeInTheDocument();
+  });
 
+  it('shows only programs from the selected firm', () => {
+    renderLibrary();
     fireEvent.click(screen.getByTestId('firm-FTMO'));
 
-    const programSelect = screen.getByLabelText('Programa da mesa');
-    const twoStepOption = within(programSelect).getByRole('option', { name: 'FTMO Challenge 2-Step' }) as HTMLOptionElement;
-    fireEvent.change(programSelect, { target: { value: twoStepOption.value } });
+    expect(screen.getByTestId('program-step')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Modelos disponíveis na FTMO' })).toBeInTheDocument();
+    expect(screen.getAllByTestId(/^program-(?!step$)/)).toHaveLength(2);
+    expect(screen.getByText('FTMO Challenge 1-Step')).toBeInTheDocument();
+    expect(screen.getByText('FTMO Challenge 2-Step')).toBeInTheDocument();
+    expect(screen.queryByText('Apex Trader Funding')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('account-rules')).not.toBeInTheDocument();
+  });
 
-    const accountSelect = screen.getByLabelText('Conta oferecida');
-    const accountOption = within(accountSelect).getByRole('option', { name: 'US$ 200 mil' }) as HTMLOptionElement;
-    fireEvent.change(accountSelect, { target: { value: accountOption.value } });
+  it('shows account sizes only after the program selection', () => {
+    renderLibrary();
+    selectFtmoTwoStep();
 
-    expect(screen.getByRole('heading', { name: /FTMO Challenge 2-Step · US\$ 200 mil/ })).toBeInTheDocument();
-    expect(screen.getAllByText('Meta de lucro').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Perda diária').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Perda máxima').length).toBeGreaterThan(0);
-    expect(screen.getByText('Regras para não reprovar')).toBeInTheDocument();
-    expect(screen.getByText('Limites operacionais')).toBeInTheDocument();
+    expect(screen.getByTestId('account-step')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Escolha a conta' })).toBeInTheDocument();
+    expect(screen.getByText('US$ 10 mil')).toBeInTheDocument();
+    expect(screen.getByText('US$ 200 mil')).toBeInTheDocument();
+    expect(screen.queryByTestId('account-rules')).not.toBeInTheDocument();
     expect(screen.queryByText(/€/)).not.toBeInTheDocument();
   });
 
-  it('searches firms without mixing the operational account workflow', () => {
+  it('reveals clean rules and sources only after the account selection', () => {
     renderLibrary();
+    selectFtmoTwoStep();
+    fireEvent.click(screen.getByRole('button', { name: 'US$ 200 mil' }));
 
-    fireEvent.change(screen.getByLabelText('Buscar mesa, programa, conta ou regra'), {
-      target: { value: 'Topstep' },
-    });
-
-    expect(screen.getByTestId('firm-Topstep')).toBeInTheDocument();
-    expect(screen.queryByTestId('firm-FTMO')).not.toBeInTheDocument();
+    expect(screen.getByTestId('account-rules')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /FTMO Challenge 2-Step · US\$ 200 mil/ })).toBeInTheDocument();
+    expect(screen.getByText('Regras principais')).toBeInTheDocument();
+    expect(screen.getByText('Operacional')).toBeInTheDocument();
+    expect(screen.getByText('Fortify monitora')).toBeInTheDocument();
+    expect(screen.getByText('Fontes oficiais')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Conectar essa conta' })).toBeInTheDocument();
+    expect(screen.queryByText(/€/)).not.toBeInTheDocument();
   });
 
-  it('searches by program, platform, account size and risk rule', () => {
+  it('builds the account connection URL from stable identifiers only', () => {
     renderLibrary();
-    const search = screen.getByLabelText('Buscar mesa, programa, conta ou regra');
+    selectFtmoTwoStep();
+    fireEvent.click(screen.getByRole('button', { name: 'US$ 200 mil' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Conectar essa conta' }));
 
-    fireEvent.change(search, { target: { value: 'FTMO Challenge 2-Step' } });
-    expect(screen.getByTestId('firm-FTMO')).toBeInTheDocument();
-
-    fireEvent.change(search, { target: { value: 'US$ 200 mil' } });
-    expect(screen.getByTestId('firm-FTMO')).toBeInTheDocument();
-
-    fireEvent.change(search, { target: { value: 'MT5' } });
-    expect(screen.getAllByText('Operacional').length).toBeGreaterThan(0);
-
-    fireEvent.change(search, { target: { value: 'daily loss' } });
-    expect(screen.getByTestId('firm-FTMO')).toBeInTheDocument();
+    const target = screen.getByTestId('location').textContent ?? '';
+    const url = new URL(target, 'http://localhost');
+    expect(url.pathname).toBe('/accounts/new');
+    expect(url.searchParams.get('propFirmSlug')).toBe('ftmo');
+    expect(url.searchParams.get('programSlug')).toBe('ftmo-challenge-2-step-2026');
+    expect(url.searchParams.get('accountSizeId')).toBeTruthy();
+    expect(url.searchParams.get('platform')).toBe('MT5');
+    expect(url.searchParams.get('ruleVersionId')).toBeTruthy();
+    expect([...url.searchParams.keys()].sort()).toEqual([
+      'accountSizeId',
+      'platform',
+      'programSlug',
+      'propFirmSlug',
+      'ruleVersionId',
+    ]);
   });
 
-  it('exposes all canonical firms and separates unavailable coverage', () => {
+  it('keeps unavailable firms visible but non-operational', () => {
     renderLibrary();
 
-    expect(screen.getByText('Mesas operacionais')).toBeInTheDocument();
-    expect(screen.getByText('Cobertura histórica ou indisponível')).toBeInTheDocument();
-    expect(screen.getAllByTestId(/^firm-/)).toHaveLength(16);
+    expect(screen.getByTestId('firm-Fundscap')).toBeDisabled();
+    expect(screen.getByTestId('firm-MyFundedFX')).toBeDisabled();
     expect(screen.getByTestId('firm-Fundscap')).toHaveTextContent('Indisponível');
     expect(screen.getByTestId('firm-MyFundedFX')).toHaveTextContent('Indisponível');
+    expect(screen.queryByRole('button', { name: 'Conectar essa conta' })).not.toBeInTheDocument();
   });
 
-  it('keeps unavailable firms outside the operational account catalog', () => {
+  it('filters the initial catalog by prop firm name', () => {
     renderLibrary();
 
-    fireEvent.click(screen.getByTestId('firm-MyFundedFX'));
-
-    expect(screen.getByRole('heading', { name: 'Regras operacionais indisponíveis' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Conta oferecida')).toBeDisabled();
-    expect(screen.queryByRole('button', { name: 'Cadastrar conta' })).not.toBeInTheDocument();
-  });
-
-  it('shows program context and the critical account rules', () => {
-    renderLibrary();
-    fireEvent.click(screen.getByTestId('firm-FTMO'));
-
-    expect(screen.getByTestId('program-summary')).toHaveTextContent('Principal risco');
-    expect(screen.getByTestId('program-summary')).toHaveTextContent('Plataformas');
-    expect(screen.getAllByText('Alavancagem').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Principal risco').length).toBeGreaterThan(0);
-    expect(screen.getByRole('button', { name: 'Cadastrar conta' })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Buscar mesa proprietária'), { target: { value: 'Topstep' } });
+    expect(screen.getByTestId('firm-Topstep')).toBeInTheDocument();
+    expect(screen.queryByTestId('firm-FTMO')).not.toBeInTheDocument();
   });
 });
