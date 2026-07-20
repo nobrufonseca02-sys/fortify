@@ -12,7 +12,6 @@ import AuthPage from "./pages/AuthPage";
 import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Accounts from "./pages/Accounts";
-import AccountRules from "./pages/AccountRules";
 import AccountRuleManagement from "./pages/AccountRuleManagement";
 import AccountDashboard from "./pages/AccountDashboard";
 import RuleManager from "./pages/RuleManager";
@@ -142,7 +141,7 @@ function ProtectedRoutes() {
         <Route path="/accounts/:id" element={<AccountDashboard />} />
         <Route path="/accounts/:accountId/rules" element={<AccountRuleManagement />} />
         <Route path="/performance" element={<Performance />} />
-        <Route path="/rules" element={<AccountRules />} />
+        <Route path="/rules" element={<Navigate to="/library" replace />} />
         <Route path="/rules/demo" element={<RuleEngineDemo />} />
         <Route path="/rules/manage" element={<RuleManager />} />
         <Route path="/library" element={<PropFirmLibrary />} />

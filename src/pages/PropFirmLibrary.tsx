@@ -1,440 +1,551 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  ArrowLeft, Check, ChevronRight, Globe, ExternalLink, BookOpen,
-  Shield, Flame, TrendingUp, Target, Clock, BarChart3, Newspaper,
-  Zap, Layers, Activity, Calendar, DollarSign, Percent, Building2,
-  Plus
-} from 'lucide-react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  usePropFirms, usePrograms, useProgramRules,
-  type PropFirm, type Program, type RuleInstance,
-} from '@/hooks/usePropFirmLibrary';
+  AlertTriangle,
+  ArrowLeft,
+  BookOpen,
+  Building2,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  ExternalLink,
+  Plus,
+  Search,
+  ShieldCheck,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { BetaResponsibilityNotice } from '@/components/BetaReadinessChecklist';
+import { Input } from '@/components/ui/input';
+import {
+  propFirmFilterOptions,
+  propFirmRulePrograms,
+  type PropFirmName,
+  type PropFirmRuleProgram,
+  type RuleAccountSize,
+} from '@/data/propFirmRules';
 
-const RULE_ICONS: Record<string, React.ElementType> = {
-  max_daily_loss: Flame,
-  max_total_loss: Shield,
-  trailing_drawdown: TrendingUp,
-  floating_loss_limit: Activity,
-  profit_target: Target,
-  min_trading_days: Clock,
-  profitable_days: Calendar,
-  consistency_best_day_cap: BarChart3,
-  inactivity_limit: Activity,
-  news_restriction: Newspaper,
-  scalping_restriction: Zap,
-  weekend_holding: Calendar,
-  payout_eligibility: DollarSign,
-  profit_split: Percent,
-  payout_frequency: Calendar,
-  leverage_limit: Layers,
+const selectClass =
+  'h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary';
+
+const confidenceLabel = {
+  high: 'Confiança alta',
+  medium: 'Confiança média',
+  low: 'Confiança baixa',
 };
 
-const CATEGORY_ORDER = ['risk', 'target', 'activity', 'consistency', 'restriction', 'payout'];
-
-const CATEGORY_LABELS: Record<string, string> = {
-  risk: 'Regras Principais',
-  target: 'Metas',
-  activity: 'Regras de Avaliação',
-  consistency: 'Consistência',
-  restriction: 'Regras Operacionais',
-  payout: 'Regras de Payout',
+const completenessLabel = {
+  complete: 'Dados completos',
+  partial: 'Dados parciais',
+  legacy: 'Dados legados',
 };
 
-const CATEGORY_COLORS: Record<string, string> = {
-  risk: 'text-destructive bg-destructive/10',
-  target: 'text-primary bg-primary/10',
-  activity: 'text-warning bg-warning/10',
-  consistency: 'text-info bg-info/10',
-  restriction: 'text-muted-foreground bg-muted',
-  payout: 'text-success bg-success/10',
-};
-
-const FIRM_LOGOS: Record<string, string> = {
-  ftmo: 'F',
-  hantec: 'H',
-  topstep: 'T',
-  fundednext: 'FN',
-  the5ers: '5',
-  apex: 'AT',
-  e8markets: 'E8',
-  fxify: 'FX',
-  fundscap: 'FC',
-  alphacapitalgroup: 'AC',
-  thetradingpit: 'TP',
-  fundingpips: 'FP',
-  custom: 'C',
-};
-
-function reviewStatusMeta(status?: string | null, isUserCustom?: boolean | null, isGeneric?: boolean) {
-  if (isUserCustom) return { label: 'Regra personalizada', className: 'bg-info/10 text-info' };
-  if (isGeneric) return { label: 'Template genérico', className: 'bg-muted text-muted-foreground' };
-  if (status === 'verified') return { label: 'Oficial verificada', className: 'bg-success/10 text-success' };
-  if (status === 'deprecated') return { label: 'Descontinuada', className: 'bg-destructive/10 text-destructive' };
-  return { label: 'Precisa de revisão', className: 'bg-warning/10 text-warning' };
+function cleanValue(value?: string | null) {
+  const normalized = value?.trim();
+  if (!normalized || ['-', '--', 'n/a', 'na', 'tbd', 'undefined', 'null'].includes(normalized.toLowerCase())) {
+    return 'Verificar no site oficial';
+  }
+  return normalized
+    .replace(/Indisponível em fonte oficial vigente/gi, 'Indisponível na fonte oficial atual')
+    .replace(/(?:US)?\$\s*/gi, 'US$ ');
 }
 
-function formatAccountType(value?: string | null) {
-  return String(value || 'programa').replace(/_/g, ' ');
+function formatAccountLabel(value: string) {
+  const normalized = cleanValue(value).replace(/^US\$\s*/i, '$');
+  const shortDollar = normalized.match(/^\$(\d+(?:[.,]\d+)?)(K|M)$/i);
+  if (shortDollar) {
+    const amount = shortDollar[1].replace('.', ',');
+    return `US$ ${amount} ${shortDollar[2].toUpperCase() === 'K' ? 'mil' : 'milhões'}`;
+  }
+
+  const fullDollar = normalized.match(/^\$([\d,]+)$/);
+  if (fullDollar) return `US$ ${fullDollar[1].replace(/,/g, '.')}`;
+  return normalized;
 }
 
-const PropFirmLibrary = () => {
-  const navigate = useNavigate();
-  const [selectedFirmId, setSelectedFirmId] = useState<string | null>(null);
-  const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
+function firmPrograms(firm: PropFirmName | null) {
+  if (!firm) return [];
+  return propFirmRulePrograms.filter((program) => program.firm === firm);
+}
 
-  const { data: firms = [], isLoading: firmsLoading } = usePropFirms();
-  const { data: programs = [], isLoading: programsLoading } = usePrograms(selectedFirmId);
-  const { data: programData, isLoading: rulesLoading } = useProgramRules(selectedProgramId);
+function accountRules(program?: PropFirmRuleProgram) {
+  if (!program || program.evidenceStatus === 'official_source_unavailable') return [];
+  return program.accountLevelRules ?? [];
+}
 
-  const rules = programData?.rules ?? [];
-  const version = programData?.version;
+function phaseSummary(account: RuleAccountSize) {
+  return account.phases
+    .map((phase) => `${phase.label}: ${cleanValue(phase.profitTarget)}`)
+    .join(' · ');
+}
 
-  const selectedFirm = firms.find(f => f.id === selectedFirmId);
-  const selectedProgram = programs.find(p => p.id === selectedProgramId);
+function executionLimit(account: RuleAccountSize) {
+  if (account.maxContracts !== 'Não aplicável') return cleanValue(account.maxContracts);
+  if (account.maxLots !== 'Não aplicável') return cleanValue(account.maxLots);
+  return 'Não aplicável';
+}
 
-  const currentStep = selectedProgramId ? 2 : selectedFirmId ? 1 : 0;
+function countLabel(value: number, singular: string, plural: string) {
+  return `${value} ${value === 1 ? singular : plural}`;
+}
 
-  const handleSelectFirm = (firm: PropFirm) => {
-    setSelectedFirmId(firm.id);
-    setSelectedProgramId(null);
-  };
-
-  const handleSelectProgram = (program: Program) => {
-    setSelectedProgramId(program.id);
-  };
-
-  const goBack = () => {
-    if (selectedProgramId) setSelectedProgramId(null);
-    else if (selectedFirmId) setSelectedFirmId(null);
-  };
-
-  // Group rules by category in defined order
-  const groupedRules = rules.reduce<Record<string, RuleInstance[]>>((acc, rule) => {
-    const cat = rule.rule_definition?.category || 'other';
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(rule);
-    return acc;
-  }, {});
-
-  const sortedCategories = CATEGORY_ORDER.filter(c => groupedRules[c]);
-
-  const steps = ['Mesa', 'Programa', 'Regras'];
-  const versionStatus = reviewStatusMeta(
-    version?.review_status,
-    version?.is_user_custom,
-    selectedFirm?.slug === 'generic-mt5-broker' || selectedFirm?.slug === 'easymarkets-broker-only',
-  );
+function FirmCard({
+  name,
+  programs,
+  onSelect,
+}: {
+  name: PropFirmName;
+  programs: PropFirmRuleProgram[];
+  onSelect: () => void;
+}) {
+  const availablePrograms = programs.filter((program) => accountRules(program).length > 0);
+  const accounts = availablePrograms.reduce((total, program) => total + accountRules(program).length, 0);
+  const available = accounts > 0;
+  const markets = Array.from(new Set(programs.map((program) => program.market))).join(' · ');
 
   return (
-    <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <button onClick={() => currentStep === 0 ? navigate('/') : goBack()} className="p-2 rounded-lg hover:bg-muted transition-colors">
-          <ArrowLeft className="w-4 h-4 text-muted-foreground" />
-        </button>
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-primary" />
-            <h1 className="text-lg font-bold text-foreground">Biblioteca de Mesas</h1>
-          </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {currentStep === 0 && 'Selecione uma mesa ou corretora para ver programas e templates de regras'}
-            {currentStep === 1 && `${selectedFirm?.name} — Escolha um programa`}
-            {currentStep === 2 && `${selectedFirm?.name} • ${selectedProgram?.name}`}
-          </p>
+    <button
+      type="button"
+      data-testid={`firm-${name}`}
+      onClick={onSelect}
+      className="group flex min-h-32 flex-col justify-between rounded-lg border border-border bg-card/70 p-4 text-left transition-colors hover:border-primary/55 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-primary">
+          <Building2 className="h-4 w-4" />
+        </div>
+        <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+      </div>
+      <div className="mt-4">
+        <h2 className="text-sm font-semibold text-foreground">{name}</h2>
+        <p className="mt-1 text-xs text-muted-foreground">{markets}</p>
+        <div className="mt-3 flex items-center justify-between gap-3 text-[11px]">
+          <span className={available ? 'text-foreground' : 'text-amber-300'}>
+            {available
+              ? `${countLabel(availablePrograms.length, 'programa', 'programas')} · ${countLabel(accounts, 'conta', 'contas')}`
+              : 'Catálogo não operacional'}
+          </span>
+          <span className={available ? 'text-emerald-300' : 'text-muted-foreground'}>
+            {available ? 'Auditada' : 'Consultar status'}
+          </span>
         </div>
       </div>
+    </button>
+  );
+}
 
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-1 text-xs">
-        {steps.map((s, i) => (
-          <div key={s} className="flex items-center gap-1">
-            <span
-              className={`px-2 py-1 rounded-md transition-colors ${
-                i < currentStep ? 'bg-primary/15 text-primary cursor-pointer' :
-                i === currentStep ? 'bg-primary text-primary-foreground font-medium' :
-                'bg-muted text-muted-foreground'
-              }`}
-              onClick={() => {
-                if (i === 0) { setSelectedFirmId(null); setSelectedProgramId(null); }
-                if (i === 1 && selectedFirmId) { setSelectedProgramId(null); }
-              }}
-            >
-              {i < currentStep ? (
-                <span className="flex items-center gap-1">
-                  <Check className="w-3 h-3" />
-                  {i === 0 && selectedFirm?.name}
-                  {i === 1 && selectedProgram?.name}
-                </span>
-              ) : s}
-            </span>
-            {i < steps.length - 1 && <ChevronRight className="w-3 h-3 text-muted-foreground" />}
-          </div>
-        ))}
-      </div>
-
-      <BetaResponsibilityNotice variant="rules" />
-
-      <AnimatePresence mode="wait">
-        {/* ─── Step 0: Prop Firms ─── */}
-        {currentStep === 0 && (
-          <motion.div key="firms" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
-            {firmsLoading ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className="rounded-xl border border-border bg-card p-5 animate-pulse">
-                    <div className="w-12 h-12 rounded-lg bg-muted mb-3" />
-                    <div className="h-4 w-24 bg-muted rounded mb-2" />
-                    <div className="h-3 w-32 bg-muted rounded" />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {firms.map(firm => {
-                  const logo = FIRM_LOGOS[firm.slug] || firm.name.charAt(0);
-                  const firmColor = firm.color ? `hsl(${firm.color})` : 'hsl(var(--primary))';
-                  return (
-                    <button
-                      key={firm.id}
-                      onClick={() => handleSelectFirm(firm)}
-                      className="group relative rounded-xl border border-border bg-card p-5 text-left transition-all hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5"
-                    >
-                      <div className="w-12 h-12 rounded-lg flex items-center justify-center text-sm font-bold mb-3" style={{ background: `${firmColor}20`, color: firmColor }}>
-                        {logo}
-                      </div>
-                      <h3 className="font-semibold text-foreground text-sm">{firm.name}</h3>
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground capitalize">{firm.category.replace('_', ' ')}</span>
-                        {firm.website && <Globe className="w-3 h-3 text-muted-foreground" />}
-                      </div>
-                      <ChevronRight className="absolute top-1/2 right-3 -translate-y-1/2 w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </motion.div>
-        )}
-
-        {/* ─── Step 1: Programs ─── */}
-        {currentStep === 1 && (
-          <motion.div key="programs" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
-            {selectedFirm && (
-              <div className="rounded-xl border border-border bg-card p-4 mb-4 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0" style={{ background: `hsl(${selectedFirm.color || 'var(--primary)'})20`, color: `hsl(${selectedFirm.color || 'var(--primary)'})` }}>
-                  {FIRM_LOGOS[selectedFirm.slug] || selectedFirm.name.charAt(0)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-foreground">{selectedFirm.name}</h3>
-                  <p className="text-xs text-muted-foreground capitalize">{selectedFirm.category.replace('_', ' ')}</p>
-                </div>
-                {selectedFirm.website && (
-                  <a href={selectedFirm.website} target="_blank" rel="noopener noreferrer" className="text-xs text-primary flex items-center gap-1 hover:underline">
-                    <ExternalLink className="w-3 h-3" /> Site
-                  </a>
-                )}
-              </div>
-            )}
-
-            {programsLoading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="rounded-xl border border-border bg-card p-4 animate-pulse">
-                    <div className="h-4 w-40 bg-muted rounded mb-2" />
-                    <div className="h-3 w-60 bg-muted rounded" />
-                  </div>
-                ))}
-              </div>
-            ) : programs.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <Building2 className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                <p className="text-sm">Nenhum programa encontrado</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {programs.map(prog => (
-                  <button
-                    key={prog.id}
-                    onClick={() => handleSelectProgram(prog)}
-                    className="group rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-semibold text-foreground text-sm">{prog.name}</h3>
-                        <div className="flex items-center gap-2 mt-1.5">
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{formatAccountType(prog.account_type)}</span>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">{prog.market_type}</span>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${reviewStatusMeta(prog.review_status).className}`}>
-                            {reviewStatusMeta(prog.review_status).label}
-                          </span>
-                        </div>
-                        {prog.notes && <p className="text-[11px] text-muted-foreground mt-2">{prog.notes}</p>}
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </motion.div>
-        )}
-
-        {/* ─── Step 2: Rules ─── */}
-        {currentStep === 2 && (
-          <motion.div key="rules" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }} className="space-y-4">
-            {/* Program header with CTA */}
-            <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-foreground text-sm">
-                  {selectedFirm?.name} — {selectedProgram?.name}
-                </h3>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  {rules.length} regra{rules.length !== 1 ? 's' : ''} configurada{rules.length !== 1 ? 's' : ''}
-                  <span className={`ml-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${versionStatus.className}`}>
-                    {versionStatus.label}
-                  </span>
-                  {version?.source_url && (
-                    <a href={version.source_url} target="_blank" rel="noopener noreferrer" className="text-primary ml-2 hover:underline inline-flex items-center gap-1">
-                      <ExternalLink className="w-3 h-3" /> Fonte oficial
-                    </a>
-                  )}
-                </p>
-                {version?.source_notes && (
-                  <p className="text-[11px] text-muted-foreground mt-1">{version.source_notes}</p>
-                )}
-                {version?.verified_at && (
-                  <p className="text-[11px] text-success mt-1">
-                    Verificada em {new Date(version.verified_at).toLocaleDateString('pt-BR')}.
-                  </p>
-                )}
-                {!version?.source_url && (
-                  <p className="text-[11px] text-warning mt-1">
-                    Sem fonte oficial anexada nesta versão. Valide no dashboard/contrato da mesa antes de depender do template.
-                  </p>
-                )}
-              </div>
-              <Button
-                onClick={() => navigate('/accounts/new', {
-                  state: {
-                    firmId: selectedFirmId,
-                    programId: selectedProgramId,
-                    firmName: selectedFirm?.name,
-                    programName: selectedProgram?.name,
-                  }
-                })}
-                className="flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Criar conta com este template
-              </Button>
-            </div>
-
-            {rulesLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="rounded-xl border border-border bg-card p-4 animate-pulse">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-9 h-9 rounded-lg bg-muted" />
-                      <div className="h-4 w-32 bg-muted rounded" />
-                    </div>
-                    <div className="h-3 w-48 bg-muted rounded" />
-                  </div>
-                ))}
-              </div>
-            ) : rules.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <Shield className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                <p className="text-sm">Nenhuma regra configurada para este programa</p>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {sortedCategories.map(category => (
-                  <div key={category}>
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-                      {CATEGORY_LABELS[category] || category}
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {groupedRules[category].map(rule => {
-                        const def = rule.rule_definition;
-                        const Icon = def ? RULE_ICONS[def.key] || Shield : Shield;
-                        const catColor = CATEGORY_COLORS[category] || 'text-muted-foreground bg-muted';
-                        const ruleStatus = reviewStatusMeta(rule.review_status || version?.review_status, version?.is_user_custom, selectedFirm?.slug === 'generic-mt5-broker');
-                        return (
-                          <div
-                            key={rule.id}
-                            className={`rounded-xl border p-4 transition-all ${
-                              rule.enabled ? 'border-border bg-card' : 'border-border/50 bg-muted/20 opacity-60'
-                            }`}
-                          >
-                            <div className="flex items-start gap-3">
-                              <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${catColor}`}>
-                                <Icon className="w-4 h-4" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <h3 className="text-sm font-semibold text-foreground">{def?.name || 'Regra'}</h3>
-                                {def?.description && (
-                                  <p className="text-[11px] text-muted-foreground mt-1">{def.description}</p>
-                                )}
-                                <div className="flex flex-wrap gap-2 mt-2">
-                                  <span className="text-xs font-mono bg-muted px-2 py-0.5 rounded text-foreground">
-                                    Limite: {rule.limit_value}{rule.mode === 'percent' ? '%' : ''}
-                                  </span>
-                                  <span className={`text-[9px] font-mono uppercase px-1.5 py-0.5 rounded ${
-                                    rule.severity === 'hard' ? 'bg-destructive/10 text-destructive' : 'bg-warning/10 text-warning'
-                                  }`}>
-                                    {rule.severity}
-                                  </span>
-                                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${ruleStatus.className}`}>
-                                    {ruleStatus.label}
-                                  </span>
-                                  {rule.includes_floating && (
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-info/10 text-info">inclui floating</span>
-                                  )}
-                                  {rule.daily_reset && (
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">reset diário</span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Bottom CTA */}
-            {rules.length > 0 && (
-              <div className="pt-4 border-t border-border">
-                <Button
-                  size="lg"
-                  className="w-full flex items-center justify-center gap-2"
-                  onClick={() => navigate('/accounts/new', {
-                    state: {
-                      firmId: selectedFirmId,
-                      programId: selectedProgramId,
-                      firmName: selectedFirm?.name,
-                      programName: selectedProgram?.name,
-                    }
-                  })}
-                >
-                  <Plus className="w-4 h-4" />
-                  Criar conta com este template de regras
-                </Button>
-              </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 px-4 py-3">
+      <dt className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{label}</dt>
+      <dd className="mt-1 break-words text-sm font-semibold leading-5 text-foreground">{cleanValue(value)}</dd>
     </div>
   );
-};
+}
 
-export default PropFirmLibrary;
+function RuleRow({ label, value, warning = false }: { label: string; value: string; warning?: boolean }) {
+  return (
+    <div className="grid gap-1 border-b border-border/70 py-3 last:border-0 sm:grid-cols-[150px_1fr] sm:gap-4">
+      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
+      <dd className={`text-sm leading-5 ${warning ? 'text-amber-100' : 'text-foreground'}`}>{cleanValue(value)}</dd>
+    </div>
+  );
+}
+
+function RuleSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="border-t border-border px-4 py-4 sm:px-5">
+      <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{title}</h3>
+      <dl className="mt-2">{children}</dl>
+    </section>
+  );
+}
+
+function DetailSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <details className="group border-t border-border">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-4 text-sm font-semibold text-foreground sm:px-5">
+        {title}
+        <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
+      </summary>
+      <div className="border-t border-border/70 px-4 pb-4 sm:px-5">{children}</div>
+    </details>
+  );
+}
+
+function RulesView({
+  firm,
+  program,
+  account,
+  onCreateAccount,
+}: {
+  firm: PropFirmName;
+  program: PropFirmRuleProgram;
+  account: RuleAccountSize;
+  onCreateAccount: () => void;
+}) {
+  const sourceLinks = program.officialSources?.length
+    ? program.officialSources.map((source) => ({ label: source.label, url: source.url }))
+    : [{ label: program.sourceLabel, url: program.officialSourceUrl }];
+
+  return (
+    <article className="overflow-hidden rounded-lg border border-border bg-card/70">
+      <header className="p-4 sm:p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">{firm}</p>
+            <h2 className="mt-1 text-xl font-semibold text-foreground">
+              {program.programName} · {formatAccountLabel(account.label)}
+            </h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {program.market} · {account.platforms.join(', ')} · revisão {account.lastReviewedAt}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2.5 py-1 text-[11px] text-emerald-200">
+              {confidenceLabel[account.confidence]}
+            </span>
+            <span className="rounded-full border border-border bg-background px-2.5 py-1 text-[11px] text-muted-foreground">
+              {completenessLabel[account.dataCompleteness]}
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <dl className="grid border-y border-border sm:grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-border">
+        <Metric label="Meta de lucro" value={phaseSummary(account)} />
+        <Metric label="Perda diária" value={account.dailyLoss} />
+        <Metric label="Perda máxima" value={account.maxLoss} />
+        <Metric label="Drawdown" value={`${account.drawdownType} · ${account.drawdownCalculation}`} />
+      </dl>
+
+      <div className="grid lg:grid-cols-2 lg:divide-x lg:divide-border">
+        <RuleSection title="Regras para não reprovar">
+          <RuleRow label="Consistência" value={account.consistencyRule} warning />
+          <RuleRow label="Melhor dia" value={account.bestDayRule} />
+          <RuleRow label="Notícias" value={account.newsRule} warning />
+          <RuleRow label="Final de semana" value={account.weekendRule} />
+          <RuleRow label="Inatividade" value={account.inactivityRule} />
+        </RuleSection>
+        <RuleSection title="Limites operacionais">
+          <RuleRow label="Fases" value={phaseSummary(account)} />
+          <RuleRow label="Dias mínimos" value={account.minTradingDays} />
+          <RuleRow label="Dias máximos" value={account.maxTradingDays} />
+          <RuleRow label="Contratos / lotes" value={executionLimit(account)} />
+          <RuleRow label="Overnight" value={account.overnightRule} />
+        </RuleSection>
+      </div>
+
+      <DetailSection title="Payout e evolução da conta">
+        <dl>
+          <RuleRow label="Profit split" value={account.payoutSplit} />
+          <RuleRow label="Primeiro payout" value={account.firstPayoutTiming} />
+          <RuleRow label="Próximos payouts" value={account.subsequentPayoutTiming} />
+          <RuleRow label="Retirada mínima" value={account.minimumWithdrawal} />
+          <RuleRow label="Scaling" value={account.scalingPlan} />
+        </dl>
+      </DetailSection>
+
+      <DetailSection title="Automação e práticas proibidas">
+        <dl>
+          <RuleRow label="EA" value={account.eaRule} />
+          <RuleRow label="Copy trading" value={account.copyTradingRule} />
+          <RuleRow label="KYC" value={account.kycRule} />
+        </dl>
+        <ul className="mt-3 space-y-2">
+          {account.prohibitedPractices.map((item) => (
+            <li key={item} className="flex items-start gap-2 text-xs leading-5 text-muted-foreground">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-300" />
+              <span>{cleanValue(item)}</span>
+            </li>
+          ))}
+        </ul>
+      </DetailSection>
+
+      <DetailSection title="Monitoramento Fortify e fontes">
+        <div className="grid gap-5 py-4 md:grid-cols-3">
+          <MonitoringList title="Automático via MT5" items={account.monitorability.automatic_mt5} tone="success" />
+          <MonitoringList title="Revisão manual" items={account.monitorability.manual_check} tone="warning" />
+          <MonitoringList title="Ainda não suportado" items={account.monitorability.not_supported_yet} tone="muted" />
+        </div>
+        <div className="flex flex-wrap gap-2 border-t border-border pt-4">
+          {sourceLinks.map((source) => (
+            <Button key={source.url} asChild variant="outline" size="sm">
+              <a href={source.url} target="_blank" rel="noopener noreferrer">
+                {source.label}
+                <ExternalLink className="ml-2 h-3.5 w-3.5" />
+              </a>
+            </Button>
+          ))}
+        </div>
+      </DetailSection>
+
+      <footer className="flex flex-col gap-3 border-t border-border bg-background/35 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+        <p className="max-w-2xl text-xs leading-5 text-muted-foreground">
+          A biblioteca é para consulta. A gestão automática começa quando a conta é cadastrada, vinculada ao MT5 e acompanhada pelo dashboard.
+        </p>
+        <Button type="button" onClick={onCreateAccount} className="shrink-0">
+          <Plus className="mr-2 h-4 w-4" />
+          Cadastrar conta
+        </Button>
+      </footer>
+    </article>
+  );
+}
+
+function MonitoringList({
+  title,
+  items,
+  tone,
+}: {
+  title: string;
+  items: string[];
+  tone: 'success' | 'warning' | 'muted';
+}) {
+  const color = tone === 'success' ? 'text-emerald-300' : tone === 'warning' ? 'text-amber-300' : 'text-muted-foreground';
+  const safeItems = items.length ? items : ['Nenhum item informado'];
+
+  return (
+    <section>
+      <h4 className={`text-xs font-semibold ${color}`}>{title}</h4>
+      <ul className="mt-2 space-y-2">
+        {safeItems.map((item) => (
+          <li key={item} className="flex items-start gap-2 text-xs leading-5 text-muted-foreground">
+            <CheckCircle2 className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${color}`} />
+            <span>{cleanValue(item)}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+export default function PropFirmLibrary() {
+  const navigate = useNavigate();
+  const [query, setQuery] = useState('');
+  const [selectedFirm, setSelectedFirm] = useState<PropFirmName | null>(null);
+  const [selectedProgramId, setSelectedProgramId] = useState('');
+  const [selectedAccountId, setSelectedAccountId] = useState('');
+
+  const firms = useMemo(
+    () =>
+      propFirmFilterOptions.firms
+        .map((name) => ({ name, programs: firmPrograms(name) }))
+        .filter(({ name }) => name.toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR'))),
+    [query],
+  );
+
+  const programs = firmPrograms(selectedFirm);
+  const selectedProgram = programs.find((program) => program.id === selectedProgramId) ?? programs[0];
+  const accounts = accountRules(selectedProgram);
+  const selectedAccount = accounts.find((account) => account.id === selectedAccountId) ?? accounts[0];
+
+  const chooseFirm = (firm: PropFirmName) => {
+    const nextPrograms = firmPrograms(firm);
+    const firstProgram = nextPrograms.find((program) => accountRules(program).length > 0) ?? nextPrograms[0];
+    const firstAccount = accountRules(firstProgram)[0];
+    setSelectedFirm(firm);
+    setSelectedProgramId(firstProgram?.id ?? '');
+    setSelectedAccountId(firstAccount?.id ?? '');
+  };
+
+  const chooseProgram = (programId: string) => {
+    const program = programs.find((item) => item.id === programId);
+    setSelectedProgramId(programId);
+    setSelectedAccountId(accountRules(program)[0]?.id ?? '');
+  };
+
+  const resetSelection = () => {
+    setSelectedFirm(null);
+    setSelectedProgramId('');
+    setSelectedAccountId('');
+  };
+
+  return (
+    <div className="mx-auto max-w-7xl space-y-5 px-4 py-6 pb-28 sm:px-6 lg:px-8">
+      <header className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">Consulta oficial</p>
+          <h1 className="mt-2 text-2xl font-semibold text-foreground">Biblioteca de Mesas Proprietárias</h1>
+          <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+            Escolha a mesa, o programa e o tamanho da conta para consultar as regras aplicáveis.
+          </p>
+        </div>
+        {selectedFirm && (
+          <Button type="button" variant="outline" onClick={resetSelection}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Todas as mesas
+          </Button>
+        )}
+      </header>
+
+      {!selectedFirm ? (
+        <>
+          <section className="flex flex-col gap-3 rounded-lg border border-border bg-card/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-primary" />
+              <p className="text-sm font-semibold text-foreground">Escolha a mesa proprietária</p>
+            </div>
+            <div className="relative w-full sm:max-w-sm">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Buscar mesa proprietária"
+                aria-label="Buscar mesa proprietária"
+                className="pl-9"
+              />
+            </div>
+          </section>
+
+          {firms.length ? (
+            <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {firms.map(({ name, programs: firmRulePrograms }) => (
+                <FirmCard key={name} name={name} programs={firmRulePrograms} onSelect={() => chooseFirm(name)} />
+              ))}
+            </section>
+          ) : (
+            <section className="rounded-lg border border-dashed border-border p-8 text-center">
+              <Building2 className="mx-auto h-8 w-8 text-muted-foreground" />
+              <p className="mt-3 text-sm font-medium text-foreground">Mesa não encontrada</p>
+              <p className="mt-1 text-xs text-muted-foreground">Revise o nome informado ou limpe a busca.</p>
+            </section>
+          )}
+        </>
+      ) : (
+        <section className="grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
+          <aside className="h-fit rounded-lg border border-border bg-card/60 lg:sticky lg:top-6">
+            <div className="border-b border-border p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">Mesa selecionada</p>
+              <h2 className="mt-1 text-lg font-semibold text-foreground">{selectedFirm}</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {countLabel(
+                  programs.filter((program) => accountRules(program).length > 0).length,
+                  'programa operacional',
+                  'programas operacionais',
+                )}
+              </p>
+            </div>
+
+            <div className="space-y-4 p-4">
+              <label className="block space-y-1.5">
+                <span className="text-xs font-medium text-muted-foreground">Mesa proprietária</span>
+                <select
+                  aria-label="Mesa proprietária"
+                  value={selectedFirm}
+                  onChange={(event) => chooseFirm(event.target.value as PropFirmName)}
+                  className={selectClass}
+                >
+                  {propFirmFilterOptions.firms.map((firm) => (
+                    <option key={firm} value={firm}>{firm}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block space-y-1.5">
+                <span className="text-xs font-medium text-muted-foreground">Programa</span>
+                <select
+                  aria-label="Programa da mesa"
+                  value={selectedProgram?.id ?? ''}
+                  onChange={(event) => chooseProgram(event.target.value)}
+                  className={selectClass}
+                >
+                  {programs.map((program) => (
+                    <option key={program.id} value={program.id} disabled={accountRules(program).length === 0}>
+                      {program.programName}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block space-y-1.5">
+                <span className="text-xs font-medium text-muted-foreground">Conta oferecida</span>
+                <select
+                  aria-label="Conta oferecida"
+                  value={selectedAccount?.id ?? ''}
+                  onChange={(event) => setSelectedAccountId(event.target.value)}
+                  disabled={!accounts.length}
+                  className={selectClass}
+                >
+                  {accounts.length ? (
+                    accounts.map((account) => (
+                      <option key={account.id} value={account.id}>{formatAccountLabel(account.label)}</option>
+                    ))
+                  ) : (
+                    <option value="">Sem conta auditável</option>
+                  )}
+                </select>
+              </label>
+            </div>
+
+            {accounts.length > 0 && (
+              <div className="border-t border-border p-2" data-testid="account-options">
+                <p className="px-2 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Contas deste programa
+                </p>
+                <div className="space-y-1">
+                  {accounts.map((account) => {
+                    const active = account.id === selectedAccount?.id;
+                    return (
+                      <button
+                        key={account.id}
+                        type="button"
+                        onClick={() => setSelectedAccountId(account.id)}
+                        className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2.5 text-left text-sm transition-colors ${
+                          active ? 'bg-primary/12 text-primary' : 'text-foreground hover:bg-muted/50'
+                        }`}
+                      >
+                        <span>
+                          <span className="block font-medium">{formatAccountLabel(account.label)}</span>
+                          <span className="mt-0.5 block text-[10px] text-muted-foreground">{account.programType} · {account.market}</span>
+                        </span>
+                        {active && <Check className="h-4 w-4 shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </aside>
+
+          <div className="min-w-0">
+            {selectedProgram && selectedAccount ? (
+              <RulesView
+                firm={selectedFirm}
+                program={selectedProgram}
+                account={selectedAccount}
+                onCreateAccount={() => navigate('/accounts/new')}
+              />
+            ) : (
+              <section className="rounded-lg border border-amber-400/25 bg-amber-400/5 p-6">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
+                  <div>
+                    <h2 className="font-semibold text-foreground">Regras operacionais indisponíveis</h2>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                      Esta mesa não possui um catálogo oficial vigente que permita criar contas ou limites confiáveis no Fortify.
+                    </p>
+                    {selectedProgram?.officialSourceUrl && (
+                      <Button asChild variant="outline" size="sm" className="mt-4">
+                        <a href={selectedProgram.officialSourceUrl} target="_blank" rel="noopener noreferrer">
+                          Consultar fonte oficial
+                          <ExternalLink className="ml-2 h-4 w-4" />
+                        </a>
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </section>
+            )}
+
+            <div className="mt-4 flex items-start gap-3 border-l-2 border-primary/40 px-4 py-2 text-xs leading-5 text-muted-foreground">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <p>
+                Consulte as regras aqui. Depois do cadastro e da sincronização MT5, o Fortify usa o snapshot vinculado para mostrar saúde, violações e pontos de atenção no dashboard da conta.
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}

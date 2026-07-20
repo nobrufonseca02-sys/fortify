@@ -1,4 +1,4 @@
-import { LayoutDashboard, ScrollText, PlusCircle, Settings, BarChart3, Shield, BookOpen, Archive, LogOut, Server, Calculator, CreditCard } from "lucide-react";
+import { LayoutDashboard, PlusCircle, Settings, BarChart3, Shield, BookOpen, Archive, LogOut, Server, Calculator, CreditCard } from "lucide-react";
 import fortifyIcon from "@/assets/brand/fortify-f-standalone-white.svg";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -25,18 +25,17 @@ const groups = [
     ],
   },
   {
-    label: "Contas e Regras",
+    label: "Contas",
     items: [
       { title: "Contas", url: "/accounts", icon: PlusCircle },
       { title: "Contas MT5", url: "/mt5", icon: Server },
-      { title: "Regras", url: "/rules", icon: ScrollText },
       { title: "Desempenho", url: "/performance", icon: BarChart3 },
     ],
   },
   {
     label: "Recursos",
     items: [
-      { title: "Biblioteca de Mesas", url: "/library", icon: BookOpen },
+      { title: "Biblioteca", url: "/library", icon: BookOpen },
       { title: "Planos", url: "/pricing", icon: CreditCard },
       { title: "Histórico", url: "/history", icon: Archive },
       { title: "Configurações", url: "/settings", icon: Settings },
