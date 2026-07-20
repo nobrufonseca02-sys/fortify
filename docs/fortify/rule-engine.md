@@ -193,6 +193,66 @@ Cálculo usando janela local estimada. Reset diário oficial não configurado.
 
 Nenhum timezone foi inferido a partir do nome da mesa.
 
+## Sprint 9 — Validação com conta demo
+
+### Inventário sanitizado
+
+A sessão autenticada e uma leitura server-side restrita ao ID já visível na rota confirmaram uma única candidata:
+
+| Item | Resultado |
+| --- | --- |
+| Conta | `875a5cb4...` — Demo EasyMarkets |
+| Tipo | Não informado |
+| Broker | EasyMarkets |
+| Mesa proprietária | Não informada |
+| Programa | Não informado |
+| Fase | `live` |
+| Conexão existente | 1, provider MetaApi |
+| Estado da conexão | `auth_error` |
+| Estado do sync | `error` |
+| Vínculos versionados | 0 |
+| Snapshots existentes | 3 |
+| Trades existentes | 1 |
+| Posições abertas existentes | 1 |
+
+Login completo, credenciais, tokens, chaves, IDs completos e dados privados não foram impressos. A auditoria fez somente requisições `GET`.
+
+### Decisão de segurança
+
+Essa conta não é segura para validar um vínculo oficial:
+
+- EasyMarkets está identificada como broker, não como mesa proprietária auditada;
+- `prop_firm` e `program` estão vazios;
+- associar FTMO ou outra mesa produziria um snapshot falso;
+- o erro de autenticação impede tratar snapshots antigos como estado operacional atual;
+- não existe binding ativo nem hash para esta conta.
+
+Por isso, nenhuma regra foi vinculada, nenhuma credencial foi alterada e nenhum connect, sync, deploy ou criação MetaApi foi executado.
+
+### Validação possível
+
+O runtime real confirma que:
+
+- a conta e sua conexão são carregadas;
+- snapshots, trades e posições existentes são localizáveis;
+- ausência de binding mantém “Regra pendente de vínculo”;
+- `/accounts/:accountId/rules` não tenta executar o motor vinculado;
+- o fluxo de recuperação oferece o seletor oficial sem salvar seleção incompleta.
+
+O ciclo vinculado continua validado pela fixture controlada de `src/test/fixtures/ruleEngineFixtures.ts`, que não é importada em produção.
+
+### Requisito para validação real futura
+
+Fornecer ou autorizar uma conta demo já existente que tenha:
+
+1. mesa proprietária presente no dataset auditado;
+2. programa, tamanho, fase e plataforma confirmados no painel oficial;
+3. conexão MT5 demo válida e já provisionada, sem criar novo custo;
+4. sync atual com balance, equity e P&L diário;
+5. autorização explícita para salvar o vínculo pela UI.
+
+Com esses dados, a próxima validação pode salvar `account_rule_bindings`, conferir snapshot/hash e abrir o painel automático sem inventar regra ou credencial.
+
 ## Legado
 
 O catálogo UUID (`rule_set_versions`, `rule_instances`, `rule_evaluations`) continua visível para compatibilidade, agora rotulado como configuração legada. Ele não substitui o snapshot versionado.
