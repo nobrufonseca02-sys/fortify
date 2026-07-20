@@ -1,14 +1,15 @@
 import { useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   AlertTriangle,
   ArrowUpDown,
   BookOpen,
   CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   ExternalLink,
   Filter,
-  Info,
   Search,
-  ShieldAlert,
   X,
 } from 'lucide-react';
 import {
@@ -27,18 +28,16 @@ const riskClass: Record<PropFirmRuleProgram['riskLevel'], string> = {
   Alto: 'border-red-400/30 bg-red-400/10 text-red-200',
 };
 
-const sourceByFirm: Record<string, string> = {
-  FTMO: 'https://ftmo.com/en/trading-objectives/',
-  'Apex Trader Funding': 'https://apextraderfunding.com/help-center/',
-  'Hantec Trader': 'https://htrader.hmarkets.com/programs/rules/',
-  'ASAP Funding Prop': 'https://asapfundingprop.com/pt/termos/',
-  'NP Future': 'https://npfuture.com/regulamento/',
-};
-
 const completenessLabel = {
   complete: 'Evidência completa',
   partial: 'Evidência parcial',
   legacy: 'Revisão legada',
+};
+
+const compactCompletenessLabel = {
+  complete: 'Completa',
+  partial: 'Parcial',
+  legacy: 'Legada',
 };
 
 const confidenceLabel = {
@@ -46,6 +45,57 @@ const confidenceLabel = {
   medium: 'Confiança média',
   low: 'Confiança baixa',
 };
+
+const compactConfidenceLabel = {
+  high: 'Alta confiança',
+  medium: 'Confiança média',
+  low: 'Baixa confiança',
+};
+
+const monitoringOptions = ['Automático MT5', 'Manual', 'Não suportado'];
+const evidenceOptions = [
+  'Evidência completa',
+  'Evidência parcial',
+  'Revisão legada',
+  'Confiança alta',
+  'Confiança média',
+  'Confiança baixa',
+];
+
+function displayValue(value: unknown, compact = false) {
+  const text = String(value ?? '').trim();
+  const normalized = text.toLocaleLowerCase('pt-BR');
+
+  if (!text || ['-', '--', 'n/a', 'na', 'tbd', 'undefined', 'null'].includes(normalized)) {
+    return compact ? 'Verificar' : 'Verificar no site oficial';
+  }
+  if (
+    normalized.includes('verificar no site oficial') ||
+    normalized.includes('confirmar no termo oficial') ||
+    normalized.includes('confirmar no site oficial') ||
+    normalized.includes('confirmar no checkout oficial')
+  ) {
+    return compact ? 'Verificar' : 'Verificar no site oficial';
+  }
+  if (normalized.includes('não informado publicamente')) {
+    return compact ? 'Não público' : 'Não informado publicamente';
+  }
+  if (normalized.includes('indisponível em fonte oficial vigente')) {
+    return compact ? 'Indisponível' : 'Indisponível em fonte oficial vigente';
+  }
+  return text;
+}
+
+function briefValue(value: unknown, maxLength = 84) {
+  const text = displayValue(value, true);
+  return text.length > maxLength ? `${text.slice(0, maxLength - 1).trim()}…` : text;
+}
+
+function summarizeList(values: string[], visible = 3) {
+  const cleaned = values.map((value) => displayValue(value, true));
+  if (cleaned.length <= visible) return cleaned.join(', ');
+  return `${cleaned.slice(0, visible).join(', ')} +${cleaned.length - visible}`;
+}
 
 function SelectFilter({
   label,
@@ -79,7 +129,7 @@ function SelectFilter({
 
 function InfoPill({ children }: { children: React.ReactNode }) {
   return (
-    <span className="rounded-full border border-border bg-muted/40 px-3 py-1 text-xs text-muted-foreground">
+    <span className="rounded-full border border-border bg-muted/30 px-2.5 py-1 text-[11px] text-muted-foreground">
       {children}
     </span>
   );
@@ -87,9 +137,61 @@ function InfoPill({ children }: { children: React.ReactNode }) {
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-border/80 bg-background/40 p-3">
+    <div className="min-w-0 border-l border-border pl-3">
       <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">{label}</p>
-      <p className="mt-1 text-sm font-medium text-foreground">{value}</p>
+      <p className="mt-1 break-words text-sm font-medium text-foreground">
+        {displayValue(value)}
+      </p>
+    </div>
+  );
+}
+
+function Metric({
+  label,
+  value,
+  title,
+}: {
+  label: string;
+  value: string;
+  title?: string;
+}) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[10px] font-medium uppercase text-muted-foreground">
+        {label}
+      </p>
+      <p
+        title={title ?? value}
+        className="mt-1 line-clamp-2 break-words text-xs font-semibold text-foreground"
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function MonitoringBadges({ program }: { program: PropFirmRuleProgram }) {
+  const automatic = program.monitorability?.automatic_mt5.length ?? 0;
+  const manual = program.monitorability?.manual_check.length ?? 0;
+  const unsupported = program.monitorability?.not_supported_yet.length ?? 0;
+
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {automatic > 0 && (
+        <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2 py-1 text-[10px] font-medium text-emerald-200">
+          Automático MT5
+        </span>
+      )}
+      {manual > 0 && (
+        <span className="rounded-full border border-amber-400/25 bg-amber-400/10 px-2 py-1 text-[10px] font-medium text-amber-200">
+          Manual
+        </span>
+      )}
+      {unsupported > 0 && (
+        <span className="rounded-full border border-border bg-muted/30 px-2 py-1 text-[10px] font-medium text-muted-foreground">
+          Não suportado
+        </span>
+      )}
     </div>
   );
 }
@@ -108,16 +210,25 @@ function ProgramCard({
   onCompare: () => void;
 }) {
   const isUnavailable = program.evidenceStatus === 'official_source_unavailable';
+  const platforms = summarizeList(program.platforms, 2);
+  const sizes = summarizeList(program.accountSizes, 3);
 
   return (
-    <article className="flex h-full flex-col rounded-xl border border-border bg-card/80 p-5 shadow-sm shadow-black/10">
+    <article className="flex h-full flex-col rounded-lg border border-border bg-card/80 p-4 shadow-sm shadow-black/10">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">{program.firm}</p>
-          <h3 className="mt-2 text-lg font-semibold text-foreground">{program.programName}</h3>
+        <div className="min-w-0">
+          <p className="truncate text-[11px] font-medium uppercase tracking-[0.16em] text-primary">
+            {program.firm}
+          </p>
+          <h3 className="mt-1 text-base font-semibold text-foreground">
+            {program.programName}
+          </h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {program.market} · {isUnavailable ? 'Catálogo não operacional' : platforms}
+          </p>
         </div>
         <span
-          className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+          className={`shrink-0 rounded-full border px-2 py-1 text-[10px] font-semibold ${
             isUnavailable
               ? 'border-slate-500/40 bg-slate-500/10 text-slate-300'
               : riskClass[program.riskLevel]
@@ -127,38 +238,71 @@ function ProgramCard({
         </span>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="mt-3 flex flex-wrap gap-1.5">
         <InfoPill>{program.programType}</InfoPill>
-        <InfoPill>{program.market}</InfoPill>
-        <InfoPill>{program.drawdownType}</InfoPill>
-        {program.completeness && <InfoPill>{completenessLabel[program.completeness]}</InfoPill>}
+        {!isUnavailable && <InfoPill>{program.drawdownType}</InfoPill>}
+        {program.confidence && program.completeness && (
+          <InfoPill>
+            {compactConfidenceLabel[program.confidence]} ·{' '}
+            {compactCompletenessLabel[program.completeness]}
+          </InfoPill>
+        )}
       </div>
 
-      <div className="mt-5 grid grid-cols-2 gap-3">
-        <Field label="Meta" value={program.profitTarget} />
-        <Field label="Perda diaria" value={program.dailyLoss} />
-        <Field label="Perda maxima" value={program.maxLoss} />
-        <Field label="Dias min." value={program.minTradingDays} />
+      {isUnavailable ? (
+        <div className="mt-4 border-y border-border py-3">
+          <p className="text-xs leading-5 text-muted-foreground">
+            Sem regras vigentes auditáveis para comparação ou configuração operacional.
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="mt-4 grid grid-cols-3 gap-3 border-y border-border py-3">
+            <Metric
+              label="Meta"
+              value={briefValue(program.profitTarget, 44)}
+              title={program.profitTarget}
+            />
+            <Metric
+              label="Daily Loss"
+              value={briefValue(program.dailyLoss, 44)}
+              title={program.dailyLoss}
+            />
+            <Metric
+              label="Max Loss"
+              value={briefValue(program.maxLoss, 44)}
+              title={program.maxLoss}
+            />
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">Tamanhos:</span> {sizes}
+          </p>
+        </>
+      )}
+
+      <div className="mt-3 space-y-3">
+        <div className="border-l-2 border-destructive/40 pl-3">
+          <p className="text-[10px] font-medium uppercase text-muted-foreground">
+            Pode reprovar por
+          </p>
+          <p
+            title={program.mainRisk}
+            className="mt-1 line-clamp-2 text-xs leading-5 text-foreground"
+          >
+            {briefValue(program.mainRisk, 116)}
+          </p>
+        </div>
+        <div>
+          <p className="mb-2 text-[10px] font-medium uppercase text-muted-foreground">
+            Monitoramento Fortify
+          </p>
+          <MonitoringBadges program={program} />
+        </div>
       </div>
 
-      <div className="mt-4 space-y-3 text-sm text-muted-foreground">
-        <p>
-          <span className="font-medium text-foreground">Tamanhos:</span> {program.accountSizes.join(', ')}
-        </p>
-        <p>
-          <span className="font-medium text-foreground">Plataformas:</span> {program.platforms.join(', ')}
-        </p>
-        <p>
-          <span className="font-medium text-foreground">Risco principal:</span> {program.mainRisk}
-        </p>
-        <p>
-          <span className="font-medium text-foreground">Melhor para:</span> {program.bestFor}
-        </p>
-      </div>
-
-      <div className="mt-auto flex flex-col gap-2 pt-5 sm:flex-row">
+      <div className="mt-auto flex gap-2 pt-4">
         <Button onClick={onDetails} className="flex-1">
-          {isUnavailable ? 'Ver status' : 'Ver detalhes'}
+          {isUnavailable ? 'Ver status' : 'Ver regras'}
         </Button>
         <Button
           type="button"
@@ -182,6 +326,7 @@ function DetailsDrawer({
   onClose: () => void;
 }) {
   if (!program) return null;
+  const representativeAccount = program.accountLevelRules?.[0];
   const accountRows =
     program.accountLevelRules && program.accountLevelRules.length > 0
       ? program.accountLevelRules.map((account) => ({
@@ -198,18 +343,22 @@ function DetailsDrawer({
         }))
       : program.accountSizeRows;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm" role="dialog" aria-modal="true">
-      <div className="ml-auto flex h-full w-full max-w-3xl flex-col border-l border-border bg-card shadow-2xl">
-        <div className="flex items-start justify-between gap-4 border-b border-border p-5">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">{program.firm}</p>
-            <h2 className="mt-2 text-2xl font-semibold text-foreground">{program.programName}</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Revisado em {program.lastReviewedAt}. Dados informativos para triagem de risco.
+      <div className="ml-auto flex h-full w-full max-w-4xl flex-col border-l border-border bg-card shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-border p-4 sm:p-5">
+          <div className="min-w-0">
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-primary">
+              {program.firm}
+            </p>
+            <h2 className="mt-1 text-xl font-semibold text-foreground sm:text-2xl">
+              {program.programName}
+            </h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Revisado em {program.lastReviewedAt} · {program.programType} · {program.market}
             </p>
             {(program.confidence || program.completeness) && (
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-2 flex flex-wrap gap-1.5">
                 {program.confidence && <InfoPill>{confidenceLabel[program.confidence]}</InfoPill>}
                 {program.completeness && <InfoPill>{completenessLabel[program.completeness]}</InfoPill>}
               </div>
@@ -220,101 +369,152 @@ function DetailsDrawer({
           </Button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5">
-          <div className="grid gap-3 md:grid-cols-3">
-            <Field label="Programa" value={program.programType} />
-            <Field label="Mercado" value={program.market} />
-            <Field label="Drawdown" value={program.drawdownType} />
-          </div>
+        <div className="flex-1 space-y-3 overflow-y-auto p-4 sm:p-5">
+          <DrawerSection title="Resumo" defaultOpen>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Field label="Mesa" value={program.firm} />
+              <Field label="Programa" value={program.programType} />
+              <Field label="Mercado" value={program.market} />
+              <Field label="Plataformas" value={program.platforms.join(', ')} />
+              <Field label="Última revisão" value={program.lastReviewedAt} />
+              <Field
+                label="Evidência"
+                value={`${program.confidence ? confidenceLabel[program.confidence] : 'Verificar'} · ${program.completeness ? completenessLabel[program.completeness] : 'Verificar'}`}
+              />
+            </div>
+          </DrawerSection>
 
-          <section className="mt-6">
-            <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-muted-foreground">Tamanhos e limites</h3>
-            <div className="mt-3 overflow-x-auto rounded-lg border border-border">
+          <DrawerSection title="Regras críticas" defaultOpen>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Profit Target" value={program.profitTarget} />
+              <Field label="Daily Loss" value={program.dailyLoss} />
+              <Field label="Max Loss / Drawdown" value={program.maxLoss} />
+              <Field label="Tipo de drawdown" value={`${program.drawdownType} · ${program.trailingDescription}`} />
+              <Field label="Consistência" value={program.consistencyRule} />
+              <Field label="Notícias" value={program.newsRule} />
+              <Field label="Fim de semana" value={program.weekendRule} />
+              <Field label="Pode reprovar por" value={program.mainRisk} />
+            </div>
+          </DrawerSection>
+
+          <DrawerSection title="Contas e fases">
+            <div className="overflow-x-auto rounded-lg border border-border">
               <table className="w-full min-w-[620px] text-left text-sm">
-                <thead className="bg-muted/40 text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
                   <tr>
                     <th className="px-4 py-3">Conta</th>
-                    <th className="px-4 py-3">Meta</th>
-                    <th className="px-4 py-3">Perda diaria</th>
-                    <th className="px-4 py-3">Perda maxima</th>
+                    <th className="px-4 py-3">Meta / fases</th>
+                    <th className="px-4 py-3">Daily Loss</th>
+                    <th className="px-4 py-3">Max Loss</th>
                     <th className="px-4 py-3">Contratos / lotes</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {accountRows.map((row) => (
                     <tr key={`${program.id}-${row.label}`} className="text-foreground">
-                      <td className="px-4 py-3 font-medium">{row.label}</td>
-                      <td className="px-4 py-3">{row.profitTarget}</td>
-                      <td className="px-4 py-3">{row.dailyLoss}</td>
-                      <td className="px-4 py-3">{row.maxLoss}</td>
-                      <td className="px-4 py-3">{row.maxContracts ?? 'Não aplicável'}</td>
+                      <td className="px-4 py-3 font-medium">{displayValue(row.label)}</td>
+                      <td className="px-4 py-3">{displayValue(row.profitTarget)}</td>
+                      <td className="px-4 py-3">{displayValue(row.dailyLoss)}</td>
+                      <td className="px-4 py-3">{displayValue(row.maxLoss)}</td>
+                      <td className="px-4 py-3">{displayValue(row.maxContracts ?? 'Não aplicável')}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </section>
+          </DrawerSection>
 
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
-            <DetailList title="Objetivos de trading" items={program.tradingObjectives} />
-            <DetailList title="Regras de risco" items={program.riskRules} tone="risk" />
-            <DetailList title="Pontos de atencao" items={program.attentionRules} tone="warning" />
-            <DetailList title="Notas operacionais" items={program.operationalNotes} />
-          </div>
-
-          {program.conflicts && program.conflicts.length > 0 && (
-            <section className="mt-6 border-l-2 border-amber-300 bg-amber-300/5 px-4 py-3">
-              <h3 className="font-semibold text-amber-100">Conflitos de fonte registrados</h3>
-              <ul className="mt-3 space-y-3">
-                {program.conflicts.map((conflict) => (
-                  <li key={`${program.id}-${conflict.field}`} className="text-sm text-amber-100/80">
-                    <span className="font-medium text-amber-50">{conflict.field}:</span> {conflict.summary}{' '}
-                    <span className="text-foreground">Valor adotado: {conflict.preferredValue}.</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-
-          {program.monitorability && (
-            <section className="mt-6">
-              <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-muted-foreground">Monitorabilidade</h3>
-              <div className="mt-3 grid gap-4 md:grid-cols-3">
-                <DetailList title="Automático via MT5" items={program.monitorability.automatic_mt5.length > 0 ? program.monitorability.automatic_mt5 : ['Não disponível para esta plataforma']} />
-                <DetailList title="Verificação manual" items={program.monitorability.manual_check} tone="warning" />
-                <DetailList title="Ainda não suportado" items={program.monitorability.not_supported_yet} />
-              </div>
-            </section>
-          )}
-
-          <section className="mt-6 rounded-xl border border-amber-400/25 bg-amber-400/10 p-4">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="mt-0.5 h-5 w-5 text-amber-300" />
-              <div>
-                <h3 className="font-semibold text-amber-100">Aviso importante</h3>
-                <p className="mt-1 text-sm text-amber-100/80">
-                  As regras podem mudar sem aviso. Confirme sempre os termos oficiais da mesa antes de operar.
-                </p>
-              </div>
+          <DrawerSection title="Monitoramento Fortify" defaultOpen>
+            <div className="grid gap-3 md:grid-cols-3">
+              <DetailList
+                title="Automático via MT5"
+                items={program.monitorability?.automatic_mt5.length ? program.monitorability.automatic_mt5 : ['Não disponível para esta plataforma']}
+              />
+              <DetailList title="Validação manual" items={program.monitorability?.manual_check ?? []} tone="warning" />
+              <DetailList title="Ainda não suportado" items={program.monitorability?.not_supported_yet ?? []} />
             </div>
-          </section>
-        </div>
+          </DrawerSection>
 
-        <div className="flex flex-col gap-3 border-t border-border p-5">
-          <p className="text-xs text-muted-foreground">Fonte principal: {program.sourceLabel}</p>
-          <div className="flex flex-wrap gap-2">
-            {(program.officialSources ?? [{ label: program.sourceLabel, url: program.officialSourceUrl }]).map((source) => (
-              <Button key={source.url} asChild variant="outline" size="sm">
-                <a href={source.url} target="_blank" rel="noopener noreferrer">
-                  {source.label}
-                  <ExternalLink className="ml-2 h-4 w-4" />
-                </a>
-              </Button>
-            ))}
-          </div>
+          <DrawerSection title="Payout e operação">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Payout" value={program.payout} />
+              <Field label="Profit split" value={representativeAccount?.payoutSplit ?? program.payout} />
+              <Field label="Primeira retirada" value={representativeAccount?.firstPayoutTiming ?? 'Não informado publicamente'} />
+              <Field label="Próximas retiradas" value={representativeAccount?.subsequentPayoutTiming ?? 'Não informado publicamente'} />
+              <Field label="KYC" value={representativeAccount?.kycRule ?? 'Verificar no site oficial'} />
+              <Field label="Dias mínimos" value={program.minTradingDays} />
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <DetailList title="Objetivos" items={program.tradingObjectives} />
+              <DetailList title="Notas operacionais" items={program.operationalNotes} />
+            </div>
+          </DrawerSection>
+
+          <DrawerSection title="Fontes oficiais" defaultOpen>
+            <div className="flex flex-wrap gap-2">
+              {(program.officialSources ?? [{ label: program.sourceLabel, url: program.officialSourceUrl }]).map((source) => (
+                <Button key={source.url} asChild variant="outline" size="sm">
+                  <a href={source.url} target="_blank" rel="noopener noreferrer">
+                    {source.label}
+                    <ExternalLink className="ml-2 h-4 w-4" />
+                  </a>
+                </Button>
+              ))}
+            </div>
+
+            {program.conflicts && program.conflicts.length > 0 && (
+              <div className="mt-4 border-l-2 border-amber-300 bg-amber-300/5 px-4 py-3">
+                <h3 className="font-semibold text-amber-100">Conflitos de fonte registrados</h3>
+                <ul className="mt-2 space-y-2">
+                  {program.conflicts.map((conflict) => (
+                    <li key={`${program.id}-${conflict.field}`} className="text-xs leading-5 text-amber-100/80">
+                      <span className="font-medium text-amber-50">{conflict.field}:</span>{' '}
+                      {conflict.summary}{' '}
+                      <span className="text-foreground">Valor adotado: {conflict.preferredValue}.</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="mt-4 flex items-start gap-2 border-t border-border pt-4 text-xs text-muted-foreground">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+              <p>As regras podem mudar sem aviso. Confirme os termos oficiais antes de operar.</p>
+            </div>
+          </DrawerSection>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
+  );
+}
+
+function DrawerSection({
+  title,
+  children,
+  defaultOpen = false,
+}: {
+  title: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <section className="rounded-lg border border-border bg-background/25">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+      >
+        <span className="text-sm font-semibold text-foreground">{title}</span>
+        <ChevronRight
+          className={`h-4 w-4 text-muted-foreground transition-transform ${open ? 'rotate-90' : ''}`}
+        />
+      </button>
+      {open && <div className="border-t border-border px-4 py-4">{children}</div>}
+    </section>
   );
 }
 
@@ -328,15 +528,16 @@ function DetailList({
   tone?: 'default' | 'risk' | 'warning';
 }) {
   const iconClass = tone === 'risk' ? 'text-red-300' : tone === 'warning' ? 'text-amber-300' : 'text-primary';
+  const safeItems = items.length > 0 ? items : ['Não informado publicamente'];
 
   return (
-    <section className="rounded-xl border border-border bg-background/35 p-4">
+    <section className="rounded-lg border border-border bg-background/35 p-3">
       <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-      <ul className="mt-3 space-y-2">
-        {items.map((item) => (
-          <li key={item} className="flex items-start gap-2 text-sm text-muted-foreground">
+      <ul className="mt-2 space-y-2">
+        {safeItems.map((item) => (
+          <li key={item} className="flex items-start gap-2 text-xs leading-5 text-muted-foreground">
             <CheckCircle2 className={`mt-0.5 h-4 w-4 flex-shrink-0 ${iconClass}`} />
-            <span>{item}</span>
+            <span>{displayValue(item)}</span>
           </li>
         ))}
       </ul>
@@ -353,41 +554,53 @@ function ComparisonPanel({
 }) {
   if (programs.length === 0) {
     return (
-      <section className="rounded-xl border border-dashed border-border bg-card/60 p-5">
+      <section className="rounded-lg border border-dashed border-border bg-card/50 px-4 py-3">
         <div className="flex items-center gap-3">
           <ArrowUpDown className="h-5 w-5 text-primary" />
           <div>
-            <h2 className="font-semibold text-foreground">Comparacao</h2>
-            <p className="text-sm text-muted-foreground">Selecione ate 3 programas para comparar limites criticos lado a lado.</p>
+            <h2 className="text-sm font-semibold text-foreground">Comparação</h2>
+            <p className="text-xs text-muted-foreground">Selecione até 3 programas para comparar limites críticos.</p>
           </div>
         </div>
       </section>
     );
   }
 
-  const rows: Array<[string, keyof PropFirmRuleProgram]> = [
-    ['Mesa', 'firm'],
-    ['Programa', 'programName'],
-    ['Tipo', 'programType'],
-    ['Mercado', 'market'],
-    ['Meta', 'profitTarget'],
-    ['Perda diaria', 'dailyLoss'],
-    ['Perda maxima', 'maxLoss'],
-    ['Drawdown', 'drawdownType'],
-    ['Dias minimos', 'minTradingDays'],
-    ['Consistencia', 'consistencyRule'],
-    ['Noticias', 'newsRule'],
-    ['Fim de semana', 'weekendRule'],
-    ['Payout', 'payout'],
-    ['Risco', 'riskLevel'],
+  const monitoringLabel = (program: PropFirmRuleProgram) => {
+    const automatic = program.monitorability?.automatic_mt5.length ?? 0;
+    const manual = program.monitorability?.manual_check.length ?? 0;
+    const unsupported = program.monitorability?.not_supported_yet.length ?? 0;
+    return [
+      automatic > 0 ? `MT5 automático (${automatic})` : null,
+      manual > 0 ? `Manual (${manual})` : null,
+      unsupported > 0 ? `Não suportado (${unsupported})` : null,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+  };
+
+  const rows: Array<{
+    label: string;
+    value: (program: PropFirmRuleProgram) => string;
+  }> = [
+    { label: 'Target', value: (program) => program.profitTarget },
+    { label: 'Daily Loss', value: (program) => program.dailyLoss },
+    { label: 'Max Loss', value: (program) => program.maxLoss },
+    { label: 'Drawdown', value: (program) => `${program.drawdownType} · ${program.trailingDescription}` },
+    { label: 'Consistência', value: (program) => program.consistencyRule },
+    { label: 'Notícias', value: (program) => program.newsRule },
+    { label: 'Fim de semana', value: (program) => program.weekendRule },
+    { label: 'Payout', value: (program) => program.payout },
+    { label: 'Monitoramento', value: monitoringLabel },
+    { label: 'Risco principal', value: (program) => program.mainRisk },
   ];
 
   return (
-    <section className="rounded-xl border border-border bg-card/80 p-5">
+    <section className="rounded-lg border border-border bg-card/80 p-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-foreground">Comparacao de programas</h2>
-          <p className="text-sm text-muted-foreground">Limites e regras que mais reprovam contas.</p>
+          <h2 className="text-base font-semibold text-foreground">Comparação de programas</h2>
+          <p className="text-xs text-muted-foreground">Somente os campos que apoiam a decisão antes de operar.</p>
         </div>
         <span className="text-xs text-muted-foreground">{programs.length}/3 selecionados</span>
       </div>
@@ -400,7 +613,10 @@ function ComparisonPanel({
               {programs.map((program) => (
                 <th key={program.id} className="px-4 py-3">
                   <div className="flex items-center justify-between gap-3">
-                    <span>{program.programName}</span>
+                    <span>
+                      <span className="block text-primary">{program.firm}</span>
+                      <span className="mt-1 block normal-case text-foreground">{program.programName}</span>
+                    </span>
                     <button
                       type="button"
                       onClick={() => onRemove(program.id)}
@@ -415,12 +631,12 @@ function ComparisonPanel({
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {rows.map(([label, key]) => (
-              <tr key={label}>
-                <td className="px-4 py-3 font-medium text-foreground">{label}</td>
+            {rows.map((row) => (
+              <tr key={row.label}>
+                <td className="px-4 py-3 font-medium text-foreground">{row.label}</td>
                 {programs.map((program) => (
-                  <td key={`${program.id}-${String(key)}`} className="px-4 py-3 text-muted-foreground">
-                    {String(program[key])}
+                  <td key={`${program.id}-${row.label}`} className="px-4 py-3 text-xs leading-5 text-muted-foreground">
+                    {briefValue(row.value(program), 112)}
                   </td>
                 ))}
               </tr>
@@ -437,16 +653,23 @@ export default function AccountRules() {
   const [firm, setFirm] = useState(allValue);
   const [programType, setProgramType] = useState(allValue);
   const [market, setMarket] = useState(allValue);
+  const [platform, setPlatform] = useState(allValue);
   const [drawdownType, setDrawdownType] = useState(allValue);
+  const [monitoring, setMonitoring] = useState(allValue);
+  const [evidence, setEvidence] = useState(allValue);
   const [accountSize, setAccountSize] = useState(allValue);
   const [riskLevel, setRiskLevel] = useState(allValue);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [detailsProgram, setDetailsProgram] = useState<PropFirmRuleProgram | null>(null);
   const [comparisonIds, setComparisonIds] = useState<string[]>([]);
-  const filtersRef = useRef<HTMLElement | null>(null);
   const comparisonRef = useRef<HTMLDivElement | null>(null);
 
   const accountSizeOptions = useMemo(
     () => Array.from(new Set(propFirmRulePrograms.flatMap((program) => program.accountSizes))).sort(),
+    [],
+  );
+  const platformOptions = useMemo(
+    () => Array.from(new Set(propFirmRulePrograms.flatMap((program) => program.platforms))).sort(),
     [],
   );
 
@@ -500,12 +723,24 @@ export default function AccountRules() {
         (market === allValue ||
           program.market === market ||
           (market === 'MT4/MT5' && (program.platforms.includes('MT4') || program.platforms.includes('MT5')))) &&
+        (platform === allValue || program.platforms.includes(platform)) &&
         (drawdownType === allValue || program.drawdownType === drawdownType) &&
+        (monitoring === allValue ||
+          (monitoring === 'Automático MT5' && Boolean(program.monitorability?.automatic_mt5.length)) ||
+          (monitoring === 'Manual' && Boolean(program.monitorability?.manual_check.length)) ||
+          (monitoring === 'Não suportado' && Boolean(program.monitorability?.not_supported_yet.length))) &&
+        (evidence === allValue ||
+          (evidence === 'Evidência completa' && program.completeness === 'complete') ||
+          (evidence === 'Evidência parcial' && program.completeness === 'partial') ||
+          (evidence === 'Revisão legada' && program.completeness === 'legacy') ||
+          (evidence === 'Confiança alta' && program.confidence === 'high') ||
+          (evidence === 'Confiança média' && program.confidence === 'medium') ||
+          (evidence === 'Confiança baixa' && program.confidence === 'low')) &&
         (accountSize === allValue || program.accountSizes.includes(accountSize)) &&
         (riskLevel === allValue || program.riskLevel === riskLevel)
       );
     });
-  }, [accountSize, drawdownType, firm, market, programType, query, riskLevel]);
+  }, [accountSize, drawdownType, evidence, firm, market, monitoring, platform, programType, query, riskLevel]);
 
   const comparedPrograms = comparisonIds
     .map((id) => propFirmRulePrograms.find((program) => program.id === id))
@@ -524,132 +759,66 @@ export default function AccountRules() {
     setFirm(allValue);
     setProgramType(allValue);
     setMarket(allValue);
+    setPlatform(allValue);
     setDrawdownType(allValue);
+    setMonitoring(allValue);
+    setEvidence(allValue);
     setAccountSize(allValue);
     setRiskLevel(allValue);
-  };
-
-  const scrollToFilters = () => {
-    filtersRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const scrollToComparison = () => {
     comparisonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const selectFirm = (selectedFirm: string) => {
-    setFirm(selectedFirm);
-    scrollToFilters();
-  };
-
-  const heroFirmCards = [
-    {
-      firm: 'FTMO',
-      label: 'FTMO',
-      description: 'Forex/CFD • MT4/MT5',
-      risk: 'Daily Loss e Max Loss',
-    },
-    {
-      firm: 'Apex Trader Funding',
-      label: 'Apex',
-      description: 'Futures • Manual reference',
-      risk: 'Trailing Drawdown',
-    },
-    {
-      firm: 'Hantec Trader',
-      label: 'Hantec',
-      description: 'Forex/CFD • MT5',
-      risk: 'Daily Loss, Total Loss e Consistência',
-    },
-  ];
-
-  const heroStats = [
-    { value: String(new Set(propFirmRulePrograms.map((program) => program.firm)).size), label: 'mesas' },
-    { value: String(propFirmRulePrograms.length), label: 'programas' },
-    { value: 'Regras', label: 'críticas' },
-    { value: 'Comparação', label: 'rápida' },
-  ];
+  const advancedFilterCount = [
+    platform,
+    drawdownType,
+    monitoring,
+    evidence,
+    accountSize,
+    riskLevel,
+  ].filter((value) => value !== allValue).length;
 
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-7xl space-y-8 px-4 py-6 sm:px-6 lg:px-8">
-        <section className="relative overflow-hidden rounded-3xl border border-primary/20 bg-slate-950 p-5 shadow-2xl shadow-cyan-950/20 sm:p-7">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(34,211,238,0.18),transparent_32%),radial-gradient(circle_at_80%_10%,rgba(59,130,246,0.16),transparent_30%),linear-gradient(135deg,rgba(15,23,42,0.96),rgba(2,6,23,0.98))]" />
-          <div className="absolute inset-0 opacity-[0.18] [background-image:linear-gradient(rgba(148,163,184,0.22)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.22)_1px,transparent_1px)] [background-size:32px_32px]" />
-
-          <div className="relative grid gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+        <section className="border-b border-border pb-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <span className="inline-flex rounded-full border border-cyan-300/30 bg-cyan-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-100">
-                MVP • Biblioteca informativa
-              </span>
-              <h1 className="mt-5 text-4xl font-bold tracking-tight text-white sm:text-5xl">Escolha sua PropFirm</h1>
-              <p className="mt-3 text-xl font-semibold text-cyan-100">Gerencie o risco da sua conta antes do próximo trade.</p>
-              <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
-                Compare regras, limites de perda, drawdown, consistência e restrições operacionais das principais mesas
-                proprietarias.
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+                Biblioteca informativa
               </p>
-
-              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                <Button type="button" onClick={scrollToFilters} className="bg-cyan-400 text-slate-950 hover:bg-cyan-300">
-                  Ver regras
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={scrollToComparison}
-                  className="border-cyan-300/30 bg-white/5 text-cyan-50 hover:bg-cyan-300/10 hover:text-white"
-                >
-                  Comparar programas
-                </Button>
-              </div>
+              <h1 className="mt-2 text-2xl font-semibold text-foreground sm:text-3xl">
+                Regras de Prop Firms
+              </h1>
+              <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+                Compare os limites que podem reprovar sua conta e abra os detalhes somente quando precisar.
+              </p>
             </div>
-
-            <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-3 shadow-xl shadow-cyan-950/20 backdrop-blur">
-              <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-                {heroFirmCards.map((card) => (
-                  <button
-                    key={card.firm}
-                    type="button"
-                    onClick={() => selectFirm(card.firm)}
-                    className="group rounded-2xl border border-white/10 bg-slate-950/55 p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-cyan-300/40 hover:bg-cyan-300/10 hover:shadow-lg hover:shadow-cyan-950/30"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-lg font-semibold text-white">{card.label}</span>
-                      <span className="h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_18px_rgba(34,211,238,0.8)]" />
-                    </div>
-                    <p className="mt-2 text-sm text-slate-300">{card.description}</p>
-                    <p className="mt-3 rounded-full border border-red-300/20 bg-red-400/10 px-3 py-1 text-xs font-medium text-red-100">
-                      {card.risk}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            </div>
+            <Button type="button" variant="outline" onClick={scrollToComparison}>
+              <ArrowUpDown className="mr-2 h-4 w-4" />
+              Comparar selecionados
+            </Button>
           </div>
-
-          <div className="relative mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {heroStats.map((stat) => (
-              <div key={`${stat.value}-${stat.label}`} className="rounded-2xl border border-white/10 bg-white/[0.05] p-4 backdrop-blur">
-                <p className="text-2xl font-bold text-white">{stat.value}</p>
-                <p className="mt-1 text-xs font-medium uppercase tracking-[0.18em] text-slate-400">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="relative mt-4 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4 text-sm text-amber-50">
-            <div className="flex gap-3">
-              <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0" />
-              <p>As regras podem mudar sem aviso. Confirme sempre os termos oficiais da mesa antes de operar.</p>
-            </div>
+          <div className="mt-4 flex flex-col gap-2 border-l-2 border-amber-300/50 pl-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+            <p>Confirme as regras no site oficial antes de operar.</p>
+            <p>
+              {new Set(propFirmRulePrograms.map((program) => program.firm)).size} mesas ·{' '}
+              {propFirmRulePrograms.length} programas auditados
+            </p>
           </div>
         </section>
 
-        <section ref={filtersRef} className="scroll-mt-6 rounded-xl border border-border bg-card/80 p-5">
-          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <Filter className="h-4 w-4 text-primary" />
-            Filtros da biblioteca
+        <section className="rounded-lg border border-border bg-card/70 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Filter className="h-4 w-4 text-primary" />
+              Buscar regras
+            </div>
+            <p className="text-xs text-muted-foreground">{filteredPrograms.length} programas encontrados</p>
           </div>
-          <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
             <label className="space-y-2 xl:col-span-2">
               <span className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Buscar</span>
               <div className="relative">
@@ -665,13 +834,29 @@ export default function AccountRules() {
             <SelectFilter label="Mesa" value={firm} options={propFirmFilterOptions.firms} onChange={setFirm} />
             <SelectFilter label="Tipo" value={programType} options={propFirmFilterOptions.programTypes} onChange={setProgramType} />
             <SelectFilter label="Mercado" value={market} options={propFirmFilterOptions.markets} onChange={setMarket} />
-            <SelectFilter label="Drawdown" value={drawdownType} options={propFirmFilterOptions.drawdownTypes} onChange={setDrawdownType} />
-            <SelectFilter label="Tamanho" value={accountSize} options={accountSizeOptions} onChange={setAccountSize} />
-            <SelectFilter label="Risco" value={riskLevel} options={propFirmFilterOptions.riskLevels} onChange={setRiskLevel} />
           </div>
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-muted-foreground">{filteredPrograms.length} programas encontrados</p>
-            <Button type="button" variant="ghost" onClick={resetFilters}>
+          {showAdvancedFilters && (
+            <div className="mt-4 grid gap-3 border-t border-border pt-4 md:grid-cols-2 xl:grid-cols-3">
+              <SelectFilter label="Plataforma" value={platform} options={platformOptions} onChange={setPlatform} />
+              <SelectFilter label="Drawdown" value={drawdownType} options={propFirmFilterOptions.drawdownTypes} onChange={setDrawdownType} />
+              <SelectFilter label="Monitoramento" value={monitoring} options={monitoringOptions} onChange={setMonitoring} />
+              <SelectFilter label="Confiança / completude" value={evidence} options={evidenceOptions} onChange={setEvidence} />
+              <SelectFilter label="Tamanho" value={accountSize} options={accountSizeOptions} onChange={setAccountSize} />
+              <SelectFilter label="Risco" value={riskLevel} options={propFirmFilterOptions.riskLevels} onChange={setRiskLevel} />
+            </div>
+          )}
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setShowAdvancedFilters((current) => !current)}
+              aria-expanded={showAdvancedFilters}
+              className="px-0 hover:bg-transparent"
+            >
+              Filtros avançados{advancedFilterCount > 0 ? ` (${advancedFilterCount})` : ''}
+              <ChevronDown className={`ml-2 h-4 w-4 transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`} />
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={resetFilters}>
               Limpar filtros
             </Button>
           </div>
@@ -682,7 +867,7 @@ export default function AccountRules() {
         </div>
 
         {filteredPrograms.length > 0 ? (
-          <section className="grid gap-4 lg:grid-cols-2">
+          <section data-testid="rules-program-grid" className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
             {filteredPrograms.map((program) => (
               <ProgramCard
                 key={program.id}
@@ -695,70 +880,12 @@ export default function AccountRules() {
             ))}
           </section>
         ) : (
-          <section className="rounded-xl border border-dashed border-border bg-card/60 p-8 text-center">
+          <section className="rounded-lg border border-dashed border-border bg-card/60 p-8 text-center">
             <BookOpen className="mx-auto h-8 w-8 text-muted-foreground" />
             <h2 className="mt-3 text-lg font-semibold text-foreground">Nenhuma regra encontrada</h2>
             <p className="mt-2 text-sm text-muted-foreground">Nenhuma regra encontrada para os filtros selecionados.</p>
           </section>
         )}
-
-        <section className="grid gap-4 lg:grid-cols-3">
-          {[
-            {
-              title: 'Drawdown e perda diaria',
-              text: 'A maioria das reprovas acontece quando o trader olha apenas saldo fechado e ignora posicoes abertas.',
-            },
-            {
-              title: 'Consistencia e saque',
-              text: 'Programas com regra de consistencia podem bloquear payout mesmo quando a conta esta lucrativa.',
-            },
-            {
-              title: 'Noticias e fim de semana',
-              text: 'Regras operacionais variam por programa. Abrir, fechar ou segurar posicoes no horario errado pode reprovar.',
-            },
-          ].map((item) => (
-            <article key={item.title} className="rounded-xl border border-red-400/20 bg-red-400/10 p-5">
-              <ShieldAlert className="h-5 w-5 text-red-300" />
-              <h2 className="mt-3 font-semibold text-red-100">{item.title}</h2>
-              <p className="mt-2 text-sm text-red-100/80">{item.text}</p>
-            </article>
-          ))}
-        </section>
-
-        <section className="rounded-xl border border-primary/20 bg-primary/10 p-5">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <Info className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-semibold text-foreground">Como o Fortify le isso</h2>
-              </div>
-              <p className="mt-3 max-w-3xl text-sm text-muted-foreground">
-                O Fortify transforma limites como perda diaria, perda maxima, trailing drawdown, consistencia e regras
-                operacionais em alertas de risco. A biblioteca ajuda voce a entender o contrato; as protecoes reais devem
-                ser configuradas na conta MT5 monitorada.
-              </p>
-            </div>
-            <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-3 md:min-w-[420px]">
-              <InfoPill>Alertas antes da violacao</InfoPill>
-              <InfoPill>Leitura por conta</InfoPill>
-              <InfoPill>Foco em prop firms</InfoPill>
-            </div>
-          </div>
-        </section>
-
-        <section className="rounded-xl border border-border bg-card/80 p-5">
-          <h2 className="text-lg font-semibold text-foreground">Fontes oficiais</h2>
-          <div className="mt-4 flex flex-wrap gap-3">
-            {Object.entries(sourceByFirm).map(([label, url]) => (
-              <Button key={label} asChild variant="outline">
-                <a href={url} target="_blank" rel="noopener noreferrer">
-                  {label}
-                  <ExternalLink className="ml-2 h-4 w-4" />
-                </a>
-              </Button>
-            ))}
-          </div>
-        </section>
       </div>
 
       <DetailsDrawer program={detailsProgram} onClose={() => setDetailsProgram(null)} />

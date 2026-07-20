@@ -35,7 +35,7 @@ describe('AccountRules', () => {
   it('opens audited details and exposes the official conflict resolution', () => {
     render(<AccountRules />);
 
-    fireEvent.click(programCard('Standard - MT5').getByRole('button', { name: 'Ver detalhes' }));
+    fireEvent.click(programCard('Standard - MT5').getByRole('button', { name: 'Ver regras' }));
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.getByText('Conflitos de fonte registrados')).toBeInTheDocument();
@@ -89,24 +89,81 @@ describe('AccountRules', () => {
     fireEvent.change(searchInput, {
       target: { value: '' },
     });
-    fireEvent.click(programCard('FTMO Challenge 2-Step').getByRole('button', { name: 'Ver detalhes' }));
+    fireEvent.click(programCard('FTMO Challenge 2-Step').getByRole('button', { name: 'Ver regras' }));
 
     const dialog = within(screen.getByRole('dialog'));
+    fireEvent.click(dialog.getByRole('button', { name: 'Contas e fases' }));
     expect(dialog.getByText('$200K')).toBeInTheDocument();
     expect(dialog.getAllByText(/Fase 1: 10%/).length).toBeGreaterThan(0);
+  });
+
+  it('keeps cards concise and reveals secondary rules on demand', () => {
+    render(<AccountRules />);
+
+    const card = programCard('FTMO Challenge 2-Step');
+
+    expect(card.getByText('Meta')).toBeInTheDocument();
+    expect(card.getByText('Daily Loss')).toBeInTheDocument();
+    expect(card.getByText('Max Loss')).toBeInTheDocument();
+    expect(card.getByText('Pode reprovar por')).toBeInTheDocument();
+    expect(card.getByText('Monitoramento Fortify')).toBeInTheDocument();
+    expect(card.getByRole('button', { name: 'Ver regras' })).toBeInTheDocument();
+    expect(card.queryByText('Melhor para')).not.toBeInTheDocument();
+    expect(screen.queryByText('-')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filtros avançados' }));
+
+    expect(screen.getByLabelText('Plataforma')).toBeInTheDocument();
+    expect(screen.getByLabelText('Drawdown')).toBeInTheDocument();
+    expect(screen.getByLabelText('Monitoramento')).toBeInTheDocument();
+    expect(screen.getByLabelText('Confiança / completude')).toBeInTheDocument();
+    expect(screen.getByLabelText('Tamanho')).toBeInTheDocument();
+    expect(screen.getByLabelText('Risco')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Plataforma'), { target: { value: 'BlackArrow' } });
+    expect(screen.getByRole('heading', { name: 'Standard - BlackArrow' })).toBeInTheDocument();
+  });
+
+  it('organizes the detail drawer into progressive sections', () => {
+    render(<AccountRules />);
+
+    fireEvent.click(programCard('FTMO Challenge 2-Step').getByRole('button', { name: 'Ver regras' }));
+
+    const dialog = within(screen.getByRole('dialog'));
+    expect(dialog.getByRole('button', { name: 'Resumo' })).toHaveAttribute('aria-expanded', 'true');
+    expect(dialog.getByRole('button', { name: 'Regras críticas' })).toHaveAttribute('aria-expanded', 'true');
+    expect(dialog.getByRole('button', { name: 'Contas e fases' })).toHaveAttribute('aria-expanded', 'false');
+    expect(dialog.getByRole('button', { name: 'Monitoramento Fortify' })).toHaveAttribute('aria-expanded', 'true');
+    expect(dialog.getByRole('button', { name: 'Payout e operação' })).toHaveAttribute('aria-expanded', 'false');
+    expect(dialog.getByRole('button', { name: 'Fontes oficiais' })).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.click(dialog.getByRole('button', { name: 'Payout e operação' }));
+    expect(dialog.getByText('KYC')).toBeInTheDocument();
   });
 
   it('marks unavailable firms as non-operational and excludes them from comparison', () => {
     render(<AccountRules />);
 
-    const unavailableCard = programCard('Operação encerrada - catálogo indisponível');
+    fireEvent.change(screen.getByLabelText('Mesa'), { target: { value: 'MyFundedFX' } });
+    let unavailableCard = programCard('Operação encerrada - catálogo indisponível');
 
     expect(unavailableCard.getByText('Indisponível')).toBeInTheDocument();
     expect(unavailableCard.getByRole('button', { name: 'Não operacional' })).toBeDisabled();
 
     fireEvent.click(unavailableCard.getByRole('button', { name: 'Ver status' }));
 
-    const dialog = within(screen.getByRole('dialog'));
-    expect(dialog.getAllByText('Não aplicável').length).toBeGreaterThan(0);
+    let dialog = within(screen.getByRole('dialog'));
+    expect(dialog.getAllByText(/Indisponível/).length).toBeGreaterThan(0);
+
+    fireEvent.click(dialog.getByRole('button', { name: 'Fechar detalhes' }));
+    fireEvent.change(screen.getByLabelText('Mesa'), { target: { value: 'Fundscap' } });
+    unavailableCard = programCard('Programas prop - catálogo público indisponível');
+
+    expect(unavailableCard.getByText('Indisponível')).toBeInTheDocument();
+    expect(unavailableCard.getByRole('button', { name: 'Não operacional' })).toBeDisabled();
+
+    fireEvent.click(unavailableCard.getByRole('button', { name: 'Ver status' }));
+    dialog = within(screen.getByRole('dialog'));
+    expect(dialog.getAllByText(/Indisponível/).length).toBeGreaterThan(0);
   });
 });
