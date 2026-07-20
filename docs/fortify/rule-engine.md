@@ -253,6 +253,53 @@ Fornecer ou autorizar uma conta demo já existente que tenha:
 
 Com esses dados, a próxima validação pode salvar `account_rule_bindings`, conferir snapshot/hash e abrir o painel automático sem inventar regra ou credencial.
 
+## Modo Demo Seguro — Sprint 10
+
+A rota protegida `/rules/demo` demonstra o motor operacional sem depender de
+conta, credencial, conexão ou deploy MetaApi. Ela também não cria nem altera
+registros no Supabase.
+
+Toda a tela identifica explicitamente:
+
+- `Modo demonstração`;
+- `Dados simulados`;
+- `Não representa conexão MT5 real`;
+- `Ambiente de demonstração interna`.
+
+Os snapshots são montados localmente a partir do dataset oficial já auditado. A
+conta CFD usa o FTMO Challenge 2-Step com tamanho e versão existentes no
+catálogo. O cenário Futures usa NP Future/BlackArrow apenas para provar que o
+motor bloqueia cálculo automático MT5 em uma plataforma não integrada.
+
+### Cenários disponíveis
+
+1. conta segura;
+2. conta em atenção;
+3. conta crítica;
+4. conta violada;
+5. profit target quase atingido;
+6. profit target atingido;
+7. histórico diário insuficiente;
+8. regra manual;
+9. regra ainda não suportada;
+10. Futures/BlackArrow sem cálculo MT5.
+
+Cada cenário passa pelo mesmo `evaluateBoundAccountRules` usado pela conta
+vinculada. A tela reutiliza `BoundRuleEvaluationCard`, mostra fontes oficiais e
+uma assinatura local prefixada por `demo-fnv1a64:`. Essa assinatura identifica
+o snapshot da demonstração; não representa um registro persistido.
+
+Para validação interna ou apresentação comercial:
+
+1. autenticar no ambiente local;
+2. abrir `/rules/demo`;
+3. alternar o seletor de cenário;
+4. conferir status geral, perda diária, drawdown, meta, regras manuais,
+   regras não suportadas, fontes e assinatura;
+5. manter visível o aviso de dados simulados.
+
+Não há botões de conexão, operação, compra ou persistência nessa rota.
+
 ## Legado
 
 O catálogo UUID (`rule_set_versions`, `rule_instances`, `rule_evaluations`) continua visível para compatibilidade, agora rotulado como configuração legada. Ele não substitui o snapshot versionado.

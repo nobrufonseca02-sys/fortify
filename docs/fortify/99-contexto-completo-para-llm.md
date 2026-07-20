@@ -133,6 +133,16 @@ RLS isola usuários. A service role existe somente no gateway, que ainda deve ve
 7. Buscar secrets no diff staged.
 8. Stage somente do escopo e commit apenas quando autorizado.
 
+## Modo demo seguro do motor
+
+- A rota interna e protegida `/rules/demo` usa fixtures locais derivadas do
+  dataset oficial para demonstrar dez estados do motor.
+- O modo não usa MetaApi, não conecta MT5 e não persiste registros no Supabase.
+- A tela identifica `Modo demonstração`, `Dados simulados` e a ausência de
+  conexão MT5 real.
+- FTMO 2-Step demonstra os cenários CFD/MT5; NP Future/BlackArrow demonstra o
+  bloqueio conservador de cálculo automático em plataforma não integrada.
+
 ## Relatório final padrão
 
 ```text

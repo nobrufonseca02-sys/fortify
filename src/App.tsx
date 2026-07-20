@@ -26,6 +26,7 @@ import AccountHistory from "./pages/AccountHistory";
 import MT5Connections from "./pages/MT5Connections";
 import MT5Dashboard from "./pages/MT5Dashboard";
 import RiskCalculator from "./pages/RiskCalculator";
+import RuleEngineDemo from "./pages/RuleEngineDemo";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -142,6 +143,7 @@ function ProtectedRoutes() {
         <Route path="/accounts/:accountId/rules" element={<AccountRuleManagement />} />
         <Route path="/performance" element={<Performance />} />
         <Route path="/rules" element={<AccountRules />} />
+        <Route path="/rules/demo" element={<RuleEngineDemo />} />
         <Route path="/rules/manage" element={<RuleManager />} />
         <Route path="/library" element={<PropFirmLibrary />} />
         <Route path="/history" element={<AccountHistory />} />
