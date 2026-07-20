@@ -41,12 +41,39 @@ describe('PropFirmLibrary', () => {
   it('searches firms without mixing the operational account workflow', () => {
     renderLibrary();
 
-    fireEvent.change(screen.getByLabelText('Buscar mesa proprietária'), {
+    fireEvent.change(screen.getByLabelText('Buscar mesa, programa, conta ou regra'), {
       target: { value: 'Topstep' },
     });
 
     expect(screen.getByTestId('firm-Topstep')).toBeInTheDocument();
     expect(screen.queryByTestId('firm-FTMO')).not.toBeInTheDocument();
+  });
+
+  it('searches by program, platform, account size and risk rule', () => {
+    renderLibrary();
+    const search = screen.getByLabelText('Buscar mesa, programa, conta ou regra');
+
+    fireEvent.change(search, { target: { value: 'FTMO Challenge 2-Step' } });
+    expect(screen.getByTestId('firm-FTMO')).toBeInTheDocument();
+
+    fireEvent.change(search, { target: { value: 'US$ 200 mil' } });
+    expect(screen.getByTestId('firm-FTMO')).toBeInTheDocument();
+
+    fireEvent.change(search, { target: { value: 'MT5' } });
+    expect(screen.getAllByText('Operacional').length).toBeGreaterThan(0);
+
+    fireEvent.change(search, { target: { value: 'daily loss' } });
+    expect(screen.getByTestId('firm-FTMO')).toBeInTheDocument();
+  });
+
+  it('exposes all canonical firms and separates unavailable coverage', () => {
+    renderLibrary();
+
+    expect(screen.getByText('Mesas operacionais')).toBeInTheDocument();
+    expect(screen.getByText('Cobertura histórica ou indisponível')).toBeInTheDocument();
+    expect(screen.getAllByTestId(/^firm-/)).toHaveLength(16);
+    expect(screen.getByTestId('firm-Fundscap')).toHaveTextContent('Indisponível');
+    expect(screen.getByTestId('firm-MyFundedFX')).toHaveTextContent('Indisponível');
   });
 
   it('keeps unavailable firms outside the operational account catalog', () => {
@@ -57,5 +84,16 @@ describe('PropFirmLibrary', () => {
     expect(screen.getByRole('heading', { name: 'Regras operacionais indisponíveis' })).toBeInTheDocument();
     expect(screen.getByLabelText('Conta oferecida')).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Cadastrar conta' })).not.toBeInTheDocument();
+  });
+
+  it('shows program context and the critical account rules', () => {
+    renderLibrary();
+    fireEvent.click(screen.getByTestId('firm-FTMO'));
+
+    expect(screen.getByTestId('program-summary')).toHaveTextContent('Principal risco');
+    expect(screen.getByTestId('program-summary')).toHaveTextContent('Plataformas');
+    expect(screen.getAllByText('Alavancagem').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Principal risco').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Cadastrar conta' })).toBeInTheDocument();
   });
 });

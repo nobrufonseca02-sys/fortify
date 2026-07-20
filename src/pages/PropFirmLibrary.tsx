@@ -39,13 +39,23 @@ const completenessLabel = {
   legacy: 'Dados legados',
 };
 
+type FirmStatus = 'operational' | 'unavailable' | 'legacy';
+
+const firmStatusLabel: Record<FirmStatus, string> = {
+  operational: 'Operacional',
+  unavailable: 'Indisponível',
+  legacy: 'Legado',
+};
+
 function cleanValue(value?: string | null) {
   const normalized = value?.trim();
   if (!normalized || ['-', '--', 'n/a', 'na', 'tbd', 'undefined', 'null'].includes(normalized.toLowerCase())) {
     return 'Verificar no site oficial';
   }
   return normalized
-    .replace(/Indisponível em fonte oficial vigente/gi, 'Indisponível na fonte oficial atual')
+    .replace(/Indisponível em fonte oficial vigente/gi, 'Não público')
+    .replace(/Não informado publicamente/gi, 'Não público')
+    .replace(/Confirmar no termo oficial/gi, 'Verificar no site oficial')
     .replace(/(?:US)?\$\s*/gi, 'US$ ');
 }
 
@@ -70,6 +80,64 @@ function firmPrograms(firm: PropFirmName | null) {
 function accountRules(program?: PropFirmRuleProgram) {
   if (!program || program.evidenceStatus === 'official_source_unavailable') return [];
   return program.accountLevelRules ?? [];
+}
+
+function getFirmStatus(programs: PropFirmRuleProgram[]): FirmStatus {
+  if (programs.some((program) => accountRules(program).length > 0)) return 'operational';
+  if (programs.some((program) => program.evidenceStatus === 'official_source_unavailable')) return 'unavailable';
+  return 'legacy';
+}
+
+function getFirmPlatforms(programs: PropFirmRuleProgram[]) {
+  return Array.from(
+    new Set(
+      programs.flatMap((program) => [
+        ...program.platforms,
+        ...accountRules(program).flatMap((account) => account.platforms),
+      ]),
+    ),
+  ).filter(Boolean);
+}
+
+function normalizedSearch(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pt-BR');
+}
+
+function matchesLibraryQuery(programs: PropFirmRuleProgram[], query: string) {
+  const normalizedQuery = normalizedSearch(query.trim());
+  if (!normalizedQuery) return true;
+
+  const searchableText = programs.flatMap((program) => [
+    program.firm,
+    program.programName,
+    program.programType,
+    program.market,
+    program.platforms.join(' '),
+    program.dailyLoss,
+    program.maxLoss,
+    program.drawdownType,
+    program.trailingDescription,
+    program.mainRisk,
+    'daily loss perda diária max loss perda máxima drawdown plataforma mercado conta tamanho',
+    ...accountRules(program).flatMap((account) => [
+      account.label,
+      formatAccountLabel(account.label),
+      account.initialBalance,
+      account.market,
+      account.programType,
+      account.platforms.join(' '),
+      account.dailyLoss,
+      account.maxLoss,
+      account.drawdownType,
+      account.drawdownCalculation,
+      account.leverage,
+    ]),
+  ]).join(' ');
+
+  return normalizedSearch(searchableText).includes(normalizedQuery);
 }
 
 function phaseSummary(account: RuleAccountSize) {
@@ -99,8 +167,10 @@ function FirmCard({
 }) {
   const availablePrograms = programs.filter((program) => accountRules(program).length > 0);
   const accounts = availablePrograms.reduce((total, program) => total + accountRules(program).length, 0);
-  const available = accounts > 0;
+  const status = getFirmStatus(programs);
+  const available = status === 'operational';
   const markets = Array.from(new Set(programs.map((program) => program.market))).join(' · ');
+  const platforms = getFirmPlatforms(programs);
 
   return (
     <button
@@ -118,6 +188,9 @@ function FirmCard({
       <div className="mt-4">
         <h2 className="text-sm font-semibold text-foreground">{name}</h2>
         <p className="mt-1 text-xs text-muted-foreground">{markets}</p>
+        <p className="mt-1 truncate text-[11px] text-muted-foreground">
+          {platforms.length ? platforms.map((platform) => cleanValue(platform)).join(' · ') : 'Plataforma não pública'}
+        </p>
         <div className="mt-3 flex items-center justify-between gap-3 text-[11px]">
           <span className={available ? 'text-foreground' : 'text-amber-300'}>
             {available
@@ -125,11 +198,52 @@ function FirmCard({
               : 'Catálogo não operacional'}
           </span>
           <span className={available ? 'text-emerald-300' : 'text-muted-foreground'}>
-            {available ? 'Auditada' : 'Consultar status'}
+            {firmStatusLabel[status]}
           </span>
         </div>
       </div>
     </button>
+  );
+}
+
+function ProgramSummary({ program, accountCount }: { program: PropFirmRuleProgram; accountCount: number }) {
+  const confidence = program.confidence ?? program.accountLevelRules?.[0]?.confidence;
+  const completeness = program.dataCompleteness ?? program.completeness ?? program.accountLevelRules?.[0]?.dataCompleteness;
+
+  return (
+    <section className="border-t border-border p-4" data-testid="program-summary">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Programa selecionado</p>
+      <h3 className="mt-1 text-sm font-semibold text-foreground">{program.programName}</h3>
+      <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-[11px]">
+        <div>
+          <dt className="text-muted-foreground">Tipo</dt>
+          <dd className="mt-0.5 text-foreground">{program.programType}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Mercado</dt>
+          <dd className="mt-0.5 text-foreground">{program.market}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Plataformas</dt>
+          <dd className="mt-0.5 text-foreground">
+            {program.platforms.length ? program.platforms.map((platform) => cleanValue(platform)).join(', ') : 'Não público'}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Contas</dt>
+          <dd className="mt-0.5 text-foreground">{countLabel(accountCount, 'tamanho', 'tamanhos')}</dd>
+        </div>
+      </dl>
+      <div className="mt-3 border-t border-border/70 pt-3">
+        <p className="text-[10px] text-muted-foreground">Principal risco</p>
+        <p className="mt-1 text-xs leading-5 text-amber-100">{cleanValue(program.mainRisk)}</p>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
+        {confidence && <span>{confidenceLabel[confidence]}</span>}
+        {completeness && <span>{completenessLabel[completeness]}</span>}
+        <span>Revisão {program.lastReviewedAt}</span>
+      </div>
+    </section>
   );
 }
 
@@ -220,6 +334,7 @@ function RulesView({
 
       <div className="grid lg:grid-cols-2 lg:divide-x lg:divide-border">
         <RuleSection title="Regras para não reprovar">
+          <RuleRow label="Principal risco" value={program.mainRisk} warning />
           <RuleRow label="Consistência" value={account.consistencyRule} warning />
           <RuleRow label="Melhor dia" value={account.bestDayRule} />
           <RuleRow label="Notícias" value={account.newsRule} warning />
@@ -231,6 +346,7 @@ function RulesView({
           <RuleRow label="Dias mínimos" value={account.minTradingDays} />
           <RuleRow label="Dias máximos" value={account.maxTradingDays} />
           <RuleRow label="Contratos / lotes" value={executionLimit(account)} />
+          <RuleRow label="Alavancagem" value={account.leverage} />
           <RuleRow label="Overnight" value={account.overnightRule} />
         </RuleSection>
       </div>
@@ -330,9 +446,12 @@ export default function PropFirmLibrary() {
     () =>
       propFirmFilterOptions.firms
         .map((name) => ({ name, programs: firmPrograms(name) }))
-        .filter(({ name }) => name.toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR'))),
+        .filter(({ programs }) => matchesLibraryQuery(programs, query)),
     [query],
   );
+
+  const operationalFirms = firms.filter(({ programs: firmRulePrograms }) => getFirmStatus(firmRulePrograms) === 'operational');
+  const coverageFirms = firms.filter(({ programs: firmRulePrograms }) => getFirmStatus(firmRulePrograms) !== 'operational');
 
   const programs = firmPrograms(selectedFirm);
   const selectedProgram = programs.find((program) => program.id === selectedProgramId) ?? programs[0];
@@ -390,19 +509,47 @@ export default function PropFirmLibrary() {
               <Input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Buscar mesa proprietária"
-                aria-label="Buscar mesa proprietária"
+                placeholder="Buscar mesa, programa, conta ou regra"
+                aria-label="Buscar mesa, programa, conta ou regra"
                 className="pl-9"
               />
             </div>
           </section>
 
           {firms.length ? (
-            <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {firms.map(({ name, programs: firmRulePrograms }) => (
-                <FirmCard key={name} name={name} programs={firmRulePrograms} onSelect={() => chooseFirm(name)} />
-              ))}
-            </section>
+            <div className="space-y-6">
+              {operationalFirms.length > 0 && (
+                <section aria-labelledby="operational-firms-title">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <h2 id="operational-firms-title" className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                      Mesas operacionais
+                    </h2>
+                    <span className="text-xs text-muted-foreground">{operationalFirms.length} disponíveis</span>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {operationalFirms.map(({ name, programs: firmRulePrograms }) => (
+                      <FirmCard key={name} name={name} programs={firmRulePrograms} onSelect={() => chooseFirm(name)} />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {coverageFirms.length > 0 && (
+                <section aria-labelledby="coverage-firms-title" className="border-t border-border pt-5">
+                  <div className="mb-3">
+                    <h2 id="coverage-firms-title" className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                      Cobertura histórica ou indisponível
+                    </h2>
+                    <p className="mt-1 text-xs text-muted-foreground">Consulta de status sem oferta operacional no Fortify.</p>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {coverageFirms.map(({ name, programs: firmRulePrograms }) => (
+                      <FirmCard key={name} name={name} programs={firmRulePrograms} onSelect={() => chooseFirm(name)} />
+                    ))}
+                  </div>
+                </section>
+              )}
+            </div>
           ) : (
             <section className="rounded-lg border border-dashed border-border p-8 text-center">
               <Building2 className="mx-auto h-8 w-8 text-muted-foreground" />
@@ -476,6 +623,8 @@ export default function PropFirmLibrary() {
                 </select>
               </label>
             </div>
+
+            {selectedProgram && <ProgramSummary program={selectedProgram} accountCount={accounts.length} />}
 
             {accounts.length > 0 && (
               <div className="border-t border-border p-2" data-testid="account-options">
