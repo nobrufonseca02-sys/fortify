@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildAccountRuleBindingInsert,
   buildRuleSnapshot,
   emptyRuleBindingDraft,
   getAccountRuleBindingStatus,
@@ -25,6 +26,23 @@ function firstMt5Draft(): RuleBindingDraft {
     accountSizeId: accountSize.id,
     platform,
     ruleVersionId: version.id,
+    manualRuleAcknowledgement: true,
+  };
+}
+
+function ftmo100kDraft(): RuleBindingDraft {
+  const program = getOperationalRulePrograms('MT5').find(
+    (item) => item.firmSlug === 'ftmo' && item.programType === '2-Step',
+  )!;
+  const accountSize = program.accountLevelRules.find((account) => account.label === '$100K')!;
+  const platform = accountSize.platforms.find((item) => item === 'MT5')!;
+
+  return {
+    propFirmSlug: program.firmSlug,
+    programSlug: program.programSlug,
+    accountSizeId: accountSize.id,
+    platform,
+    ruleVersionId: accountSize.versions[0].id,
     manualRuleAcknowledgement: true,
   };
 }
@@ -84,6 +102,33 @@ describe('versioned account rule binding', () => {
     expect(firstHash).toBe(secondHash);
     expect(firstHash).not.toBe(changedHash);
     expect(firstHash).toMatch(/^(sha256|fnv1a64):[a-f0-9]+$/);
+  });
+
+  it('builds the persisted FTMO binding payload without provisioning MetaApi', async () => {
+    const draft = ftmo100kDraft();
+    const prepared = await prepareRuleBinding(draft);
+    const payload = buildAccountRuleBindingInsert(
+      {
+        userId: '00000000-0000-4000-8000-000000000001',
+        tradingAccountId: '00000000-0000-4000-8000-000000000002',
+        mt5ConnectionId: null,
+        draft,
+      },
+      prepared,
+    );
+
+    expect(payload.trading_account_id).toBe('00000000-0000-4000-8000-000000000002');
+    expect(payload.prop_firm_slug).toBe('ftmo');
+    expect(payload.program_slug).toBe(draft.programSlug);
+    expect(payload.account_size_id).toBe(draft.accountSizeId);
+    expect(payload.platform).toBe('MT5');
+    expect(payload.rule_version_id).toBe(draft.ruleVersionId);
+    expect(payload.rule_snapshot.accountSize.initialBalance).toBe('$100K');
+    expect(payload.rule_snapshot.accountSize.currency).toBe('USD');
+    expect(payload.rule_snapshot_hash).toMatch(/^(sha256|fnv1a64):[a-f0-9]+$/);
+    expect(payload.manual_rule_acknowledgement).toBe(true);
+    expect(payload.manual_rules_status).toBe('acknowledged');
+    expect(payload.binding_status).toBe('active');
   });
 
   it('enables automatic monitoring only for compatible MT5 rules', async () => {

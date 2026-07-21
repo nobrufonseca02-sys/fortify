@@ -1,12 +1,11 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import {
-  accountCurrencyValue,
   initialBalanceValue,
   LibraryRuleSelectionNotice,
   parseLibraryRuleSelection,
 } from '../pages/CreateAccount';
-import { getOperationalRulePrograms } from '../lib/ruleBinding';
+import { accountCurrencyValue, getOperationalRulePrograms } from '../lib/ruleBinding';
 
 function validSelection() {
   const program = getOperationalRulePrograms().find((item) => item.firmSlug === 'ftmo')!;

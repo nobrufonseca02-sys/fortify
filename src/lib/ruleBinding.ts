@@ -157,6 +157,16 @@ export function platformMatchesConstraint(platform: string, constraint?: string)
   return normalizedPlatform(platform).includes(normalizedPlatform(constraint));
 }
 
+export function accountCurrencyValue(initialBalance: string, fallbackCurrency: string) {
+  if (/R\$/i.test(initialBalance)) return 'BRL';
+  if (/US\$|\$/i.test(initialBalance)) return 'USD';
+  if (/€/i.test(initialBalance)) return 'EUR';
+  if (/£/i.test(initialBalance)) return 'GBP';
+
+  const supportedCurrencies = new Set(['USD', 'EUR', 'GBP', 'BRL']);
+  return supportedCurrencies.has(fallbackCurrency) ? fallbackCurrency : 'USD';
+}
+
 export function getOperationalRulePrograms(platformConstraint?: string) {
   return propFirmRulePrograms.filter((program): program is AccountLevelPropFirmRuleProgram => {
     if (program.evidenceStatus === 'official_source_unavailable') return false;
@@ -225,7 +235,7 @@ export function buildRuleSnapshot(draft: RuleBindingDraft): RuleBindingSnapshot 
       id: accountSize.id,
       label: accountSize.label,
       initialBalance: accountSize.initialBalance,
-      currency: accountSize.currency,
+      currency: accountCurrencyValue(accountSize.initialBalance, accountSize.currency),
     },
     platform: draft.platform,
     version: {
@@ -356,26 +366,10 @@ export async function saveAccountRuleBinding(input: {
   }
 
   const prepared = await prepareRuleBinding(input.draft);
+  const insertPayload = buildAccountRuleBindingInsert(input, prepared);
   const { data, error } = await (supabase
     .from('account_rule_bindings' as any)
-    .insert({
-      user_id: input.userId,
-      trading_account_id: input.tradingAccountId ?? null,
-      mt5_connection_id: input.mt5ConnectionId ?? null,
-      prop_firm_slug: prepared.resolved.program.firmSlug,
-      program_slug: prepared.resolved.program.programSlug,
-      account_size_id: prepared.resolved.accountSize.id,
-      platform: input.draft.platform,
-      rule_version_id: prepared.resolved.version.id,
-      rule_profile_id: prepared.ruleProfileId,
-      rules_last_reviewed_at: prepared.resolved.accountSize.lastReviewedAt,
-      rule_snapshot: prepared.snapshot,
-      rule_snapshot_hash: prepared.snapshotHash,
-      automatic_monitoring_enabled: prepared.automaticMonitoringEnabled,
-      manual_rule_acknowledgement: true,
-      manual_rules_status: 'acknowledged',
-      binding_status: 'active',
-    })
+    .insert(insertPayload)
     .select('*')
     .single() as any);
 
@@ -384,6 +378,35 @@ export async function saveAccountRuleBinding(input: {
   }
 
   return data as AccountRuleBindingRow;
+}
+
+export function buildAccountRuleBindingInsert(
+  input: {
+    userId: string;
+    tradingAccountId?: string | null;
+    mt5ConnectionId?: string | null;
+    draft: RuleBindingDraft;
+  },
+  prepared: PreparedRuleBinding,
+) {
+  return {
+    user_id: input.userId,
+    trading_account_id: input.tradingAccountId ?? null,
+    mt5_connection_id: input.mt5ConnectionId ?? null,
+    prop_firm_slug: prepared.resolved.program.firmSlug,
+    program_slug: prepared.resolved.program.programSlug,
+    account_size_id: prepared.resolved.accountSize.id,
+    platform: input.draft.platform,
+    rule_version_id: prepared.resolved.version.id,
+    rule_profile_id: prepared.ruleProfileId,
+    rules_last_reviewed_at: prepared.resolved.accountSize.lastReviewedAt,
+    rule_snapshot: prepared.snapshot,
+    rule_snapshot_hash: prepared.snapshotHash,
+    automatic_monitoring_enabled: prepared.automaticMonitoringEnabled,
+    manual_rule_acknowledgement: true,
+    manual_rules_status: 'acknowledged' as const,
+    binding_status: 'active' as const,
+  };
 }
 
 export async function fetchActiveRuleBinding(input: {

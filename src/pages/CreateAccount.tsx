@@ -27,6 +27,7 @@ import {
   type RuleBindingInitialSelection,
 } from '@/components/rules/RuleBindingSelector';
 import {
+  accountCurrencyValue,
   emptyRuleBindingDraft,
   isRuleBindingDraftComplete,
   resolveRuleBinding,
@@ -170,16 +171,6 @@ export function initialBalanceValue(value: string) {
   return Number.isFinite(normalizedAmount) && normalizedAmount > 0
     ? String(normalizedAmount)
     : '100000';
-}
-
-export function accountCurrencyValue(initialBalance: string, fallbackCurrency: string) {
-  if (/R\$/i.test(initialBalance)) return 'BRL';
-  if (/US\$|\$/i.test(initialBalance)) return 'USD';
-  if (/€/i.test(initialBalance)) return 'EUR';
-  if (/£/i.test(initialBalance)) return 'GBP';
-
-  const supportedCurrencies = new Set(['USD', 'EUR', 'GBP', 'BRL']);
-  return supportedCurrencies.has(fallbackCurrency) ? fallbackCurrency : 'USD';
 }
 
 function templateRulesFromBinding(binding?: ResolvedRuleBinding): TemplateRule[] {
@@ -548,6 +539,7 @@ const CreateAccount = () => {
             mt5_login: insertPayload.mt5Login,
             account_type: insertPayload.accountType,
             prop_firm: insertPayload.propFirm,
+            base_currency: currency,
             start_balance: insertPayload.startBalance,
             rule_set_id: programData?.version?.id || null,
             program: resolvedBinding.program.programName,
