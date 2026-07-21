@@ -22,12 +22,16 @@ import { BetaResponsibilityNotice } from '@/components/BetaReadinessChecklist';
 import { getConnectErrorMessage } from '@/lib/betaReadiness';
 import { gatewayJsonHeaders } from '@/lib/gateway';
 import { useSubscriptionPlan } from '@/hooks/useSubscriptionPlan';
-import { RuleBindingSelector } from '@/components/rules/RuleBindingSelector';
+import {
+  RuleBindingSelector,
+  type RuleBindingInitialSelection,
+} from '@/components/rules/RuleBindingSelector';
 import {
   emptyRuleBindingDraft,
   isRuleBindingDraftComplete,
   resolveRuleBinding,
   saveAccountRuleBinding,
+  type ResolvedRuleBinding,
   type RuleBindingDraft,
 } from '@/lib/ruleBinding';
 
@@ -112,6 +116,140 @@ const getSupabaseAnonKey = () =>
   (import.meta as any)?.env?.VITE_PUBLIC_SUPABASE_ANON_KEY ||
   (window as any)?.__SUPABASE_ANON_KEY__;
 
+type LibraryRuleSelectionResult =
+  | { status: 'none'; initialSelection?: undefined; resolved?: undefined }
+  | { status: 'invalid'; initialSelection?: undefined; resolved?: undefined }
+  | { status: 'valid'; initialSelection: RuleBindingInitialSelection; resolved: ResolvedRuleBinding };
+
+const LIBRARY_RULE_PARAMS = [
+  'propFirmSlug',
+  'programSlug',
+  'accountSizeId',
+  'platform',
+  'ruleVersionId',
+] as const;
+
+export function parseLibraryRuleSelection(search: string): LibraryRuleSelectionResult {
+  const params = new URLSearchParams(search);
+  if (!LIBRARY_RULE_PARAMS.some((key) => params.has(key))) return { status: 'none' };
+
+  const initialSelection = {
+    propFirmSlug: params.get('propFirmSlug')?.trim() ?? '',
+    programSlug: params.get('programSlug')?.trim() ?? '',
+    accountSizeId: params.get('accountSizeId')?.trim() ?? '',
+    platform: params.get('platform')?.trim() ?? '',
+    ruleVersionId: params.get('ruleVersionId')?.trim() ?? '',
+  } satisfies RuleBindingInitialSelection;
+
+  if (Object.values(initialSelection).some((value) => !value)) return { status: 'invalid' };
+  const resolved = resolveRuleBinding(initialSelection);
+  if (!resolved) return { status: 'invalid' };
+
+  return { status: 'valid', initialSelection, resolved };
+}
+
+function numericRuleValue(value: string) {
+  const match = value.match(/\d+(?:[.,]\d+)?/);
+  return match ? Number(match[0].replace(',', '.')) : 0;
+}
+
+export function initialBalanceValue(value: string) {
+  const match = value.trim().match(/(\d+(?:[.,]\d+)?)\s*([KMB])?/i);
+  if (!match) return '100000';
+
+  const amount = Number(match[1].replace(',', '.'));
+  const multiplier = match[2]?.toUpperCase() === 'B'
+    ? 1_000_000_000
+    : match[2]?.toUpperCase() === 'M'
+      ? 1_000_000
+      : match[2]?.toUpperCase() === 'K'
+        ? 1_000
+        : 1;
+  const normalizedAmount = amount * multiplier;
+
+  return Number.isFinite(normalizedAmount) && normalizedAmount > 0
+    ? String(normalizedAmount)
+    : '100000';
+}
+
+export function accountCurrencyValue(initialBalance: string, fallbackCurrency: string) {
+  if (/R\$/i.test(initialBalance)) return 'BRL';
+  if (/US\$|\$/i.test(initialBalance)) return 'USD';
+  if (/€/i.test(initialBalance)) return 'EUR';
+  if (/£/i.test(initialBalance)) return 'GBP';
+
+  const supportedCurrencies = new Set(['USD', 'EUR', 'GBP', 'BRL']);
+  return supportedCurrencies.has(fallbackCurrency) ? fallbackCurrency : 'USD';
+}
+
+function templateRulesFromBinding(binding?: ResolvedRuleBinding): TemplateRule[] {
+  if (!binding) return [];
+  const { accountSize } = binding;
+  const rule = (
+    type: RuleType,
+    name: string,
+    sourceValue: string,
+    severity: TemplateRule['severity'],
+    unit?: TemplateRule['unit'],
+  ): TemplateRule | null => {
+    const defaultValue = numericRuleValue(sourceValue);
+    if (!defaultValue) return null;
+    return {
+      type,
+      name,
+      severity,
+      defaultValue,
+      unit: unit ?? (sourceValue.includes('%') ? '%' : '$'),
+      editable: true,
+      enabled: true,
+    };
+  };
+
+  return [
+    rule('MAX_DAILY_LOSS', 'Perda Máx. Diária', accountSize.dailyLoss, 'hard'),
+    rule(
+      accountSize.drawdownType === 'Static' ? 'MAX_TOTAL_LOSS' : 'TRAILING_MAX_LOSS',
+      'Perda Máx. Total',
+      accountSize.maxLoss,
+      'hard',
+    ),
+    rule('PROFIT_TARGET', 'Meta de Lucro', accountSize.phases[0]?.profitTarget ?? '', 'soft'),
+    rule('MIN_TRADING_DAYS', 'Dias Mínimos', accountSize.minTradingDays, 'soft', 'days'),
+  ].filter((item): item is TemplateRule => Boolean(item));
+}
+
+export function LibraryRuleSelectionNotice({ status }: { status: LibraryRuleSelectionResult['status'] }) {
+  if (status === 'none') return null;
+  const valid = status === 'valid';
+
+  return (
+    <div
+      role={valid ? 'status' : 'alert'}
+      className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 text-xs ${
+        valid
+          ? 'border-primary/25 bg-primary/5 text-foreground'
+          : 'border-warning/30 bg-warning/5 text-muted-foreground'
+      }`}
+    >
+      {valid ? (
+        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+      ) : (
+        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
+      )}
+      <span>
+        {valid ? (
+          <>
+            <strong>Regra pré-selecionada a partir da Biblioteca.</strong>{' '}
+            Revise os dados antes de conectar sua conta.
+          </>
+        ) : (
+          'Não foi possível carregar a regra enviada pela Biblioteca. Selecione manualmente.'
+        )}
+      </span>
+    </div>
+  );
+}
+
 // ─── Step indicator ───
 const StepIndicator = ({ current, total }: { current: number; total: number }) => (
   <div className="flex items-center gap-2">
@@ -134,10 +272,17 @@ const StepIndicator = ({ current, total }: { current: number; total: number }) =
 const CreateAccount = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const libraryRuleSelection = useMemo(
+    () => parseLibraryRuleSelection(location.search),
+    [location.search],
+  );
+  const initialResolvedBinding = libraryRuleSelection.status === 'valid'
+    ? libraryRuleSelection.resolved
+    : undefined;
   const queryClient = useQueryClient();
   const { user, session } = useAuth();
   const subscriptionPlan = useSubscriptionPlan();
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(() => libraryRuleSelection.status === 'valid' ? 1 : 0);
 
   const supabaseUrl = getSupabaseUrl();
   const supabaseAnonKey = getSupabaseAnonKey();
@@ -167,13 +312,22 @@ const CreateAccount = () => {
   const selectedProgram = programs.find(p => p.id === selectedProgramId);
 
   // Step 1: Account Info
-  const [accountName, setAccountName] = useState('');
-  const [startBalance, setStartBalance] = useState('100000');
-  const [currency, setCurrency] = useState('USD');
-  const [accountType, setAccountType] = useState('');
+  const [accountName, setAccountName] = useState(() => initialResolvedBinding
+    ? `${initialResolvedBinding.program.firm} ${initialResolvedBinding.accountSize.label}`
+    : '');
+  const [startBalance, setStartBalance] = useState(() => initialResolvedBinding
+    ? initialBalanceValue(initialResolvedBinding.accountSize.initialBalance)
+    : '100000');
+  const [currency, setCurrency] = useState(() => initialResolvedBinding
+    ? accountCurrencyValue(
+        initialResolvedBinding.accountSize.initialBalance,
+        initialResolvedBinding.accountSize.currency,
+      )
+    : 'USD');
+  const [accountType, setAccountType] = useState(() => initialResolvedBinding?.program.programType || '');
 
   // Step 2: Rules
-  const [rules, setRules] = useState<TemplateRule[]>([]);
+  const [rules, setRules] = useState<TemplateRule[]>(() => templateRulesFromBinding(initialResolvedBinding));
 
   // Step 3: Risk
   const [riskPerTrade, setRiskPerTrade] = useState<number | null>(null);
@@ -183,10 +337,12 @@ const CreateAccount = () => {
   const [mt5Login, setMt5Login] = useState('');
   const [mt5Server, setMt5Server] = useState('');
   const [mt5Broker, setMt5Broker] = useState('');
-  const [mt5PropFirm, setMt5PropFirm] = useState('');
+  const [mt5PropFirm, setMt5PropFirm] = useState(() => initialResolvedBinding?.program.firm || '');
   const [mt5InvestorPassword, setMt5InvestorPassword] = useState('');
-  const [ruleBindingDraft, setRuleBindingDraft] = useState<RuleBindingDraft>(
-    emptyRuleBindingDraft,
+  const [ruleBindingDraft, setRuleBindingDraft] = useState<RuleBindingDraft>(() =>
+    libraryRuleSelection.status === 'valid'
+      ? { ...libraryRuleSelection.initialSelection, manualRuleAcknowledgement: false }
+      : emptyRuleBindingDraft(),
   );
   
   // Internally preselect provider as 'metaapi'
@@ -328,7 +484,7 @@ const CreateAccount = () => {
       return true;
     }
     if (step === 1) return !!accountName && balance > 0;
-    if (step === 2) return rules.some(r => r.enabled);
+    if (step === 2) return rules.some(r => r.enabled) || Boolean(resolveRuleBinding(ruleBindingDraft));
     if (step === 3) return effectiveRisk > 0;
     if (step === 4) {
       // Only MetaApi flow - validate required fields
@@ -416,7 +572,7 @@ const CreateAccount = () => {
                 accountName: insertPayload.nickname,
                 mt5Login: mt5Login.trim(),
                 mt5Server: mt5Server.trim(),
-                brokerName: (mt5Broker.trim() || selectedFirm?.name || 'Custom'),
+                brokerName: (mt5Broker.trim() || selectedFirm?.name || resolvedBinding.program.firm || 'Custom'),
                 mt5Password: mt5InvestorPassword,
                 tradingAccountId: res.data.id,
                 userId: user.id,
@@ -500,6 +656,8 @@ const CreateAccount = () => {
         </div>
         <StepIndicator current={step} total={STEPS.length} />
       </div>
+
+      <LibraryRuleSelectionNotice status={libraryRuleSelection.status} />
 
       <AnimatePresence mode="wait">
         {/* ─── STEP 0: Prop Firm Library Flow ─── */}
@@ -1070,7 +1228,8 @@ const CreateAccount = () => {
             <RuleBindingSelector
               value={ruleBindingDraft}
               onChange={setRuleBindingDraft}
-              platformConstraint="MT5"
+              initialSelection={libraryRuleSelection.status === 'valid' ? libraryRuleSelection.initialSelection : undefined}
+              platformConstraint={libraryRuleSelection.status === 'valid' ? undefined : 'MT5'}
             />
 
             {/* Difficulty Index */}

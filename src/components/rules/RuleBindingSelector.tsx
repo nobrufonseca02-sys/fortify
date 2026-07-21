@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { AlertTriangle, CheckCircle2, ExternalLink, ShieldCheck } from 'lucide-react';
 import {
   getOperationalRulePrograms,
@@ -8,9 +8,12 @@ import {
   type RuleBindingDraft,
 } from '@/lib/ruleBinding';
 
+export type RuleBindingInitialSelection = Omit<RuleBindingDraft, 'manualRuleAcknowledgement'>;
+
 interface RuleBindingSelectorProps {
   value: RuleBindingDraft;
   onChange: (value: RuleBindingDraft) => void;
+  initialSelection?: RuleBindingInitialSelection;
   platformConstraint?: string;
   disabled?: boolean;
 }
@@ -30,6 +33,7 @@ const statusLabel = {
 export function RuleBindingSelector({
   value,
   onChange,
+  initialSelection,
   platformConstraint,
   disabled = false,
 }: RuleBindingSelectorProps) {
@@ -66,6 +70,19 @@ export function RuleBindingSelector({
   );
   const resolved = resolveRuleBinding(value);
   const complete = isRuleBindingDraftComplete(value);
+
+  useEffect(() => {
+    if (!initialSelection) return;
+    const hasCurrentSelection = Boolean(
+      value.propFirmSlug || value.programSlug || value.accountSizeId || value.platform || value.ruleVersionId,
+    );
+    if (hasCurrentSelection || !resolveRuleBinding(initialSelection)) return;
+
+    onChange({
+      ...initialSelection,
+      manualRuleAcknowledgement: false,
+    });
+  }, [initialSelection, onChange, value]);
 
   const patch = (next: Partial<RuleBindingDraft>) =>
     onChange({ ...value, ...next });
