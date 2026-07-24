@@ -1,0 +1,22 @@
+# Template de MCPs para Codex.
+# Copie apenas os blocos necessarios para ~/.codex/config.toml ou .codex/config.toml.
+# Nao deixe servidores ativos sem comando, URL, token e permissao revisados.
+
+# Exemplo STDIO local:
+# [mcp_servers.hoppe]
+# command = "node"
+# args = ["C:/path/to/hoppe-mcp/server.js"]
+# startup_timeout_sec = 60
+#
+# [mcp_servers.hoppe.env]
+# HOPPE_API_KEY = "${HOPPE_API_KEY}"
+
+# Exemplo HTTP remoto:
+# [mcp_servers.hoppe_http]
+# url = "https://api.hoppe.example.com/mcp"
+# startup_timeout_sec = 60
+
+# Exemplo docs ou API interna:
+# [mcp_servers.company_docs]
+# command = "npx"
+# args = ["-y", "@company/docs-mcp"]
