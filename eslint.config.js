@@ -21,6 +21,10 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-unused-vars": "off",
+      // TODO: existing `any` debt is tracked as warnings so CI can gate on new
+      // errors without blocking on ~330 pre-existing occurrences. Tighten back
+      // to "error" once the backlog is paid down.
+      "@typescript-eslint/no-explicit-any": "warn",
     },
   },
 );

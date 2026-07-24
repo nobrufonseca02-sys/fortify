@@ -12,7 +12,7 @@ export interface DeletedAccount {
 
 // Local soft-delete state (no DB delete for safety)
 let deletedAccounts: DeletedAccount[] = [];
-let deletedListeners: Set<() => void> = new Set();
+const deletedListeners: Set<() => void> = new Set();
 
 function emitDeletedChange() {
   deletedListeners.forEach(l => l());
@@ -113,7 +113,7 @@ export function useAccountsStore() {
       const { data, error } = await supabase
         .from('trading_accounts')
         .select('*')
-        .eq('user_id', session?.user?.id!)
+        .eq('user_id', session!.user!.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;

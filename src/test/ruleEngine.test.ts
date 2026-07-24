@@ -257,7 +257,7 @@ describe('versioned MT5 rule engine', () => {
     [{ platform: 'BlackArrow' }, 'BlackArrow'],
   ] as const)(
     'does not calculate MT5 limits automatically for %s',
-    (snapshotOverride) => {
+    (snapshotOverride, _label) => {
       const ruleBinding = binding(snapshotOverride as Partial<RuleBindingSnapshot>);
       ruleBinding.automatic_monitoring_enabled = true;
       const result = evaluateBoundAccountRules({

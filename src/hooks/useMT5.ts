@@ -17,7 +17,7 @@ export function useMT5Connections() {
       const { data, error } = await supabase
         .from('mt5_connections')
         .select('*')
-        .eq('user_id', session?.user?.id!)
+        .eq('user_id', session!.user!.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return (data || []).filter((connection: any) => connection.sync_status !== 'removed') as MT5Connection[];
@@ -35,7 +35,7 @@ export function useMT5ConnectionDetail(connectionId: string | undefined) {
         .from('mt5_connections')
         .select('*')
         .eq('id', connectionId!)
-        .eq('user_id', session?.user?.id!)
+        .eq('user_id', session!.user!.id)
         .single();
       if (error) throw error;
       return data as MT5Connection;
@@ -146,7 +146,7 @@ export function useDeleteMT5Connection() {
         .from('mt5_connections')
         .update({ connection_status: 'disconnected', sync_status: 'removed', sync_error: null })
         .eq('id', id)
-        .eq('user_id', session?.user?.id!);
+        .eq('user_id', session!.user!.id);
       if (error) throw error;
     },
     onSuccess: () => {

@@ -36,7 +36,13 @@ export async function hydrateRuleEvaluationRows(rows: RuleEvaluationRow[]): Prom
 
   if (instanceError) throw instanceError;
 
-  const definitionIds = Array.from(new Set((instances || []).map((instance: any) => instance.rule_definition_id).filter(Boolean)));
+  const definitionIds: string[] = Array.from(
+    new Set(
+      (instances || [])
+        .map((instance: any) => instance.rule_definition_id as string | undefined)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  );
   const { data: definitions, error: definitionError } = definitionIds.length > 0
     ? await (supabase
       .from('rule_definitions')
