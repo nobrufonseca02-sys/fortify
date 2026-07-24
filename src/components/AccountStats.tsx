@@ -1,6 +1,6 @@
 import { TradingAccount } from '@/types/fortify';
 import { TrendingUp, TrendingDown, DollarSign, BarChart3 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 
 interface AccountStatsProps {
   account: TradingAccount;

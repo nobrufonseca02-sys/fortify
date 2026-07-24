@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { RuleEvaluation, STATUS_CONFIG, RULE_TYPE_DESCRIPTIONS } from '@/types/fortify';
 import { CircularProgress } from './CircularProgress';
 import { useState } from 'react';

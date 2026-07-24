@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { RuleType } from '@/types/fortify';
 import type { TemplateRule } from '@/data/propFirmLibrary';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 
 interface ExtractedData {

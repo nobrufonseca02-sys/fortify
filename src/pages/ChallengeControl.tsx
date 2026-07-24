@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { Target, Shield, AlertTriangle, TrendingUp, Calendar, Activity, Pause } from 'lucide-react';
 import { AccountSelector } from '@/components/AccountSelector';
 import { useAccountsStore } from '@/hooks/useAccountsStore';

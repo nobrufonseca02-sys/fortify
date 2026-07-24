@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, stagger, useAnimate, useReducedMotion } from 'motion/react';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { fortifyMotion } from '@/lib/motion';
 import {
   propFirmFilterOptions,
   propFirmRulePrograms,
@@ -23,6 +25,56 @@ import {
 } from '@/data/propFirmRules';
 
 type FirmStatus = 'operational' | 'unavailable' | 'legacy';
+type TransitionDirection = 1 | -1;
+
+function LibraryStageMotion({
+  stageKey,
+  direction,
+  children,
+}: {
+  stageKey: string;
+  direction: TransitionDirection;
+  children: ReactNode;
+}) {
+  const [scope, animate] = useAnimate<HTMLDivElement>();
+  const shouldReduceMotion = useReducedMotion();
+
+  useEffect(() => {
+    if (shouldReduceMotion) return;
+
+    const animations = [
+      animate(
+        '[data-library-stage]',
+        { opacity: [0.72, 1], x: [direction * 12, 0] },
+        { ...fortifyMotion.gentle, opacity: fortifyMotion.fade },
+      ),
+    ];
+
+    if (scope.current?.querySelector('[data-library-reveal]')) {
+      animations.push(
+        animate(
+          '[data-library-reveal]',
+          { opacity: [0, 1], y: [6, 0] },
+          {
+            ...fortifyMotion.reveal,
+            delay: stagger(0.028, { startDelay: 0.025 }),
+            opacity: fortifyMotion.fade,
+          },
+        ),
+      );
+    }
+
+    return () => animations.forEach((animation) => animation.stop());
+  }, [animate, direction, scope, shouldReduceMotion, stageKey]);
+
+  return (
+    <div ref={scope} className="min-w-0">
+      <div key={stageKey} data-library-stage>
+        {children}
+      </div>
+    </div>
+  );
+}
 
 const confidenceLabel = {
   high: 'Confiança alta',
@@ -151,12 +203,16 @@ function FirmCard({ name, programs, onSelect }: { name: PropFirmName; programs: 
   const platforms = getFirmPlatforms(programs);
 
   return (
-    <button
+    <motion.button
       type="button"
       data-testid={`firm-${name}`}
+      data-library-reveal
       onClick={onSelect}
       disabled={!operational}
-      className="group flex min-h-36 flex-col justify-between rounded-lg border border-border bg-card/60 p-4 text-left transition-colors hover:border-primary/55 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:border-border disabled:hover:bg-card/60"
+      whileHover={operational ? fortifyMotion.hover : undefined}
+      whileTap={operational ? fortifyMotion.press : undefined}
+      transition={fortifyMotion.responsive}
+      className="group flex min-h-36 flex-col justify-between rounded-lg border border-border bg-card/60 p-4 text-left transition-[color,background-color,border-color] duration-150 hover:border-primary/55 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:border-border disabled:hover:bg-card/60"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-primary">
@@ -181,7 +237,7 @@ function FirmCard({ name, programs, onSelect }: { name: PropFirmName; programs: 
           <span className={operational ? 'text-emerald-300' : 'text-amber-300'}>{firmStatusLabel[status]}</span>
         </div>
       </div>
-    </button>
+    </motion.button>
   );
 }
 
@@ -189,11 +245,15 @@ function ProgramCard({ program, onSelect }: { program: PropFirmRuleProgram; onSe
   const accounts = accountRules(program);
 
   return (
-    <button
+    <motion.button
       type="button"
       data-testid={`program-${program.id}`}
+      data-library-reveal
       onClick={onSelect}
-      className="group flex min-h-44 flex-col justify-between rounded-lg border border-border bg-card/60 p-5 text-left transition-colors hover:border-primary/55 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      whileHover={fortifyMotion.hover}
+      whileTap={fortifyMotion.press}
+      transition={fortifyMotion.responsive}
+      className="group flex min-h-44 flex-col justify-between rounded-lg border border-border bg-card/60 p-5 text-left transition-[color,background-color,border-color] duration-150 hover:border-primary/55 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
@@ -210,7 +270,7 @@ function ProgramCard({ program, onSelect }: { program: PropFirmRuleProgram; onSe
           <span className="text-foreground">{countLabel(accounts.length, 'conta', 'contas')}</span>
         </div>
       </div>
-    </button>
+    </motion.button>
   );
 }
 
@@ -256,7 +316,7 @@ function RulesView({ firm, program, account, onConnect }: {
 
   return (
     <article className="space-y-7" data-testid="account-rules">
-      <header className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-start sm:justify-between">
+      <header data-library-reveal className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">Aqui estão as regras principais</p>
           <h2 className="mt-2 text-xl font-semibold text-foreground">
@@ -276,7 +336,7 @@ function RulesView({ firm, program, account, onConnect }: {
         </div>
       </header>
 
-      <section>
+      <section data-library-reveal>
         <div className="mb-3">
           <h3 className="text-sm font-semibold text-foreground">Regras principais</h3>
           <p className="mt-1 text-xs text-muted-foreground">Limites que merecem atenção antes de operar.</p>
@@ -292,7 +352,7 @@ function RulesView({ firm, program, account, onConnect }: {
         </dl>
       </section>
 
-      <section>
+      <section data-library-reveal>
         <div className="mb-3">
           <h3 className="text-sm font-semibold text-foreground">Operacional</h3>
           <p className="mt-1 text-xs text-muted-foreground">Condições para execução e retirada.</p>
@@ -306,7 +366,7 @@ function RulesView({ firm, program, account, onConnect }: {
         </dl>
       </section>
 
-      <section>
+      <section data-library-reveal>
         <div className="mb-3 flex items-center gap-2">
           <ShieldCheck className="h-4 w-4 text-primary" />
           <h3 className="text-sm font-semibold text-foreground">Fortify monitora</h3>
@@ -318,7 +378,7 @@ function RulesView({ firm, program, account, onConnect }: {
         </div>
       </section>
 
-      <details className="group border-y border-border py-1">
+      <details data-library-reveal className="group border-y border-border py-1">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-sm font-semibold text-foreground">
           <span className="flex items-center gap-2">
             <Link2 className="h-4 w-4 text-primary" />
@@ -338,7 +398,7 @@ function RulesView({ firm, program, account, onConnect }: {
         </div>
       </details>
 
-      <footer className="flex flex-col gap-4 rounded-lg border border-primary/25 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+      <footer data-library-reveal className="flex flex-col gap-4 rounded-lg border border-primary/25 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
         <div className="max-w-2xl">
           <p className="text-sm font-semibold text-foreground">Pronto para monitorar esta conta?</p>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
@@ -362,6 +422,7 @@ export default function PropFirmLibrary() {
   const [selectedFirm, setSelectedFirm] = useState<PropFirmName | null>(null);
   const [selectedProgramId, setSelectedProgramId] = useState('');
   const [selectedAccountId, setSelectedAccountId] = useState('');
+  const [transitionDirection, setTransitionDirection] = useState<TransitionDirection>(1);
 
   const firms = useMemo(
     () => propFirmFilterOptions.firms
@@ -381,17 +442,25 @@ export default function PropFirmLibrary() {
     : null;
 
   const chooseFirm = (firm: PropFirmName) => {
+    setTransitionDirection(1);
     setSelectedFirm(firm);
     setSelectedProgramId('');
     setSelectedAccountId('');
   };
 
   const chooseProgram = (programId: string) => {
+    setTransitionDirection(1);
     setSelectedProgramId(programId);
     setSelectedAccountId('');
   };
 
+  const chooseAccount = (accountId: string) => {
+    setTransitionDirection(1);
+    setSelectedAccountId(accountId);
+  };
+
   const goBack = () => {
+    setTransitionDirection(-1);
     if (selectedAccount) {
       setSelectedAccountId('');
       return;
@@ -408,6 +477,13 @@ export default function PropFirmLibrary() {
     : selectedProgram
       ? 'Voltar aos modelos'
       : 'Todas as mesas';
+  const stageKey = selectedAccount
+    ? `rules:${selectedAccount.id}`
+    : selectedProgram
+      ? `accounts:${selectedProgram.id}`
+      : selectedFirm
+        ? `programs:${selectedFirm}`
+        : 'firms';
 
   return (
     <div className="mx-auto max-w-7xl space-y-7 px-4 py-6 pb-32 sm:px-6 lg:px-8">
@@ -427,9 +503,10 @@ export default function PropFirmLibrary() {
         )}
       </header>
 
-      {!selectedFirm && (
-        <section className="space-y-6" data-testid="firm-step">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <LibraryStageMotion stageKey={stageKey} direction={transitionDirection}>
+        {!selectedFirm && (
+          <section className="space-y-6" data-testid="firm-step">
+            <div data-library-reveal className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">Etapa 1 de 4</p>
               <h2 className="mt-1 text-lg font-semibold text-foreground">Escolha uma mesa proprietária.</h2>
@@ -479,18 +556,18 @@ export default function PropFirmLibrary() {
               )}
             </div>
           ) : (
-            <div className="rounded-lg border border-dashed border-border p-8 text-center">
+            <div data-library-reveal className="rounded-lg border border-dashed border-border p-8 text-center">
               <Building2 className="mx-auto h-8 w-8 text-muted-foreground" />
               <p className="mt-3 text-sm font-medium text-foreground">Mesa não encontrada</p>
               <p className="mt-1 text-xs text-muted-foreground">Revise o nome informado ou limpe a busca.</p>
             </div>
           )}
-        </section>
-      )}
+          </section>
+        )}
 
-      {selectedFirm && !selectedProgram && (
-        <section className="space-y-5" data-testid="program-step">
-          <div>
+        {selectedFirm && !selectedProgram && (
+          <section className="space-y-5" data-testid="program-step">
+            <div data-library-reveal>
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">Etapa 2 de 4 · {selectedFirm}</p>
             <h2 className="mt-1 text-lg font-semibold text-foreground">Modelos disponíveis na {selectedFirm}</h2>
             <p className="mt-1 text-sm text-muted-foreground">Agora escolha um modelo.</p>
@@ -500,12 +577,12 @@ export default function PropFirmLibrary() {
               <ProgramCard key={program.id} program={program} onSelect={() => chooseProgram(program.id)} />
             ))}
           </div>
-        </section>
-      )}
+          </section>
+        )}
 
-      {selectedFirm && selectedProgram && !selectedAccount && (
-        <section className="space-y-5" data-testid="account-step">
-          <div>
+        {selectedFirm && selectedProgram && !selectedAccount && (
+          <section className="space-y-5" data-testid="account-step">
+            <div data-library-reveal>
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">
               Etapa 3 de 4 · {selectedFirm} · {selectedProgram.programName}
             </p>
@@ -514,28 +591,33 @@ export default function PropFirmLibrary() {
           </div>
           <div className="flex flex-wrap gap-2" data-testid="account-options">
             {accounts.map((account) => (
-              <button
+              <motion.button
                 key={account.id}
                 type="button"
                 data-testid={`account-${account.id}`}
-                onClick={() => setSelectedAccountId(account.id)}
-                className="rounded-full border border-border bg-card/60 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:border-primary/60 hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                data-library-reveal
+                onClick={() => chooseAccount(account.id)}
+                whileHover={fortifyMotion.hover}
+                whileTap={fortifyMotion.press}
+                transition={fortifyMotion.responsive}
+                className="rounded-full border border-border bg-card/60 px-4 py-2.5 text-sm font-semibold text-foreground transition-[color,background-color,border-color] duration-150 hover:border-primary/60 hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 {formatAccountLabel(account.label)}
-              </button>
+              </motion.button>
             ))}
           </div>
-        </section>
-      )}
+          </section>
+        )}
 
-      {selectedFirm && selectedProgram && selectedAccount && (
-        <RulesView
-          firm={selectedFirm}
-          program={selectedProgram}
-          account={selectedAccount}
-          onConnect={connectionPath ? () => navigate(connectionPath) : undefined}
-        />
-      )}
+        {selectedFirm && selectedProgram && selectedAccount && (
+          <RulesView
+            firm={selectedFirm}
+            program={selectedProgram}
+            account={selectedAccount}
+            onConnect={connectionPath ? () => navigate(connectionPath) : undefined}
+          />
+        )}
+      </LibraryStageMotion>
     </div>
   );
 }

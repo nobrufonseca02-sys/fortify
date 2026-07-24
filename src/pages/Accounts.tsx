@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { RULE_SET_TEMPLATES, TEMPLATE_RULES } from '@/data/mockData';
 import { TradingAccount, type Mt5ConnectionStatus } from '@/types/fortify';
 import { Plus, Trash2, Wallet, ChevronRight, Shield, AlertTriangle, XCircle, BookOpen, Link2, RefreshCw, Loader2 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { useAccountsStore } from '@/hooks/useAccountsStore';
 import { useAllRuleEvaluations } from '@/hooks/useRuleEvaluations';
 import { mapRowsForAccount } from '@/lib/ruleEvaluationView';

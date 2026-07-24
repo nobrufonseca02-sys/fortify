@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft, ArrowRight, Check, Shield, AlertTriangle, Zap, TrendingUp,
   Calculator, Brain, BarChart3, Target, Clock, Newspaper, Layers, Activity,
@@ -579,7 +579,6 @@ const CreateAccount = () => {
             
             const newConnId = (connData as any)?.connection?.id;
             mt5ConnectionId = newConnId || null;
-            console.log('MetaApi connection created:', newConnId, 'for trading account:', res.data.id);
             nextRoute = `/accounts/${res.data.id}/rules`;
             toast({
               title: 'Conta + MetaApi conectada',

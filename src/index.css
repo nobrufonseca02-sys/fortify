@@ -459,7 +459,7 @@
     line-height: 1;
   }
 
-  /* Reveal on scroll utility (used with framer-motion or pure CSS) */
+  /* Reveal on scroll utility (used with Motion or pure CSS) */
   @keyframes reveal-up {
     from { opacity: 0; transform: translateY(14px); }
     to { opacity: 1; transform: translateY(0); }

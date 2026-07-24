@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AlertTriangle, ChevronRight, CreditCard, Loader2, Shield, ShieldAlert, ShieldX, Zap } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { useAccountsStore } from '@/hooks/useAccountsStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useAllRuleEvaluations, useSyncAndEvaluate, type RuleEvaluationRow } from '@/hooks/useRuleEvaluations';

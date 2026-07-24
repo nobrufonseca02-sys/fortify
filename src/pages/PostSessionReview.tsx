@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { FileCheck, Save, CheckCircle2, Star } from 'lucide-react';
 import { AccountSelector } from '@/components/AccountSelector';
 import { useAccountsStore } from '@/hooks/useAccountsStore';

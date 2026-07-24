@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 
 function FloatingOrb({ 
   size, x, y, delay, duration, color 

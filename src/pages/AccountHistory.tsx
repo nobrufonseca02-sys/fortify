@@ -6,7 +6,7 @@ import {
   Trash2, RotateCcw, XCircle, Clock, Wallet, AlertTriangle,
   Shield, Archive, ChevronRight,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,

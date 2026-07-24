@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 
 function GlobeLine({ rotation, delay }: { rotation: number; delay: number }) {
   return (

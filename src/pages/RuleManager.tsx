@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   Shield, Plus, Trash2, Copy, ToggleLeft, ToggleRight,
   ChevronDown, Settings2, Layers, FileText, Pencil, Check, X, ArrowLeft

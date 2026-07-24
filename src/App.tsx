@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -8,25 +9,28 @@ import { AppLayout } from "@/components/AppLayout";
 import { AuthProvider, useAuth, type AuthStartupError } from "@/hooks/useAuth";
 import fortifyIcon from "@/assets/brand/fortify-f-standalone-white.svg";
 import { DatabaseZap, ExternalLink, Monitor, RefreshCw, Server } from "lucide-react";
-import AuthPage from "./pages/AuthPage";
-import ResetPassword from "./pages/ResetPassword";
-import Dashboard from "./pages/Dashboard";
-import Accounts from "./pages/Accounts";
-import AccountRuleManagement from "./pages/AccountRuleManagement";
-import AccountDashboard from "./pages/AccountDashboard";
-import RuleManager from "./pages/RuleManager";
-import Performance from "./pages/Performance";
-import SettingsPage from "./pages/SettingsPage";
-import PricingPage from "./pages/PricingPage";
-import AdminPage from "./pages/AdminPage";
-import CreateAccount from "./pages/CreateAccount";
-import PropFirmLibrary from "./pages/PropFirmLibrary";
-import AccountHistory from "./pages/AccountHistory";
-import MT5Connections from "./pages/MT5Connections";
-import MT5Dashboard from "./pages/MT5Dashboard";
-import RiskCalculator from "./pages/RiskCalculator";
-import RuleEngineDemo from "./pages/RuleEngineDemo";
-import NotFound from "./pages/NotFound";
+import { MotionConfig } from "motion/react";
+import { fortifyMotionConfig } from "@/lib/motion";
+
+const AuthPage = lazy(() => import("./pages/AuthPage"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Accounts = lazy(() => import("./pages/Accounts"));
+const AccountRuleManagement = lazy(() => import("./pages/AccountRuleManagement"));
+const AccountDashboard = lazy(() => import("./pages/AccountDashboard"));
+const RuleManager = lazy(() => import("./pages/RuleManager"));
+const Performance = lazy(() => import("./pages/Performance"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const PricingPage = lazy(() => import("./pages/PricingPage"));
+const AdminPage = lazy(() => import("./pages/AdminPage"));
+const CreateAccount = lazy(() => import("./pages/CreateAccount"));
+const PropFirmLibrary = lazy(() => import("./pages/PropFirmLibrary"));
+const AccountHistory = lazy(() => import("./pages/AccountHistory"));
+const MT5Connections = lazy(() => import("./pages/MT5Connections"));
+const MT5Dashboard = lazy(() => import("./pages/MT5Dashboard"));
+const RiskCalculator = lazy(() => import("./pages/RiskCalculator"));
+const RuleEngineDemo = lazy(() => import("./pages/RuleEngineDemo"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
 
@@ -131,30 +135,32 @@ function ProtectedRoutes() {
 
   return (
     <AppLayout>
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/calculator" element={<Navigate to="/risk-calculator" replace />} />
-        <Route path="/risk-calculator" element={<RiskCalculator />} />
-        <Route path="/accounts" element={<Accounts />} />
-        <Route path="/accounts/new" element={<CreateAccount />} />
-        <Route path="/accounts/:id" element={<AccountDashboard />} />
-        <Route path="/accounts/:accountId/rules" element={<AccountRuleManagement />} />
-        <Route path="/performance" element={<Performance />} />
-        <Route path="/rules" element={<Navigate to="/library" replace />} />
-        <Route path="/rules/demo" element={<RuleEngineDemo />} />
-        <Route path="/rules/manage" element={<RuleManager />} />
-        <Route path="/library" element={<PropFirmLibrary />} />
-        <Route path="/history" element={<AccountHistory />} />
-        <Route path="/integrations/mt5" element={<Navigate to="/mt5" replace />} />
-        <Route path="/mt5" element={<MT5Connections />} />
-        <Route path="/mt5/:connectionId" element={<MT5Dashboard />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/pricing" element={<PricingPage />} />
-        <Route path="/adm" element={<AdminPage />} />
-        <Route path="/admin" element={<Navigate to="/adm" replace />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+      <Suspense fallback={<AuthLoadingScreen />}>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/calculator" element={<Navigate to="/risk-calculator" replace />} />
+          <Route path="/risk-calculator" element={<RiskCalculator />} />
+          <Route path="/accounts" element={<Accounts />} />
+          <Route path="/accounts/new" element={<CreateAccount />} />
+          <Route path="/accounts/:id" element={<AccountDashboard />} />
+          <Route path="/accounts/:accountId/rules" element={<AccountRuleManagement />} />
+          <Route path="/performance" element={<Performance />} />
+          <Route path="/rules" element={<Navigate to="/library" replace />} />
+          <Route path="/rules/demo" element={<RuleEngineDemo />} />
+          <Route path="/rules/manage" element={<RuleManager />} />
+          <Route path="/library" element={<PropFirmLibrary />} />
+          <Route path="/history" element={<AccountHistory />} />
+          <Route path="/integrations/mt5" element={<Navigate to="/mt5" replace />} />
+          <Route path="/mt5" element={<MT5Connections />} />
+          <Route path="/mt5/:connectionId" element={<MT5Dashboard />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/adm" element={<AdminPage />} />
+          <Route path="/admin" element={<Navigate to="/adm" replace />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
     </AppLayout>
   );
 }
@@ -191,26 +197,30 @@ function AppContent() {
 
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/pricing" element={<PricingRoute />} />
-        <Route path="/auth" element={<AuthGuard />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/*" element={<ProtectedRoutes />} />
-      </Routes>
+      <Suspense fallback={<AuthLoadingScreen />}>
+        <Routes>
+          <Route path="/pricing" element={<PricingRoute />} />
+          <Route path="/auth" element={<AuthGuard />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/*" element={<ProtectedRoutes />} />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <AppContent />
-      </TooltipProvider>
-    </AuthProvider>
-  </QueryClientProvider>
+  <MotionConfig transition={fortifyMotionConfig} reducedMotion="user">
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <AppContent />
+        </TooltipProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  </MotionConfig>
 );
 
 export default App;

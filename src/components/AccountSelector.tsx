@@ -1,7 +1,7 @@
 import { TradingAccount } from '@/types/fortify';
 import { ChevronDown, Plus, Wallet } from 'lucide-react';
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface AccountSelectorProps {
   accounts: TradingAccount[];
