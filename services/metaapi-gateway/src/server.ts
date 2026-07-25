@@ -2093,6 +2093,46 @@ async function listProvisioningAccounts(url: string) {
   return { res, text, body, accounts };
 }
 
+async function getProvisioningAccount(providerAccountId: string) {
+  const url = `${provisioningBaseUrl}/users/current/accounts/${encodeURIComponent(providerAccountId)}`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'auth-token': METAAPI_TOKEN,
+    },
+  });
+
+  const text = await res.text();
+  const body = parseJsonText(text);
+
+  return { res, body: body as MetaApiProvisioningAccount };
+}
+
+// mt5_connections.provider_account_id is a plain user-writable column (RLS
+// only checks row ownership, not this specific field), so it cannot be
+// trusted at face value before addressing MetaApi with it — a user could
+// point it at another Fortify user's already-provisioned account and read
+// their live balance/positions/trade history. Accounts created by this
+// gateway are tagged with the owning Fortify user id at provisioning time
+// (see postProvisioningAccount's `tags`), so we check that tag here instead
+// of trusting the column.
+async function assertProviderAccountBelongsToUser(providerAccountId: string, userId: string): Promise<boolean> {
+  try {
+    const { res, body } = await getProvisioningAccount(providerAccountId);
+    if (!res.ok) return false;
+    const tags: unknown = (body as JsonRecord)?.tags;
+    return Array.isArray(tags) && tags.includes(`user:${userId}`);
+  } catch (error: any) {
+    fastify.log.error({
+      event: 'metaapi_provider_account_ownership_check_failed',
+      providerAccountId: maskForLog(providerAccountId),
+      userId: maskForLog(userId),
+      error: error?.message || String(error),
+    });
+    return false;
+  }
+}
+
 function findMatchingProvisioningAccount(
   accounts: MetaApiProvisioningAccount[],
   mt5Login: string,
@@ -2166,6 +2206,33 @@ async function postProvisioningAccount(url: string, payload: JsonRecord) {
   };
 }
 
+// Re-submits credentials to an already-provisioned MetaApi account before we
+// let a Fortify user adopt it. Without this, adopting a match on
+// mt5Login+mt5Server never checked the caller actually knows the password —
+// they'd inherit read access to whatever the true owner last synced.
+async function putProvisioningAccountCredentials(providerAccountId: string, payload: JsonRecord) {
+  const url = `${provisioningBaseUrl}/users/current/accounts/${encodeURIComponent(providerAccountId)}`;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      'auth-token': METAAPI_TOKEN,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const text = await res.text();
+  const body = parseJsonText(text);
+
+  fastify.log.info({
+    event: 'metaapi_credentials_reverify_response',
+    url,
+    status: res.status,
+  });
+
+  return { res, text, body };
+}
+
 async function undeployMetaApiAccount(providerAccountId: string) {
   const url = `${provisioningBaseUrl}/users/current/accounts/${encodeURIComponent(providerAccountId)}/undeploy`;
   const res = await fetch(url, {
@@ -2227,7 +2294,18 @@ async function suspendUserMetaApiAccounts(userId: string, reason: string) {
       continue;
     }
 
-    if (providerAccountId) {
+    if (providerAccountId && !(await assertProviderAccountBelongsToUser(providerAccountId, userId))) {
+      // provider_account_id is a user-writable column; don't let a row spoofed
+      // to point at another Fortify user's MetaApi account cause that other
+      // account to be undeployed when *this* user's subscription lapses.
+      fastify.log.warn({
+        event: 'metaapi_suspend_provider_account_ownership_mismatch',
+        userId: maskForLog(userId),
+        connectionId: maskForLog(connection.id),
+        providerAccountId: maskForLog(providerAccountId),
+      });
+      suspended++;
+    } else if (providerAccountId) {
       try {
         const result = await undeployMetaApiAccount(providerAccountId);
         if (!result.ok) {
@@ -4723,14 +4801,14 @@ fastify.post('/metaapi/connect', async (request, reply) => {
         region: existingMetaApiAccount?.region,
       });
 
-      if (!providerAccountId) {
-        if (!mt5Password) {
-          return reply.status(400).send({
-            error: 'mt5Password is required when provisioning a new MetaApi account',
-            code: 'mt5_password_required',
-          });
-        }
+      if (!mt5Password) {
+        return reply.status(400).send({
+          error: 'mt5Password is required',
+          code: 'mt5_password_required',
+        });
+      }
 
+      if (!providerAccountId) {
         // Password is transient: sent only to MetaApi provisioning, never logged, never persisted.
         provisioning = await postProvisioningAccount(url, {
           name: accountName,
@@ -4743,6 +4821,34 @@ fastify.post('/metaapi/connect', async (request, reply) => {
           magic: 0,
           tags: ['fortify', `user:${userId}`],
         });
+      } else {
+        // An account for this login+server already exists in MetaApi (created by
+        // whoever connected it first). Re-submit the caller's claimed password to
+        // it before letting this user adopt it, instead of silently reusing
+        // whatever credentials the original owner set. A wrong password here
+        // surfaces as a MetaApi connection/auth error on next sync, same as it
+        // would for a brand-new account.
+        const credentialCheck = await putProvisioningAccountCredentials(providerAccountId, {
+          name: accountName,
+          login: mt5Login,
+          password: mt5Password,
+          server: mt5Server,
+          platform: 'mt5',
+        });
+
+        if (!credentialCheck.res.ok) {
+          fastify.log.warn({
+            event: 'metaapi_connect_credential_reverify_failed',
+            providerAccountId: maskForLog(providerAccountId),
+            status: credentialCheck.res.status,
+            userId: maskForLog(userId),
+          });
+          return reply.status(credentialCheck.res.status === 401 || credentialCheck.res.status === 403 ? 403 : 502).send({
+            error: 'Could not verify MT5 credentials for this account',
+            code: 'metaapi_credential_reverify_failed',
+            details: credentialCheck.body,
+          });
+        }
       }
     } catch (fetchError: any) {
       fastify.log.error({
@@ -5161,6 +5267,20 @@ fastify.post('/metaapi/sync', async (request, reply) => {
         provider_account_id: conn.provider_account_id,
       });
       return reply.status(409).send({ error: 'Missing provider_account_id' });
+    }
+
+    const ownsProviderAccount = await assertProviderAccountBelongsToUser(conn.provider_account_id, userId);
+    if (!ownsProviderAccount) {
+      fastify.log.warn({
+        event: 'metaapi_sync_provider_account_ownership_mismatch',
+        connectionId: maskForLog(connectionId),
+        providerAccountId: maskForLog(conn.provider_account_id),
+        userId: maskForLog(userId),
+      });
+      return reply.status(403).send({
+        error: 'MetaApi account does not belong to the authenticated user',
+        code: 'provider_account_ownership_mismatch',
+      });
     }
 
     const { data: tradingAccount, error: tradingAccountErr } = conn.trading_account_id

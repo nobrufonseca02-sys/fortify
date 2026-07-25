@@ -1,4 +1,4 @@
 project_id = "qnllfibexyxexweyorli"
 
 [functions.extract-rules]
-verify_jwt = false
+verify_jwt = true
