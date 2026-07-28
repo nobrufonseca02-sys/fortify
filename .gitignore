@@ -19,8 +19,13 @@ dist-ssr
 supabase/.temp/
 supabase/.branches/
 
-# Claude Code local session state
-.claude/
+# Claude Code: only the local/personal override file is machine-specific.
+# .claude/agents, .claude/skills, .claude/commands, .claude/settings.json are
+# shared project config and must stay tracked.
+.claude/settings.local.json
+
+# Playwright MCP tool artifacts (screenshots/console logs), not project content
+.playwright-mcp/
 
 # Editor directories and files
 .vscode/*
