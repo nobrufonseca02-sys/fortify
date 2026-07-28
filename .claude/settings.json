@@ -1,7 +1,28 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Read(//c/.claude/agents/**)",
+      "Read(//c/.claude/skills/**)",
+      "Read(//c/.claude/prompts/**)",
+      "Read(//c/.claude/skills/02-banco-postgres/**)",
+      "Read(//c/.claude/skills/03-auth-jwt/**)",
+      "Read(//c/.claude/skills/07-deploy/**)",
+      "Read(//c/.claude/skills/16-api-design/**)",
+      "Read(//c/.claude/skills/06-debug/**)",
+      "Read(//c/.claude/skills/08-testes/**)",
+      "Read(//c/.claude/skills/09-refactor/**)",
+      "Read(//c/.claude/skills/12-code-review/**)",
+      "Edit(/.claude/skills/arquitetura/**)",
+      "Edit(/.claude/skills/banco-postgres/**)",
+      "Edit(/.claude/skills/auth-jwt/**)",
+      "Edit(/.claude/skills/deploy/**)",
+      "Edit(/.claude/skills/api-design/**)",
+      "Edit(/.claude/skills/debug/**)",
+      "Edit(/.claude/skills/testes/**)",
+      "Edit(/.claude/skills/refactor/**)",
+      "Edit(/.claude/skills/code-review/**)"
     ]
   }
 }
