@@ -5,7 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscriptionPlan, type FortifyPlan } from '@/hooks/useSubscriptionPlan';
-import { createAddonCheckoutSession, createCheckoutSession, createPortalSession, isBillingEnabled } from '@/lib/billing';
+import { createAddonCheckoutSession, createCheckoutSession, isBillingEnabled } from '@/lib/billing';
+import { hasMarketingConsent, trackBeginCheckout } from '@/lib/analytics';
 import { toast } from '@/hooks/use-toast';
 
 const EXTRA_ACCOUNT_ADDON_SLUG = 'extra_account_monthly';
@@ -78,21 +79,23 @@ export default function PricingPage() {
     extraAccountQuantity,
     accountLimit,
     activeAccountCount,
+    hasActivePlan,
   } = useSubscriptionPlan();
   const [busyPlan, setBusyPlan] = useState<string | null>(null);
   const [busyAddon, setBusyAddon] = useState(false);
-  const [openingPortal, setOpeningPortal] = useState(false);
   const [resumeAttempted, setResumeAttempted] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [checkoutNotice, setCheckoutNotice] = useState<string | null>(null);
   const billingEnabled = isBillingEnabled();
   const currentPlanId = subscription?.plan_id;
+  // Matches the gateway's own gates (findBaseSubscriptionForAddon / create-portal-session):
+  // both only require an active, unexpired subscription with a Stripe customer attached —
+  // stripe_subscription_id can be null for manually-granted plans, so it must not be required here.
   const hasActivePaidStripeSubscription = Boolean(
+    hasActivePlan &&
     subscription?.stripe_customer_id &&
-    subscription?.stripe_subscription_id &&
     subscription.plan_id !== 'beta_free',
   );
-  const checkoutCanceled = searchParams.get('checkout') === 'cancel';
   const intendedPlan = useMemo(
     () => searchParams.get('checkoutPlan') || window.sessionStorage.getItem('intended_plan_slug') || window.sessionStorage.getItem('fortify_intended_plan'),
     [searchParams],
@@ -150,11 +153,13 @@ export default function PricingPage() {
 
     setBusyPlan(plan.id);
     try {
-      const checkout = await createCheckoutSession(planSelector, session.access_token);
+      const checkout = await createCheckoutSession(planSelector, session.access_token, hasMarketingConsent());
       const checkoutUrl = String(checkout.checkout_url || '');
       if (!checkoutUrl.startsWith('https://checkout.stripe.com/')) {
         throw new Error('A Stripe retornou uma URL inválida para checkout.');
       }
+      window.sessionStorage.setItem('fortify_pending_plan_slug', planSelector);
+      trackBeginCheckout({ slug: planSelector, name: plan.name, price: plan.price_amount, currency: plan.currency });
       setCheckoutNotice('Checkout criado. Redirecionando para a Stripe...');
       window.location.href = checkoutUrl;
     } catch (error: any) {
@@ -215,27 +220,6 @@ export default function PricingPage() {
     }
   };
 
-  const openPortal = async () => {
-    setCheckoutError(null);
-    setCheckoutNotice(null);
-
-    if (!session?.access_token) {
-      navigate('/auth');
-      return;
-    }
-    setOpeningPortal(true);
-    try {
-      const portal = await createPortalSession(session.access_token);
-      window.location.href = portal.portal_url;
-    } catch (error: any) {
-      const message = error?.message || 'Escolha um plano para começar.';
-      setCheckoutError(message);
-      toast({ title: 'Portal indisponível', description: message, variant: 'destructive' });
-    } finally {
-      setOpeningPortal(false);
-    }
-  };
-
   useEffect(() => {
     if (resumeAttempted || !session?.access_token || !intendedPlan || plans.length === 0) return;
     const plan = plans.find((item) => item.id === intendedPlan || item.slug === intendedPlan);
@@ -252,30 +236,21 @@ export default function PricingPage() {
   }, [currentPlanId, intendedPlan, plans, resumeAttempted, session?.access_token]);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-8">
-      <div className="rounded-2xl hero-surface edge-top p-7 md:p-10 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+    <div className="p-6 max-w-7xl mx-auto space-y-5">
+      <div className="rounded-2xl hero-surface p-5 md:p-6 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div className="max-w-2xl">
-          <p className="eyebrow mb-4">Planos Fortify</p>
-          <h1 className="display-editorial-sm text-gradient-steel">Escolha o plano da sua operação</h1>
-          <p className="text-sm md:text-base text-muted-foreground mt-4 max-w-xl leading-relaxed">
-            Pagamento processado com segurança pela Stripe. Após a confirmação, seu plano é ativado automaticamente e você pode gerenciar sua assinatura nas configurações.
-          </p>
+          <p className="eyebrow mb-2">Planos Fortify</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">Escolha o plano da sua operação</h1>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           {hasActivePaidStripeSubscription ? (
-            <Button variant="outline" onClick={openPortal} disabled={openingPortal} className="gap-2">
-              {openingPortal ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
+            <Button variant="outline" onClick={() => navigate('/subscription')} className="gap-2">
+              <CreditCard className="w-4 h-4" />
               Gerenciar assinatura
             </Button>
           ) : null}
         </div>
       </div>
-
-      {checkoutCanceled && (
-        <div className="rounded-xl border border-warning/30 bg-warning/5 p-4">
-          <p className="text-sm font-medium text-foreground">Pagamento cancelado. Você pode escolher outro plano quando quiser.</p>
-        </div>
-      )}
 
       {!billingEnabled && (
         <div className="rounded-xl border border-warning/30 bg-warning/5 p-4">
@@ -324,10 +299,17 @@ export default function PricingPage() {
               : hasActivePaidStripeSubscription ? 'Alterar plano' : 'Assinar';
           const handlePlanClick = () => {
             if (isCurrent && hasActivePaidStripeSubscription) {
-              openPortal();
+              navigate('/subscription');
               return;
             }
             if (isCurrent) return;
+            if (hasActivePaidStripeSubscription) {
+              // Already subscribed to a different plan — route through the change-plan flow
+              // instead of starting a second Checkout session (which would create a duplicate
+              // Stripe subscription rather than switching plans).
+              navigate(`/subscription?targetPlan=${encodeURIComponent(plan.slug || plan.id)}`);
+              return;
+            }
             startCheckout(plan);
           };
 

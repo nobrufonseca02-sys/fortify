@@ -40,7 +40,29 @@ function billingErrorMessage(body: any, fallback: string) {
   if (code === 'invalid_billing_plan') {
     return 'Plano Fortify não encontrado ou inativo.';
   }
+  if (code === 'stripe_subscription_missing') {
+    return 'Este plano foi ativado manualmente pela equipe Fortify e não pode ser gerenciado por aqui. Fale com o suporte.';
+  }
+  if (code === 'subscription_already_ended') {
+    return 'Esta assinatura já foi encerrada. Escolha um plano para assinar novamente.';
+  }
+  if (code === 'already_on_target_plan') {
+    return 'Você já está neste plano.';
+  }
+  if (code === 'not_a_downgrade') {
+    return 'Para subir de plano, pague agora — use o checkout.';
+  }
+  if (code === 'stripe_subscription_present_use_change_plan') {
+    return 'Esta assinatura já é gerenciada pela Stripe. Use a troca de plano normal.';
+  }
   return body?.details || body?.error || fallback;
+}
+
+function throwBillingError(body: any, fallback: string): never {
+  const error = new Error(billingErrorMessage(body, fallback)) as Error & { code?: string; details?: any };
+  error.code = body?.code;
+  error.details = body;
+  throw error;
 }
 
 async function billingFetch(path: string, init: RequestInit) {
@@ -66,13 +88,13 @@ async function assertBillingGatewayAvailable() {
   }
 }
 
-export async function createCheckoutSession(planSlug: string, accessToken: string) {
+export async function createCheckoutSession(planSlug: string, accessToken: string, marketingConsent = false) {
   await assertBillingGatewayAvailable();
 
   const response = await billingFetch('/billing/create-checkout-session', {
     method: 'POST',
     headers: gatewayJsonHeaders(accessToken),
-    body: JSON.stringify({ planSlug }),
+    body: JSON.stringify({ planSlug, marketingConsent }),
   });
 
   const body = await response.json().catch(() => ({}));
@@ -144,4 +166,101 @@ export async function createAddonCheckoutSession(addonSlug: string, accessToken:
 
   assertCheckoutUrl(body?.checkout_url);
   return body as { checkout_url: string; session_id: string };
+}
+
+export async function cancelSubscription(accessToken: string) {
+  await assertBillingGatewayAvailable();
+
+  const response = await billingFetch('/billing/cancel-subscription', {
+    method: 'POST',
+    headers: gatewayJsonHeaders(accessToken),
+    body: JSON.stringify({}),
+  });
+
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throwBillingError(body, 'Falha ao cancelar a assinatura.');
+  }
+
+  return body;
+}
+
+export async function resumeSubscription(accessToken: string) {
+  await assertBillingGatewayAvailable();
+
+  const response = await billingFetch('/billing/resume-subscription', {
+    method: 'POST',
+    headers: gatewayJsonHeaders(accessToken),
+    body: JSON.stringify({}),
+  });
+
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throwBillingError(body, 'Falha ao reativar a assinatura.');
+  }
+
+  return body;
+}
+
+export async function changePlan(planSlug: string, accessToken: string) {
+  await assertBillingGatewayAvailable();
+
+  const response = await billingFetch('/billing/change-plan', {
+    method: 'POST',
+    headers: gatewayJsonHeaders(accessToken),
+    body: JSON.stringify({ planSlug }),
+  });
+
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throwBillingError(body, 'Falha ao trocar de plano.');
+  }
+
+  return body as {
+    subscription: any;
+    activeAccountCount: number;
+    accountLimit: number;
+    extraAccountQuantity: number;
+    planChange: { from: string; to: string };
+  };
+}
+
+export async function scheduleManualDowngrade(planSlug: string, accessToken: string) {
+  await assertBillingGatewayAvailable();
+
+  const response = await billingFetch('/billing/schedule-manual-downgrade', {
+    method: 'POST',
+    headers: gatewayJsonHeaders(accessToken),
+    body: JSON.stringify({ planSlug }),
+  });
+
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throwBillingError(body, 'Falha ao agendar o downgrade.');
+  }
+
+  return body as {
+    subscription: any;
+    activeAccountCount: number;
+    accountLimit: number;
+    extraAccountQuantity: number;
+    scheduled: { planId: string; effectiveAt: string | null };
+  };
+}
+
+export async function cancelScheduledDowngrade(accessToken: string) {
+  await assertBillingGatewayAvailable();
+
+  const response = await billingFetch('/billing/cancel-scheduled-downgrade', {
+    method: 'POST',
+    headers: gatewayJsonHeaders(accessToken),
+    body: JSON.stringify({}),
+  });
+
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throwBillingError(body, 'Falha ao cancelar o agendamento.');
+  }
+
+  return body;
 }

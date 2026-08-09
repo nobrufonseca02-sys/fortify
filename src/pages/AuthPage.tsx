@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import fortifyIcon from "@/assets/brand/fortify-f-standalone-white.svg";
+import { FortifyMark } from "@/components/brand/FortifyMark";
+import { trackSignUp } from "@/lib/analytics";
 import { Shield, Lock, Mail, User, ArrowRight, Eye, EyeOff, ChevronRight, CheckCircle2 } from "lucide-react";
 
 type AuthMode = "login" | "signup" | "forgot";
@@ -83,6 +84,7 @@ export default function AuthPage() {
     if (error) {
       toast({ title: "Erro ao criar conta", description: error.message, variant: "destructive" });
     } else {
+      trackSignUp();
       toast({ title: "Conta criada!", description: "Verifique seu e-mail para confirmar o cadastro." });
       setMode("login");
     }
@@ -156,10 +158,10 @@ export default function AuthPage() {
       <AuthBackground />
 
       <div className="fixed left-4 top-4 z-20 flex items-center gap-3 sm:left-7 sm:top-6">
-        <img src={fortifyIcon} alt="Fortify" className="h-10 w-10 object-contain opacity-95 sm:h-12 sm:w-12" />
+        <FortifyMark className="h-10 w-10 shrink-0 text-white opacity-95 sm:h-12 sm:w-12" />
         <div className="flex flex-col leading-none">
-          <span className="text-lg font-black uppercase tracking-[0.24em] text-white sm:text-2xl">FORTIFY</span>
-          <span className="mt-1 text-[9px] font-mono uppercase tracking-[0.18em] text-cyan-100/70 sm:text-[11px]">
+          <span className="text-base font-bold uppercase tracking-[0.14em] text-white sm:text-xl">Fortify</span>
+          <span className="mt-1 text-[10px] uppercase tracking-[0.1em] text-white/60 sm:text-[11px]">
             Sistema de gestão de risco
           </span>
         </div>
@@ -170,46 +172,46 @@ export default function AuthPage() {
           href={supportWhatsAppUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="rounded-full border border-white/12 bg-white/[0.055] px-4 py-2 text-xs font-semibold text-white backdrop-blur-xl transition-colors hover:border-cyan-200/30 hover:bg-cyan-200/10 sm:px-5 sm:text-sm"
+          className="rounded-full border border-white/12 bg-white/[0.055] px-4 py-2 text-xs font-semibold text-white backdrop-blur-xl transition-colors hover:border-primary/40 hover:bg-primary/10 sm:px-5 sm:text-sm"
         >
           Suporte
         </a>
         <button
           type="button"
           onClick={focusLoginCard}
-          className="rounded-full border border-white/12 bg-white/[0.055] px-4 py-2 text-xs font-semibold text-white backdrop-blur-xl transition-colors hover:border-cyan-200/30 hover:bg-cyan-200/10 sm:px-5 sm:text-sm"
+          className="rounded-full border border-white/12 bg-white/[0.055] px-4 py-2 text-xs font-semibold text-white backdrop-blur-xl transition-colors hover:border-primary/40 hover:bg-primary/10 sm:px-5 sm:text-sm"
         >
           Login
         </button>
       </div>
 
-      <main className="relative z-10 flex min-h-screen items-center justify-center px-5 pb-12 pt-36 sm:px-8 sm:pt-36 lg:px-12 lg:pt-28">
+      <main className="relative z-10 flex min-h-screen items-center justify-center px-5 pb-8 pt-20 sm:px-8 sm:pt-20 lg:px-12 lg:pt-16">
         <section className="mx-auto flex w-full max-w-[900px] flex-col items-center text-center">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.65, delay: 0.12 }}
-            className="mb-8"
+            className="mb-5"
           >
-            <p className="text-[11px] font-mono uppercase tracking-[0.28em] text-cyan-100/70">Risk command center</p>
-            <h1 className="mx-auto mt-4 max-w-4xl text-4xl font-black leading-tight text-white sm:text-6xl lg:text-7xl">
+            <p className="text-xs uppercase tracking-[0.18em] text-white">Risk command center</p>
+            <h1 className="mx-auto mt-2 max-w-3xl text-2xl font-bold leading-tight text-white sm:text-4xl lg:text-5xl">
               Proteja sua conta antes do próximo trade.
             </h1>
-            <p className="mx-auto mt-5 max-w-2xl text-sm leading-6 text-slate-200 sm:text-lg sm:leading-8">
+            <p className="mx-auto mt-2 max-w-xl text-xs leading-5 text-slate-200 sm:text-base sm:leading-6">
               Monitore risco, drawdown, regras críticas e posições MT5 em um único painel.
             </p>
           </motion.div>
 
-          <div className="mb-8 grid w-full max-w-4xl gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="mb-5 grid w-full max-w-4xl gap-2 sm:grid-cols-2 lg:grid-cols-5">
             {bullets.map((bullet, index) => (
               <motion.div
                 key={bullet}
-                className="flex min-h-[72px] flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-center text-xs font-medium leading-5 text-slate-100 backdrop-blur-md sm:text-sm lg:text-xs"
+                className="flex min-h-[52px] flex-col items-center justify-center gap-1.5 rounded-2xl border border-white/10 bg-white/[0.05] px-3 py-2 text-center text-[11px] font-medium leading-4 text-slate-100 backdrop-blur-md sm:text-xs"
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.45, delay: 0.22 + index * 0.06 }}
               >
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-200" />
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />
                 {bullet}
               </motion.div>
             ))}
@@ -217,12 +219,11 @@ export default function AuthPage() {
 
           <motion.div
             ref={authCardRef}
-            className="relative w-full max-w-[460px] overflow-hidden rounded-[1.75rem] border border-white/12 bg-slate-950/82 p-6 text-left shadow-2xl shadow-cyan-950/35 backdrop-blur-xl sm:p-8"
+            className="relative w-full max-w-[460px] overflow-hidden rounded-[1.75rem] border border-white/12 bg-slate-950/82 p-6 text-left shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-8"
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.65, delay: 0.28 }}
           >
-            <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/60 to-transparent" />
             <AnimatePresence mode="wait">
               <motion.div
                 key={mode}
@@ -259,7 +260,7 @@ export default function AuthPage() {
                     </Button>
                     <div className="flex items-center gap-3">
                       <span className="h-px flex-1 bg-white/10" />
-                      <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-slate-500">ou entre com e-mail</span>
+                      <span className="text-[11px] uppercase tracking-wide text-slate-500">ou entre com e-mail</span>
                       <span className="h-px flex-1 bg-white/10" />
                     </div>
                   </div>
@@ -273,7 +274,7 @@ export default function AuthPage() {
                         <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                         <Input
                           id="name"
-                          className="border-white/10 bg-white/[0.055] pl-10 text-white placeholder:text-slate-500 focus-visible:ring-cyan-300/30"
+                          className="border-white/10 bg-white/[0.055] pl-10 text-white placeholder:text-slate-500 focus-visible:ring-primary/40"
                           placeholder="Seu nome"
                           value={form.name}
                           onChange={(e) => updateField("name", e.target.value)}
@@ -289,7 +290,7 @@ export default function AuthPage() {
                       <Input
                         id="email"
                         type="email"
-                        className="border-white/10 bg-white/[0.055] pl-10 text-white placeholder:text-slate-500 focus-visible:ring-cyan-300/30"
+                        className="border-white/10 bg-white/[0.055] pl-10 text-white placeholder:text-slate-500 focus-visible:ring-primary/40"
                         placeholder="seu@email.com"
                         value={form.email}
                         onChange={(e) => updateField("email", e.target.value)}
@@ -306,7 +307,7 @@ export default function AuthPage() {
                         <Input
                           id="password"
                           type={showPassword ? "text" : "password"}
-                          className="border-white/10 bg-white/[0.055] pl-10 pr-10 text-white placeholder:text-slate-500 focus-visible:ring-cyan-300/30"
+                          className="border-white/10 bg-white/[0.055] pl-10 pr-10 text-white placeholder:text-slate-500 focus-visible:ring-primary/40"
                           placeholder="••••••••"
                           value={form.password}
                           onChange={(e) => updateField("password", e.target.value)}
@@ -329,7 +330,7 @@ export default function AuthPage() {
                       <button
                         type="button"
                         onClick={() => setMode("forgot")}
-                        className="text-xs text-cyan-200/85 transition-colors hover:text-cyan-100"
+                        className="text-xs text-primary/85 transition-colors hover:text-primary"
                       >
                         Esqueceu a senha?
                       </button>
@@ -341,7 +342,7 @@ export default function AuthPage() {
                     disabled={loading}
                     variant="premium"
                     size="lg"
-                    className="w-full gap-2 group bg-cyan-300 text-slate-950 hover:bg-cyan-200"
+                    className="w-full gap-2 group"
                   >
                     {loading ? (
                       <motion.div
@@ -365,7 +366,7 @@ export default function AuthPage() {
                     <div className="space-y-3">
                       <p className="text-sm text-slate-400">
                         Não tem conta?{" "}
-                        <button onClick={() => setMode("signup")} className="text-cyan-200 font-semibold transition-colors hover:text-cyan-100">
+                        <button onClick={() => setMode("signup")} className="text-primary font-semibold transition-colors hover:text-primary/80">
                           Criar conta grátis
                         </button>
                       </p>
@@ -379,7 +380,7 @@ export default function AuthPage() {
                     <div className="space-y-3">
                       <p className="text-sm text-slate-400">
                         Já tem conta?{" "}
-                        <button onClick={() => setMode("login")} className="text-cyan-200 font-semibold transition-colors hover:text-cyan-100">
+                        <button onClick={() => setMode("login")} className="text-primary font-semibold transition-colors hover:text-primary/80">
                           Já tenho conta
                         </button>
                       </p>
@@ -390,7 +391,7 @@ export default function AuthPage() {
                     </div>
                   )}
                   {mode === "forgot" && (
-                    <button onClick={() => setMode("login")} className="text-sm text-cyan-200 font-semibold transition-colors hover:text-cyan-100 flex items-center gap-1 mx-auto">
+                    <button onClick={() => setMode("login")} className="text-sm text-primary font-semibold transition-colors hover:text-primary/80 flex items-center gap-1 mx-auto">
                       <ChevronRight className="h-3 w-3 rotate-180" />
                       Voltar ao login
                     </button>
@@ -401,7 +402,7 @@ export default function AuthPage() {
           </motion.div>
 
           <motion.div
-            className="mt-6 flex items-center justify-center gap-6 text-[10px] text-slate-500 uppercase tracking-wider"
+            className="mt-4 flex items-center justify-center gap-6 text-[10px] text-slate-500 uppercase tracking-wider"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.8 }}
@@ -416,7 +417,7 @@ export default function AuthPage() {
           </motion.div>
 
           <motion.p
-            className="mt-8 text-center text-[11px] text-slate-500 font-mono"
+            className="mt-5 text-center text-[11px] text-slate-500"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 1.1 }}

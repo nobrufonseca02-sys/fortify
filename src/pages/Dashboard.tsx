@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { AlertTriangle, ChevronRight, CreditCard, Loader2, Shield, ShieldAlert, ShieldX, Zap } from 'lucide-react';
+import { AlertTriangle, Shield, ShieldAlert, ShieldX } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAccountsStore } from '@/hooks/useAccountsStore';
 import { useAuth } from '@/hooks/useAuth';
-import { useAllRuleEvaluations, useSyncAndEvaluate, type RuleEvaluationRow } from '@/hooks/useRuleEvaluations';
+import { useAllRuleEvaluations, type RuleEvaluationRow } from '@/hooks/useRuleEvaluations';
 import { useSubscriptionPlan } from '@/hooks/useSubscriptionPlan';
 import { getAccountEvaluationSummary } from '@/lib/ruleEvaluationView';
 import { confirmCheckoutSession } from '@/lib/billing';
+import { trackPurchase } from '@/lib/analytics';
 import { supabase } from '@/integrations/supabase/client';
 import { MarketTicker } from '@/components/MarketTicker';
 import type { TradingAccount } from '@/types/fortify';
@@ -47,30 +48,26 @@ type ChecklistItem = {
   detail: string;
 };
 
-const statusStyle: Record<HealthStatus, { label: string; icon: typeof Shield; className: string; pill: string }> = {
+const statusStyle: Record<HealthStatus, { label: string; className: string; textClass: string }> = {
   safe: {
     label: 'Seguro',
-    icon: Shield,
     className: 'border-success/20 bg-success/5',
-    pill: 'bg-success/15 text-success border-success/20',
+    textClass: 'text-success',
   },
   warning: {
     label: 'Atenção',
-    icon: ShieldAlert,
     className: 'border-warning/25 bg-warning/5',
-    pill: 'bg-warning/15 text-warning border-warning/25',
+    textClass: 'text-warning',
   },
   critical: {
     label: 'Crítico',
-    icon: ShieldX,
     className: 'border-destructive/25 bg-destructive/5',
-    pill: 'bg-destructive/15 text-destructive border-destructive/25',
+    textClass: 'text-destructive',
   },
   nodata: {
     label: 'Sem dados',
-    icon: AlertTriangle,
     className: 'border-border bg-card',
-    pill: 'bg-muted text-muted-foreground border-border',
+    textClass: 'text-muted-foreground',
   },
 };
 
@@ -342,8 +339,7 @@ function Dashboard() {
   const { accounts } = useAccountsStore();
   const { user, session } = useAuth();
   const { data: ruleRows = [] } = useAllRuleEvaluations();
-  const { accountLimit, hasActivePlan } = useSubscriptionPlan();
-  const syncMutation = useSyncAndEvaluate();
+  const { accountLimit, hasActivePlan, plans } = useSubscriptionPlan();
   const [mt5Connections, setMt5Connections] = useState<any[]>([]);
   const [positions, setPositions] = useState<any[]>([]);
   const [checkoutMessage, setCheckoutMessage] = useState<string | null>(null);
@@ -391,18 +387,34 @@ function Dashboard() {
     setCheckoutConfirming(true);
     confirmCheckoutSession(checkoutSessionId, session.access_token)
       .then(() => {
-        if (active) setCheckoutMessage('Pagamento confirmado. Seu plano foi ativado.');
+        if (!active) return;
+        setCheckoutMessage('Pagamento confirmado. Seu plano foi ativado.');
+        const trackedKey = `fortify_tracked_purchase_${checkoutSessionId}`;
+        if (!window.sessionStorage.getItem(trackedKey)) {
+          window.sessionStorage.setItem(trackedKey, '1');
+          const pendingPlanSlug = window.sessionStorage.getItem('fortify_pending_plan_slug') || '';
+          const purchasedPlan = plans.find((p) => (p.slug || p.id) === pendingPlanSlug);
+          trackPurchase({
+            transactionId: checkoutSessionId,
+            value: purchasedPlan?.price_amount,
+            currency: purchasedPlan?.currency,
+            planSlug: pendingPlanSlug || purchasedPlan?.id || 'unknown',
+          });
+        }
       })
       .catch((error) => {
         if (active) setCheckoutMessage(error?.message || 'Pagamento recebido. Seu plano será ativado em instantes.');
       })
       .finally(() => {
-        if (active) setCheckoutConfirming(false);
+        if (active) {
+          setCheckoutConfirming(false);
+          navigate(location.pathname, { replace: true });
+        }
       });
     return () => {
       active = false;
     };
-  }, [checkoutSessionId, checkoutSuccess, session?.access_token]);
+  }, [checkoutSessionId, checkoutSuccess, session?.access_token, plans, navigate, location.pathname]);
 
   const rows = useMemo(() => {
     return accounts.map((account) => {
@@ -416,10 +428,7 @@ function Dashboard() {
   const riskyAccountsCount = rows.filter((row) => row.status === 'critical' || row.status === 'warning').length;
   const openPositions = rows.reduce((sum, row) => sum + row.openPositions, 0);
   const syncedAccountsCount = rows.filter((row) => row.connection?.last_sync_at && !row.hasSyncError).length;
-  const negativeFloating = rows.some((row) => row.negativeFloatingPnl < 0);
-  const failedSyncRow = rows.find((row) => row.hasSyncError);
   const staleRow = rows.find((row) => row.stale && row.connection);
-  const noConnectedAccounts = mt5Connections.filter((connection) => ['connected', 'syncing'].includes(String(connection.connection_status))).length === 0;
   const overall = summaryStatus(rows);
   const score = fortifyScore(rows);
   const latestSync = latestSyncInfo(rows, Boolean(staleRow));
@@ -439,83 +448,12 @@ function Dashboard() {
   }, [assetSummaries.length, biggestAssetLoss, mostExposedAsset]);
   const preTradeChecklist = useMemo(() => buildPreTradeChecklist(rows), [rows]);
 
-  const recommendedAction = useMemo(() => {
-    const violated = rows.find((row) => row.hasViolation);
-    const critical = rows.find((row) => row.status === 'critical');
-    if (accounts.length === 0) {
-      return {
-        message: 'Conecte sua primeira conta MT5 para iniciar o monitoramento.',
-        label: 'Conectar conta MT5',
-        onClick: () => navigate('/mt5'),
-      };
-    }
-    if (failedSyncRow) {
-      return {
-        message: 'Revise a conexão MT5 antes de operar.',
-        label: 'Corrigir conexão',
-        onClick: () => navigate('/mt5'),
-      };
-    }
-    if (noConnectedAccounts) {
-      return {
-        message: 'Sincronize suas contas antes do próximo trade.',
-        label: 'Conectar conta MT5',
-        onClick: () => navigate('/mt5'),
-      };
-    }
-    if (staleRow) {
-      return {
-        message: 'Sincronize suas contas antes do próximo trade.',
-        label: syncMutation.isPending ? 'Sincronizando...' : 'Sincronizar agora',
-        onClick: () => staleRow.connection?.id && syncMutation.mutate(staleRow.connection.id),
-      };
-    }
-    if (violated) {
-      return {
-        message: 'Conta em zona de atenção. Reduza risco antes de operar.',
-        label: 'Ver conta',
-        onClick: () => navigate(`/accounts/${violated.account.id}`),
-      };
-    }
-    if (critical) {
-      return {
-        message: 'Conta em zona de atenção. Reduza risco antes de operar.',
-        label: 'Ver regras',
-        onClick: () => navigate(`/accounts/${critical.account.id}/rules`),
-      };
-    }
-    if (negativeFloating) {
-      return {
-        message: 'Há operações abertas com perda flutuante. Verifique se ainda existe margem segura antes de manter o trade.',
-        label: 'Ver posições',
-        onClick: () => navigate('/mt5'),
-      };
-    }
-    return {
-      message: 'Tudo certo. Suas contas estão dentro dos limites monitorados.',
-      label: 'Ver contas',
-      onClick: () => navigate('/accounts'),
-    };
-  }, [accounts.length, failedSyncRow, navigate, negativeFloating, noConnectedAccounts, rows, staleRow, syncMutation]);
-
-  const insights = useMemo(() => {
-    const items: string[] = [];
-    if (accounts.length === 0) items.push('Nenhuma conta conectada');
-    rows.filter((row) => row.hasSyncError).forEach((row) => items.push(`${row.account.nickname}: erro de autenticação/sync - corrija antes de operar.`));
-    rows.filter((row) => row.stale && row.connection).forEach((row) => items.push(`${row.account.nickname}: conta sem sincronização recente - dados podem estar desatualizados.`));
-    rows.filter((row) => row.negativeFloatingPnl < 0).forEach((row) => items.push(`${row.account.nickname}: existe posição aberta em prejuízo - revise o risco antes de manter a operação.`));
-    rows.filter((row) => row.hasViolation).forEach((row) => items.push(`${row.account.nickname}: regra violada - reduza risco antes de operar.`));
-    rows.filter((row) => row.bufferPct !== null && row.bufferPct <= 30).forEach((row) => items.push(`${row.account.nickname}: conta próxima do limite - evite novas entradas.`));
-    rows.filter((row) => row.evaluations.length === 0).forEach((row) => items.push(`${row.account.nickname}: conta sem regra configurada.`));
-    return Array.from(new Set(items)).slice(0, 6);
-  }, [accounts.length, rows]);
-
   const summaryCards = [
-    { label: 'Fortify Score', value: score, detail: overall, icon: overall === 'Crítico' ? ShieldX : overall === 'Atenção' ? ShieldAlert : Shield },
-    { label: 'Contas monitoradas', value: formatAccountCount(rows.length, accountLimit || 0), detail: formatSyncedCount(syncedAccountsCount), icon: CreditCard },
-    { label: 'Contas em risco', value: String(riskyAccountsCount), detail: riskyAccount?.account.nickname || 'Sem risco crítico', icon: AlertTriangle },
-    { label: 'Posições abertas', value: formatPositionCount(openPositions), icon: Zap },
-    { label: 'Última sincronização', value: latestSync.value, detail: latestSync.detail, icon: Loader2 },
+    { label: 'Fortify Score', value: score, detail: overall },
+    { label: 'Contas monitoradas', value: formatAccountCount(rows.length, accountLimit || 0), detail: formatSyncedCount(syncedAccountsCount) },
+    { label: 'Contas em risco', value: String(riskyAccountsCount), detail: riskyAccount?.account.nickname || 'Sem risco crítico' },
+    { label: 'Posições abertas', value: formatPositionCount(openPositions) },
+    { label: 'Última sincronização', value: latestSync.value, detail: latestSync.detail },
   ];
 
   return (
@@ -525,10 +463,10 @@ function Dashboard() {
       <motion.header
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl hero-surface edge-top p-5 md:p-6"
+        className="rounded-2xl hero-surface p-5 md:p-6"
       >
         <p className="eyebrow mb-3">Console operacional</p>
-        <h1 className="text-2xl md:text-3xl font-black tracking-tight text-foreground">Painel de saúde das contas</h1>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">Painel de saúde das contas</h1>
         <p className="text-sm text-muted-foreground mt-2 max-w-2xl">
           Veja risco, drawdown, posições abertas e regras críticas antes do próximo trade.
         </p>
@@ -552,30 +490,13 @@ function Dashboard() {
       )}
 
       <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
-        {summaryCards.map((card) => {
-          const Icon = card.icon;
-          return (
-            <div key={card.label} className="rounded-xl border border-border bg-card p-4 min-h-[104px]">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-mono">{card.label}</p>
-                <Icon className="w-4 h-4 text-primary" />
-              </div>
-              <p className="text-lg font-bold text-foreground mt-3">{card.value}</p>
-              {'detail' in card && card.detail && <p className="text-[11px] text-muted-foreground mt-1 truncate">{card.detail}</p>}
-            </div>
-          );
-        })}
-      </section>
-
-      <section className="rounded-2xl border border-primary/25 bg-primary/5 p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-primary font-mono">Próxima ação recomendada</p>
-          <p className="text-sm md:text-base font-semibold text-foreground mt-2">{recommendedAction.message}</p>
-        </div>
-        <button type="button" onClick={recommendedAction.onClick} disabled={syncMutation.isPending} className="pill-btn pill-btn-primary">
-          {syncMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
-          {recommendedAction.label}
-        </button>
+        {summaryCards.map((card) => (
+          <div key={card.label} className="rounded-xl border border-border bg-card p-4 min-h-[104px]">
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{card.label}</p>
+            <p className="text-lg font-bold text-foreground mt-3">{card.value}</p>
+            {'detail' in card && card.detail && <p className="text-[11px] text-muted-foreground mt-1 truncate">{card.detail}</p>}
+          </div>
+        ))}
       </section>
 
       {accounts.length === 0 ? (
@@ -590,12 +511,10 @@ function Dashboard() {
         <section className="rounded-2xl border border-border bg-card overflow-hidden">
           <div className="p-5 border-b border-border/60">
             <h2 className="text-sm font-bold text-foreground">Saúde por conta</h2>
-            <p className="text-xs text-muted-foreground mt-1">Status operacional de cada conta monitorada.</p>
           </div>
           <div className="divide-y divide-border/60">
             {rows.map((row) => {
               const style = statusStyle[row.status];
-              const Icon = style.icon;
               const needsConnectionFix = row.hasSyncError || row.stale || !row.connection;
               return (
                 <div key={row.account.id} className={`p-4 grid grid-cols-1 lg:grid-cols-[1.5fr_1fr_0.8fr_0.8fr_1fr_auto] gap-3 lg:items-center ${style.className}`}>
@@ -603,10 +522,7 @@ function Dashboard() {
                     <p className="text-sm font-semibold text-foreground">{row.account.nickname}</p>
                     <p className="text-xs text-muted-foreground">{row.account.broker || row.connection?.mt5_server || 'Mesa/servidor não informado'}</p>
                   </div>
-                  <div className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 ${style.pill}`}>
-                    <Icon className="w-3.5 h-3.5" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider">{row.statusLabel}</span>
-                  </div>
+                  <span className={`text-xs font-bold uppercase tracking-wider ${style.textClass}`}>{row.statusLabel}</span>
                   <Metric label="Equity" value={row.equityLabel} />
                   <Metric label="Posições abertas" value={formatPositionCount(row.openPositions)} />
                   <Metric label="Última sincronização" value={row.lastSyncLabel} />
@@ -619,22 +535,6 @@ function Dashboard() {
           </div>
         </section>
       )}
-
-      <section className="rounded-2xl border border-border bg-card p-5">
-        <h2 className="text-sm font-bold text-foreground">Insights rápidos</h2>
-        {insights.length === 0 ? (
-          <p className="text-sm text-muted-foreground mt-3">Sem alertas críticos no momento.</p>
-        ) : (
-          <div className="mt-4 space-y-2">
-            {insights.map((insight) => (
-              <div key={insight} className="flex items-start gap-2 rounded-lg border border-warning/20 bg-warning/5 p-3">
-                <AlertTriangle className="w-4 h-4 text-warning mt-0.5 shrink-0" />
-                <p className="text-sm text-foreground">{insight}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
 
       <section className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <div className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -716,14 +616,14 @@ function Dashboard() {
             ))}
           </div>
           <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
-            <p className="text-[10px] uppercase tracking-[0.18em] text-primary font-mono">Recomendação</p>
+            <p className="text-[11px] uppercase tracking-wide text-primary font-medium">Recomendação</p>
             <p className="text-sm font-semibold text-foreground mt-2">{preTradeChecklist.recommendation}</p>
           </div>
         </div>
       </section>
 
       <footer className="pt-4 border-t border-border/30">
-        <p className="text-[10px] text-muted-foreground/50 font-mono">
+        <p className="text-[11px] text-muted-foreground/70">
           Última atualização: {new Date().toLocaleString('pt-BR')}
         </p>
       </footer>
@@ -734,7 +634,7 @@ function Dashboard() {
 function AssetMetric({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
     <div className="rounded-xl border border-border/60 bg-background/30 p-3">
-      <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-mono">{label}</p>
+      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className="text-sm font-bold text-foreground mt-2">{value}</p>
       <p className="text-[11px] text-muted-foreground mt-1">{detail}</p>
     </div>

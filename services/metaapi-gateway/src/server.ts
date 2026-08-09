@@ -2,10 +2,11 @@ import Fastify, { type FastifyRequest } from 'fastify';
 import dotenv from 'dotenv';
 import path from 'node:path';
 import { existsSync } from 'node:fs';
-import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { createClient } from '@supabase/supabase-js';
 import cors from '@fastify/cors';
+import Anthropic from '@anthropic-ai/sdk';
 
 const gatewayEnvPath = path.resolve(__dirname, '../.env');
 const gatewayEnvResult = dotenv.config({ path: gatewayEnvPath, override: true });
@@ -60,6 +61,14 @@ const STRIPE_CUSTOMER_PORTAL_RETURN_URL = process.env.STRIPE_CUSTOMER_PORTAL_RET
 const STRIPE_API_BASE_URL = 'https://api.stripe.com/v1';
 const BILLING_GRACE_HOURS = Math.max(0, Number(process.env.BILLING_GRACE_HOURS || 0));
 const INTERNAL_CRON_SECRET = process.env.INTERNAL_CRON_SECRET || '';
+const WHATSAPP_SERVICE_SECRET = process.env.WHATSAPP_SERVICE_SECRET || '';
+const PUBLIC_APP_URL = process.env.PUBLIC_APP_URL || 'http://localhost:8081';
+const META_PIXEL_ID = process.env.META_PIXEL_ID || '';
+const META_CAPI_ACCESS_TOKEN = process.env.META_CAPI_ACCESS_TOKEN || '';
+const GA4_MEASUREMENT_ID = process.env.GA4_MEASUREMENT_ID || '';
+const GA4_API_SECRET = process.env.GA4_API_SECRET || '';
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
+const COACH_DAILY_MESSAGE_LIMIT = Math.max(1, Number(process.env.COACH_DAILY_MESSAGE_LIMIT || 40));
 const OWNER_ADMIN_EMAIL = 'nobrufonseca01@hotmail.com';
 const EXTRA_ACCOUNT_ADDON_SLUG = 'extra_account_monthly';
 
@@ -74,6 +83,7 @@ if (!METAAPI_TOKEN) {
 }
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const anthropic = ANTHROPIC_API_KEY ? new Anthropic({ apiKey: ANTHROPIC_API_KEY }) : null;
 
 const provisioningBaseUrl = 'https://mt-provisioning-api-v1.agiliumtrade.agiliumtrade.ai';
 const clientBaseUrl = `https://mt-client-api-v1.${METAAPI_REGION}.agiliumtrade.ai`;
@@ -560,6 +570,14 @@ function stripeConfigError() {
   };
 }
 
+function coachConfigError() {
+  return {
+    error: 'O coach de risco com IA ainda não está configurado neste gateway.',
+    code: 'coach_not_configured',
+    details: 'Configure ANTHROPIC_API_KEY em services/metaapi-gateway/.env para habilitar o coach.',
+  };
+}
+
 function stripeWebhookConfigError() {
   return {
     error: 'O segredo do webhook Stripe ainda não está configurado neste gateway.',
@@ -627,6 +645,56 @@ async function findBillingPlanBySelector(selector: string): Promise<BillingPlan 
 
   if (error) throw error;
   return data ? normalizeBillingPlan(data) : null;
+}
+
+type PlanValidationResult =
+  | { ok: true; plan: BillingPlan }
+  | { ok: false; status: number; error: Record<string, unknown> };
+
+async function validateBillingPlanForCheckout(selector: string): Promise<PlanValidationResult> {
+  const plan = await findBillingPlanBySelector(selector);
+  if (!plan) {
+    return {
+      ok: false,
+      status: 400,
+      error: { error: 'Plano Fortify não encontrado ou inativo.', code: 'invalid_billing_plan' },
+    };
+  }
+
+  if (plan.id === 'beta_free') {
+    return {
+      ok: false,
+      status: 400,
+      error: { error: 'O plano beta não usa checkout Stripe.', code: 'beta_plan_not_checkoutable' },
+    };
+  }
+
+  if (isAddonPlan(plan)) {
+    return {
+      ok: false,
+      status: 400,
+      error: {
+        error: 'Use o checkout de conta extra para adicionar capacidade a uma assinatura ativa.',
+        code: 'addon_checkout_required',
+      },
+    };
+  }
+
+  if (!plan.stripe_price_id || !isStripePriceId(plan.stripe_price_id)) {
+    return {
+      ok: false,
+      status: 400,
+      error: {
+        error: 'Este plano ainda não possui um Price ID válido da Stripe.',
+        code: 'stripe_price_missing',
+        details: isStripeProductId(plan.stripe_price_id)
+          ? 'O plano está usando Product ID. Resolva e salve o Price ID recorrente correto.'
+          : 'Salve um ID iniciado por price_ no cadastro do plano.',
+      },
+    };
+  }
+
+  return { ok: true, plan };
 }
 
 async function findAdminPlanBySelector(selector: string): Promise<BillingPlan | null> {
@@ -1037,6 +1105,7 @@ async function upsertSubscriptionFromStripe(subscription: JsonRecord, fallbackUs
       paid_until: paidUntil,
       activated_at: validPaidSubscription ? now : undefined,
       cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
+      pending_plan_id: null,
       stripe_customer_id: stripeCustomerId,
       stripe_subscription_id: stripeSubscriptionId,
       suspended_at: validPaidSubscription ? null : undefined,
@@ -1068,6 +1137,65 @@ async function upsertSubscriptionFromStripe(subscription: JsonRecord, fallbackUs
 async function syncSubscriptionById(subscriptionId: string, fallbackUserId?: string | null) {
   const subscription = await stripeGet(`/subscriptions/${encodeURIComponent(subscriptionId)}`);
   return upsertSubscriptionFromStripe(subscription, fallbackUserId);
+}
+
+// Manually-granted subscriptions (no stripe_subscription_id) can schedule a downgrade for
+// when their current paid_until date is reached — the local equivalent of Stripe's
+// cancel_at_period_end, since there's no Stripe subscription to schedule it against.
+// Called lazily from every read path so it applies itself without a cron job.
+async function applyDuePendingManualDowngrade(subscription: JsonRecord | null): Promise<JsonRecord | null> {
+  if (!subscription || !subscription.pending_plan_id || subscription.stripe_subscription_id) {
+    return subscription;
+  }
+
+  const paidUntil = subscription.paid_until || subscription.current_period_end;
+  if (!paidUntil || Date.parse(String(paidUntil)) > Date.now()) {
+    return subscription;
+  }
+
+  const now = new Date().toISOString();
+  const targetPlan = await findAdminPlanBySelector(String(subscription.pending_plan_id));
+
+  if (!targetPlan) {
+    fastify.log.warn({
+      event: 'manual_downgrade_target_plan_missing',
+      userId: maskForLog(subscription.user_id),
+      pendingPlanId: subscription.pending_plan_id,
+    });
+    const { error } = await (supabase
+      .from('user_subscriptions' as any)
+      .update({ pending_plan_id: null, updated_at: now })
+      .eq('id', subscription.id) as any);
+    if (error) throw error;
+    return { ...subscription, pending_plan_id: null, updated_at: now };
+  }
+
+  const { error } = await (supabase
+    .from('user_subscriptions' as any)
+    .update({
+      plan_id: targetPlan.id,
+      plan_name: targetPlan.plan_name,
+      account_limit: targetPlan.account_limit,
+      pending_plan_id: null,
+      updated_at: now,
+    })
+    .eq('id', subscription.id) as any);
+  if (error) throw error;
+
+  fastify.log.info({
+    event: 'manual_downgrade_applied',
+    userId: maskForLog(subscription.user_id),
+    toPlanId: targetPlan.id,
+  });
+
+  return {
+    ...subscription,
+    plan_id: targetPlan.id,
+    plan_name: targetPlan.plan_name,
+    account_limit: targetPlan.account_limit,
+    pending_plan_id: null,
+    updated_at: now,
+  };
 }
 
 async function handleInvoicePaymentSucceeded(invoice: JsonRecord) {
@@ -1154,6 +1282,7 @@ async function getSubscriptionStatusForUser(userId: string) {
   if (activeAccountCountRes.error) throw activeAccountCountRes.error;
 
   let subscription = subscriptionRes.data as JsonRecord | null;
+  subscription = await applyDuePendingManualDowngrade(subscription);
   const refreshSubscriptionId = subscription?.stripe_subscription_id ? String(subscription.stripe_subscription_id) : null;
   if (refreshSubscriptionId && STRIPE_SECRET_KEY) {
     try {
@@ -1199,7 +1328,7 @@ async function getSubscriptionStatusForUser(userId: string) {
 }
 
 async function getUserEntitlement(userId: string): Promise<UserEntitlement> {
-  const { data: subscription, error } = await (supabase
+  const { data: subscriptionRow, error } = await (supabase
     .from('user_subscriptions' as any)
     .select('*')
     .eq('user_id', userId)
@@ -1224,7 +1353,7 @@ async function getUserEntitlement(userId: string): Promise<UserEntitlement> {
     };
   }
 
-  if (!subscription) {
+  if (!subscriptionRow) {
     return {
       hasActivePaidPlan: false,
       planSlug: null,
@@ -1236,6 +1365,7 @@ async function getUserEntitlement(userId: string): Promise<UserEntitlement> {
     };
   }
 
+  const subscription = (await applyDuePendingManualDowngrade(subscriptionRow)) as JsonRecord;
   const plan = subscription.plan_id ? await findAdminPlanBySelector(subscription.plan_id) : null;
   const status = String(subscription.status || '').toLowerCase();
   const paidUntil = String(subscription.paid_until || subscription.current_period_end || '') || null;
@@ -1396,6 +1526,7 @@ function sanitizeSubscription(subscription: JsonRecord | null | undefined) {
     metaapi_suspended_at: subscription.metaapi_suspended_at,
     metaapi_suspension_reason: subscription.metaapi_suspension_reason,
     cancel_at_period_end: subscription.cancel_at_period_end,
+    pending_plan_id: subscription.pending_plan_id ?? null,
     stripe_customer_id: maskExternalId(subscription.stripe_customer_id),
     stripe_subscription_id: maskExternalId(subscription.stripe_subscription_id),
     has_stripe_customer: Boolean(subscription.stripe_customer_id),
@@ -4262,6 +4393,373 @@ fastify.post('/billing/confirm-checkout-session', async (request, reply) => {
   }
 });
 
+const COACH_SYSTEM_PROMPT = `Você é o Coach de Risco do Fortify: um mentor com 20 anos de experiência em mercados
+financeiros, especializado em disciplina de risco para traders de mesas proprietárias (prop firms).
+
+Seu papel é ajudar o trader a operar de forma profissional, com base nos dados reais da conta
+dele que serão fornecidos a seguir (status das regras, histórico de trades, plano do dia,
+autoavaliações). Você NÃO é um gerador de sinais de entrada e NUNCA diz o que comprar, vender ou
+prevê direção de mercado — isso está fora do seu papel. Se o trader pedir um sinal de entrada ou
+previsão de preço, redirecione com firmeza para gestão de risco e disciplina.
+
+Diretrizes:
+- Ancore toda orientação nos números reais fornecidos no contexto da conta. Nunca invente dados.
+- Se uma regra estiver violada ou em atenção, isso é prioridade máxima na sua resposta.
+- Use o histórico de trades e as autoavaliações do trader (erro operacional, erro emocional,
+  aderência ao plano) para dar feedback específico, não genérico.
+- Se os dados fornecidos forem insuficientes (sem sync, sem avaliações), diga isso claramente e
+  recomende sincronizar a conta antes de continuar.
+- Seja direto e objetivo, como um mentor experiente — sem jargão motivacional vazio, sem
+  disclaimers repetitivos, sem prometer resultados.
+- Respostas curtas e acionáveis. Isto é um chat de coaching, não um relatório.`;
+
+async function buildTraderBriefing(tradingAccountId: string): Promise<string> {
+  const lines: string[] = [];
+
+  const { data: account } = await supabase
+    .from('trading_accounts')
+    .select('nickname, start_balance, current_balance, current_equity, status')
+    .eq('id', tradingAccountId)
+    .maybeSingle();
+
+  if (account) {
+    lines.push(
+      `Conta: ${account.nickname || 'sem nome'} · status ${account.status || 'desconhecido'} · saldo inicial $${Number(account.start_balance ?? 0).toFixed(2)} · saldo atual $${Number(account.current_balance ?? 0).toFixed(2)} · equity atual $${Number(account.current_equity ?? 0).toFixed(2)}.`,
+    );
+  }
+
+  const { data: binding } = await (supabase
+    .from('account_rule_bindings' as any)
+    .select('rule_snapshot, platform')
+    .eq('trading_account_id', tradingAccountId)
+    .eq('binding_status', 'active')
+    .maybeSingle() as any);
+
+  if (binding?.rule_snapshot) {
+    const snapshot = binding.rule_snapshot as JsonRecord;
+    lines.push(
+      `Mesa vinculada: ${snapshot?.propFirm?.name || '--'} · programa ${snapshot?.program?.name || '--'} · tamanho ${snapshot?.accountSize?.label || '--'} · plataforma ${binding.platform || '--'}.`,
+    );
+  } else {
+    lines.push('Nenhuma regra de mesa vinculada formalmente a esta conta ainda.');
+  }
+
+  const { data: evaluationRows } = await (supabase
+    .from('rule_evaluations' as any)
+    .select('*')
+    .eq('trading_account_id', tradingAccountId)
+    .order('computed_at', { ascending: false })
+    .limit(50) as any);
+
+  if (evaluationRows && evaluationRows.length > 0) {
+    const deduped = new Map<string, JsonRecord>();
+    for (const row of evaluationRows as JsonRecord[]) {
+      const key = `${row.rule_instance_id}-${row.reference_date || 'null'}`;
+      if (!deduped.has(key)) deduped.set(key, row);
+    }
+    const rows = Array.from(deduped.values());
+    const instanceIds = Array.from(new Set(rows.map((row) => row.rule_instance_id).filter(Boolean)));
+
+    let instancesById = new Map<string, JsonRecord>();
+    if (instanceIds.length > 0) {
+      const { data: instances } = await (supabase
+        .from('rule_instances' as any)
+        .select('id, severity, rule_definition_id')
+        .in('id', instanceIds) as any);
+      const definitionIds = Array.from(new Set((instances ?? []).map((i: JsonRecord) => i.rule_definition_id).filter(Boolean)));
+      let definitionsById = new Map<string, JsonRecord>();
+      if (definitionIds.length > 0) {
+        const { data: definitions } = await (supabase
+          .from('rule_definitions')
+          .select('id, name, category')
+          .in('id', definitionIds) as any);
+        definitionsById = new Map((definitions ?? []).map((d: JsonRecord) => [d.id, d]));
+      }
+      instancesById = new Map(
+        (instances ?? []).map((i: JsonRecord) => [i.id, { ...i, definition: definitionsById.get(i.rule_definition_id) }]),
+      );
+    }
+
+    const violated = rows.filter((row) => row.status === 'VIOLATED');
+    const warning = rows.filter((row) => row.status === 'WARNING');
+    lines.push(`Regras monitoradas: ${rows.length} · ${violated.length} violada(s) · ${warning.length} em atenção.`);
+    for (const row of [...violated, ...warning].slice(0, 8)) {
+      const instance = instancesById.get(row.rule_instance_id);
+      const name = instance?.definition?.name || 'Regra';
+      const explanation = row.explanation || row.recommended_action || row.message || '';
+      lines.push(
+        `- ${name} [${row.status}]: atual ${Number(row.current_value ?? 0).toFixed(2)} de limite ${Number(row.limit_value ?? 0).toFixed(2)} (${Number(row.progress_pct ?? 0).toFixed(0)}% usado).${explanation ? ` ${explanation}` : ''}`,
+      );
+    }
+  } else {
+    lines.push('Nenhuma avaliação de regra ainda calculada para esta conta.');
+  }
+
+  const { data: connection } = await supabase
+    .from('mt5_connections')
+    .select('id')
+    .eq('trading_account_id', tradingAccountId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (connection?.id) {
+    const { data: snapshot } = await supabase
+      .from('mt5_account_snapshots')
+      .select('balance, equity, daily_pnl, drawdown')
+      .eq('connection_id', connection.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (snapshot) {
+      lines.push(
+        `Snapshot mais recente: saldo $${Number(snapshot.balance ?? 0).toFixed(2)} · equity $${Number(snapshot.equity ?? 0).toFixed(2)} · P&L do dia $${Number(snapshot.daily_pnl ?? 0).toFixed(2)} · drawdown $${Number(snapshot.drawdown ?? 0).toFixed(2)}.`,
+      );
+    }
+
+    const { data: trades } = await supabase
+      .from('mt5_trades')
+      .select('symbol, side, profit, close_time')
+      .eq('connection_id', connection.id)
+      .not('close_time', 'is', null)
+      .order('close_time', { ascending: false })
+      .limit(50);
+
+    if (trades && trades.length > 0) {
+      const wins = trades.filter((trade) => Number(trade.profit ?? 0) > 0);
+      const losses = trades.filter((trade) => Number(trade.profit ?? 0) < 0);
+      const winRate = (wins.length / trades.length) * 100;
+      const avgWin = wins.length > 0 ? wins.reduce((sum, trade) => sum + Number(trade.profit ?? 0), 0) / wins.length : 0;
+      const avgLoss = losses.length > 0 ? losses.reduce((sum, trade) => sum + Number(trade.profit ?? 0), 0) / losses.length : 0;
+      const todayIso = new Date().toISOString().slice(0, 10);
+      const tradesToday = trades.filter((trade) => String(trade.close_time || '').slice(0, 10) === todayIso).length;
+      const lastTrades = trades
+        .slice(0, 5)
+        .map((trade) => `${trade.symbol} ${trade.side} $${Number(trade.profit ?? 0).toFixed(2)}`)
+        .join('; ');
+      lines.push(
+        `Histórico recente (últimos ${trades.length} trades fechados): taxa de acerto ${winRate.toFixed(0)}% · ganho médio $${avgWin.toFixed(2)} · perda média $${avgLoss.toFixed(2)} · trades hoje: ${tradesToday}.`,
+      );
+      lines.push(`Últimos trades: ${lastTrades}.`);
+    } else {
+      lines.push('Ainda sem histórico de trades fechados sincronizado.');
+    }
+  }
+
+  const todayDate = new Date().toISOString().slice(0, 10);
+  const { data: sessionPlan } = await (supabase
+    .from('session_plans' as any)
+    .select('max_risk_today, max_trades, risk_per_trade, personal_daily_stop, notes')
+    .eq('trading_account_id', tradingAccountId)
+    .eq('date', todayDate)
+    .maybeSingle() as any);
+
+  if (sessionPlan) {
+    lines.push(
+      `Plano de hoje definido pelo trader: risco máx. $${Number(sessionPlan.max_risk_today ?? 0).toFixed(2)} · máx. ${sessionPlan.max_trades ?? '--'} trades · risco por trade $${Number(sessionPlan.risk_per_trade ?? 0).toFixed(2)} · stop pessoal $${Number(sessionPlan.personal_daily_stop ?? 0).toFixed(2)}.${sessionPlan.notes ? ` Nota do trader: "${sessionPlan.notes}".` : ''}`,
+    );
+  }
+
+  const { data: reviews } = await (supabase
+    .from('post_session_reviews' as any)
+    .select('date, result, plan_adherence, operational_error, emotional_error, session_rating, comment')
+    .eq('trading_account_id', tradingAccountId)
+    .order('date', { ascending: false })
+    .limit(3) as any);
+
+  if (reviews && reviews.length > 0) {
+    lines.push('Últimas autoavaliações pós-sessão do trader:');
+    for (const review of reviews as JsonRecord[]) {
+      lines.push(
+        `- ${review.date}: resultado ${review.result || '--'} · aderência ao plano ${review.plan_adherence || '--'} · erro operacional "${review.operational_error || 'nenhum'}" · erro emocional "${review.emotional_error || 'nenhum'}" · nota ${review.session_rating ?? '--'}/10.${review.comment ? ` Comentário: "${review.comment}".` : ''}`,
+      );
+    }
+  }
+
+  return lines.join('\n');
+}
+
+fastify.post('/coach/chat', async (request, reply) => {
+  try {
+    const limit = checkRateLimit(request, 'coach-chat', 30, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
+    const authResult = await verifyBearerUser(request);
+    if (isAuthError(authResult)) {
+      return reply.status(authResult.status).send(authResult.error);
+    }
+
+    const body = request.body as { tradingAccountId?: string; message?: string };
+    const tradingAccountId = String(body?.tradingAccountId || '').trim();
+    const message = String(body?.message || '').trim();
+
+    if (!isUuid(tradingAccountId)) {
+      return reply.status(400).send({ error: 'Informe a conta de trading.', code: 'invalid_trading_account_id' });
+    }
+    if (!message) {
+      return reply.status(400).send({ error: 'Escreva uma mensagem antes de enviar.', code: 'empty_message' });
+    }
+    if (message.length > 4000) {
+      return reply.status(400).send({ error: 'Mensagem muito longa (máximo 4000 caracteres).', code: 'message_too_long' });
+    }
+
+    if (!anthropic) {
+      return reply.status(503).send(coachConfigError());
+    }
+
+    const { data: account, error: accountError } = await supabase
+      .from('trading_accounts')
+      .select('id')
+      .eq('id', tradingAccountId)
+      .eq('user_id', authResult.id)
+      .maybeSingle();
+
+    if (accountError) {
+      fastify.log.error({ event: 'coach_account_lookup_failed', userId: maskForLog(authResult.id), error: accountError.message });
+      return reply.status(500).send({ error: 'Falha ao validar a conta.', code: 'account_lookup_failed' });
+    }
+    if (!account) {
+      return reply.status(404).send({ error: 'Conta não encontrada.', code: 'trading_account_not_found' });
+    }
+
+    const entitlement = await getUserEntitlement(authResult.id);
+    if (!entitlement.hasActivePaidPlan) {
+      return reply.status(403).send({
+        error: 'O coach de risco com IA é um recurso do plano pago Fortify.',
+        code: 'plan_required',
+      });
+    }
+
+    const todayStart = new Date();
+    todayStart.setUTCHours(0, 0, 0, 0);
+    const { count: todayMessageCount, error: countError } = await (supabase
+      .from('coach_messages' as any)
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', authResult.id)
+      .eq('role', 'user')
+      .gte('created_at', todayStart.toISOString()) as any);
+
+    if (countError) {
+      fastify.log.error({ event: 'coach_daily_count_failed', userId: maskForLog(authResult.id), error: countError.message });
+      return reply.status(500).send({ error: 'Falha ao verificar limite diário.', code: 'daily_limit_check_failed' });
+    }
+    if (Number(todayMessageCount ?? 0) >= COACH_DAILY_MESSAGE_LIMIT) {
+      return reply.status(429).send({
+        error: 'Você atingiu o limite de mensagens do coach por hoje. Tente novamente amanhã.',
+        code: 'daily_limit_reached',
+      });
+    }
+
+    const { data: existingConversation, error: conversationLookupError } = await (supabase
+      .from('coach_conversations' as any)
+      .select('id')
+      .eq('user_id', authResult.id)
+      .eq('trading_account_id', tradingAccountId)
+      .maybeSingle() as any);
+
+    if (conversationLookupError) {
+      fastify.log.error({ event: 'coach_conversation_lookup_failed', userId: maskForLog(authResult.id), error: conversationLookupError.message });
+      return reply.status(500).send({ error: 'Falha ao carregar a conversa com o coach.', code: 'conversation_lookup_failed' });
+    }
+
+    let conversation: JsonRecord | null = existingConversation ?? null;
+    if (!conversation) {
+      const { data: created, error: createError } = await (supabase
+        .from('coach_conversations' as any)
+        .insert({ user_id: authResult.id, trading_account_id: tradingAccountId })
+        .select('id')
+        .single() as any);
+      if (createError || !created) {
+        fastify.log.error({ event: 'coach_conversation_create_failed', userId: maskForLog(authResult.id), error: createError?.message });
+        return reply.status(500).send({ error: 'Falha ao iniciar a conversa com o coach.', code: 'conversation_create_failed' });
+      }
+      conversation = created;
+    }
+    if (!conversation) {
+      return reply.status(500).send({ error: 'Falha ao iniciar a conversa com o coach.', code: 'conversation_create_failed' });
+    }
+    const conversationId: string = conversation.id;
+
+    const { data: historyRows, error: historyError } = await (supabase
+      .from('coach_messages' as any)
+      .select('role, content')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true })
+      .limit(50) as any);
+
+    if (historyError) {
+      fastify.log.error({ event: 'coach_history_load_failed', userId: maskForLog(authResult.id), error: historyError.message });
+    }
+
+    const recentHistory: JsonRecord[] = ((historyRows ?? []) as JsonRecord[]).slice(-10);
+    const briefing = await buildTraderBriefing(tradingAccountId);
+
+    const claudeMessages = [
+      ...recentHistory.map((row) => ({ role: row.role, content: row.content })),
+      { role: 'user', content: message },
+    ];
+
+    const response = await anthropic.messages.create({
+      model: 'claude-opus-5',
+      max_tokens: 1024,
+      system: [
+        { type: 'text', text: COACH_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
+        { type: 'text', text: briefing },
+      ],
+      messages: claudeMessages,
+      output_config: { effort: 'medium' },
+    } as any);
+
+    const replyText =
+      ((response.content || []) as JsonRecord[])
+        .map((block) => (block?.type === 'text' ? String(block.text || '') : ''))
+        .join('\n')
+        .trim() || 'Não consegui gerar uma resposta agora. Tente novamente.';
+
+    const { error: insertUserError } = await (supabase.from('coach_messages' as any).insert({
+      conversation_id: conversationId,
+      user_id: authResult.id,
+      role: 'user',
+      content: message,
+    }) as any);
+    if (insertUserError) {
+      fastify.log.error({ event: 'coach_message_persist_failed', userId: maskForLog(authResult.id), role: 'user', error: insertUserError.message });
+    }
+
+    const { error: insertAssistantError } = await (supabase.from('coach_messages' as any).insert({
+      conversation_id: conversationId,
+      user_id: authResult.id,
+      role: 'assistant',
+      content: replyText,
+    }) as any);
+    if (insertAssistantError) {
+      fastify.log.error({ event: 'coach_message_persist_failed', userId: maskForLog(authResult.id), role: 'assistant', error: insertAssistantError.message });
+    }
+
+    await (supabase
+      .from('coach_conversations' as any)
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', conversationId) as any);
+
+    fastify.log.info({
+      event: 'coach_chat_reply',
+      userId: maskForLog(authResult.id),
+      tradingAccountId: maskForLog(tradingAccountId),
+      inputTokens: (response as JsonRecord).usage?.input_tokens,
+      outputTokens: (response as JsonRecord).usage?.output_tokens,
+    });
+
+    return reply.send({ reply: replyText, conversationId });
+  } catch (error: any) {
+    fastify.log.error({ event: 'coach_chat_failed', error: error?.message });
+    return reply.status(error?.status && error.status < 500 ? error.status : 500).send({
+      error: error?.message || 'Falha ao conversar com o coach de risco.',
+      code: 'coach_chat_failed',
+    });
+  }
+});
+
 fastify.post('/billing/create-checkout-session', async (request, reply) => {
   try {
     const limit = checkRateLimit(request, 'billing', 30, 60_000);
@@ -4277,8 +4775,10 @@ fastify.post('/billing/create-checkout-session', async (request, reply) => {
       plan_slug?: string;
       planId?: string;
       priceId?: string;
+      marketingConsent?: boolean;
     };
     const selector = String(body?.planSlug || body?.plan_slug || body?.planId || body?.priceId || '').trim();
+    const marketingConsent = body?.marketingConsent === true ? 'granted' : 'denied';
     if (!selector) {
       return reply.status(400).send({
         error: 'Informe o plano desejado antes de iniciar o checkout.',
@@ -4286,37 +4786,9 @@ fastify.post('/billing/create-checkout-session', async (request, reply) => {
       });
     }
 
-    const plan = await findBillingPlanBySelector(selector);
-    if (!plan) {
-      return reply.status(400).send({
-        error: 'Plano Fortify não encontrado ou inativo.',
-        code: 'invalid_billing_plan',
-      });
-    }
-
-    if (plan.id === 'beta_free') {
-      return reply.status(400).send({
-        error: 'O plano beta não usa checkout Stripe.',
-        code: 'beta_plan_not_checkoutable',
-      });
-    }
-
-    if (isAddonPlan(plan)) {
-      return reply.status(400).send({
-        error: 'Use o checkout de conta extra para adicionar capacidade a uma assinatura ativa.',
-        code: 'addon_checkout_required',
-      });
-    }
-
-    if (!plan.stripe_price_id || !isStripePriceId(plan.stripe_price_id)) {
-      return reply.status(400).send({
-        error: 'Este plano ainda não possui um Price ID válido da Stripe.',
-        code: 'stripe_price_missing',
-        details: isStripeProductId(plan.stripe_price_id)
-          ? 'O plano está usando Product ID. Resolva e salve o Price ID recorrente correto.'
-          : 'Salve um ID iniciado por price_ no cadastro do plano.',
-      });
-    }
+    const validation = await validateBillingPlanForCheckout(selector);
+    if (!validation.ok) return reply.status(validation.status).send(validation.error);
+    const plan = validation.plan;
 
     if (!STRIPE_SECRET_KEY) {
       return reply.status(503).send(stripeConfigError());
@@ -4356,6 +4828,7 @@ fastify.post('/billing/create-checkout-session', async (request, reply) => {
       'metadata[user_id]': authResult.id,
       'metadata[plan_id]': plan.id,
       'metadata[plan_slug]': plan.slug || plan.id,
+      'metadata[marketing_consent]': marketingConsent,
       'subscription_data[metadata][user_id]': authResult.id,
       'subscription_data[metadata][plan_id]': plan.id,
       'subscription_data[metadata][plan_slug]': plan.slug || plan.id,
@@ -4582,6 +5055,816 @@ fastify.post('/billing/create-portal-session', async (request, reply) => {
   }
 });
 
+fastify.post('/billing/cancel-subscription', async (request, reply) => {
+  try {
+    const limit = checkRateLimit(request, 'billing', 30, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
+    const authResult = await verifyBearerUser(request);
+    if (isAuthError(authResult)) {
+      return reply.status(authResult.status).send(authResult.error);
+    }
+
+    const { data: subscription, error } = await (supabase
+      .from('user_subscriptions' as any)
+      .select('*')
+      .eq('user_id', authResult.id)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle() as any);
+
+    if (error) {
+      return reply.status(500).send({
+        error: 'Failed to load user subscription',
+        code: 'subscription_lookup_failed',
+        details: error.message,
+      });
+    }
+
+    if (!subscription || !isValidPaidStatus(subscription.status)) {
+      return reply.status(402).send({
+        error: 'Você não tem uma assinatura ativa para cancelar.',
+        code: 'active_plan_required',
+      });
+    }
+
+    if (!subscription.stripe_subscription_id) {
+      return reply.status(409).send({
+        error: 'Este plano foi ativado manualmente pela equipe Fortify e não pode ser cancelado por aqui. Fale com o suporte.',
+        code: 'stripe_subscription_missing',
+      });
+    }
+
+    if (!STRIPE_SECRET_KEY) {
+      return reply.status(503).send(stripeConfigError());
+    }
+
+    if (!subscription.cancel_at_period_end) {
+      const updatedSubscription = await stripeRequest(`/subscriptions/${encodeURIComponent(subscription.stripe_subscription_id)}`, {
+        cancel_at_period_end: true,
+      });
+      await upsertSubscriptionFromStripe(updatedSubscription, authResult.id);
+
+      fastify.log.info({
+        event: 'stripe_subscription_cancel_scheduled',
+        userId: maskForLog(authResult.id),
+        subscriptionId: maskForLog(subscription.stripe_subscription_id),
+      });
+    } else {
+      fastify.log.info({
+        event: 'stripe_cancel_already_scheduled',
+        userId: maskForLog(authResult.id),
+        subscriptionId: maskForLog(subscription.stripe_subscription_id),
+      });
+    }
+
+    return reply.send(await getSubscriptionStatusForUser(authResult.id));
+  } catch (error: any) {
+    fastify.log.error({
+      event: 'stripe_subscription_cancel_failed',
+      error: error?.message,
+      status: error?.status,
+      stripeCode: error?.body?.error?.code,
+    });
+    return reply.status(error?.status && error.status < 500 ? 400 : 500).send({
+      error: error?.message || 'Failed to cancel Stripe subscription',
+      code: 'stripe_cancel_failed',
+      details: error?.body?.error?.code,
+    });
+  }
+});
+
+fastify.post('/billing/resume-subscription', async (request, reply) => {
+  try {
+    const limit = checkRateLimit(request, 'billing', 30, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
+    const authResult = await verifyBearerUser(request);
+    if (isAuthError(authResult)) {
+      return reply.status(authResult.status).send(authResult.error);
+    }
+
+    const { data: subscription, error } = await (supabase
+      .from('user_subscriptions' as any)
+      .select('*')
+      .eq('user_id', authResult.id)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle() as any);
+
+    if (error) {
+      return reply.status(500).send({
+        error: 'Failed to load user subscription',
+        code: 'subscription_lookup_failed',
+        details: error.message,
+      });
+    }
+
+    if (!subscription) {
+      return reply.status(402).send({
+        error: 'Você não tem uma assinatura para reativar.',
+        code: 'active_plan_required',
+      });
+    }
+
+    if (!subscription.stripe_subscription_id) {
+      return reply.status(409).send({
+        error: 'Este plano foi ativado manualmente pela equipe Fortify. Fale com o suporte.',
+        code: 'stripe_subscription_missing',
+      });
+    }
+
+    if (String(subscription.status).toLowerCase() === 'canceled') {
+      return reply.status(409).send({
+        error: 'Esta assinatura já foi encerrada. Escolha um plano para assinar novamente.',
+        code: 'subscription_already_ended',
+      });
+    }
+
+    if (!STRIPE_SECRET_KEY) {
+      return reply.status(503).send(stripeConfigError());
+    }
+
+    if (subscription.cancel_at_period_end) {
+      const updatedSubscription = await stripeRequest(`/subscriptions/${encodeURIComponent(subscription.stripe_subscription_id)}`, {
+        cancel_at_period_end: false,
+      });
+      await upsertSubscriptionFromStripe(updatedSubscription, authResult.id);
+
+      fastify.log.info({
+        event: 'stripe_subscription_resumed',
+        userId: maskForLog(authResult.id),
+        subscriptionId: maskForLog(subscription.stripe_subscription_id),
+      });
+    } else {
+      fastify.log.info({
+        event: 'stripe_resume_not_scheduled',
+        userId: maskForLog(authResult.id),
+        subscriptionId: maskForLog(subscription.stripe_subscription_id),
+      });
+    }
+
+    return reply.send(await getSubscriptionStatusForUser(authResult.id));
+  } catch (error: any) {
+    fastify.log.error({
+      event: 'stripe_subscription_resume_failed',
+      error: error?.message,
+      status: error?.status,
+      stripeCode: error?.body?.error?.code,
+    });
+    return reply.status(error?.status && error.status < 500 ? 400 : 500).send({
+      error: error?.message || 'Failed to resume Stripe subscription',
+      code: 'stripe_resume_failed',
+      details: error?.body?.error?.code,
+    });
+  }
+});
+
+fastify.post('/billing/change-plan', async (request, reply) => {
+  try {
+    const limit = checkRateLimit(request, 'billing', 30, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
+    const authResult = await verifyBearerUser(request);
+    if (isAuthError(authResult)) {
+      return reply.status(authResult.status).send(authResult.error);
+    }
+
+    const body = request.body as {
+      planSlug?: string;
+      plan_slug?: string;
+      planId?: string;
+    };
+    const selector = String(body?.planSlug || body?.plan_slug || body?.planId || '').trim();
+    if (!selector) {
+      return reply.status(400).send({
+        error: 'Informe o plano desejado antes de trocar a assinatura.',
+        code: 'billing_plan_required',
+      });
+    }
+
+    const targetPlan = await findBillingPlanBySelector(selector);
+    if (!targetPlan) {
+      return reply.status(400).send({
+        error: 'Plano Fortify não encontrado ou inativo.',
+        code: 'invalid_billing_plan',
+      });
+    }
+
+    if (targetPlan.id === 'beta_free') {
+      return reply.status(400).send({
+        error: 'O plano beta não pode ser escolhido por aqui.',
+        code: 'beta_plan_not_supported_for_change',
+      });
+    }
+
+    if (isAddonPlan(targetPlan)) {
+      return reply.status(400).send({
+        error: 'Use o checkout de conta extra para adicionar capacidade a uma assinatura ativa.',
+        code: 'addon_checkout_required',
+      });
+    }
+
+    if (!targetPlan.stripe_price_id || !isStripePriceId(targetPlan.stripe_price_id)) {
+      return reply.status(400).send({
+        error: 'Este plano ainda não possui um Price ID válido da Stripe.',
+        code: 'stripe_price_missing',
+      });
+    }
+
+    if (!STRIPE_SECRET_KEY) {
+      return reply.status(503).send(stripeConfigError());
+    }
+
+    const { data: subscription, error } = await (supabase
+      .from('user_subscriptions' as any)
+      .select('*')
+      .eq('user_id', authResult.id)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle() as any);
+
+    if (error) {
+      return reply.status(500).send({
+        error: 'Failed to load user subscription',
+        code: 'subscription_lookup_failed',
+        details: error.message,
+      });
+    }
+
+    if (!subscription || !isValidPaidStatus(subscription.status)) {
+      return reply.status(402).send({
+        error: 'Você precisa ter uma assinatura ativa para trocar de plano.',
+        code: 'active_plan_required',
+      });
+    }
+
+    if (!subscription.stripe_subscription_id) {
+      return reply.status(409).send({
+        error: 'Este plano foi ativado manualmente pela equipe Fortify. Fale com o suporte para trocar de plano.',
+        code: 'stripe_subscription_missing',
+      });
+    }
+
+    if (subscription.plan_id === targetPlan.id) {
+      return reply.status(400).send({
+        error: 'Você já está neste plano.',
+        code: 'already_on_target_plan',
+      });
+    }
+
+    // Server-side re-validation — the client's account-picker already trimmed accounts
+    // down (if this was a downgrade), but we never trust that trim actually landed.
+    const [extraAccountQuantity, activeAccountCountRes] = await Promise.all([
+      getActiveAddonQuantityForUser(authResult.id),
+      supabase
+        .from('mt5_connections')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', authResult.id)
+        .in('connection_status', ['connected', 'connecting', 'syncing']),
+    ]);
+
+    if (activeAccountCountRes.error) throw activeAccountCountRes.error;
+
+    const activeAccountCount = Number(activeAccountCountRes.count ?? 0);
+    const targetAccountLimit = Number(targetPlan.account_limit || 0) + extraAccountQuantity;
+
+    if (activeAccountCount > targetAccountLimit) {
+      return reply.status(409).send({
+        error: `Você ainda tem ${activeAccountCount} conta(s) MT5 ativas, mas o plano ${targetPlan.plan_name} permite apenas ${targetAccountLimit}. Remova ${activeAccountCount - targetAccountLimit} conta(s) e tente novamente.`,
+        code: 'account_limit_exceeded_for_target_plan',
+        activeAccountCount,
+        targetAccountLimit,
+        accountsToRemove: activeAccountCount - targetAccountLimit,
+      });
+    }
+
+    const currentSubscription = await stripeGet(`/subscriptions/${encodeURIComponent(subscription.stripe_subscription_id)}`);
+    const subscriptionItemId = getStripeSubscriptionItemId(currentSubscription);
+    if (!subscriptionItemId) {
+      return reply.status(500).send({
+        error: 'Não foi possível localizar o item da assinatura na Stripe.',
+        code: 'stripe_subscription_item_missing',
+      });
+    }
+
+    const updatedSubscription = await stripeRequest(`/subscriptions/${encodeURIComponent(subscription.stripe_subscription_id)}`, {
+      'items[0][id]': subscriptionItemId,
+      'items[0][price]': targetPlan.stripe_price_id,
+      proration_behavior: 'create_prorations',
+      'metadata[plan_id]': targetPlan.id,
+      'metadata[plan_slug]': targetPlan.slug || targetPlan.id,
+    });
+
+    await upsertSubscriptionFromStripe(updatedSubscription, authResult.id);
+
+    fastify.log.info({
+      event: 'stripe_plan_changed',
+      userId: maskForLog(authResult.id),
+      fromPlanId: subscription.plan_id,
+      toPlanId: targetPlan.id,
+    });
+
+    return reply.send({
+      ...(await getSubscriptionStatusForUser(authResult.id)),
+      planChange: { from: subscription.plan_id, to: targetPlan.id },
+    });
+  } catch (error: any) {
+    fastify.log.error({
+      event: 'stripe_plan_change_failed',
+      error: error?.message,
+      status: error?.status,
+      stripeCode: error?.body?.error?.code,
+    });
+    return reply.status(error?.status && error.status < 500 ? 400 : 500).send({
+      error: error?.message || 'Failed to change Stripe subscription plan',
+      code: 'stripe_plan_change_failed',
+      details: error?.body?.error?.code,
+    });
+  }
+});
+
+fastify.post('/billing/schedule-manual-downgrade', async (request, reply) => {
+  try {
+    const limit = checkRateLimit(request, 'billing', 30, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
+    const authResult = await verifyBearerUser(request);
+    if (isAuthError(authResult)) {
+      return reply.status(authResult.status).send(authResult.error);
+    }
+
+    const body = request.body as {
+      planSlug?: string;
+      plan_slug?: string;
+      planId?: string;
+    };
+    const selector = String(body?.planSlug || body?.plan_slug || body?.planId || '').trim();
+    if (!selector) {
+      return reply.status(400).send({
+        error: 'Informe o plano desejado antes de agendar o downgrade.',
+        code: 'billing_plan_required',
+      });
+    }
+
+    const targetPlan = await findBillingPlanBySelector(selector);
+    if (!targetPlan) {
+      return reply.status(400).send({
+        error: 'Plano Fortify não encontrado ou inativo.',
+        code: 'invalid_billing_plan',
+      });
+    }
+
+    if (targetPlan.id === 'beta_free') {
+      return reply.status(400).send({
+        error: 'O plano beta não pode ser escolhido por aqui.',
+        code: 'beta_plan_not_supported_for_change',
+      });
+    }
+
+    if (isAddonPlan(targetPlan)) {
+      return reply.status(400).send({
+        error: 'Use o checkout de conta extra para adicionar capacidade a uma assinatura ativa.',
+        code: 'addon_checkout_required',
+      });
+    }
+
+    const { data: subscription, error } = await (supabase
+      .from('user_subscriptions' as any)
+      .select('*')
+      .eq('user_id', authResult.id)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle() as any);
+
+    if (error) {
+      return reply.status(500).send({
+        error: 'Failed to load user subscription',
+        code: 'subscription_lookup_failed',
+        details: error.message,
+      });
+    }
+
+    if (!subscription || !isValidPaidStatus(subscription.status)) {
+      return reply.status(402).send({
+        error: 'Você precisa ter uma assinatura ativa para agendar um downgrade.',
+        code: 'active_plan_required',
+      });
+    }
+
+    // This route only exists for manually-granted plans. Anyone with a real Stripe
+    // subscription must go through /billing/change-plan, which changes the price
+    // immediately (with proration) instead of scheduling something Stripe already handles.
+    if (subscription.stripe_subscription_id) {
+      return reply.status(400).send({
+        error: 'Esta assinatura já é gerenciada pela Stripe. Use a troca de plano normal.',
+        code: 'stripe_subscription_present_use_change_plan',
+      });
+    }
+
+    const currentPlan = subscription.plan_id ? await findAdminPlanBySelector(subscription.plan_id) : null;
+    const currentAccountLimit = Number(subscription.account_limit ?? currentPlan?.account_limit ?? 0);
+
+    if (targetPlan.id === subscription.plan_id) {
+      return reply.status(400).send({
+        error: 'Você já está neste plano.',
+        code: 'already_on_target_plan',
+      });
+    }
+
+    if (Number(targetPlan.account_limit || 0) >= currentAccountLimit) {
+      return reply.status(400).send({
+        error: 'Para subir de plano, pague agora — use o checkout.',
+        code: 'not_a_downgrade',
+      });
+    }
+
+    // Same server-side re-validation as /billing/change-plan — never trust that the
+    // client's account picker already trimmed accounts down to the new limit.
+    const [extraAccountQuantity, activeAccountCountRes] = await Promise.all([
+      getActiveAddonQuantityForUser(authResult.id),
+      supabase
+        .from('mt5_connections')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', authResult.id)
+        .in('connection_status', ['connected', 'connecting', 'syncing']),
+    ]);
+
+    if (activeAccountCountRes.error) throw activeAccountCountRes.error;
+
+    const activeAccountCount = Number(activeAccountCountRes.count ?? 0);
+    const targetAccountLimit = Number(targetPlan.account_limit || 0) + extraAccountQuantity;
+
+    if (activeAccountCount > targetAccountLimit) {
+      return reply.status(409).send({
+        error: `Você ainda tem ${activeAccountCount} conta(s) MT5 ativas, mas o plano ${targetPlan.plan_name} permite apenas ${targetAccountLimit}. Remova ${activeAccountCount - targetAccountLimit} conta(s) e tente novamente.`,
+        code: 'account_limit_exceeded_for_target_plan',
+        activeAccountCount,
+        targetAccountLimit,
+        accountsToRemove: activeAccountCount - targetAccountLimit,
+      });
+    }
+
+    const { error: updateError } = await (supabase
+      .from('user_subscriptions' as any)
+      .update({ pending_plan_id: targetPlan.id, updated_at: new Date().toISOString() })
+      .eq('id', subscription.id) as any);
+    if (updateError) throw updateError;
+
+    fastify.log.info({
+      event: 'manual_downgrade_scheduled',
+      userId: maskForLog(authResult.id),
+      fromPlanId: subscription.plan_id,
+      toPlanId: targetPlan.id,
+    });
+
+    return reply.send({
+      ...(await getSubscriptionStatusForUser(authResult.id)),
+      scheduled: { planId: targetPlan.id, effectiveAt: subscription.paid_until || subscription.current_period_end || null },
+    });
+  } catch (error: any) {
+    fastify.log.error({
+      event: 'manual_downgrade_schedule_failed',
+      error: error?.message,
+    });
+    return reply.status(500).send({
+      error: error?.message || 'Failed to schedule manual downgrade',
+      code: 'manual_downgrade_schedule_failed',
+    });
+  }
+});
+
+fastify.post('/billing/cancel-scheduled-downgrade', async (request, reply) => {
+  try {
+    const limit = checkRateLimit(request, 'billing', 30, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
+    const authResult = await verifyBearerUser(request);
+    if (isAuthError(authResult)) {
+      return reply.status(authResult.status).send(authResult.error);
+    }
+
+    const { data: subscription, error } = await (supabase
+      .from('user_subscriptions' as any)
+      .select('*')
+      .eq('user_id', authResult.id)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle() as any);
+
+    if (error) {
+      return reply.status(500).send({
+        error: 'Failed to load user subscription',
+        code: 'subscription_lookup_failed',
+        details: error.message,
+      });
+    }
+
+    if (!subscription) {
+      return reply.status(402).send({
+        error: 'Você não tem uma assinatura ativa.',
+        code: 'active_plan_required',
+      });
+    }
+
+    if (subscription.pending_plan_id) {
+      const { error: updateError } = await (supabase
+        .from('user_subscriptions' as any)
+        .update({ pending_plan_id: null, updated_at: new Date().toISOString() })
+        .eq('id', subscription.id) as any);
+      if (updateError) throw updateError;
+
+      fastify.log.info({
+        event: 'manual_downgrade_schedule_cancelled',
+        userId: maskForLog(authResult.id),
+      });
+    }
+
+    return reply.send(await getSubscriptionStatusForUser(authResult.id));
+  } catch (error: any) {
+    fastify.log.error({
+      event: 'manual_downgrade_cancel_failed',
+      error: error?.message,
+    });
+    return reply.status(500).send({
+      error: error?.message || 'Failed to cancel scheduled downgrade',
+      code: 'manual_downgrade_cancel_failed',
+    });
+  }
+});
+
+function isValidE164(value: string) {
+  return /^\+[1-9]\d{6,14}$/.test(value);
+}
+
+// Called only by the whatsapp-agent service (see services/whatsapp-agent), never by the
+// public frontend. Creates a Stripe Checkout Session for a lead who has no Fortify account
+// yet -- there is no user_id to stamp, deliberately. Account creation happens later, only
+// inside the checkout.session.completed webhook handler, only after a real payment clears.
+fastify.post('/internal/whatsapp/create-checkout-session', async (request, reply) => {
+  try {
+    const limit = checkRateLimit(request, 'whatsapp-preauth-checkout', 20, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
+    if (!WHATSAPP_SERVICE_SECRET) {
+      fastify.log.error({ event: 'whatsapp_preauth_secret_missing' });
+      return reply.status(503).send({
+        error: 'Integração WhatsApp indisponível: segredo interno não configurado.',
+        code: 'whatsapp_service_secret_missing',
+      });
+    }
+
+    const secretHeader = Array.isArray(request.headers['x-whatsapp-service-secret'])
+      ? request.headers['x-whatsapp-service-secret'][0]
+      : request.headers['x-whatsapp-service-secret'];
+
+    if (!secretHeader) {
+      return reply.status(401).send({ error: 'Requisição não autorizada.', code: 'whatsapp_service_secret_required' });
+    }
+    if (secretHeader !== WHATSAPP_SERVICE_SECRET) {
+      return reply.status(403).send({ error: 'Requisição não autorizada.', code: 'whatsapp_service_secret_invalid' });
+    }
+
+    const body = request.body as { planSlug?: string; phoneNumber?: string; leadEmail?: string };
+    const selector = String(body?.planSlug || '').trim();
+    const phoneNumber = String(body?.phoneNumber || '').trim();
+    const leadEmail = String(body?.leadEmail || '').trim().toLowerCase() || null;
+
+    if (!isValidE164(phoneNumber)) {
+      return reply.status(400).send({ error: 'phoneNumber deve estar em formato E.164.', code: 'invalid_phone_number' });
+    }
+    if (!selector) {
+      return reply.status(400).send({ error: 'Informe o plano desejado.', code: 'billing_plan_required' });
+    }
+
+    const validation = await validateBillingPlanForCheckout(selector);
+    if (!validation.ok) return reply.status(validation.status).send(validation.error);
+    const plan = validation.plan;
+
+    if (!STRIPE_SECRET_KEY) {
+      return reply.status(503).send(stripeConfigError());
+    }
+
+    const params: Record<string, unknown> = {
+      mode: 'subscription',
+      success_url: checkoutSuccessUrl(),
+      cancel_url: STRIPE_CANCEL_URL,
+      'line_items[0][price]': plan.stripe_price_id,
+      'line_items[0][quantity]': 1,
+      'metadata[source]': 'whatsapp_preauth',
+      'metadata[phone_number]': phoneNumber,
+      'metadata[plan_id]': plan.id,
+      // No consent banner exists in the WhatsApp flow -- always denied, never assume consent nobody gave.
+      'metadata[marketing_consent]': 'denied',
+      'subscription_data[metadata][source]': 'whatsapp_preauth',
+      'subscription_data[metadata][phone_number]': phoneNumber,
+      'subscription_data[metadata][plan_id]': plan.id,
+      allow_promotion_codes: true,
+    };
+    // Deliberately NOT set: metadata[user_id], subscription_data[metadata][user_id],
+    // client_reference_id, customer -- there is no Fortify user yet. This absence is what
+    // makes the checkout.session.completed handler take the whatsapp_preauth branch below
+    // instead of the normal syncSubscriptionById(subscriptionId, null) no-op path.
+    if (leadEmail) params.customer_email = leadEmail;
+
+    const checkoutSession = await stripeRequest('/checkout/sessions', params);
+
+    fastify.log.info({
+      event: 'whatsapp_preauth_checkout_session_created',
+      planId: plan.id,
+      phoneNumber: maskForLog(phoneNumber),
+      sessionId: maskForLog(checkoutSession.id),
+    });
+
+    return reply.send({ checkout_url: checkoutSession.url, session_id: checkoutSession.id });
+  } catch (error: any) {
+    fastify.log.error({
+      event: 'whatsapp_preauth_checkout_session_failed',
+      error: error?.message,
+      status: error?.status,
+    });
+    return reply.status(error?.status && error.status < 500 ? 400 : 500).send({
+      error: error?.message || 'Failed to create WhatsApp pre-auth checkout session',
+      code: 'whatsapp_preauth_checkout_failed',
+    });
+  }
+});
+
+async function findAuthUserByEmail(email: string): Promise<{ id: string; email: string } | null> {
+  const normalized = email.trim().toLowerCase();
+  const perPage = 1000;
+  for (let page = 1; page <= 20; page++) {
+    // Cap: 20k users. supabase-js has no verified server-side email filter for
+    // admin.listUsers in this SDK version -- revisit if the user base grows past this.
+    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage });
+    if (error) throw error;
+    const match = (data.users || []).find((u: any) => String(u.email || '').toLowerCase() === normalized);
+    if (match) return { id: match.id, email: match.email as string };
+    if ((data.users || []).length < perPage) break;
+  }
+  return null;
+}
+
+// Only reached from the checkout.session.completed webhook branch below, which only runs
+// after Stripe's own signature verification confirms a real, completed payment. See the
+// safety analysis in the plan file for why this is the one place in the app where an
+// unauthenticated flow can result in a new Fortify account.
+async function resolveWhatsAppPreauthUser(
+  session: JsonRecord,
+): Promise<{ userId: string; magicLink: string | null } | null> {
+  const email = String(session.customer_details?.email || '').trim().toLowerCase();
+  const phoneNumber = String(session.metadata?.phone_number || '').trim();
+
+  if (!email) {
+    fastify.log.error({
+      event: 'whatsapp_preauth_missing_email',
+      sessionId: maskForLog(session.id),
+      phoneNumber: maskForLog(phoneNumber),
+    });
+    return null; // payment succeeded but we cannot link an account -- needs manual ops follow-up
+  }
+
+  let userId: string;
+  const existing = await findAuthUserByEmail(email);
+  if (existing) {
+    userId = existing.id;
+  } else {
+    const { data, error } = await supabase.auth.admin.createUser({
+      email,
+      email_confirm: true, // trusted: they just completed a real Stripe payment
+      user_metadata: { source: 'whatsapp_preauth', phone_number: phoneNumber },
+    });
+    if (error || !data.user) {
+      fastify.log.error({
+        event: 'whatsapp_preauth_create_user_failed',
+        error: error?.message,
+        phoneNumber: maskForLog(phoneNumber),
+      });
+      return null;
+    }
+    userId = data.user.id;
+  }
+
+  if (phoneNumber) {
+    const { data: existingProfile } = await (supabase
+      .from('user_profiles' as any)
+      .select('phone')
+      .eq('user_id', userId)
+      .maybeSingle() as any);
+    if (!existingProfile?.phone) {
+      await (supabase
+        .from('user_profiles' as any)
+        .upsert({ user_id: userId, phone: phoneNumber, updated_at: new Date().toISOString() }, { onConflict: 'user_id' }) as any);
+    }
+
+    await (supabase
+      .from('whatsapp_conversations' as any)
+      .update({ linked_user_id: userId, stage: 'converted_paid', updated_at: new Date().toISOString() })
+      .eq('phone_number', phoneNumber) as any);
+  }
+
+  let magicLink: string | null = null;
+  try {
+    const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+      type: 'magiclink',
+      email,
+      options: { redirectTo: `${PUBLIC_APP_URL}/dashboard` },
+    });
+    if (linkError) throw linkError;
+    magicLink = linkData?.properties?.action_link || null;
+  } catch (linkErr: any) {
+    fastify.log.error({
+      event: 'whatsapp_preauth_magic_link_failed',
+      error: linkErr?.message,
+      userId: maskForLog(userId),
+    });
+  }
+
+  return { userId, magicLink };
+}
+
+function sha256Hex(value: string): string {
+  return createHash('sha256').update(value.trim().toLowerCase()).digest('hex');
+}
+
+// Server-side purchase signal for Meta Ads, fired alongside the client-side Pixel using the
+// same eventId (the Stripe checkout session id) so Meta deduplicates the two into one
+// conversion. No-ops if the Pixel isn't configured yet -- never throws, webhook must still 200.
+async function sendMetaCapiPurchaseEvent(params: {
+  eventId: string;
+  email?: string | null;
+  phone?: string | null;
+  value: number;
+  currency: string;
+}): Promise<void> {
+  if (!META_PIXEL_ID || !META_CAPI_ACCESS_TOKEN) return;
+  const userData: Record<string, unknown> = {};
+  if (params.email) userData.em = [sha256Hex(params.email)];
+  if (params.phone) userData.ph = [sha256Hex(params.phone.replace(/[^\d]/g, ''))];
+
+  const response = await fetch(
+    `https://graph.facebook.com/v19.0/${encodeURIComponent(META_PIXEL_ID)}/events?access_token=${encodeURIComponent(META_CAPI_ACCESS_TOKEN)}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        data: [
+          {
+            event_name: 'Purchase',
+            event_time: Math.floor(Date.now() / 1000),
+            event_id: params.eventId,
+            action_source: 'website',
+            user_data: userData,
+            custom_data: { value: params.value, currency: params.currency },
+          },
+        ],
+      }),
+    },
+  );
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => '');
+    throw new Error(`meta_capi_${response.status}: ${errorBody.slice(0, 200)}`);
+  }
+}
+
+// Server-side mirror of the client GA4 `purchase` event, same transactionId for dedup.
+// No-ops if GA4 isn't configured yet -- never throws, webhook must still 200.
+async function sendGa4MeasurementProtocolPurchaseEvent(params: {
+  transactionId: string;
+  value: number;
+  currency: string;
+}): Promise<void> {
+  if (!GA4_MEASUREMENT_ID || !GA4_API_SECRET) return;
+
+  const response = await fetch(
+    `https://www.google-analytics.com/mp/collect?measurement_id=${encodeURIComponent(GA4_MEASUREMENT_ID)}&api_secret=${encodeURIComponent(GA4_API_SECRET)}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        // GA4 Measurement Protocol requires a client_id -- server-side purchases have no
+        // browser client_id, so a stable pseudo-id derived from the transaction keeps this
+        // valid without needing to thread the real GA client_id through Stripe metadata.
+        client_id: `server.${params.transactionId}`,
+        events: [
+          {
+            name: 'purchase',
+            params: {
+              transaction_id: params.transactionId,
+              value: params.value,
+              currency: params.currency,
+            },
+          },
+        ],
+      }),
+    },
+  );
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => '');
+    throw new Error(`ga4_mp_${response.status}: ${errorBody.slice(0, 200)}`);
+  }
+}
+
 fastify.post('/billing/webhook', async (request, reply) => {
   try {
     const limit = checkRateLimit(request, 'billing-webhook', 180, 60_000);
@@ -4615,9 +5898,96 @@ fastify.post('/billing/webhook', async (request, reply) => {
 
     if (eventType === 'checkout.session.completed') {
       const subscriptionId = getStripeId(object.subscription);
-      const fallbackUserId = object.metadata?.user_id || object.client_reference_id || null;
+      let fallbackUserId = object.metadata?.user_id || object.client_reference_id || null;
+
+      if (String(object.metadata?.source || '') === 'whatsapp_preauth' && !object.metadata?.user_id) {
+        const resolved = await resolveWhatsAppPreauthUser(object);
+        if (resolved) {
+          fallbackUserId = resolved.userId;
+
+          // Backfill the REAL Stripe subscription's metadata -- without this, every future
+          // push webhook (customer.subscription.updated, invoice.payment_succeeded) has no
+          // subscription.metadata.user_id, and this handler only ever passes a
+          // fallbackUserId explicitly on THIS event. This backfill makes all later syncs
+          // behave identically to the authenticated checkout path.
+          if (subscriptionId && STRIPE_SECRET_KEY) {
+            try {
+              await stripeRequest(`/subscriptions/${encodeURIComponent(subscriptionId)}`, {
+                'metadata[user_id]': resolved.userId,
+                'metadata[source]': 'whatsapp_preauth',
+              });
+            } catch (backfillError: any) {
+              fastify.log.error({
+                event: 'whatsapp_preauth_metadata_backfill_failed',
+                error: backfillError?.message,
+              });
+            }
+          }
+
+          // Queue the confirmation (+ magic link, if it succeeded) for the whatsapp-agent
+          // service to deliver -- the gateway never talks to WhatsApp/Baileys directly.
+          const phoneNumber = String(object.metadata?.phone_number || '').trim();
+          if (phoneNumber) {
+            const { data: conversation } = await (supabase
+              .from('whatsapp_conversations' as any)
+              .select('id')
+              .eq('phone_number', phoneNumber)
+              .maybeSingle() as any);
+            const conversationId =
+              conversation?.id ||
+              (
+                await (supabase
+                  .from('whatsapp_conversations' as any)
+                  .insert({ phone_number: phoneNumber, linked_user_id: resolved.userId, stage: 'converted_paid' })
+                  .select('id')
+                  .single() as any)
+              ).data?.id;
+
+            if (conversationId) {
+              const confirmationText = resolved.magicLink
+                ? `Pagamento confirmado! Seu acesso Fortify está pronto. Entre com um toque: ${resolved.magicLink}`
+                : 'Pagamento confirmado! Seu acesso Fortify está pronto -- acesse pelo app com seu e-mail.';
+              await (supabase.from('whatsapp_messages' as any).insert({
+                conversation_id: conversationId,
+                role: 'assistant',
+                content: confirmationText,
+                delivery_status: 'pending',
+              }) as any);
+            }
+          }
+        }
+      }
+
       if (subscriptionId && STRIPE_SECRET_KEY) {
         await syncSubscriptionById(subscriptionId, fallbackUserId);
+      }
+
+      // Server-side conversion signal, mirroring whatever the client Pixel/GA4 already fired
+      // on the /dashboard success redirect -- covers ad blockers, Safari ITP, and tabs closed
+      // before the client-side event has a chance to send. Gated on marketing_consent so this
+      // never fires for a lead who didn't opt in. Never throws: a tracking failure must not
+      // fail the webhook itself (Stripe would retry a real payment confirmation otherwise).
+      if (String(object.metadata?.marketing_consent || '') === 'granted') {
+        const sessionId = String(object.id || '');
+        const value = Number(object.amount_total ?? 0) / 100;
+        const currency = String(object.currency || 'brl').toUpperCase();
+        const email = object.customer_details?.email ? String(object.customer_details.email) : null;
+        const phone = object.customer_details?.phone ? String(object.customer_details.phone) : null;
+
+        const [metaResult, ga4Result] = await Promise.allSettled([
+          sendMetaCapiPurchaseEvent({ eventId: sessionId, email, phone, value, currency }),
+          sendGa4MeasurementProtocolPurchaseEvent({ transactionId: sessionId, value, currency }),
+        ]);
+        if (metaResult.status === 'fulfilled') {
+          fastify.log.info({ event: 'meta_capi_purchase_sent', sessionId: maskForLog(sessionId) });
+        } else {
+          fastify.log.error({ event: 'meta_capi_purchase_failed', sessionId: maskForLog(sessionId), error: metaResult.reason?.message });
+        }
+        if (ga4Result.status === 'fulfilled') {
+          fastify.log.info({ event: 'ga4_mp_purchase_sent', sessionId: maskForLog(sessionId) });
+        } else {
+          fastify.log.error({ event: 'ga4_mp_purchase_failed', sessionId: maskForLog(sessionId), error: ga4Result.reason?.message });
+        }
       }
     } else if (
       eventType === 'customer.subscription.created' ||

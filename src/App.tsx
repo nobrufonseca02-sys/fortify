@@ -1,5 +1,5 @@
-import { lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { lazy, Suspense, useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { AuthProvider, useAuth, type AuthStartupError } from "@/hooks/useAuth";
-import fortifyIcon from "@/assets/brand/fortify-f-standalone-white.svg";
+import { FortifyMark } from "@/components/brand/FortifyMark";
+import { ConsentBanner } from "@/components/ConsentBanner";
+import { captureUtmParams } from "@/lib/analytics";
 import { DatabaseZap, ExternalLink, Monitor, RefreshCw, Server } from "lucide-react";
 import { MotionConfig } from "motion/react";
 import { fortifyMotionConfig } from "@/lib/motion";
@@ -18,15 +20,19 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Accounts = lazy(() => import("./pages/Accounts"));
 const AccountRuleManagement = lazy(() => import("./pages/AccountRuleManagement"));
 const AccountDashboard = lazy(() => import("./pages/AccountDashboard"));
+const AccountChecklist = lazy(() => import("./pages/AccountChecklist"));
+const AccountCoach = lazy(() => import("./pages/AccountCoach"));
+const Coach = lazy(() => import("./pages/Coach"));
 const RuleManager = lazy(() => import("./pages/RuleManager"));
 const Performance = lazy(() => import("./pages/Performance"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const PricingPage = lazy(() => import("./pages/PricingPage"));
+const BlogIndex = lazy(() => import("./pages/BlogIndex"));
+const BlogPost = lazy(() => import("./pages/BlogPost"));
+const SubscriptionManagementPage = lazy(() => import("./pages/SubscriptionManagementPage"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
 const CreateAccount = lazy(() => import("./pages/CreateAccount"));
 const PropFirmLibrary = lazy(() => import("./pages/PropFirmLibrary"));
-const AccountHistory = lazy(() => import("./pages/AccountHistory"));
-const MT5Connections = lazy(() => import("./pages/MT5Connections"));
 const MT5Dashboard = lazy(() => import("./pages/MT5Dashboard"));
 const RiskCalculator = lazy(() => import("./pages/RiskCalculator"));
 const RuleEngineDemo = lazy(() => import("./pages/RuleEngineDemo"));
@@ -38,7 +44,7 @@ function AuthLoadingScreen() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-4">
-        <img src={fortifyIcon} alt="Fortify" className="w-12 h-12 animate-pulse" />
+        <FortifyMark className="w-12 h-12 text-foreground animate-pulse" />
         <p className="text-xs text-muted-foreground uppercase tracking-wider">Carregando...</p>
       </div>
     </div>
@@ -126,6 +132,11 @@ function SupabaseStartupDiagnostic({
   );
 }
 
+function Mt5Redirect() {
+  const location = useLocation();
+  return <Navigate to={`/accounts${location.search}`} replace />;
+}
+
 function ProtectedRoutes() {
   const { session } = useAuth();
 
@@ -141,21 +152,24 @@ function ProtectedRoutes() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/calculator" element={<Navigate to="/risk-calculator" replace />} />
           <Route path="/risk-calculator" element={<RiskCalculator />} />
+          <Route path="/coach" element={<Coach />} />
           <Route path="/accounts" element={<Accounts />} />
           <Route path="/accounts/new" element={<CreateAccount />} />
           <Route path="/accounts/:id" element={<AccountDashboard />} />
+          <Route path="/accounts/:id/checklist" element={<AccountChecklist />} />
+          <Route path="/accounts/:id/coach" element={<AccountCoach />} />
           <Route path="/accounts/:accountId/rules" element={<AccountRuleManagement />} />
           <Route path="/performance" element={<Performance />} />
           <Route path="/rules" element={<Navigate to="/library" replace />} />
           <Route path="/rules/demo" element={<RuleEngineDemo />} />
           <Route path="/rules/manage" element={<RuleManager />} />
           <Route path="/library" element={<PropFirmLibrary />} />
-          <Route path="/history" element={<AccountHistory />} />
           <Route path="/integrations/mt5" element={<Navigate to="/mt5" replace />} />
-          <Route path="/mt5" element={<MT5Connections />} />
+          <Route path="/mt5" element={<Mt5Redirect />} />
           <Route path="/mt5/:connectionId" element={<MT5Dashboard />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/subscription" element={<SubscriptionManagementPage />} />
           <Route path="/adm" element={<AdminPage />} />
           <Route path="/admin" element={<Navigate to="/adm" replace />} />
           <Route path="*" element={<NotFound />} />
@@ -200,6 +214,8 @@ function AppContent() {
       <Suspense fallback={<AuthLoadingScreen />}>
         <Routes>
           <Route path="/pricing" element={<PricingRoute />} />
+          <Route path="/blog" element={<BlogIndex />} />
+          <Route path="/blog/:slug" element={<BlogPost />} />
           <Route path="/auth" element={<AuthGuard />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/*" element={<ProtectedRoutes />} />
@@ -209,18 +225,25 @@ function AppContent() {
   );
 }
 
-const App = () => (
-  <MotionConfig transition={fortifyMotionConfig} reducedMotion="user">
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <AppContent />
-        </TooltipProvider>
-      </AuthProvider>
-    </QueryClientProvider>
-  </MotionConfig>
-);
+const App = () => {
+  useEffect(() => {
+    captureUtmParams();
+  }, []);
+
+  return (
+    <MotionConfig transition={fortifyMotionConfig} reducedMotion="user">
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <ConsentBanner />
+            <AppContent />
+          </TooltipProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </MotionConfig>
+  );
+};
 
 export default App;
