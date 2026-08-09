@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, BarChart3, Calculator, ClipboardCopy, RotateCcw, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ChevronDown, ClipboardCopy, RotateCcw, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { useAccountsStore } from "@/hooks/useAccountsStore";
-import { useTradingView } from "@/components/tradingview/TradingViewProvider";
+import { supabase } from "@/integrations/supabase/client";
+import type { AccountRuleBindingRow } from "@/lib/ruleBinding";
+import { parseRuleLimit } from "@/lib/ruleEngine/ruleEngineTypes";
+import { TradingViewMarkIcon, useTradingView } from "@/components/tradingview/TradingViewProvider";
 import {
   INSTRUMENT_PRESETS,
-  PROP_ACCOUNT_SIZES,
   calculateRisk,
   toNumber,
   type AssetCategory,
@@ -45,47 +48,78 @@ function ResultCard({ label, value, tone = "text-foreground" }: { label: string;
   return (
     <div className="rounded-lg border border-border bg-card/70 p-4">
       <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">{label}</p>
-      <p className={`mt-2 font-mono text-lg font-black ${tone}`}>{value}</p>
+      <p className={`mt-2 font-mono text-lg font-bold ${tone}`}>{value}</p>
+    </div>
+  );
+}
+
+function LimitRow({
+  label,
+  impactPercent,
+  remaining,
+  tradesLeft,
+}: {
+  label: string;
+  impactPercent: number;
+  remaining: number;
+  tradesLeft: number | null;
+}) {
+  const clamped = Math.max(0, Math.min(100, impactPercent));
+  const tone = impactPercent > 70 ? "bg-destructive" : impactPercent > 35 ? "bg-warning" : "bg-success";
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs">
+        <span className="font-medium text-foreground">{label}</span>
+        <span className="text-muted-foreground">
+          {pct(impactPercent)} consumido · restam {money(remaining)}
+          {tradesLeft !== null ? ` · ~${tradesLeft} trade${tradesLeft === 1 ? "" : "s"} até o limite` : ""}
+        </span>
+      </div>
+      <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+        <div className={`h-full rounded-full ${tone}`} style={{ width: `${clamped}%` }} />
+      </div>
     </div>
   );
 }
 
 const RiskCalculator = () => {
+  const { user } = useAuth();
   const { accounts } = useAccountsStore();
   const { openChart } = useTradingView();
   const [accountSource, setAccountSource] = useState("manual");
   const [equity, setEquity] = useState("10000");
-  const [currency, setCurrency] = useState("USD");
-  const [propSize, setPropSize] = useState("10000");
   const [dailyLossPercent, setDailyLossPercent] = useState("5");
-  const [dailyLossAmount, setDailyLossAmount] = useState("500");
   const [drawdownPercent, setDrawdownPercent] = useState("10");
-  const [drawdownAmount, setDrawdownAmount] = useState("1000");
-  const [profitTargetPercent, setProfitTargetPercent] = useState("8");
-  const [profitTargetAmount, setProfitTargetAmount] = useState("800");
   const [riskMode, setRiskMode] = useState<"percent" | "amount">("percent");
   const [riskPercent, setRiskPercent] = useState("0.5");
   const [riskAmount, setRiskAmount] = useState("50");
-  const [category, setCategory] = useState<AssetCategory>("Forex");
   const [symbol, setSymbol] = useState("EUR/USD");
   const [direction, setDirection] = useState<TradeDirection>("buy");
   const [entryPrice, setEntryPrice] = useState("");
   const [stopLoss, setStopLoss] = useState("");
   const [takeProfit, setTakeProfit] = useState("");
-  const [manualStopDistance, setManualStopDistance] = useState("20");
-  const [manualTargetDistance, setManualTargetDistance] = useState("40");
-  const [desiredRR, setDesiredRR] = useState("2");
+  const [manualStopDistance, setManualStopDistance] = useState("");
+  const [manualTargetDistance, setManualTargetDistance] = useState("");
   const [manualLot, setManualLot] = useState("");
   const [valueOverride, setValueOverride] = useState("10");
+  const [ruleBinding, setRuleBinding] = useState<AccountRuleBindingRow | null>(null);
 
   const selectedPreset = useMemo<InstrumentPreset>(
     () => INSTRUMENT_PRESETS.find((preset) => preset.displaySymbol === symbol) || INSTRUMENT_PRESETS[0],
     [symbol],
   );
-  const filteredPresets = useMemo(() => INSTRUMENT_PRESETS.filter((preset) => preset.category === category), [category]);
+  const selectedAccount = useMemo(
+    () => accounts.find((account) => account.id === accountSource) || null,
+    [accounts, accountSource],
+  );
   const equityValue = toNumber(equity) || 0;
-  const dailyLimitValue = toNumber(dailyLossAmount) || 0;
-  const drawdownLimitValue = toNumber(drawdownAmount) || 0;
+  const baseAmount = selectedAccount?.startBalance || equityValue;
+
+  const dailyDerived = ruleBinding ? parseRuleLimit(ruleBinding.rule_snapshot.criticalRules.dailyLoss, baseAmount) : null;
+  const drawdownDerived = ruleBinding ? parseRuleLimit(ruleBinding.rule_snapshot.criticalRules.maxLoss, baseAmount) : null;
+  const dailyLimitValue = dailyDerived ? dailyDerived.amount : (equityValue * (toNumber(dailyLossPercent) || 0)) / 100;
+  const drawdownLimitValue = drawdownDerived ? drawdownDerived.amount : (equityValue * (toNumber(drawdownPercent) || 0)) / 100;
+
   const unitSize = selectedPreset.pipSize || selectedPreset.pointSize || 1;
   const valuePerUnit = toNumber(valueOverride) || selectedPreset.pipValuePerLot || selectedPreset.pointValuePerLot || 0;
   const currentRiskAmount = riskMode === "percent" ? equityValue * ((toNumber(riskPercent) || 0) / 100) : toNumber(riskAmount) || 0;
@@ -132,40 +166,37 @@ const RiskCalculator = () => {
   );
 
   useEffect(() => {
-    const preset = INSTRUMENT_PRESETS.find((item) => item.category === category);
-    if (preset && !INSTRUMENT_PRESETS.some((item) => item.category === category && item.displaySymbol === symbol)) {
-      setSymbol(preset.displaySymbol);
-    }
-  }, [category, symbol]);
-
-  useEffect(() => {
     setValueOverride(String(selectedPreset.pipValuePerLot || selectedPreset.pointValuePerLot || 1));
   }, [selectedPreset]);
 
   useEffect(() => {
-    const selectedAccount = accounts.find((account) => account.id === accountSource);
     if (!selectedAccount) return;
     const nextEquity = Number(selectedAccount.currentEquity || selectedAccount.startBalance || 0);
     if (Number.isFinite(nextEquity) && nextEquity > 0) setEquity(String(Math.round(nextEquity * 100) / 100));
-  }, [accountSource, accounts]);
+  }, [selectedAccount]);
 
   useEffect(() => {
-    const base = toNumber(propSize) || equityValue;
-    if (!base) return;
-    setDailyLossAmount(String(Math.round(base * ((toNumber(dailyLossPercent) || 0) / 100) * 100) / 100));
-  }, [dailyLossPercent, propSize, equityValue]);
-
-  useEffect(() => {
-    const base = toNumber(propSize) || equityValue;
-    if (!base) return;
-    setDrawdownAmount(String(Math.round(base * ((toNumber(drawdownPercent) || 0) / 100) * 100) / 100));
-  }, [drawdownPercent, propSize, equityValue]);
-
-  useEffect(() => {
-    const base = toNumber(propSize) || equityValue;
-    if (!base) return;
-    setProfitTargetAmount(String(Math.round(base * ((toNumber(profitTargetPercent) || 0) / 100) * 100) / 100));
-  }, [profitTargetPercent, propSize, equityValue]);
+    if (accountSource === "manual" || !user?.id) {
+      setRuleBinding(null);
+      return;
+    }
+    let cancelled = false;
+    (supabase
+      .from("account_rule_bindings" as any)
+      .select("*")
+      .eq("trading_account_id", accountSource)
+      .eq("user_id", user.id)
+      .eq("binding_status", "active")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle() as any
+    ).then(({ data }: any) => {
+      if (!cancelled) setRuleBinding((data as AccountRuleBindingRow) ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [accountSource, user?.id]);
 
   useEffect(() => {
     if (riskMode !== "percent") return;
@@ -180,22 +211,17 @@ const RiskCalculator = () => {
   const reset = () => {
     setAccountSource("manual");
     setEquity("10000");
-    setCurrency("USD");
-    setPropSize("10000");
     setDailyLossPercent("5");
     setDrawdownPercent("10");
-    setProfitTargetPercent("8");
     setRiskMode("percent");
     setRiskPercent("0.5");
-    setCategory("Forex");
     setSymbol("EUR/USD");
     setDirection("buy");
     setEntryPrice("");
     setStopLoss("");
     setTakeProfit("");
-    setManualStopDistance("20");
-    setManualTargetDistance("40");
-    setDesiredRR("2");
+    setManualStopDistance("");
+    setManualTargetDistance("");
     setManualLot("");
   };
 
@@ -216,45 +242,17 @@ const RiskCalculator = () => {
     toast({ title: "Resumo copiado", description: "Resumo do trade enviado para a área de transferência." });
   };
 
-  const scenarioRows = [0.25, 0.5, 1].map((risk) => {
-    const scenario = calculateRisk({
-      equity: equityValue,
-      riskPercent: risk,
-      riskAmount: equityValue * (risk / 100),
-      entryPrice: toNumber(entryPrice),
-      stopLoss: toNumber(stopLoss),
-      takeProfit: toNumber(takeProfit),
-      manualStopDistance: toNumber(manualStopDistance),
-      manualTargetDistance: result.targetDistance || (toNumber(manualStopDistance) || 0) * (toNumber(desiredRR) || 2),
-      manualLot: null,
-      valuePerUnit,
-      unitSize,
-      minLot: selectedPreset.minLot,
-      maxLot: selectedPreset.maxLot,
-      lotStep: selectedPreset.lotStep,
-      dailyLossLimitAmount: dailyLimitValue,
-      totalDrawdownLimitAmount: drawdownLimitValue,
-    });
-    return {
-      label: risk === 0.25 ? "Conservador" : risk === 0.5 ? "Padrão" : "Agressivo",
-      risk,
-      scenario,
-    };
-  });
-
+  const drawdownBufferAfterStop = drawdownLimitValue - result.lossAtStop;
   const dailyBufferAfterStop = dailyLimitValue - result.lossAtStop;
   const statusTone =
     result.status === "Seguro" ? "text-success" : result.status === "Atenção" ? "text-warning" : "text-destructive";
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+    <div className="mx-auto max-w-6xl space-y-5 p-4 md:p-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="mb-2 text-[10px] font-mono uppercase tracking-[0.18em] text-primary">Command center</p>
-          <h1 className="text-2xl font-black tracking-tight text-foreground md:text-3xl">Calculadora de Risco</h1>
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Mapeie lote, risco, stop, alvo e impacto na conta antes de abrir uma operação.
-          </p>
+          <p className="mb-2 text-[11px] uppercase tracking-wide text-primary font-medium">Command center</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">Calculadora de Risco</h1>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" onClick={reset} className="gap-2">
@@ -262,8 +260,10 @@ const RiskCalculator = () => {
             Resetar
           </Button>
           <Button type="button" variant="outline" onClick={() => openChart(symbol)} className="gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Abrir gráfico no TradingView
+            <span className="flex h-5 w-5 items-center justify-center rounded bg-[#131722] shrink-0">
+              <TradingViewMarkIcon className="h-3 w-3" />
+            </span>
+            TradingView
           </Button>
           <Button type="button" onClick={copySummary} className="gap-2">
             <ClipboardCopy className="h-4 w-4" />
@@ -272,16 +272,12 @@ const RiskCalculator = () => {
         </div>
       </div>
 
-      <div className="rounded-lg border border-warning/30 bg-warning/5 p-4 text-xs text-warning">
-        Os valores de pip/point podem variar por corretora/servidor MT5. Confirme as especificações do contrato antes de operar.
-      </div>
-
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)]">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.85fr)]">
         <div className="space-y-5">
           <section className="rounded-lg border border-border bg-card p-5">
-            <h2 className="text-sm font-bold text-foreground">Conta e limites</h2>
-            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              <Field label="Conta / tipo de conta">
+            <h2 className="text-sm font-bold text-foreground">Conta e risco</h2>
+            <div className="mt-4 grid gap-4 md:grid-cols-3">
+              <Field label="Conta">
                 <select value={accountSource} onChange={(event) => setAccountSource(event.target.value)} className={inputClass("w-full rounded-md border border-border px-3")}>
                   <option value="manual">Manual</option>
                   {accounts.map((account) => (
@@ -291,46 +287,11 @@ const RiskCalculator = () => {
                   ))}
                 </select>
               </Field>
-              <Field label="Saldo/equity da conta">
+              <Field label="Saldo/equity">
                 <Input className={inputClass()} type="number" value={equity} onChange={(event) => setEquity(event.target.value)} min="0" />
               </Field>
-              <Field label="Moeda da conta">
-                <select value={currency} onChange={(event) => setCurrency(event.target.value)} className={inputClass("w-full rounded-md border border-border px-3")}>
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                  <option value="BRL">BRL</option>
-                </select>
-              </Field>
-              <Field label="Tamanho da conta prop">
-                <select value={propSize} onChange={(event) => setPropSize(event.target.value)} className={inputClass("w-full rounded-md border border-border px-3")}>
-                  {PROP_ACCOUNT_SIZES.map((size) => (
-                    <option key={size} value={size}>
-                      {money(size)}
-                    </option>
-                  ))}
-                  <option value={equity}>Custom</option>
-                </select>
-              </Field>
-              <Field label="Limite diário de perda">
-                <div className="grid grid-cols-2 gap-2">
-                  <Input className={inputClass()} type="number" value={dailyLossPercent} onChange={(event) => setDailyLossPercent(event.target.value)} />
-                  <Input className={inputClass()} type="number" value={dailyLossAmount} onChange={(event) => setDailyLossAmount(event.target.value)} />
-                </div>
-              </Field>
-              <Field label="Drawdown total máximo">
-                <div className="grid grid-cols-2 gap-2">
-                  <Input className={inputClass()} type="number" value={drawdownPercent} onChange={(event) => setDrawdownPercent(event.target.value)} />
-                  <Input className={inputClass()} type="number" value={drawdownAmount} onChange={(event) => setDrawdownAmount(event.target.value)} />
-                </div>
-              </Field>
-              <Field label="Meta de lucro">
-                <div className="grid grid-cols-2 gap-2">
-                  <Input className={inputClass()} type="number" value={profitTargetPercent} onChange={(event) => setProfitTargetPercent(event.target.value)} />
-                  <Input className={inputClass()} type="number" value={profitTargetAmount} onChange={(event) => setProfitTargetAmount(event.target.value)} />
-                </div>
-              </Field>
               <Field label="Risco por trade">
-                <div className="grid grid-cols-[92px_1fr] gap-2">
+                <div className="grid grid-cols-[76px_1fr] gap-2">
                   <select value={riskMode} onChange={(event) => setRiskMode(event.target.value as "percent" | "amount")} className={inputClass("rounded-md border border-border px-3")}>
                     <option value="percent">%</option>
                     <option value="amount">$</option>
@@ -344,26 +305,46 @@ const RiskCalculator = () => {
                 </div>
               </Field>
             </div>
+
+            {ruleBinding ? (
+              <div className="mt-4 flex items-start gap-2 rounded-lg border border-info/25 bg-info/5 p-3">
+                <ShieldCheck className="h-4 w-4 text-info mt-0.5 shrink-0" />
+                <p className="text-xs text-foreground/85 leading-relaxed">
+                  Regras de <span className="font-medium">{ruleBinding.rule_snapshot.propFirm.name} · {ruleBinding.rule_snapshot.accountSize.label}</span> aplicadas automaticamente:
+                  perda diária até <span className="font-mono">{money(dailyLimitValue)}</span>, drawdown até{" "}
+                  <span className="font-mono">{money(drawdownLimitValue)}</span>.
+                </p>
+              </div>
+            ) : (
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                {accountSource !== "manual" && (
+                  <p className="md:col-span-2 text-[11px] text-muted-foreground">
+                    Esta conta ainda não tem regras vinculadas — informe os limites manualmente.
+                  </p>
+                )}
+                <Field label="Limite diário de perda (%)">
+                  <Input className={inputClass()} type="number" value={dailyLossPercent} onChange={(event) => setDailyLossPercent(event.target.value)} />
+                </Field>
+                <Field label="Drawdown total máximo (%)">
+                  <Input className={inputClass()} type="number" value={drawdownPercent} onChange={(event) => setDrawdownPercent(event.target.value)} />
+                </Field>
+              </div>
+            )}
           </section>
 
           <section className="rounded-lg border border-border bg-card p-5">
-            <h2 className="text-sm font-bold text-foreground">Ativo e operação</h2>
+            <h2 className="text-sm font-bold text-foreground">Trade</h2>
             <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              <Field label="Categoria">
-                <select value={category} onChange={(event) => setCategory(event.target.value as AssetCategory)} className={inputClass("w-full rounded-md border border-border px-3")}>
-                  {categories.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-              </Field>
               <Field label="Ativo">
                 <select value={symbol} onChange={(event) => setSymbol(event.target.value)} className={inputClass("w-full rounded-md border border-border px-3")}>
-                  {filteredPresets.map((preset) => (
-                    <option key={preset.displaySymbol} value={preset.displaySymbol}>
-                      {preset.displaySymbol}
-                    </option>
+                  {categories.map((cat) => (
+                    <optgroup key={cat} label={cat}>
+                      {INSTRUMENT_PRESETS.filter((preset) => preset.category === cat).map((preset) => (
+                        <option key={preset.displaySymbol} value={preset.displaySymbol}>
+                          {preset.displaySymbol}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
               </Field>
@@ -382,14 +363,20 @@ const RiskCalculator = () => {
               <Field label="Take Profit">
                 <Input className={inputClass()} type="number" value={takeProfit} onChange={(event) => setTakeProfit(event.target.value)} />
               </Field>
-              <Field label="Stop em pips/pontos">
-                <Input className={inputClass()} type="number" value={manualStopDistance} onChange={(event) => setManualStopDistance(event.target.value)} />
+            </div>
+          </section>
+
+          <details className="group rounded-lg border border-border bg-card p-5">
+            <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-bold text-foreground [&::-webkit-details-marker]:hidden">
+              Ajustes avançados
+              <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <Field label="Stop em pips/pontos" helper="Usado se entrada/stop não forem informados.">
+                <Input className={inputClass()} type="number" value={manualStopDistance} onChange={(event) => setManualStopDistance(event.target.value)} placeholder="Opcional" />
               </Field>
-              <Field label="Alvo em pips/pontos">
-                <Input className={inputClass()} type="number" value={manualTargetDistance} onChange={(event) => setManualTargetDistance(event.target.value)} />
-              </Field>
-              <Field label="Risco/retorno desejado">
-                <Input className={inputClass()} type="number" value={desiredRR} onChange={(event) => setDesiredRR(event.target.value)} />
+              <Field label="Alvo em pips/pontos" helper="Usado se entrada/TP não forem informados.">
+                <Input className={inputClass()} type="number" value={manualTargetDistance} onChange={(event) => setManualTargetDistance(event.target.value)} placeholder="Opcional" />
               </Field>
               <Field label="Lote manual override">
                 <Input className={inputClass()} type="number" value={manualLot} onChange={(event) => setManualLot(event.target.value)} placeholder="Opcional" />
@@ -398,13 +385,13 @@ const RiskCalculator = () => {
                 <Input className={inputClass()} type="number" value={valueOverride} onChange={(event) => setValueOverride(event.target.value)} />
               </Field>
             </div>
-          </section>
+          </details>
         </div>
 
         <aside className="space-y-5">
           <section className="rounded-lg border border-border bg-card p-5">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-sm font-bold text-foreground">Resultado principal</h2>
+              <h2 className="text-sm font-bold text-foreground">Resultado</h2>
               <span className={`rounded-full border px-3 py-1 text-xs font-bold ${statusTone}`}>Status: {result.status}</span>
             </div>
             {result.warnings.length ? (
@@ -414,87 +401,37 @@ const RiskCalculator = () => {
                 ))}
               </div>
             ) : null}
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="mt-4 grid grid-cols-2 gap-3">
               <ResultCard label="Lote recomendado" value={numberText(result.recommendedLot)} tone="text-primary" />
-              <ResultCard label="Risco financeiro" value={money(result.lossAtStop)} />
-              <ResultCard label="Risco percentual" value={pct(result.riskPercent)} />
-              <ResultCard label="Perda no stop" value={money(result.lossAtStop)} tone="text-destructive" />
+              <ResultCard label="Risco por trade" value={`${money(result.lossAtStop)} · ${pct(result.riskPercent)}`} tone="text-destructive" />
               <ResultCard label="Ganho no alvo" value={money(result.potentialProfit)} tone="text-success" />
               <ResultCard label="R:R" value={`${numberText(result.riskReward)}R`} />
-              <ResultCard label="Stop" value={numberText(result.stopDistance)} />
-              <ResultCard label="Alvo" value={numberText(result.targetDistance)} />
-              <ResultCard label="Impacto diário" value={pct(result.dailyLossImpactPercent)} />
-              <ResultCard label="Impacto drawdown" value={pct(result.totalDrawdownImpactPercent)} />
-              <ResultCard label="Trades até limite diário" value={result.tradesUntilDailyLimit === null ? "Sem dados" : String(result.tradesUntilDailyLimit)} />
-              <ResultCard label="Trades até drawdown" value={result.tradesUntilDrawdownLimit === null ? "Sem dados" : String(result.tradesUntilDrawdownLimit)} />
             </div>
           </section>
 
           <section className="rounded-lg border border-border bg-card p-5">
-            <h2 className="text-sm font-bold text-foreground">Proteção de conta prop firm</h2>
-            <div className="mt-4 space-y-3 text-sm">
-              <p>Limite diário informado: <span className="font-mono text-foreground">{money(dailyLimitValue)}</span></p>
-              <p>Drawdown total informado: <span className="font-mono text-foreground">{money(drawdownLimitValue)}</span></p>
-              <p>Este trade consome <span className={statusTone}>{pct(result.dailyLossImpactPercent)}</span> do limite diário.</p>
-              <p>Após o stop, restariam <span className={dailyBufferAfterStop < 0 ? "text-destructive" : "text-success"}>{money(dailyBufferAfterStop)}</span> de limite diário.</p>
-              <div className={`rounded-lg border p-3 text-xs ${result.status === "Seguro" ? "border-success/30 bg-success/10 text-success" : result.status === "Atenção" ? "border-warning/30 bg-warning/10 text-warning" : "border-destructive/30 bg-destructive/10 text-destructive"}`}>
-                {result.status === "Seguro"
-                  ? "Risco dentro de uma faixa conservadora."
-                  : result.status === "Atenção"
-                    ? "Opere com cautela. Este trade já pressiona seus limites de perda."
-                    : "Risco elevado para conta prop. Considere reduzir lote ou aumentar qualidade do setup."}
-              </div>
+            <h2 className="text-sm font-bold text-foreground">Impacto nos limites da conta</h2>
+            <div className="mt-4 space-y-4">
+              <LimitRow label="Perda diária" impactPercent={result.dailyLossImpactPercent} remaining={dailyBufferAfterStop} tradesLeft={result.tradesUntilDailyLimit} />
+              <LimitRow label="Drawdown total" impactPercent={result.totalDrawdownImpactPercent} remaining={drawdownBufferAfterStop} tradesLeft={result.tradesUntilDrawdownLimit} />
+            </div>
+            <div className={`mt-4 rounded-lg border p-3 text-xs ${result.status === "Seguro" ? "border-success/30 bg-success/10 text-success" : result.status === "Atenção" ? "border-warning/30 bg-warning/10 text-warning" : "border-destructive/30 bg-destructive/10 text-destructive"}`}>
+              {result.status === "Seguro"
+                ? "Risco dentro de uma faixa conservadora."
+                : result.status === "Atenção"
+                  ? "Opere com cautela. Este trade já pressiona seus limites de perda."
+                  : "Risco elevado para conta prop. Considere reduzir lote ou aumentar qualidade do setup."}
             </div>
           </section>
         </aside>
       </div>
 
-      <section className="rounded-lg border border-border bg-card p-5">
-        <div className="flex items-center gap-2">
-          <Calculator className="h-4 w-4 text-primary" />
-          <h2 className="text-sm font-bold text-foreground">Cenários sugeridos</h2>
-        </div>
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-              <tr className="border-b border-border">
-                <th className="py-3">Perfil</th>
-                <th>Risco</th>
-                <th>Valor em risco</th>
-                <th>Lote sugerido</th>
-                <th>Stop</th>
-                <th>Alvo</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {scenarioRows.map(({ label, risk, scenario }) => (
-                <tr key={label} className="border-b border-border/60">
-                  <td className="py-3 font-semibold text-foreground">{label}</td>
-                  <td>{pct(risk)}</td>
-                  <td>{money(scenario.lossAtStop)}</td>
-                  <td className="font-mono">{numberText(scenario.recommendedLot)}</td>
-                  <td>{numberText(scenario.stopDistance)}</td>
-                  <td>{numberText(scenario.targetDistance)}</td>
-                  <td>{scenario.status}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="rounded-lg border border-border bg-card p-5">
-        <div className="flex items-start gap-3">
-          {result.status === "Seguro" ? <ShieldCheck className="mt-0.5 h-5 w-5 text-success" /> : <AlertTriangle className="mt-0.5 h-5 w-5 text-warning" />}
-          <div>
-            <h2 className="text-sm font-bold text-foreground">Aviso educacional</h2>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              Esta calculadora ajuda no planejamento de risco, mas não garante precisão para todos os brokers. Confirme lote, valor por pip/ponto, margem e especificações do contrato diretamente no MT5 antes de operar.
-            </p>
-          </div>
-        </div>
-      </section>
+      <div className="flex items-start gap-2 px-1">
+        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <p className="text-[11px] leading-relaxed text-muted-foreground">
+          Ferramenta de planejamento; não garante precisão para todos os brokers. Confirme lote, valor por pip/ponto e margem no MT5 antes de operar.
+        </p>
+      </div>
     </div>
   );
 };
