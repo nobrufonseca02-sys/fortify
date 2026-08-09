@@ -11,7 +11,7 @@ type TradingViewContextValue = {
 
 const TradingViewContext = createContext<TradingViewContextValue | null>(null);
 
-function TradingViewMarkIcon({ className = "" }: { className?: string }) {
+export function TradingViewMarkIcon({ className = "" }: { className?: string }) {
   return (
     <img
       src={tradingViewMarkTransparent}
@@ -61,11 +61,11 @@ export function TradingViewProvider({ children }: { children: React.ReactNode })
       <button
         type="button"
         onClick={() => openChart()}
-        className="fixed bottom-5 right-5 z-40 flex h-[62px] w-[224px] cursor-pointer items-center justify-center overflow-hidden rounded-full border border-cyan-300/20 bg-[linear-gradient(135deg,rgba(3,7,18,0.96),rgba(7,18,35,0.96))] px-[22px] py-[14px] shadow-[0_0_0_1px_rgba(14,165,233,0.08),0_18px_48px_rgba(8,145,178,0.22)] backdrop-blur transition-all hover:-translate-y-0.5 hover:border-cyan-300/45 hover:shadow-[0_0_0_1px_rgba(125,211,252,0.18),0_20px_58px_rgba(79,70,229,0.34)] focus:outline-none focus:ring-2 focus:ring-sky-300/60 focus:ring-offset-2 focus:ring-offset-background"
-        title="Abrir TradingView dentro do Fortify"
-        aria-label="Abrir TradingView dentro do Fortify"
+        className="fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-border bg-card shadow-md transition-colors hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+        title="Abrir gráfico TradingView"
+        aria-label="Abrir gráfico TradingView"
       >
-        <TradingViewLogo className="w-full" />
+        <TradingViewMarkIcon className="h-6 w-9" />
       </button>
       <TradingViewPanel open={open} onClose={() => setOpen(false)} symbol={symbol} setSymbol={setSymbol} />
     </TradingViewContext.Provider>
@@ -163,7 +163,6 @@ function TradingViewPanel({
   return (
     <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm">
       <div className="absolute inset-0 md:inset-x-[5vw] md:inset-y-[6vh] overflow-hidden rounded-none border border-white/10 bg-[#05060a] shadow-[0_28px_90px_rgba(0,0,0,0.75)] md:rounded-xl flex flex-col">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-[radial-gradient(circle_at_25%_0%,rgba(56,189,248,0.20),transparent_38%),radial-gradient(circle_at_72%_0%,rgba(124,58,237,0.18),transparent_34%)]" />
         <div className="relative flex flex-col gap-3 border-b border-white/10 bg-[#070914]/92 px-4 py-3 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-3">
@@ -179,7 +178,7 @@ function TradingViewPanel({
             <select
               value={symbol}
               onChange={(event) => setSymbol(event.target.value)}
-              className="h-9 rounded-md border border-white/10 bg-white/[0.08] px-3 text-xs text-white outline-none transition-colors hover:border-sky-300/35"
+              className="h-9 rounded-md border border-white/10 bg-white/[0.08] px-3 text-xs text-white outline-none transition-colors hover:border-primary/40"
             >
               {TRADINGVIEW_SYMBOLS.map((option) => (
                 <option key={option.tradingViewSymbol} value={option.tradingViewSymbol}>

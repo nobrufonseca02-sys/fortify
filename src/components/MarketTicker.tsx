@@ -30,7 +30,7 @@ const assets: MarketTickerAsset[] = [
 ];
 
 const directionClass: Record<MarketTickerAsset['direction'], string> = {
-  up: 'text-cyan-300',
+  up: 'text-success',
   down: 'text-destructive',
   flat: 'text-muted-foreground',
 };
@@ -52,7 +52,7 @@ export function MarketTicker() {
   return (
     <section className="flex h-11 overflow-hidden rounded-xl border border-border bg-card/80 shadow-sm shadow-background/20">
       <div
-        className="hidden shrink-0 items-center border-r border-border/50 px-3 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground sm:flex"
+        className="hidden shrink-0 items-center border-r border-border/50 px-3 text-[11px] uppercase tracking-wide text-muted-foreground sm:flex"
         title="Cotações simuladas para visualização. Dados reais serão integrados em uma próxima versão."
       >
         Dados simulados

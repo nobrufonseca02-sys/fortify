@@ -65,28 +65,20 @@ export function PlanStatusPanel({ compact = false }: { compact?: boolean }) {
 
   return (
     <section className="rounded-xl border border-border bg-card p-5 space-y-4">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${hasActivePlan ? 'bg-success/10' : 'bg-warning/10'}`}>
-            <StatusIcon className={`w-4 h-4 ${hasActivePlan ? 'text-success' : 'text-warning'}`} />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-foreground">
-              {hasActivePlan ? `Plano ${subscription?.plan_name || 'ativo'}` : 'Plano Fortify necessário'}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {hasActivePlan
-                ? `${activeAccountCount}/${accountLimit} contas MT5 em monitoramento. Restam ${remainingAccounts}.`
-                : 'Escolha um plano ou solicite acesso beta antes de conectar uma nova conta MT5.'}
-            </p>
-            {error ? (
-              <p className="text-xs text-destructive mt-1">Não foi possível validar o plano. Recarregue a sessão ou revise o Supabase.</p>
-            ) : null}
-          </div>
-        </div>
-        <div className="hidden md:flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-          <CreditCard className="w-3 h-3" />
-          SaaS
+      <div className="flex items-start gap-2.5">
+        <StatusIcon className={`w-4 h-4 mt-0.5 shrink-0 ${hasActivePlan ? 'text-success' : 'text-warning'}`} aria-hidden="true" />
+        <div>
+          <p className="text-sm font-semibold text-foreground">
+            {hasActivePlan ? `Plano ${subscription?.plan_name || 'ativo'}` : 'Plano Fortify necessário'}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {hasActivePlan
+              ? `${activeAccountCount}/${accountLimit} contas MT5 em monitoramento. Restam ${remainingAccounts}.`
+              : 'Escolha um plano ou solicite acesso beta antes de conectar uma nova conta MT5.'}
+          </p>
+          {error ? (
+            <p className="text-xs text-destructive mt-1">Não foi possível validar o plano. Recarregue a sessão ou revise o Supabase.</p>
+          ) : null}
         </div>
       </div>
 

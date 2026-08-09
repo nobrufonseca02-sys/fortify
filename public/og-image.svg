@@ -1,14 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
-  <defs>
-    <radialGradient id="glow" cx="50%" cy="42%" r="60%">
-      <stop offset="0%" stop-color="#0ea5e9" stop-opacity=".28"/>
-      <stop offset="48%" stop-color="#0f172a" stop-opacity=".95"/>
-      <stop offset="100%" stop-color="#020617"/>
-    </radialGradient>
-  </defs>
-  <rect width="1200" height="630" fill="url(#glow)"/>
-  <circle cx="270" cy="315" r="86" fill="#ffffff"/>
-  <path fill="#020617" d="M228 258h92c7 0 12 5 12 12v17c0 7-5 12-12 12h-61v21h51c7 0 12 5 12 12v16c0 7-5 12-12 12h-51v50c0 9-9 14-16 9l-22-13c-4-2-6-6-6-11V270c0-7 6-12 13-12Z"/>
-  <text x="390" y="310" fill="#ffffff" font-family="Arial Black, Arial, sans-serif" font-size="96" font-weight="900" letter-spacing="8">FORTIFY</text>
-  <text x="395" y="375" fill="#bae6fd" font-family="Arial, sans-serif" font-size="30" letter-spacing="4">Controle de risco para traders</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="Fortify — Sistema de gestão de risco">
+  <rect width="1200" height="630" fill="#000000"/>
+  <svg x="140" y="145" width="330" height="311" viewBox="0 0 275 251" preserveAspectRatio="xMidYMid meet">
+    <polygon points="32,29 232,29 191,71 82,71 82,180 32,229" fill="#ffffff"/>
+    <polygon points="110,100 162,100 110,152" fill="#ffffff"/>
+  </svg>
+  <text x="510" y="358" font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="120" letter-spacing="2" fill="#ffffff">FORTIFY</text>
+  <text x="512" y="420" font-family="Arial, Helvetica, sans-serif" font-weight="500" font-size="28" letter-spacing="4" fill="#9aa0a6">SISTEMA DE GESTÃO DE RISCO</text>
 </svg>

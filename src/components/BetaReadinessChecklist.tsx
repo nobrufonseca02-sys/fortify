@@ -25,10 +25,8 @@ export function BetaReadinessChecklist({
 
   return (
     <section className="rounded-xl border border-border bg-card p-5 space-y-4">
-      <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          <ShieldCheck className="h-4 w-4" />
-        </div>
+      <div className="flex items-start gap-2.5">
+        <ShieldCheck className="h-4 w-4 mt-0.5 shrink-0 text-primary" aria-hidden="true" />
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-foreground">{title}</h2>
           <p className="text-xs text-muted-foreground mt-1">{description}</p>

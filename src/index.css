@@ -1,120 +1,127 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&family=Manrope:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/*
+  FORTIFY design tokens — black / white structural base, single blue accent.
+  Neutrals are pure gray (no hue tint) so surfaces stack cleanly; --primary is
+  the only accent used for actions, links and focus. Status colors (success/
+  warning/destructive/info) stay hue-distinct from the accent and from each
+  other on purpose — this is a risk product, state must never be color-blind.
+*/
 @layer base {
   :root {
-    /* Deeper near-black foundation */
-    --background: 222 28% 3%;
-    --foreground: 210 25% 96%;
+    --background: 0 0% 4%;
+    --foreground: 0 0% 97%;
 
-    /* Layered surfaces */
-    --card: 222 22% 6%;
-    --card-foreground: 210 25% 96%;
+    --card: 0 0% 7%;
+    --card-foreground: 0 0% 97%;
 
-    --popover: 222 24% 5%;
-    --popover-foreground: 210 25% 96%;
+    --popover: 0 0% 6%;
+    --popover-foreground: 0 0% 97%;
 
-    /* Steel-cyan accent (less neon, more institutional) */
-    --primary: 195 85% 52%;
-    --primary-foreground: 222 30% 4%;
+    /* Single accent: confident, neutral blue */
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 16% 11%;
-    --secondary-foreground: 210 20% 88%;
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 92%;
 
-    --muted: 222 18% 8%;
-    --muted-foreground: 220 10% 52%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 58%;
 
-    --accent: 220 18% 12%;
-    --accent-foreground: 210 25% 96%;
+    --accent: 0 0% 14%;
+    --accent-foreground: 0 0% 97%;
 
-    --destructive: 358 72% 54%;
+    --destructive: 0 70% 52%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 14% 12%;
-    --input: 220 14% 12%;
-    --ring: 195 85% 52%;
+    --border: 0 0% 16%;
+    --input: 0 0% 16%;
+    --ring: 217 91% 60%;
 
-    --radius: 0.625rem;
+    --radius: 0.5rem;
 
-    /* Status palette */
-    --success: 158 64% 44%;
+    /* Status palette — kept hue-distinct from --primary and each other */
+    --success: 152 55% 42%;
     --success-foreground: 0 0% 100%;
-    --warning: 36 95% 54%;
-    --warning-foreground: 30 50% 8%;
-    --info: 210 95% 60%;
+    --warning: 38 88% 50%;
+    --warning-foreground: 20 45% 10%;
+    --info: 199 89% 56%;
     --info-foreground: 0 0% 100%;
 
-    /* Layered surface scale */
-    --surface-0: 222 28% 3%;
-    --surface-1: 222 24% 5%;
-    --surface-2: 222 22% 7%;
-    --surface-3: 222 20% 9%;
-    --surface-elevated: 222 22% 8%;
-    --surface-glass: 222 30% 4%;
+    /* Layered surface scale — for card-on-card hierarchy, no gradients */
+    --surface-0: 0 0% 4%;
+    --surface-1: 0 0% 6%;
+    --surface-2: 0 0% 9%;
+    --surface-3: 0 0% 13%;
+    --surface-elevated: 0 0% 9%;
 
-    --steel: 215 25% 28%;
-    --emerald: 158 64% 44%;
+    /* Sidebar */
+    --sidebar-background: 0 0% 3%;
+    --sidebar-foreground: 0 0% 64%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 9%;
+    --sidebar-accent-foreground: 0 0% 97%;
+    --sidebar-border: 0 0% 14%;
+    --sidebar-ring: 217 91% 60%;
 
-    --glow-primary: 195 95% 55%;
-    --glow-destructive: 358 72% 54%;
-    --glow-success: 158 64% 44%;
-    --neon: 195 85% 52%;
-
-    /* Sidebar — darker, more structural */
-    --sidebar-background: 222 30% 2.5%;
-    --sidebar-foreground: 215 18% 70%;
-    --sidebar-primary: 195 85% 52%;
-    --sidebar-primary-foreground: 222 30% 4%;
-    --sidebar-accent: 222 24% 6%;
-    --sidebar-accent-foreground: 210 25% 96%;
-    --sidebar-border: 220 14% 9%;
-    --sidebar-ring: 195 85% 52%;
-
-    --font-display: 'Manrope', 'Inter', 'Satoshi', 'Geist', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    --font-body: 'Manrope', 'Inter', 'Satoshi', 'Geist', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-display: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-body: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
   }
 
   :root[data-theme='light'] {
-    --background: 210 30% 97%;
-    --foreground: 222 28% 8%;
+    --background: 0 0% 100%;
+    --foreground: 0 0% 9%;
+
     --card: 0 0% 100%;
-    --card-foreground: 222 28% 8%;
+    --card-foreground: 0 0% 9%;
+
     --popover: 0 0% 100%;
-    --popover-foreground: 222 28% 8%;
-    --primary: 195 80% 38%;
+    --popover-foreground: 0 0% 9%;
+
+    --primary: 217 91% 52%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 210 24% 94%;
-    --secondary-foreground: 222 22% 12%;
-    --muted: 210 24% 94%;
-    --muted-foreground: 218 12% 43%;
-    --accent: 205 28% 92%;
-    --accent-foreground: 222 28% 8%;
-    --destructive: 358 68% 50%;
+
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 15%;
+
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 40%;
+
+    --accent: 0 0% 94%;
+    --accent-foreground: 0 0% 9%;
+
+    --destructive: 0 72% 45%;
     --destructive-foreground: 0 0% 100%;
-    --border: 214 22% 84%;
-    --input: 214 22% 84%;
-    --ring: 195 80% 38%;
-    --success: 158 62% 36%;
-    --warning: 36 90% 45%;
-    --info: 210 90% 45%;
-    --surface-0: 210 30% 97%;
-    --surface-1: 0 0% 100%;
-    --surface-2: 210 32% 96%;
-    --surface-3: 210 26% 92%;
+
+    --border: 0 0% 88%;
+    --input: 0 0% 88%;
+    --ring: 217 91% 52%;
+
+    --success: 152 60% 32%;
+    --warning: 38 92% 40%;
+    --warning-foreground: 0 0% 100%;
+    --info: 199 89% 42%;
+
+    --surface-0: 0 0% 100%;
+    --surface-1: 0 0% 99%;
+    --surface-2: 0 0% 97%;
+    --surface-3: 0 0% 93%;
     --surface-elevated: 0 0% 100%;
-    --surface-glass: 0 0% 100%;
-    --sidebar-background: 215 35% 96%;
-    --sidebar-foreground: 220 16% 32%;
-    --sidebar-primary: 195 80% 38%;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 0 0% 35%;
+    --sidebar-primary: 217 91% 52%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 28% 91%;
-    --sidebar-accent-foreground: 222 28% 8%;
-    --sidebar-border: 214 22% 82%;
-    --sidebar-ring: 195 80% 38%;
+    --sidebar-accent: 0 0% 93%;
+    --sidebar-accent-foreground: 0 0% 9%;
+    --sidebar-border: 0 0% 88%;
+    --sidebar-ring: 217 91% 52%;
   }
 }
 
@@ -126,16 +133,6 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-body);
-    background-image:
-      radial-gradient(ellipse 80% 50% at 50% -10%, hsl(195 85% 30% / 0.08), transparent 60%),
-      radial-gradient(ellipse 60% 40% at 100% 100%, hsl(158 64% 30% / 0.04), transparent 60%);
-    background-attachment: fixed;
-  }
-
-  :root[data-theme='light'] body {
-    background-image:
-      radial-gradient(ellipse 70% 45% at 45% -10%, hsl(195 85% 72% / 0.2), transparent 60%),
-      radial-gradient(ellipse 60% 40% at 100% 100%, hsl(158 64% 70% / 0.16), transparent 60%);
   }
 
   h1, h2, h3, h4 {
@@ -153,327 +150,112 @@
     border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.5); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
 
+/*
+  Restrained component layer. Every surface here is a flat fill + 1px border
+  from the token scale above — no gradients, no glow, no blur-as-decoration.
+  Blue (--primary) is reserved for actions, links and focus; it never fills a
+  whole panel or headline.
+*/
 @layer utilities {
-  /* Restrained glow utilities */
-  .glow-primary {
-    box-shadow:
-      0 0 0 1px hsl(var(--glow-primary) / 0.15),
-      0 0 24px -6px hsl(var(--glow-primary) / 0.35),
-      0 0 48px -12px hsl(var(--glow-primary) / 0.18);
-  }
-  .glow-success {
-    box-shadow:
-      0 0 0 1px hsl(var(--glow-success) / 0.15),
-      0 0 24px -6px hsl(var(--glow-success) / 0.3),
-      0 0 48px -12px hsl(var(--glow-success) / 0.15);
-  }
-  .glow-destructive {
-    box-shadow:
-      0 0 0 1px hsl(var(--glow-destructive) / 0.2),
-      0 0 24px -6px hsl(var(--glow-destructive) / 0.4),
-      0 0 48px -12px hsl(var(--glow-destructive) / 0.2);
-  }
-
-  /* Premium institutional glass */
-  .glass {
-    background:
-      linear-gradient(180deg, hsl(var(--surface-glass) / 0.85), hsl(var(--surface-glass) / 0.65));
-    backdrop-filter: blur(20px) saturate(1.3);
-    -webkit-backdrop-filter: blur(20px) saturate(1.3);
-    border: 1px solid hsl(var(--border) / 0.7);
-  }
-
-  .glass-header {
-    background: linear-gradient(180deg, hsl(222 28% 4% / 0.85), hsl(222 28% 3% / 0.7));
-    backdrop-filter: blur(16px) saturate(1.4);
-    -webkit-backdrop-filter: blur(16px) saturate(1.4);
-    border-bottom: 1px solid hsl(var(--border) / 0.6);
-    box-shadow: 0 1px 0 0 hsl(var(--foreground) / 0.02) inset;
-  }
-
-  /* Premium card with bright top edge */
-  .card-premium {
-    background:
-      linear-gradient(180deg, hsl(var(--surface-2)) 0%, hsl(var(--surface-1)) 100%);
-    border: 1px solid hsl(var(--border));
-    position: relative;
-    box-shadow:
-      0 1px 0 0 hsl(var(--foreground) / 0.04) inset,
-      0 16px 40px -20px hsl(0 0% 0% / 0.6);
-  }
-  .card-premium::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    padding: 1px;
-    background: linear-gradient(
-      135deg,
-      hsl(var(--primary) / 0.25),
-      transparent 35%,
-      transparent 65%,
-      hsl(var(--primary) / 0.1)
-    );
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
-  }
-
-  /* Hero surface with cinematic glow */
+  /* Flat elevated panel — replaces the old radial-glow "hero-surface" */
   .hero-surface {
-    position: relative;
-    background:
-      radial-gradient(ellipse 80% 60% at 0% 0%, hsl(195 85% 25% / 0.18), transparent 60%),
-      radial-gradient(ellipse 60% 80% at 100% 100%, hsl(158 64% 25% / 0.1), transparent 60%),
-      linear-gradient(180deg, hsl(var(--surface-2)), hsl(var(--surface-1)));
+    background: hsl(var(--surface-1));
     border: 1px solid hsl(var(--border));
-    overflow: hidden;
-  }
-  .hero-surface::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-image:
-      linear-gradient(hsl(var(--border) / 0.35) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(var(--border) / 0.35) 1px, transparent 1px);
-    background-size: 48px 48px;
-    mask-image: radial-gradient(ellipse 100% 80% at 50% 0%, #000 30%, transparent 75%);
-    -webkit-mask-image: radial-gradient(ellipse 100% 80% at 50% 0%, #000 30%, transparent 75%);
-    opacity: 0.5;
-    pointer-events: none;
   }
 
-  /* Bright thin top edge highlight */
-  .edge-top {
-    position: relative;
+  /* Header / overlay surface — solid fill, only enough blur to read as "above" content */
+  .glass-header {
+    background: hsl(var(--background) / 0.92);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-bottom: 1px solid hsl(var(--border));
   }
-  .edge-top::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 10%; right: 10%;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, hsl(var(--primary) / 0.6), transparent);
-    pointer-events: none;
-  }
-
-  /* Gradient text */
-  .text-gradient-primary {
-    background: linear-gradient(135deg, hsl(195 95% 65%), hsl(210 95% 70%));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-  .text-gradient-steel {
-    background: linear-gradient(180deg, hsl(210 25% 96%), hsl(215 18% 60%));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+  .glass {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
   }
 
-  /* Premium button glow */
-  .btn-glow {
-    background: linear-gradient(180deg, hsl(195 90% 55%), hsl(200 95% 45%));
-    box-shadow:
-      0 0 0 1px hsl(var(--primary) / 0.5),
-      0 0 24px -6px hsl(var(--primary) / 0.55),
-      inset 0 1px 0 hsl(0 0% 100% / 0.18);
-    transition: all 0.25s ease;
-  }
-  .btn-glow:hover {
-    box-shadow:
-      0 0 0 1px hsl(var(--primary) / 0.7),
-      0 0 32px -6px hsl(var(--primary) / 0.7),
-      inset 0 1px 0 hsl(0 0% 100% / 0.22);
-    transform: translateY(-1px);
+  /* Flat card — replaces the old diagonal-gradient-border "card-premium" */
+  .card-premium {
+    background: hsl(var(--surface-1));
+    border: 1px solid hsl(var(--border));
   }
 
-  /* Tactical grid */
-  .bg-grid {
-    background-image:
-      linear-gradient(hsl(var(--border) / 0.25) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(var(--border) / 0.25) 1px, transparent 1px);
-    background-size: 56px 56px;
-  }
-
-  .bg-grid-fine {
-    background-image:
-      linear-gradient(hsl(var(--border) / 0.18) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(var(--border) / 0.18) 1px, transparent 1px);
-    background-size: 24px 24px;
-  }
-
-  /* Section divider with center light */
+  /* Neutral section divider */
   .divider-glow {
     height: 1px;
-    background: linear-gradient(90deg, transparent, hsl(var(--border)) 30%, hsl(var(--primary) / 0.4) 50%, hsl(var(--border)) 70%, transparent);
+    background: hsl(var(--border));
   }
 
-  /* Compact system badge */
-  .badge-system {
-    @apply inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-[0.12em] px-2 py-0.5 rounded-md border;
-    background: hsl(var(--surface-2));
-    border-color: hsl(var(--border));
+  /* Small tracked label above a heading — no mono/tactical treatment */
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
     color: hsl(var(--muted-foreground));
   }
 
-  /* Top signal strip */
-  .signal-strip {
-    background:
-      linear-gradient(90deg,
-        hsl(var(--success) / 0.08) 0%,
-        transparent 30%,
-        transparent 70%,
-        hsl(var(--primary) / 0.08) 100%);
-    border: 1px solid hsl(var(--border) / 0.7);
-    border-radius: 10px;
-  }
-
-  /* ===== Editorial typography & components (Wise-inspired) ===== */
+  /* Headline scale — bold and confident, not oversized/editorial */
   .display-editorial {
     font-family: var(--font-display);
-    font-weight: 800;
-    font-size: clamp(2.25rem, 5.5vw, 4.25rem);
-    line-height: 0.96;
-    letter-spacing: -0.035em;
+    font-weight: 700;
+    font-size: clamp(2rem, 4.5vw, 3.25rem);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
     text-wrap: balance;
   }
   .display-editorial-sm {
     font-family: var(--font-display);
-    font-weight: 800;
-    font-size: clamp(1.75rem, 3.8vw, 2.75rem);
-    line-height: 1;
-    letter-spacing: -0.03em;
+    font-weight: 700;
+    font-size: clamp(1.5rem, 3vw, 2.25rem);
+    line-height: 1.1;
+    letter-spacing: -0.015em;
     text-wrap: balance;
   }
-  .eyebrow {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.24em;
-    color: hsl(var(--muted-foreground));
+
+  /* The one place gradient-like emphasis is allowed: a single accent word in
+     a headline uses solid --primary, never a gradient fill. */
+  .text-gradient-primary,
+  .text-gradient-steel {
+    color: hsl(var(--primary));
   }
+
+  /* Pill button — flat fill, no gradient/glow */
   .pill-btn {
     display: inline-flex; align-items: center; gap: 8px;
     padding: 10px 20px; border-radius: 999px;
     font-size: 13px; font-weight: 600;
-    transition: all 0.25s ease;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
     border: 1px solid hsl(var(--border));
     background: hsl(var(--surface-2));
     color: hsl(var(--foreground));
   }
-  .pill-btn:hover { border-color: hsl(var(--primary) / 0.45); background: hsl(var(--surface-3)); }
+  .pill-btn:hover { border-color: hsl(var(--muted-foreground) / 0.4); background: hsl(var(--surface-3)); }
+  .pill-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--ring)); }
   .pill-btn-primary {
-    background: linear-gradient(180deg, hsl(195 90% 58%), hsl(200 95% 48%));
+    background: hsl(var(--primary));
     color: hsl(var(--primary-foreground));
-    border-color: hsl(var(--primary) / 0.5);
-    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.4), inset 0 1px 0 hsl(0 0% 100% / 0.18);
+    border-color: hsl(var(--primary));
   }
-  .pill-btn-primary:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.6), 0 8px 24px -8px hsl(var(--primary) / 0.5), inset 0 1px 0 hsl(0 0% 100% / 0.22);
-  }
+  .pill-btn-primary:hover { background: hsl(var(--primary) / 0.9); }
 
-
-  /* ============================================================
-     Premium minimal additions (presentation layer only)
-     ============================================================ */
-
-  /* Lighter, airier card — more whitespace, softer surface */
-  .card-soft {
-    background: linear-gradient(180deg, hsl(var(--surface-2) / 0.7), hsl(var(--surface-1) / 0.55));
-    border: 1px solid hsl(var(--border) / 0.55);
-    border-radius: 14px;
-    backdrop-filter: blur(14px) saturate(1.2);
-    -webkit-backdrop-filter: blur(14px) saturate(1.2);
-    transition: border-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+  /* Flat primary button fill — replaces the old gradient "btn-glow" */
+  .btn-glow {
+    background: hsl(var(--primary));
+    transition: background-color 0.15s ease;
   }
-  .card-soft:hover {
-    border-color: hsl(var(--primary) / 0.25);
-    box-shadow:
-      0 1px 0 0 hsl(var(--foreground) / 0.04) inset,
-      0 18px 40px -22px hsl(var(--primary) / 0.18);
-  }
-
-  /* Refined surface with no glow — for content density */
-  .surface-quiet {
-    background: hsl(var(--surface-1) / 0.65);
-    border: 1px solid hsl(var(--border) / 0.5);
-    border-radius: 12px;
-  }
-
-  /* Segmented pill (inspired by reference dashboards) */
-  .seg {
-    display: inline-flex;
-    padding: 3px;
-    border-radius: 999px;
-    background: hsl(var(--surface-2) / 0.7);
-    border: 1px solid hsl(var(--border) / 0.6);
-    backdrop-filter: blur(12px);
-  }
-  .seg > button {
-    padding: 6px 14px;
-    border-radius: 999px;
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.06em;
-    color: hsl(var(--muted-foreground));
-    transition: all 0.25s ease;
-  }
-  .seg > button[data-active="true"] {
-    background: hsl(var(--surface-3));
-    color: hsl(var(--foreground));
-    box-shadow:
-      0 1px 0 0 hsl(var(--foreground) / 0.06) inset,
-      0 4px 12px -4px hsl(0 0% 0% / 0.5);
-  }
-
-  /* Status chip — subtle, refined */
-  .chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 3px 10px;
-    border-radius: 999px;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    border: 1px solid hsl(var(--border) / 0.6);
-    background: hsl(var(--surface-2) / 0.8);
-    color: hsl(var(--muted-foreground));
-  }
-  .chip-success { color: hsl(var(--success)); border-color: hsl(var(--success) / 0.3); background: hsl(var(--success) / 0.08); }
-  .chip-warning { color: hsl(var(--warning)); border-color: hsl(var(--warning) / 0.3); background: hsl(var(--warning) / 0.08); }
-  .chip-destructive { color: hsl(var(--destructive)); border-color: hsl(var(--destructive) / 0.3); background: hsl(var(--destructive) / 0.08); }
-
-  /* Big numeric display */
-  .num-xl {
-    font-family: var(--font-display);
-    font-weight: 700;
-    font-size: clamp(1.75rem, 3.2vw, 2.75rem);
-    letter-spacing: -0.025em;
-    line-height: 1;
-  }
-
-  /* Reveal on scroll utility (used with Motion or pure CSS) */
-  @keyframes reveal-up {
-    from { opacity: 0; transform: translateY(14px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  .reveal-up { animation: reveal-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
-
-  /* Hover lift for interactive cards */
-  .lift { transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease; }
-  .lift:hover { transform: translateY(-2px); }
-
-  /* Soft focus ring */
-  .ring-soft:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.5), 0 0 0 4px hsl(var(--primary) / 0.12);
-  }
+  .btn-glow:hover { background: hsl(var(--primary) / 0.9); }
 
 }

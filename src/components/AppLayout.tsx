@@ -1,13 +1,12 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { PageTransition } from "@/components/PageTransition";
-import { Activity, CreditCard, Headphones, Loader2, Moon, Sun } from "lucide-react";
+import { CreditCard, Headphones, Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
-import { createPortalSession, isBillingEnabled } from "@/lib/billing";
-import { toast } from "@/hooks/use-toast";
+import { SUPPORT_WHATSAPP_URL } from "@/lib/support";
 import { TradingViewProvider } from "@/components/tradingview/TradingViewProvider";
 
 const supportLabels: Record<string, string> = {
@@ -17,13 +16,12 @@ const supportLabels: Record<string, string> = {
   enterprise: "Suporte Enterprise",
 };
 
-const supportWhatsAppUrl = "https://wa.me/5521994177491?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20Fortify.";
+const supportWhatsAppUrl = SUPPORT_WHATSAPP_URL;
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const { session } = useAuth();
   const { subscription, plans, activeAccountCount, accountLimit } = useSubscriptionPlan();
-  const [openingPortal, setOpeningPortal] = useState(false);
   const [theme, setTheme] = useState(() => window.localStorage.getItem("fortify_theme") || "dark");
   const currentPlan = plans.find((plan) => plan.id === subscription?.plan_id || plan.slug === subscription?.plan_id);
   const isEnterprise = String(currentPlan?.slug || currentPlan?.id || '').includes('enterprise');
@@ -39,21 +37,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     window.localStorage.setItem("fortify_theme", theme);
   }, [theme]);
 
-  const handleUpgrade = async () => {
-    if (subscription?.stripe_customer_id && isBillingEnabled() && session?.access_token) {
-      setOpeningPortal(true);
-      try {
-        const portal = await createPortalSession(session.access_token);
-        window.location.assign(portal.portal_url);
-      } catch (error: any) {
-        toast({ title: 'Portal indisponível', description: error?.message || 'Abrindo planos Fortify.' });
-        navigate('/pricing');
-      } finally {
-        setOpeningPortal(false);
-      }
-      return;
-    }
-    navigate('/pricing');
+  const handleUpgrade = () => {
+    navigate(subscription?.stripe_customer_id ? '/subscription' : '/pricing');
   };
 
   return (
@@ -62,25 +47,15 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="min-h-screen flex w-full bg-background">
           <AppSidebar />
           <div className="flex-1 flex flex-col min-w-0 relative">
-            {/* ambient backdrop glow */}
-            <div className="pointer-events-none fixed inset-0 -z-10">
-              <div className="absolute top-0 left-1/3 w-[800px] h-[600px] rounded-full bg-primary/[0.04] blur-[120px]" />
-              <div className="absolute bottom-0 right-0 w-[600px] h-[500px] rounded-full bg-success/[0.025] blur-[120px]" />
-            </div>
 
-          <header className="h-12 flex items-center justify-between px-4 sticky top-0 z-30 glass-header">
+          <header className="h-14 flex items-center justify-between px-4 sticky top-0 z-30 glass-header">
             <div className="flex items-center gap-3">
               <SidebarTrigger className="text-muted-foreground hover:text-foreground transition-colors" />
-              <span className="hidden md:inline-flex h-4 w-px bg-border" />
-              <div className="hidden md:flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
-                <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-                <span>Sistema online</span>
-              </div>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
               {session ? (
-                <div className="hidden lg:flex items-center gap-2 rounded-full border border-border/70 bg-muted/35 px-3 py-1 text-[10px] font-medium text-muted-foreground">
-                  <span className="text-foreground">{currentPlanName}</span>
+                <div className="hidden lg:flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground">
+                  <span className="text-foreground font-medium">{currentPlanName}</span>
                   <span className="h-3 w-px bg-border" />
                   <span>{activeAccountCount}/{accountLimit || 0} contas</span>
                   <span className="h-3 w-px bg-border" />
@@ -99,27 +74,22 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 <button
                   type="button"
                   onClick={handleUpgrade}
-                  disabled={openingPortal}
-                  className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-primary hover:bg-primary/15 transition-colors disabled:opacity-60"
+                  className="hidden sm:inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
                 >
-                  {openingPortal ? <Loader2 className="w-3 h-3 animate-spin" /> : <CreditCard className="w-3 h-3" />}
+                  <CreditCard className="w-3.5 h-3.5" />
                   Fazer upgrade
                 </button>
               ) : null}
               <button
                 type="button"
                 onClick={() => setTheme((value) => (value === "dark" ? "light" : "dark"))}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-[10px] font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-muted-foreground/40 transition-colors"
                 aria-label="Alternar modo noturno"
                 title="Modo noturno"
               >
                 {theme === "dark" ? <Moon className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5" />}
                 <span className="hidden md:inline">{theme === "dark" ? "Modo noturno" : "Modo claro"}</span>
               </button>
-              <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.16em] text-muted-foreground/70">
-                <Activity className="w-3 h-3 text-primary/70" />
-                <span>Console de risco</span>
-              </div>
             </div>
           </header>
 

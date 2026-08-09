@@ -1,5 +1,5 @@
-import { LayoutDashboard, PlusCircle, Settings, BarChart3, Shield, BookOpen, Archive, LogOut, Server, Calculator, CreditCard } from "lucide-react";
-import fortifyIcon from "@/assets/brand/fortify-f-standalone-white.svg";
+import { LayoutDashboard, PlusCircle, Settings, BarChart3, Shield, BookOpen, LogOut, Calculator, CreditCard } from "lucide-react";
+import { FortifyMark } from "@/components/brand/FortifyMark";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -21,14 +21,13 @@ const groups = [
     items: [
       { title: "Painel", url: "/", icon: LayoutDashboard },
       { title: "Calculadora de Risco", url: "/risk-calculator", icon: Calculator },
-      
+
     ],
   },
   {
     label: "Contas",
     items: [
       { title: "Contas", url: "/accounts", icon: PlusCircle },
-      { title: "Contas MT5", url: "/mt5", icon: Server },
       { title: "Desempenho", url: "/performance", icon: BarChart3 },
     ],
   },
@@ -37,7 +36,6 @@ const groups = [
     items: [
       { title: "Biblioteca", url: "/library", icon: BookOpen },
       { title: "Planos", url: "/pricing", icon: CreditCard },
-      { title: "Histórico", url: "/history", icon: Archive },
       { title: "Configurações", url: "/settings", icon: Settings },
     ],
   },
@@ -55,11 +53,11 @@ export function AppSidebar() {
         {/* Brand */}
         <div className={`px-4 mb-6 ${collapsed ? "px-2" : ""}`}>
           <div className="flex items-center gap-3">
-            <img src={fortifyIcon} alt="Fortify" className="h-9 w-9 object-contain opacity-95" />
+            <FortifyMark className="h-9 w-9 shrink-0 text-foreground opacity-95" />
             {!collapsed && (
               <div className="flex min-w-0 flex-col leading-none">
-                <h1 className="text-[14px] font-black text-foreground tracking-[0.24em] uppercase">FORTIFY</h1>
-                <span className="mt-1 text-[9px] font-mono uppercase tracking-[0.18em] text-muted-foreground/70">SISTEMA DE RISCO • V1</span>
+                <h1 className="text-sm font-bold text-foreground tracking-[0.14em] uppercase">Fortify</h1>
+                <span className="mt-1 text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Sistema de gestão de risco</span>
               </div>
             )}
           </div>
@@ -71,7 +69,7 @@ export function AppSidebar() {
           {groups.map((group) => (
             <SidebarGroup key={group.label} className="py-1">
               {!collapsed && (
-                <SidebarGroupLabel className="text-[9px] font-mono uppercase tracking-[0.2em] text-muted-foreground/50 px-3">
+                <SidebarGroupLabel className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground/70 px-3">
                   {group.label}
                 </SidebarGroupLabel>
               )}
@@ -116,8 +114,8 @@ export function AppSidebar() {
         <div className={`px-3 pb-4 pt-2 border-t border-sidebar-border/60 ${collapsed ? "px-2" : ""}`}>
           {!collapsed && (
             <div className="px-2 pb-3">
-              <div className="flex items-center gap-2 text-[9px] font-mono uppercase tracking-[0.18em] text-muted-foreground/60">
-                <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <span className="w-1.5 h-1.5 rounded-full bg-success" aria-hidden="true" />
                 Conexão estável
               </div>
             </div>
