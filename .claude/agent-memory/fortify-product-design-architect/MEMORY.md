@@ -1,0 +1,2 @@
+- [Design token system](project_design_token_system.md) — state of the black/white/blue palette after the 2026-08-01 sitewide redesign; what's still unfixed (AccountRules.tsx dead page, unused decorative components)
+- [Density page judgment calls](feedback_density_pages.md) — why PropFirmLibrary/Accounts info architecture was kept as-is (already correct), only palette changed
