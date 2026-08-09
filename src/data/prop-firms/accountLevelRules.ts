@@ -99,20 +99,10 @@ const firmOperationalRules: Record<
     copyTradingRule: 'Cópia ou coordenação com terceiros e manipulação de consistência são proibidas.',
     kycRule: 'KYC e auditoria são exigidos para funded account e payout.',
   },
-  Fundscap: {
-    eaRule: notApplicable,
-    copyTradingRule: notApplicable,
-    kycRule: notApplicable,
-  },
   'Alpha Capital Group': {
     eaRule: 'EA permitido conforme política oficial; estratégias proibidas e exploração técnica continuam vedadas.',
     copyTradingRule: 'Permitido entre contas próprias, respeitando limites; copiar terceiros é proibido.',
     kycRule: 'KYC obrigatório antes da Qualified Analyst Account e performance fee.',
-  },
-  MyFundedFX: {
-    eaRule: notApplicable,
-    copyTradingRule: notApplicable,
-    kycRule: notApplicable,
   },
   'ASAP Funding Prop': {
     eaRule: verifyOfficial,

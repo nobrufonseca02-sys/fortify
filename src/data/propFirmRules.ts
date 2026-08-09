@@ -4,11 +4,9 @@ import { apexTraderFundingPrograms } from './prop-firms/apexTraderFunding';
 import { brightFundedPrograms } from './prop-firms/brightFunded';
 import { e8MarketsPrograms } from './prop-firms/e8Markets';
 import { ftmoPrograms } from './prop-firms/ftmo';
-import { fundscapPrograms } from './prop-firms/fundscap';
 import { fundedNextPrograms } from './prop-firms/fundedNext';
 import { fundingPipsPrograms } from './prop-firms/fundingPips';
 import { hantecTraderPrograms } from './prop-firms/hantecTrader';
-import { myFundedFxPrograms } from './prop-firms/myFundedFx';
 import { npFuturePrograms } from './prop-firms/npFuture';
 import { the5ersPrograms } from './prop-firms/the5ers';
 import { topstepPrograms } from './prop-firms/topstep';
@@ -30,9 +28,7 @@ export type PropFirmName =
   | 'FXIFY'
   | 'E8 Markets'
   | 'BrightFunded'
-  | 'Alpha Capital Group'
-  | 'MyFundedFX'
-  | 'Fundscap';
+  | 'Alpha Capital Group';
 export type ProgramType = '1-Step' | '2-Step' | '3-Step' | 'Instant' | 'EOD' | 'Intraday' | 'Funded/PA';
 export type MarketType = 'MT4/MT5' | 'Futures' | 'CFD/Forex';
 export type DrawdownType = 'Static' | 'Daily' | 'Trailing' | 'EOD' | 'Intraday';
@@ -548,8 +544,6 @@ const sourcePropFirmRulePrograms: PropFirmRuleProgram[] = [
   ...e8MarketsPrograms,
   ...brightFundedPrograms,
   ...alphaCapitalGroupPrograms,
-  ...myFundedFxPrograms,
-  ...fundscapPrograms,
 ];
 
 export const propFirmRulePrograms = normalizeAccountLevelPrograms(sourcePropFirmRulePrograms);
@@ -570,8 +564,6 @@ export const propFirmFilterOptions = {
     'E8 Markets',
     'BrightFunded',
     'Alpha Capital Group',
-    'MyFundedFX',
-    'Fundscap',
   ] satisfies PropFirmName[],
   programTypes: ['1-Step', '2-Step', '3-Step', 'Instant', 'EOD', 'Intraday', 'Funded/PA'] satisfies ProgramType[],
   markets: ['MT4/MT5', 'Futures', 'CFD/Forex'] satisfies MarketType[],

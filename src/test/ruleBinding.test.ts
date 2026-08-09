@@ -51,8 +51,6 @@ describe('versioned account rule binding', () => {
   it('publishes only operational firms and excludes unavailable catalogs', () => {
     const firms = new Set(getOperationalRulePrograms().map((program) => program.firm));
 
-    expect(firms.has('Fundscap')).toBe(false);
-    expect(firms.has('MyFundedFX')).toBe(false);
     expect(firms.size).toBe(14);
   });
 

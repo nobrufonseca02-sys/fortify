@@ -4,10 +4,10 @@ import { useAccountsStore } from '@/hooks/useAccountsStore';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, RefreshCw, Link2, XCircle, AlertTriangle, TrendingUp, TrendingDown, Shield } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Link2, XCircle, AlertTriangle, TrendingUp, TrendingDown, ClipboardCheck } from 'lucide-react';
 import type { Mt5ConnectionStatus, TradingAccount } from '@/types/fortify';
 import { supabase } from '@/integrations/supabase/client';
-import { BetaReadinessChecklist, BetaResponsibilityNotice, GuidedEmptyState } from '@/components/BetaReadinessChecklist';
+import { BetaResponsibilityNotice, GuidedEmptyState } from '@/components/BetaReadinessChecklist';
 import { buildBetaChecklist, getSyncErrorMessage, getSyncStatusMeta, maskLogin } from '@/lib/betaReadiness';
 import { useAuth } from '@/hooks/useAuth';
 import { gatewayJsonHeaders } from '@/lib/gateway';
@@ -206,6 +206,7 @@ const AccountDashboard = () => {
     snapshot,
     evaluations,
   });
+  const pendingChecklistCount = betaChecklist.filter((item) => item.status !== 'complete').length;
   const syncStatus = getSyncStatusMeta(connection?.sync_status, connection?.last_sync_at, connection?.sync_error);
 
   return (
@@ -218,20 +219,16 @@ const AccountDashboard = () => {
           <h1 className="text-lg font-bold text-foreground">Painel da conta</h1>
           <p className="text-xs text-muted-foreground">Monitore o desempenho da sua conta de trading</p>
         </div>
-        <Button onClick={() => navigate(`/accounts/${id}/rules`)} variant="outline">
-          <Shield className="w-4 h-4 mr-2" />
-          Regras / plano de risco
+        <Button onClick={() => navigate(`/accounts/${id}/checklist`)} variant="outline">
+          <ClipboardCheck className="w-4 h-4 mr-2" />
+          Checklist
+          {pendingChecklistCount > 0 && (
+            <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-warning/20 px-1.5 text-[10px] font-semibold text-warning">
+              {pendingChecklistCount}
+            </span>
+          )}
         </Button>
       </div>
-
-      {account && (
-        <BetaReadinessChecklist
-          items={betaChecklist}
-          title="Checklist beta da conta"
-          description="Use este checklist antes de tratar a conta como pronta para monitoramento real."
-          compact
-        />
-      )}
 
       {loadingMt5Data ? (
         <div className="text-center py-8">

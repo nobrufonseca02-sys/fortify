@@ -23,6 +23,46 @@ import {
   type PropFirmRuleProgram,
   type RuleAccountSize,
 } from '@/data/propFirmRules';
+import logoFtmo from '@/assets/brands/ftmo.svg';
+import logoAlphaCapitalGroup from '@/assets/brands/alpha-capital-group.svg';
+import logoBrightFunded from '@/assets/brands/brightfunded.png';
+import logoFundedNext from '@/assets/brands/fundednext.png';
+import logoHantecTrader from '@/assets/brands/hantec-trader.svg';
+import logoFxify from '@/assets/brands/fxify.svg';
+import logoTopstep from '@/assets/brands/topstep.webp';
+import logoTheTradingPit from '@/assets/brands/the-trading-pit.svg';
+import logoApexTraderFunding from '@/assets/brands/apex-trader-funding.svg';
+import logoE8Markets from '@/assets/brands/e8-markets.svg';
+import logoThe5ers from '@/assets/brands/the5ers.png';
+import logoAsapFundingProp from '@/assets/brands/asap-funding-prop.svg';
+import logoFundingPips from '@/assets/brands/fundingpips.jpg';
+import logoNpFuture from '@/assets/brands/np-future.png';
+
+// Real, first-party firm logos we were able to source (official press kit / brand-assets page
+// or the firm's own site header). Firms without an entry here fall back to the generic icon —
+// see the task report for why each one is missing (Cloudflare/bot-protected site, no logo asset
+// published, etc). Keyed by the exact PropFirmName display string.
+const firmLogos: Partial<Record<PropFirmName, string>> = {
+  FTMO: logoFtmo,
+  'Alpha Capital Group': logoAlphaCapitalGroup,
+  BrightFunded: logoBrightFunded,
+  FundedNext: logoFundedNext,
+  'Hantec Trader': logoHantecTrader,
+  FXIFY: logoFxify,
+  Topstep: logoTopstep,
+  'The Trading Pit': logoTheTradingPit,
+  'Apex Trader Funding': logoApexTraderFunding,
+  'E8 Markets': logoE8Markets,
+  The5ers: logoThe5ers,
+  'ASAP Funding Prop': logoAsapFundingProp,
+  // App-icon mark (Apple App Store listing, official FundingPips developer account) — their
+  // own site's asset paths are blocked by a Vercel Security Checkpoint bot-challenge even
+  // though the HTML document itself loads, see task report.
+  FundingPips: logoFundingPips,
+  // Favicon — NP Future's site header is text-only (no logo image anywhere on the page), this
+  // 300x300 brand mark is the best first-party asset available, see task report.
+  'NP Future': logoNpFuture,
+};
 
 type FirmStatus = 'operational' | 'unavailable' | 'legacy';
 type TransitionDirection = 1 | -1;
@@ -179,7 +219,7 @@ function preferredPlatform(account: RuleAccountSize, program: PropFirmRuleProgra
   return platforms.find((platform) => platform.toUpperCase() === 'MT5') ?? platforms[0];
 }
 
-function accountConnectionPath(program: PropFirmRuleProgram, account: RuleAccountSize) {
+export function accountConnectionPath(program: PropFirmRuleProgram, account: RuleAccountSize) {
   const platform = preferredPlatform(account, program);
   const ruleVersionId = account.versions.find((version) => !version.effectiveTo)?.id ?? account.versions[0]?.id;
   if (!program.firmSlug || !program.programSlug || !platform || !ruleVersionId) return null;
@@ -192,7 +232,7 @@ function accountConnectionPath(program: PropFirmRuleProgram, account: RuleAccoun
     ruleVersionId,
   });
 
-  return `/accounts/new?${params.toString()}`;
+  return `/accounts?${params.toString()}`;
 }
 
 function FirmCard({ name, programs, onSelect }: { name: PropFirmName; programs: PropFirmRuleProgram[]; onSelect: () => void }) {
@@ -201,6 +241,7 @@ function FirmCard({ name, programs, onSelect }: { name: PropFirmName; programs: 
   const operational = status === 'operational';
   const markets = Array.from(new Set(programs.map((program) => program.market))).join(' · ');
   const platforms = getFirmPlatforms(programs);
+  const logo = firmLogos[name];
 
   return (
     <motion.button
@@ -215,13 +256,17 @@ function FirmCard({ name, programs, onSelect }: { name: PropFirmName; programs: 
       className="group flex min-h-36 flex-col justify-between rounded-lg border border-border bg-card/60 p-4 text-left transition-[color,background-color,border-color] duration-150 hover:border-primary/55 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:border-border disabled:hover:bg-card/60"
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-primary">
-          <Building2 className="h-4 w-4" />
+        <div className="flex h-9 max-w-[132px] min-w-9 items-center justify-center rounded-md border border-border bg-background px-2 text-primary">
+          {logo ? (
+            <img src={logo} alt="" aria-hidden="true" className="max-h-5 w-auto max-w-[108px] object-contain" />
+          ) : (
+            <Building2 className="h-4 w-4" />
+          )}
         </div>
         {operational ? (
           <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
         ) : (
-          <AlertTriangle className="h-4 w-4 text-amber-300" />
+          <AlertTriangle className="h-4 w-4 text-warning" />
         )}
       </div>
       <div className="mt-5 min-w-0">
@@ -234,7 +279,7 @@ function FirmCard({ name, programs, onSelect }: { name: PropFirmName; programs: 
           <span className="text-foreground">
             {operational ? countLabel(operationalPrograms.length, 'modelo', 'modelos') : 'Sem modelo operacional'}
           </span>
-          <span className={operational ? 'text-emerald-300' : 'text-amber-300'}>{firmStatusLabel[status]}</span>
+          <span className={operational ? 'text-success' : 'text-warning'}>{firmStatusLabel[status]}</span>
         </div>
       </div>
     </motion.button>
@@ -278,7 +323,7 @@ function RuleCard({ label, value, warning = false }: { label: string; value: str
   return (
     <div className="min-w-0 rounded-lg border border-border bg-card/55 p-4">
       <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{label}</dt>
-      <dd className={`mt-2 break-words text-sm font-semibold leading-5 ${warning ? 'text-amber-100' : 'text-foreground'}`}>
+      <dd className={`mt-2 break-words text-sm font-semibold leading-5 ${warning ? 'text-warning' : 'text-foreground'}`}>
         {cleanValue(value)}
       </dd>
     </div>
@@ -286,7 +331,7 @@ function RuleCard({ label, value, warning = false }: { label: string; value: str
 }
 
 function MonitoringList({ title, items, tone }: { title: string; items: string[]; tone: 'success' | 'warning' | 'muted' }) {
-  const color = tone === 'success' ? 'text-emerald-300' : tone === 'warning' ? 'text-amber-300' : 'text-muted-foreground';
+  const color = tone === 'success' ? 'text-success' : tone === 'warning' ? 'text-warning' : 'text-muted-foreground';
   const safeItems = items.length ? items : ['Não público'];
 
   return (
@@ -304,11 +349,12 @@ function MonitoringList({ title, items, tone }: { title: string; items: string[]
   );
 }
 
-function RulesView({ firm, program, account, onConnect }: {
+function RulesView({ firm, program, account, onConnect, connectionUnavailable }: {
   firm: PropFirmName;
   program: PropFirmRuleProgram;
   account: RuleAccountSize;
   onConnect?: () => void;
+  connectionUnavailable?: boolean;
 }) {
   const sourceLinks = program.officialSources?.length
     ? program.officialSources.map((source) => ({ label: source.label, url: source.url }))
@@ -327,7 +373,7 @@ function RulesView({ firm, program, account, onConnect }: {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2.5 py-1 text-[11px] text-emerald-200">
+          <span className="rounded-full border border-success/25 bg-success/10 px-2.5 py-1 text-[11px] text-success">
             {confidenceLabel[account.confidence]}
           </span>
           <span className="rounded-full border border-border bg-background px-2.5 py-1 text-[11px] text-muted-foreground">
@@ -338,31 +384,14 @@ function RulesView({ firm, program, account, onConnect }: {
 
       <section data-library-reveal>
         <div className="mb-3">
-          <h3 className="text-sm font-semibold text-foreground">Regras principais</h3>
-          <p className="mt-1 text-xs text-muted-foreground">Limites que merecem atenção antes de operar.</p>
+          <h3 className="text-sm font-semibold text-foreground">Regras críticas</h3>
+          <p className="mt-1 text-xs text-muted-foreground">O que decide se a conta continua ativa.</p>
         </div>
         <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <RuleCard label="Meta" value={phaseSummary(account)} />
           <RuleCard label="Perda diária" value={account.dailyLoss} warning />
           <RuleCard label="Perda máxima" value={account.maxLoss} warning />
           <RuleCard label="Drawdown" value={`${account.drawdownType} · ${account.drawdownCalculation}`} warning />
-          <RuleCard label="Consistência" value={account.consistencyRule} />
-          <RuleCard label="Notícias" value={account.newsRule} />
-          <RuleCard label="Fim de semana" value={account.weekendRule} />
-        </dl>
-      </section>
-
-      <section data-library-reveal>
-        <div className="mb-3">
-          <h3 className="text-sm font-semibold text-foreground">Operacional</h3>
-          <p className="mt-1 text-xs text-muted-foreground">Condições para execução e retirada.</p>
-        </div>
-        <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-          <RuleCard label="Lotes / contratos" value={executionLimit(account)} />
-          <RuleCard label="Alavancagem" value={account.leverage} />
-          <RuleCard label="Mínimo de dias" value={account.minTradingDays} />
-          <RuleCard label="Máximo de dias" value={account.maxTradingDays} />
-          <RuleCard label="Payout" value={payoutSummary(account)} />
         </dl>
       </section>
 
@@ -378,7 +407,34 @@ function RulesView({ firm, program, account, onConnect }: {
         </div>
       </section>
 
-      <details data-library-reveal className="group border-y border-border py-1">
+      <details data-library-reveal className="group border-t border-b border-border py-1">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-sm font-semibold text-foreground">
+          <span>Ver detalhes completos</span>
+          <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="space-y-6 border-t border-border py-4">
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Regras adicionais</h4>
+            <dl className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <RuleCard label="Consistência" value={account.consistencyRule} />
+              <RuleCard label="Notícias" value={account.newsRule} />
+              <RuleCard label="Fim de semana" value={account.weekendRule} />
+            </dl>
+          </div>
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Operacional</h4>
+            <dl className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+              <RuleCard label="Lotes / contratos" value={executionLimit(account)} />
+              <RuleCard label="Alavancagem" value={account.leverage} />
+              <RuleCard label="Mínimo de dias" value={account.minTradingDays} />
+              <RuleCard label="Máximo de dias" value={account.maxTradingDays} />
+              <RuleCard label="Payout" value={payoutSummary(account)} />
+            </dl>
+          </div>
+        </div>
+      </details>
+
+      <details data-library-reveal className="group border-b border-border py-1">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-sm font-semibold text-foreground">
           <span className="flex items-center gap-2">
             <Link2 className="h-4 w-4 text-primary" />
@@ -405,12 +461,17 @@ function RulesView({ firm, program, account, onConnect }: {
             A Biblioteca serve para consulta. A gestão automática começa após cadastrar e conectar a conta.
           </p>
         </div>
-        {onConnect && (
-          <Button type="button" onClick={onConnect} className="w-full shrink-0 sm:w-auto">
+        {onConnect ? (
+          <button type="button" onClick={onConnect} className="pill-btn pill-btn-primary w-full shrink-0 sm:w-auto">
             Conectar essa conta
             <ChevronRight className="ml-2 h-4 w-4" />
-          </Button>
-        )}
+          </button>
+        ) : connectionUnavailable ? (
+          <div className="flex items-start gap-2 rounded-lg border border-warning/25 bg-warning/5 px-3 py-2.5 text-xs text-warning sm:max-w-xs">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
+            <span>Conexão indisponível para este modelo — dados de plataforma ou versão de regra incompletos na Biblioteca.</span>
+          </div>
+        ) : null}
       </footer>
     </article>
   );
@@ -487,21 +548,23 @@ export default function PropFirmLibrary() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-7 px-4 py-6 pb-32 sm:px-6 lg:px-8">
-      <header className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">Consulta oficial</p>
-          <h1 className="mt-2 text-2xl font-semibold text-foreground">Biblioteca de Mesas Proprietárias</h1>
-          <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+      <div className="rounded-2xl hero-surface p-7 md:p-10 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+        <div className="max-w-2xl">
+          <p className="eyebrow mb-4">Consulta oficial</p>
+          <h1 className="display-editorial-sm text-foreground">
+            Biblioteca de <span className="text-gradient-primary">Mesas Proprietárias</span>
+          </h1>
+          <p className="text-sm md:text-base text-muted-foreground mt-4 max-w-md leading-relaxed">
             Escolha uma mesa, veja os modelos disponíveis e consulte as regras principais antes de conectar sua conta.
           </p>
         </div>
         {selectedFirm && (
-          <Button type="button" variant="outline" onClick={goBack}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
+          <button type="button" onClick={goBack} className="pill-btn shrink-0">
+            <ArrowLeft className="h-4 w-4" />
             {backLabel}
-          </Button>
+          </button>
         )}
-      </header>
+      </div>
 
       <LibraryStageMotion stageKey={stageKey} direction={transitionDirection}>
         {!selectedFirm && (
@@ -615,6 +678,7 @@ export default function PropFirmLibrary() {
             program={selectedProgram}
             account={selectedAccount}
             onConnect={connectionPath ? () => navigate(connectionPath) : undefined}
+            connectionUnavailable={!connectionPath}
           />
         )}
       </LibraryStageMotion>

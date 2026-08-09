@@ -19,22 +19,43 @@ import { useAuth } from '@/hooks/useAuth';
 import { createClient } from '@supabase/supabase-js';
 import { toast } from '@/hooks/use-toast';
 import { BetaResponsibilityNotice } from '@/components/BetaReadinessChecklist';
-import { getConnectErrorMessage } from '@/lib/betaReadiness';
-import { gatewayJsonHeaders } from '@/lib/gateway';
 import { useSubscriptionPlan } from '@/hooks/useSubscriptionPlan';
-import {
-  RuleBindingSelector,
-  type RuleBindingInitialSelection,
-} from '@/components/rules/RuleBindingSelector';
+import { RuleBindingSelector } from '@/components/rules/RuleBindingSelector';
 import {
   accountCurrencyValue,
   emptyRuleBindingDraft,
+  initialBalanceValue,
   isRuleBindingDraftComplete,
   resolveRuleBinding,
-  saveAccountRuleBinding,
   type ResolvedRuleBinding,
   type RuleBindingDraft,
 } from '@/lib/ruleBinding';
+import {
+  parseLibraryRuleSelection,
+  LibraryRuleSelectionNotice,
+  type LibraryRuleSelectionResult,
+} from '@/lib/libraryRuleSelection';
+import { provisionAndConnectTradingAccount } from '@/lib/accountProvisioning';
+import logoFtmo from '@/assets/brands/ftmo.svg';
+import logoAlphaCapitalGroup from '@/assets/brands/alpha-capital-group.svg';
+import logoFundedNext from '@/assets/brands/fundednext.png';
+import logoHantecTrader from '@/assets/brands/hantec-trader.svg';
+import logoTopstep from '@/assets/brands/topstep.webp';
+import logoApexTraderFunding from '@/assets/brands/apex-trader-funding.svg';
+import logoE8Markets from '@/assets/brands/e8-markets.svg';
+import logoThe5ers from '@/assets/brands/the5ers.png';
+import logoEasyMarkets from '@/assets/brands/easymarkets.svg';
+import logoAsapFundingProp from '@/assets/brands/asap-funding-prop.svg';
+import logoBrightFunded from '@/assets/brands/brightfunded.png';
+import logoNpFuture from '@/assets/brands/np-future.png';
+import logoFxify from '@/assets/brands/fxify.svg';
+
+export {
+  parseLibraryRuleSelection,
+  LibraryRuleSelectionNotice,
+  type LibraryRuleSelectionResult,
+} from '@/lib/libraryRuleSelection';
+export { initialBalanceValue } from '@/lib/ruleBinding';
 
 const RISK_OPTIONS = [
   { label: '0.25%', value: 0.25, desc: 'Ultra conservador' },
@@ -59,10 +80,27 @@ const RULE_ICONS: Partial<Record<RuleType, React.ElementType>> = {
 const FIRM_LOGOS: Record<string, string> = {
   ftmo: 'F', hantec: 'H', topstep: 'T', fundednext: 'FN',
   the5ers: '5', apex: 'AT', e8markets: 'E8', fxify: 'FX',
-  fundscap: 'FC', custom: 'C',
+  custom: 'C',
 };
 
-const BLOCKED_OPERATIONAL_FIRMS = new Set(['fundscap', 'myfundedfx']);
+// Keyed by prop_firms.slug (Supabase-backed catalog — see usePropFirmLibrary.ts).
+const FIRM_LOGO_IMAGES: Record<string, string> = {
+  'ftmo': logoFtmo,
+  'alpha-capital-group': logoAlphaCapitalGroup,
+  'fundednext': logoFundedNext,
+  'hantec-trader': logoHantecTrader,
+  'topstep': logoTopstep,
+  'apex-trader-funding': logoApexTraderFunding,
+  'e8-markets': logoE8Markets,
+  'the5ers': logoThe5ers,
+  'easymarkets-broker-only': logoEasyMarkets,
+  'asap-funding-prop': logoAsapFundingProp,
+  'brightfunded': logoBrightFunded,
+  'np-future': logoNpFuture,
+  'fxify': logoFxify,
+};
+
+const BLOCKED_OPERATIONAL_FIRMS = new Set<string>([]);
 const normalizeFirmName = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
 
 // Map DB rule_definition key → local RuleType
@@ -117,60 +155,9 @@ const getSupabaseAnonKey = () =>
   (import.meta as any)?.env?.VITE_PUBLIC_SUPABASE_ANON_KEY ||
   (window as any)?.__SUPABASE_ANON_KEY__;
 
-type LibraryRuleSelectionResult =
-  | { status: 'none'; initialSelection?: undefined; resolved?: undefined }
-  | { status: 'invalid'; initialSelection?: undefined; resolved?: undefined }
-  | { status: 'valid'; initialSelection: RuleBindingInitialSelection; resolved: ResolvedRuleBinding };
-
-const LIBRARY_RULE_PARAMS = [
-  'propFirmSlug',
-  'programSlug',
-  'accountSizeId',
-  'platform',
-  'ruleVersionId',
-] as const;
-
-export function parseLibraryRuleSelection(search: string): LibraryRuleSelectionResult {
-  const params = new URLSearchParams(search);
-  if (!LIBRARY_RULE_PARAMS.some((key) => params.has(key))) return { status: 'none' };
-
-  const initialSelection = {
-    propFirmSlug: params.get('propFirmSlug')?.trim() ?? '',
-    programSlug: params.get('programSlug')?.trim() ?? '',
-    accountSizeId: params.get('accountSizeId')?.trim() ?? '',
-    platform: params.get('platform')?.trim() ?? '',
-    ruleVersionId: params.get('ruleVersionId')?.trim() ?? '',
-  } satisfies RuleBindingInitialSelection;
-
-  if (Object.values(initialSelection).some((value) => !value)) return { status: 'invalid' };
-  const resolved = resolveRuleBinding(initialSelection);
-  if (!resolved) return { status: 'invalid' };
-
-  return { status: 'valid', initialSelection, resolved };
-}
-
 function numericRuleValue(value: string) {
   const match = value.match(/\d+(?:[.,]\d+)?/);
   return match ? Number(match[0].replace(',', '.')) : 0;
-}
-
-export function initialBalanceValue(value: string) {
-  const match = value.trim().match(/(\d+(?:[.,]\d+)?)\s*([KMB])?/i);
-  if (!match) return '100000';
-
-  const amount = Number(match[1].replace(',', '.'));
-  const multiplier = match[2]?.toUpperCase() === 'B'
-    ? 1_000_000_000
-    : match[2]?.toUpperCase() === 'M'
-      ? 1_000_000
-      : match[2]?.toUpperCase() === 'K'
-        ? 1_000
-        : 1;
-  const normalizedAmount = amount * multiplier;
-
-  return Number.isFinite(normalizedAmount) && normalizedAmount > 0
-    ? String(normalizedAmount)
-    : '100000';
 }
 
 function templateRulesFromBinding(binding?: ResolvedRuleBinding): TemplateRule[] {
@@ -207,38 +194,6 @@ function templateRulesFromBinding(binding?: ResolvedRuleBinding): TemplateRule[]
     rule('PROFIT_TARGET', 'Meta de Lucro', accountSize.phases[0]?.profitTarget ?? '', 'soft'),
     rule('MIN_TRADING_DAYS', 'Dias Mínimos', accountSize.minTradingDays, 'soft', 'days'),
   ].filter((item): item is TemplateRule => Boolean(item));
-}
-
-export function LibraryRuleSelectionNotice({ status }: { status: LibraryRuleSelectionResult['status'] }) {
-  if (status === 'none') return null;
-  const valid = status === 'valid';
-
-  return (
-    <div
-      role={valid ? 'status' : 'alert'}
-      className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 text-xs ${
-        valid
-          ? 'border-primary/25 bg-primary/5 text-foreground'
-          : 'border-warning/30 bg-warning/5 text-muted-foreground'
-      }`}
-    >
-      {valid ? (
-        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-      ) : (
-        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
-      )}
-      <span>
-        {valid ? (
-          <>
-            <strong>Regra pré-selecionada a partir da Biblioteca.</strong>{' '}
-            Revise os dados antes de conectar sua conta.
-          </>
-        ) : (
-          'Não foi possível carregar a regra enviada pela Biblioteca. Selecione manualmente.'
-        )}
-      </span>
-    </div>
-  );
 }
 
 // ─── Step indicator ───
@@ -485,8 +440,6 @@ const CreateAccount = () => {
   };
 
   const handleCreate = async () => {
-    let nextRoute = '/accounts';
-
     if (!user?.id || !session?.access_token) {
       toast({ title: 'Sessão necessária', description: 'Faça login novamente antes de criar e conectar uma conta.', variant: 'destructive' });
       return;
@@ -516,120 +469,72 @@ const CreateAccount = () => {
       }
     }
 
-    if (supabase && user?.id) {
-      try {
-        const insertPayload = {
-          nickname: accountName || `${resolvedBinding.program.firm} ${resolvedBinding.accountSize.label}`,
-          broker: mt5Broker.trim() || resolvedBinding.program.firm,
-          mt5Server: mt5Server.trim(),
-          mt5Login: mt5Login.trim(),
-          accountType: accountType || resolvedBinding.program.programType,
-          propFirm: resolvedBinding.program.firm,
-          startBalance: balance,
-          status: 'active',
-        };
-
-        const res = await supabase
-          .from('trading_accounts')
-          .insert({
-            user_id: user.id,
-            nickname: insertPayload.nickname,
-            broker: insertPayload.broker,
-            mt5_server: insertPayload.mt5Server,
-            mt5_login: insertPayload.mt5Login,
-            account_type: insertPayload.accountType,
-            prop_firm: insertPayload.propFirm,
-            base_currency: currency,
-            start_balance: insertPayload.startBalance,
-            rule_set_id: programData?.version?.id || null,
-            program: resolvedBinding.program.programName,
-            status: insertPayload.status,
-          })
-          .select('id,user_id,nickname,broker,mt5_server,mt5_login,account_type,prop_firm,start_balance,status,created_at,updated_at')
-          .single();
-
-        if (res.error) throw res.error;
-
-        queryClient.invalidateQueries({ queryKey: ['trading_accounts'] });
-        let mt5ConnectionId: string | null = null;
-
-        // MetaApi provision - always enabled
-        if (mt5Login && mt5Server && mt5InvestorPassword) {
-          try {
-            const gatewayUrl = (import.meta as any).env?.VITE_METAAPI_GATEWAY_URL || 'http://localhost:3001';
-            const gatewayRes = await fetch(`${gatewayUrl}/metaapi/connect`, {
-              method: 'POST',
-              headers: gatewayJsonHeaders(session.access_token),
-              body: JSON.stringify({
-                accountName: insertPayload.nickname,
-                mt5Login: mt5Login.trim(),
-                mt5Server: mt5Server.trim(),
-                brokerName: (mt5Broker.trim() || selectedFirm?.name || resolvedBinding.program.firm || 'Custom'),
-                mt5Password: mt5InvestorPassword,
-                tradingAccountId: res.data.id,
-                userId: user.id,
-              }),
-            });
-            const connData = await gatewayRes.json();
-            
-            if (!gatewayRes.ok) {
-              console.error('MetaApi connection failed:', connData);
-              throw new Error(getConnectErrorMessage(connData));
-            }
-            
-            const newConnId = (connData as any)?.connection?.id;
-            mt5ConnectionId = newConnId || null;
-            nextRoute = `/accounts/${res.data.id}/rules`;
-            toast({
-              title: 'Conta + MetaApi conectada',
-              description: 'Provisionamento iniciado. O vínculo auditado será salvo antes do monitoramento.',
-            });
-          } catch (e: any) {
-            console.error('MetaApi provisioning failed:', e);
-            toast({ title: 'Conta criada, MetaApi falhou', description: e?.message || 'Erro ao provisionar MetaApi', variant: 'destructive' });
-          }
-        } else {
-          toast({ title: 'Conta criada', description: 'Configure a conexão MT5 em Integrações quando desejar.' });
-        }
-
-        try {
-          await saveAccountRuleBinding({
-            userId: user.id,
-            tradingAccountId: res.data.id,
-            mt5ConnectionId,
-            draft: ruleBindingDraft,
-          });
-          toast({
-            title: 'Regra vinculada',
-            description: 'Snapshot e versão da regra foram salvos para esta conta.',
-          });
-        } catch (error: any) {
-          toast({
-            title: 'Conta criada com regra pendente',
-            description: error?.message || 'Abra a conta para concluir o vínculo de regras.',
-            variant: 'destructive',
-          });
-          navigate(`/accounts/${res.data.id}/rules`);
-          return;
-        }
-
-        navigate(nextRoute);
-        return;
-      } catch (error: any) {
-        toast({
-          title: 'Erro ao criar conta',
-          description: error?.message || 'Não foi possível salvar a conta no Supabase.',
-          variant: 'destructive',
-        });
-        return;
-      }
+    if (!supabase) {
+      toast({
+        title: 'Supabase indisponível',
+        description: 'A conta não foi criada para evitar um cadastro sem vínculo auditado.',
+        variant: 'destructive',
+      });
+      return;
     }
 
-    toast({
-      title: 'Supabase indisponível',
-      description: 'A conta não foi criada para evitar um cadastro sem vínculo auditado.',
-      variant: 'destructive',
+    const gatewayUrl = (import.meta as any).env?.VITE_METAAPI_GATEWAY_URL || 'http://localhost:3001';
+    const result = await provisionAndConnectTradingAccount({
+      supabase,
+      userId: user.id,
+      accessToken: session.access_token,
+      gatewayUrl,
+      resolvedBinding,
+      ruleBindingDraft,
+      accountName,
+      startBalance: balance,
+      currency,
+      accountType,
+      legacyRuleSetId: programData?.version?.id || null,
+      mt5Login,
+      mt5Server,
+      mt5Broker: mt5Broker.trim() || selectedFirm?.name || resolvedBinding.program.firm,
+      mt5Password: mt5InvestorPassword,
     });
+
+    if (!result.tradingAccountId) {
+      toast({
+        title: 'Erro ao criar conta',
+        description: result.insertMessage || 'Não foi possível salvar a conta no Supabase.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['trading_accounts'] });
+
+    if (result.connectOk) {
+      toast({
+        title: 'Conta + MetaApi conectada',
+        description: 'Provisionamento iniciado. O vínculo auditado será salvo antes do monitoramento.',
+      });
+    } else {
+      toast({ title: 'Conta criada, MetaApi falhou', description: result.connectMessage || 'Erro ao provisionar MetaApi', variant: 'destructive' });
+    }
+
+    if (result.bindingOk) {
+      toast({
+        title: 'Regra vinculada',
+        description: 'Snapshot e versão da regra foram salvos para esta conta.',
+      });
+    } else {
+      toast({
+        title: 'Conta criada com regra pendente',
+        description: result.bindingMessage || 'Abra a conta para concluir o vínculo de regras.',
+        variant: 'destructive',
+      });
+    }
+
+    // Whether or not MT5 connected or the binding save succeeded, the account
+    // exists — always land on the rules page, which already handles both
+    // "not connected yet" and "rule pending" gracefully. Never strand the
+    // trader on the generic accounts list.
+    navigate(`/accounts/${result.tradingAccountId}/rules`);
   };
 
   const STEPS = ['Biblioteca', 'Conta', 'Regras', 'Risco', 'Conexão MT5', 'Revisão'];
@@ -668,7 +573,7 @@ const CreateAccount = () => {
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {Array.from({ length: 6 }).map((_, i) => (
                       <div key={i} className="rounded-xl border border-border bg-card p-4 animate-pulse">
-                        <div className="w-10 h-10 rounded-lg bg-muted mb-3" />
+                        <div className="w-14 h-14 rounded-lg bg-muted mb-3" />
                         <div className="h-4 w-20 bg-muted rounded mb-1" />
                         <div className="h-3 w-28 bg-muted rounded" />
                       </div>
@@ -677,6 +582,7 @@ const CreateAccount = () => {
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {operationalFirms.map(firm => {
+                      const logoImage = FIRM_LOGO_IMAGES[firm.slug];
                       const logo = FIRM_LOGOS[firm.slug] || firm.name.charAt(0);
                       const firmColor = firm.color ? `hsl(${firm.color})` : 'hsl(var(--primary))';
                       return (
@@ -685,9 +591,15 @@ const CreateAccount = () => {
                           onClick={() => handleSelectFirm(firm)}
                           className="group relative rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5"
                         >
-                          <div className="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold mb-2" style={{ background: `${firmColor}20`, color: firmColor }}>
-                            {logo}
-                          </div>
+                          {logoImage ? (
+                            <div className="w-14 h-14 rounded-lg flex items-center justify-center border border-border bg-background p-2 mb-2">
+                              <img src={logoImage} alt="" aria-hidden="true" className="max-h-full max-w-full object-contain" />
+                            </div>
+                          ) : (
+                            <div className="w-14 h-14 rounded-lg flex items-center justify-center text-base font-bold mb-2" style={{ background: `${firmColor}20`, color: firmColor }}>
+                              {logo}
+                            </div>
+                          )}
                           <h3 className="font-semibold text-foreground text-sm">{firm.name}</h3>
                           <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground capitalize mt-1 inline-block">{firm.category.replace('_', ' ')}</span>
                           <ChevronRight className="absolute top-1/2 right-3 -translate-y-1/2 w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -728,9 +640,15 @@ const CreateAccount = () => {
 
                   {selectedFirm && (
                     <div className="rounded-xl border border-border bg-card p-4 mb-4 flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0" style={{ background: `hsl(${selectedFirm.color || 'var(--primary)'})20`, color: `hsl(${selectedFirm.color || 'var(--primary)'})` }}>
-                        {FIRM_LOGOS[selectedFirm.slug] || selectedFirm.name.charAt(0)}
-                      </div>
+                      {FIRM_LOGO_IMAGES[selectedFirm.slug] ? (
+                        <div className="w-14 h-14 rounded-lg flex items-center justify-center border border-border bg-background p-2 flex-shrink-0">
+                          <img src={FIRM_LOGO_IMAGES[selectedFirm.slug]} alt="" aria-hidden="true" className="max-h-full max-w-full object-contain" />
+                        </div>
+                      ) : (
+                        <div className="w-14 h-14 rounded-lg flex items-center justify-center text-base font-bold flex-shrink-0" style={{ background: `hsl(${selectedFirm.color || 'var(--primary)'})20`, color: `hsl(${selectedFirm.color || 'var(--primary)'})` }}>
+                          {FIRM_LOGOS[selectedFirm.slug] || selectedFirm.name.charAt(0)}
+                        </div>
+                      )}
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-foreground text-sm">{selectedFirm.name}</h3>
                         <p className="text-[10px] text-muted-foreground capitalize">{selectedFirm.category.replace('_', ' ')}</p>
@@ -1282,7 +1200,7 @@ const CreateAccount = () => {
           <button
             onClick={handleCreate}
             disabled={!isRuleBindingDraftComplete(ruleBindingDraft)}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors glow-primary"
+            className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors"
           >
             <Check className="w-4 h-4" />
             Criar Conta e Ativar Monitoramento

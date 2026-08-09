@@ -51,8 +51,6 @@ describe('CreateAccount library preselection', () => {
     ['wrong account', (params: URLSearchParams) => params.set('accountSizeId', 'another-account')],
     ['wrong platform', (params: URLSearchParams) => params.set('platform', 'UNKNOWN')],
     ['wrong version', (params: URLSearchParams) => params.set('ruleVersionId', 'unknown-version')],
-    ['blocked firm Fundscap', (params: URLSearchParams) => params.set('propFirmSlug', 'fundscap')],
-    ['blocked firm MyFundedFX', (params: URLSearchParams) => params.set('propFirmSlug', 'myfundedfx')],
   ])('rejects %s without producing a binding', (_label, mutate) => {
     const params = new URLSearchParams(validSelection().search);
     mutate(params);

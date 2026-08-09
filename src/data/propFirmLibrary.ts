@@ -156,18 +156,6 @@ export const FIRM_TEMPLATES: FirmTemplate[] = [
     ],
   },
   {
-    id: 'fundscap', name: 'Fundscap', logo: 'FC', color: 'hsl(190, 70%, 50%)',
-    description: 'Prop firm com avaliação rápida e regras competitivas.',
-    accountTypes: ['Challenge', 'Funded'],
-    rules: [
-      { type: 'MAX_DAILY_LOSS', name: 'Perda Diária Máxima', severity: 'hard', defaultValue: 5, unit: '%', editable: true, enabled: true },
-      { type: 'MAX_TOTAL_LOSS', name: 'Perda Total Máxima', severity: 'hard', defaultValue: 10, unit: '%', editable: true, enabled: true },
-      { type: 'PROFIT_TARGET', name: 'Meta de Lucro', severity: 'hard', defaultValue: 10, unit: '%', editable: true, enabled: true },
-      { type: 'MIN_TRADING_DAYS', name: 'Dias Mínimos', severity: 'hard', defaultValue: 5, unit: 'days', editable: true, enabled: true },
-      { type: 'INACTIVITY_LIMIT', name: 'Limite de Inatividade', severity: 'soft', defaultValue: 30, unit: 'days', editable: true, enabled: true },
-    ],
-  },
-  {
     id: 'custom', name: 'Custom', logo: 'C', color: 'hsl(var(--muted-foreground))',
     description: 'Configure suas próprias regras do zero para qualquer prop firm.',
     accountTypes: ['Challenge', 'Funded', 'Instant'],

@@ -15,7 +15,7 @@ describe('prop firm rules dataset', () => {
     'The5ers',
   ];
   const sprint2Programs = propFirmRulePrograms.filter((program) => sprint2Firms.includes(program.firm));
-  const sprint3Firms = ['FXIFY', 'E8 Markets', 'BrightFunded', 'Alpha Capital Group', 'MyFundedFX', 'Fundscap'];
+  const sprint3Firms = ['FXIFY', 'E8 Markets', 'BrightFunded', 'Alpha Capital Group'];
   const sprint3Programs = propFirmRulePrograms.filter((program) => sprint3Firms.includes(program.firm));
 
   it('publishes the required ASAP and NP Future programs with unique ids', () => {
@@ -77,8 +77,8 @@ describe('prop firm rules dataset', () => {
 
   it('publishes every Sprint 3 firm with unique ids and official evidence', () => {
     expect(new Set(sprint3Programs.map((program) => program.firm))).toEqual(new Set(sprint3Firms));
-    expect(sprint3Programs).toHaveLength(28);
-    expect(propFirmRulePrograms).toHaveLength(54);
+    expect(sprint3Programs).toHaveLength(26);
+    expect(propFirmRulePrograms).toHaveLength(52);
     expect(new Set(propFirmRulePrograms.map((program) => program.id)).size).toBe(propFirmRulePrograms.length);
 
     for (const program of sprint3Programs) {
@@ -100,7 +100,7 @@ describe('prop firm rules dataset', () => {
     );
     const unavailablePattern = /indisponível|unavailable|unknown/i;
 
-    expect(unavailablePrograms.map((program) => program.firm)).toEqual(['MyFundedFX', 'Fundscap']);
+    expect(unavailablePrograms.map((program) => program.firm)).toEqual([]);
     for (const program of unavailablePrograms) {
       expect(program.profitTarget).toMatch(unavailablePattern);
       expect(program.dailyLoss).toMatch(unavailablePattern);
@@ -235,7 +235,7 @@ describe('prop firm rules dataset', () => {
       (program) => program.evidenceStatus === 'official_source_unavailable',
     );
 
-    expect(unavailablePrograms.map((program) => program.firm)).toEqual(['MyFundedFX', 'Fundscap']);
+    expect(unavailablePrograms.map((program) => program.firm)).toEqual([]);
     expect(unavailablePrograms.every((program) => program.accountLevelRules.length === 0)).toBe(true);
   });
 

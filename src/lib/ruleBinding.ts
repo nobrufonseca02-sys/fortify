@@ -167,6 +167,25 @@ export function accountCurrencyValue(initialBalance: string, fallbackCurrency: s
   return supportedCurrencies.has(fallbackCurrency) ? fallbackCurrency : 'USD';
 }
 
+export function initialBalanceValue(value: string) {
+  const match = value.trim().match(/(\d+(?:[.,]\d+)?)\s*([KMB])?/i);
+  if (!match) return '100000';
+
+  const amount = Number(match[1].replace(',', '.'));
+  const multiplier = match[2]?.toUpperCase() === 'B'
+    ? 1_000_000_000
+    : match[2]?.toUpperCase() === 'M'
+      ? 1_000_000
+      : match[2]?.toUpperCase() === 'K'
+        ? 1_000
+        : 1;
+  const normalizedAmount = amount * multiplier;
+
+  return Number.isFinite(normalizedAmount) && normalizedAmount > 0
+    ? String(normalizedAmount)
+    : '100000';
+}
+
 export function getOperationalRulePrograms(platformConstraint?: string) {
   return propFirmRulePrograms.filter((program): program is AccountLevelPropFirmRuleProgram => {
     if (program.evidenceStatus === 'official_source_unavailable') return false;

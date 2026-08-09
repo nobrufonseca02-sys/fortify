@@ -140,30 +140,4 @@ describe('AccountRules', () => {
     fireEvent.click(dialog.getByRole('button', { name: 'Payout e operação' }));
     expect(dialog.getByText('KYC')).toBeInTheDocument();
   });
-
-  it('marks unavailable firms as non-operational and excludes them from comparison', () => {
-    render(<AccountRules />);
-
-    fireEvent.change(screen.getByLabelText('Mesa'), { target: { value: 'MyFundedFX' } });
-    let unavailableCard = programCard('Operação encerrada - catálogo indisponível');
-
-    expect(unavailableCard.getByText('Indisponível')).toBeInTheDocument();
-    expect(unavailableCard.getByRole('button', { name: 'Não operacional' })).toBeDisabled();
-
-    fireEvent.click(unavailableCard.getByRole('button', { name: 'Ver status' }));
-
-    let dialog = within(screen.getByRole('dialog'));
-    expect(dialog.getAllByText(/Indisponível/).length).toBeGreaterThan(0);
-
-    fireEvent.click(dialog.getByRole('button', { name: 'Fechar detalhes' }));
-    fireEvent.change(screen.getByLabelText('Mesa'), { target: { value: 'Fundscap' } });
-    unavailableCard = programCard('Programas prop - catálogo público indisponível');
-
-    expect(unavailableCard.getByText('Indisponível')).toBeInTheDocument();
-    expect(unavailableCard.getByRole('button', { name: 'Não operacional' })).toBeDisabled();
-
-    fireEvent.click(unavailableCard.getByRole('button', { name: 'Ver status' }));
-    dialog = within(screen.getByRole('dialog'));
-    expect(dialog.getAllByText(/Indisponível/).length).toBeGreaterThan(0);
-  });
 });

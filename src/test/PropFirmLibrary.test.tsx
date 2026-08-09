@@ -1,7 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
-import PropFirmLibrary from '../pages/PropFirmLibrary';
+import PropFirmLibrary, { accountConnectionPath } from '../pages/PropFirmLibrary';
+import type { PropFirmRuleProgram, RuleAccountSize } from '../data/propFirmRules';
 
 function LocationProbe() {
   const location = useLocation();
@@ -13,7 +14,7 @@ function renderLibrary() {
     <MemoryRouter initialEntries={['/library']}>
       <Routes>
         <Route path="/library" element={<PropFirmLibrary />} />
-        <Route path="/accounts/new" element={<LocationProbe />} />
+        <Route path="/accounts" element={<LocationProbe />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -30,7 +31,7 @@ describe('PropFirmLibrary', () => {
 
     expect(screen.getByRole('heading', { name: 'Biblioteca de Mesas Proprietárias' })).toBeInTheDocument();
     expect(screen.getByTestId('firm-step')).toBeInTheDocument();
-    expect(screen.getAllByTestId(/^firm-(?!step$)/)).toHaveLength(16);
+    expect(screen.getAllByTestId(/^firm-(?!step$)/)).toHaveLength(14);
     expect(screen.queryByTestId('program-step')).not.toBeInTheDocument();
     expect(screen.queryByTestId('account-step')).not.toBeInTheDocument();
     expect(screen.queryByTestId('account-rules')).not.toBeInTheDocument();
@@ -69,7 +70,8 @@ describe('PropFirmLibrary', () => {
 
     expect(screen.getByTestId('account-rules')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /FTMO Challenge 2-Step · US\$ 200 mil/ })).toBeInTheDocument();
-    expect(screen.getByText('Regras principais')).toBeInTheDocument();
+    expect(screen.getByText('Regras críticas')).toBeInTheDocument();
+    expect(screen.getByText('Ver detalhes completos')).toBeInTheDocument();
     expect(screen.getByText('Operacional')).toBeInTheDocument();
     expect(screen.getByText('Fortify monitora')).toBeInTheDocument();
     expect(screen.getByText('Fontes oficiais')).toBeInTheDocument();
@@ -85,7 +87,7 @@ describe('PropFirmLibrary', () => {
 
     const target = screen.getByTestId('location').textContent ?? '';
     const url = new URL(target, 'http://localhost');
-    expect(url.pathname).toBe('/accounts/new');
+    expect(url.pathname).toBe('/accounts');
     expect(url.searchParams.get('propFirmSlug')).toBe('ftmo');
     expect(url.searchParams.get('programSlug')).toBe('ftmo-challenge-2-step-2026');
     expect(url.searchParams.get('accountSizeId')).toBeTruthy();
@@ -100,21 +102,43 @@ describe('PropFirmLibrary', () => {
     ]);
   });
 
-  it('keeps unavailable firms visible but non-operational', () => {
-    renderLibrary();
-
-    expect(screen.getByTestId('firm-Fundscap')).toBeDisabled();
-    expect(screen.getByTestId('firm-MyFundedFX')).toBeDisabled();
-    expect(screen.getByTestId('firm-Fundscap')).toHaveTextContent('Indisponível');
-    expect(screen.getByTestId('firm-MyFundedFX')).toHaveTextContent('Indisponível');
-    expect(screen.queryByRole('button', { name: 'Conectar essa conta' })).not.toBeInTheDocument();
-  });
-
   it('filters the initial catalog by prop firm name', () => {
     renderLibrary();
 
     fireEvent.change(screen.getByLabelText('Buscar mesa proprietária'), { target: { value: 'Topstep' } });
     expect(screen.getByTestId('firm-Topstep')).toBeInTheDocument();
     expect(screen.queryByTestId('firm-FTMO')).not.toBeInTheDocument();
+  });
+
+  it('returns no connection path when platform or rule version data is incomplete', () => {
+    const baseProgram = {
+      firmSlug: 'ftmo',
+      programSlug: 'ftmo-challenge-2-step-2026',
+      platforms: [],
+    } as unknown as PropFirmRuleProgram;
+    const baseAccount = {
+      id: 'ftmo-challenge-2-step-2026-200k',
+      platforms: [],
+      versions: [],
+    } as unknown as RuleAccountSize;
+
+    // Missing platform and missing rule version both make the URL unbuildable.
+    expect(accountConnectionPath(baseProgram, baseAccount)).toBeNull();
+    expect(
+      accountConnectionPath(
+        { ...baseProgram, platforms: ['MT5'] } as PropFirmRuleProgram,
+        baseAccount,
+      ),
+    ).toBeNull();
+
+    // With both present, it resolves to a real /accounts URL.
+    const completeAccount = {
+      ...baseAccount,
+      platforms: ['MT5'],
+      versions: [{ id: 'v1', label: 'v1', notes: [] }],
+    } as unknown as RuleAccountSize;
+    expect(accountConnectionPath({ ...baseProgram, platforms: ['MT5'] } as PropFirmRuleProgram, completeAccount)).toBe(
+      '/accounts?propFirmSlug=ftmo&programSlug=ftmo-challenge-2-step-2026&accountSizeId=ftmo-challenge-2-step-2026-200k&platform=MT5&ruleVersionId=v1',
+    );
   });
 });
