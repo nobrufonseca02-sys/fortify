@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
-import { createPortalSession } from "@/lib/billing";
 import { supabase } from "@/integrations/supabase/client";
 
 const supportLabels: Record<string, string> = {
@@ -38,22 +37,16 @@ const SettingsPage = () => {
     activeAccountCount,
     plans,
     isLoading: planLoading,
+    hasActivePlan,
   } = useSubscriptionPlan();
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [profileLoading, setProfileLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [openingPlan, setOpeningPlan] = useState(false);
 
   const currentPlan = useMemo(
     () => plans.find((plan) => plan.id === subscription?.plan_id || plan.slug === subscription?.plan_id) ?? null,
     [plans, subscription?.plan_id],
-  );
-
-  const hasActivePaidStripeSubscription = Boolean(
-    subscription?.stripe_customer_id &&
-    subscription?.stripe_subscription_id &&
-    subscription.plan_id !== "beta_free",
   );
 
   const supportTier = currentPlan?.support_tier || subscription?.support_tier || null;
@@ -139,40 +132,14 @@ const SettingsPage = () => {
     });
   };
 
-  const managePlan = async () => {
-    if (!hasActivePaidStripeSubscription) {
-      navigate("/pricing");
-      return;
-    }
-
-    if (!session?.access_token) {
-      toast({
-        title: "Sessão necessária",
-        description: "Entre novamente para gerenciar seu plano.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setOpeningPlan(true);
-    try {
-      const portal = await createPortalSession(session.access_token);
-      window.location.assign(portal.portal_url);
-    } catch (error: any) {
-      toast({
-        title: "Portal indisponível",
-        description: error?.message || "Não foi possível abrir o gerenciamento do plano.",
-        variant: "destructive",
-      });
-    } finally {
-      setOpeningPlan(false);
-    }
+  const managePlan = () => {
+    navigate(hasActivePlan ? "/subscription" : "/pricing");
   };
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-lg font-black text-foreground">Configurações</h1>
+        <h1 className="text-lg font-bold text-foreground">Configurações</h1>
         <p className="text-xs text-muted-foreground">Gerencie seus dados de conta e assinatura.</p>
       </motion.div>
 
@@ -256,8 +223,8 @@ const SettingsPage = () => {
           </div>
         </div>
 
-        <Button type="button" onClick={managePlan} disabled={openingPlan} className="gap-2" variant="outline">
-          {openingPlan ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
+        <Button type="button" onClick={managePlan} className="gap-2" variant="outline">
+          <CreditCard className="w-4 h-4" />
           Gerenciar plano
         </Button>
       </motion.section>

@@ -1,20 +1,22 @@
 {
-  "name": "metaapi-gateway",
+  "name": "whatsapp-agent",
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "tsx src/server.ts",
-    "start": "tsx src/server.ts"
+    "dev": "tsx src/index.ts",
+    "start": "tsx src/index.ts",
+    "pair": "cross-env WHATSAPP_PAIRING_MODE=true tsx src/index.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
-    "@fastify/cors": "^9.0.1",
     "@supabase/supabase-js": "^2.49.8",
+    "@whiskeysockets/baileys": "6.7.24",
     "dotenv": "^16.4.5",
-    "fastify": "^4.28.1"
+    "pino": "^9.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.1",
+    "cross-env": "^7.0.3",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"
   }
