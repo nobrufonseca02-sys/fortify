@@ -1,5 +1,6 @@
 import type { Config } from "tailwindcss";
 import tailwindcssAnimate from "tailwindcss-animate";
+import tailwindcssTypography from "@tailwindcss/typography";
 
 export default {
   darkMode: ["class"],
@@ -64,7 +65,6 @@ export default {
           DEFAULT: "hsl(var(--info))",
           foreground: "hsl(var(--info-foreground))",
         },
-        neon: "hsl(var(--neon))",
         "surface-elevated": "hsl(var(--surface-elevated))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
@@ -118,5 +118,5 @@ export default {
       },
     },
   },
-  plugins: [tailwindcssAnimate],
+  plugins: [tailwindcssAnimate, tailwindcssTypography],
 } satisfies Config;
