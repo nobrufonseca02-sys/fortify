@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,13 +8,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { FortifyMark } from "@/components/brand/FortifyMark";
 import { trackSignUp } from "@/lib/analytics";
-import { Shield, Lock, Mail, User, ArrowRight, Eye, EyeOff, ChevronRight, CheckCircle2 } from "lucide-react";
+import { Shield, Lock, Mail, User, ArrowRight, Eye, EyeOff, ChevronRight, CheckCircle2, Loader2 } from "lucide-react";
 
 type AuthMode = "login" | "signup" | "forgot";
 
 function AuthBackground() {
   return (
-    <div className="pointer-events-none fixed inset-0 overflow-hidden bg-black" aria-hidden="true">
+    <div className="pointer-events-none fixed inset-0 overflow-hidden bg-background" aria-hidden="true">
       <video
         className="absolute inset-0 h-full w-full object-cover object-center"
         src="/backgrounds/fortify-blackhole-auth.mp4"
@@ -25,10 +25,10 @@ function AuthBackground() {
         preload="auto"
         aria-hidden="true"
       />
-      <div className="absolute inset-0 bg-black/35" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,transparent_0%,transparent_36%,rgba(0,0,0,0.24)_58%,rgba(0,0,0,0.86)_100%)]" />
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.86)_0%,rgba(0,0,0,0.18)_35%,rgba(0,0,0,0.1)_52%,rgba(0,0,0,0.58)_100%)]" />
-      <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-black via-black/75 to-transparent" />
+      <div className="absolute inset-0 bg-background/35" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,transparent_0%,transparent_36%,hsl(var(--background)/0.24)_58%,hsl(var(--background)/0.86)_100%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,hsl(var(--background)/0.86)_0%,hsl(var(--background)/0.18)_35%,hsl(var(--background)/0.1)_52%,hsl(var(--background)/0.58)_100%)]" />
+      <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-background via-background/75 to-transparent" />
     </div>
   );
 }
@@ -46,6 +46,7 @@ function GoogleMark() {
 
 export default function AuthPage() {
   const navigate = useNavigate();
+  const shouldReduceMotion = useReducedMotion();
   const [mode, setMode] = useState<AuthMode>("login");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -54,6 +55,14 @@ export default function AuthPage() {
   const authCardRef = useRef<HTMLDivElement | null>(null);
   const supportWhatsAppUrl =
     "https://wa.me/5521994177491?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20Fortify.";
+
+  // Motion helpers — collapse offsets/durations to ~0 when the user prefers
+  // reduced motion. The global CSS rule in index.css only catches
+  // CSS-`animation`-based motion, not Framer/Motion's WAAPI-driven
+  // transitions, so this page opts in explicitly per WCAG 2.2.
+  const rise = (px: number) => (shouldReduceMotion ? 0 : px);
+  const dur = (seconds: number) => (shouldReduceMotion ? 0.01 : seconds);
+  const wait = (seconds: number) => (shouldReduceMotion ? 0 : seconds);
 
   const updateField = (field: string, value: string) =>
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -139,10 +148,10 @@ export default function AuthPage() {
 
   const focusLoginCard = () => {
     setMode("login");
-    authCardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    authCardRef.current?.scrollIntoView({ behavior: shouldReduceMotion ? "auto" : "smooth", block: "center" });
     window.setTimeout(() => {
       document.getElementById("email")?.focus();
-    }, 250);
+    }, shouldReduceMotion ? 0 : 250);
   };
 
   const bullets = [
@@ -154,14 +163,14 @@ export default function AuthPage() {
   ];
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#030712] text-white">
+    <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
       <AuthBackground />
 
       <div className="fixed left-4 top-4 z-20 flex items-center gap-3 sm:left-7 sm:top-6">
-        <FortifyMark className="h-10 w-10 shrink-0 text-white opacity-95 sm:h-12 sm:w-12" />
+        <FortifyMark className="h-10 w-10 shrink-0 text-foreground opacity-95 sm:h-12 sm:w-12" />
         <div className="flex flex-col leading-none">
-          <span className="text-base font-bold uppercase tracking-[0.14em] text-white sm:text-xl">Fortify</span>
-          <span className="mt-1 text-[10px] uppercase tracking-[0.1em] text-white/60 sm:text-[11px]">
+          <span className="text-base font-bold uppercase tracking-[0.14em] text-foreground sm:text-xl">Fortify</span>
+          <span className="mt-1 text-[10px] uppercase tracking-[0.1em] text-muted-foreground sm:text-[11px]">
             Sistema de gestão de risco
           </span>
         </div>
@@ -172,14 +181,14 @@ export default function AuthPage() {
           href={supportWhatsAppUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="rounded-full border border-white/12 bg-white/[0.055] px-4 py-2 text-xs font-semibold text-white backdrop-blur-xl transition-colors hover:border-primary/40 hover:bg-primary/10 sm:px-5 sm:text-sm"
+          className="rounded-full border border-border bg-background/60 px-4 py-2 text-xs font-semibold text-foreground backdrop-blur-md transition-colors hover:border-primary/40 hover:bg-primary/10 sm:px-5 sm:text-sm"
         >
           Suporte
         </a>
         <button
           type="button"
           onClick={focusLoginCard}
-          className="rounded-full border border-white/12 bg-white/[0.055] px-4 py-2 text-xs font-semibold text-white backdrop-blur-xl transition-colors hover:border-primary/40 hover:bg-primary/10 sm:px-5 sm:text-sm"
+          className="rounded-full border border-border bg-background/60 px-4 py-2 text-xs font-semibold text-foreground backdrop-blur-md transition-colors hover:border-primary/40 hover:bg-primary/10 sm:px-5 sm:text-sm"
         >
           Login
         </button>
@@ -188,16 +197,16 @@ export default function AuthPage() {
       <main className="relative z-10 flex min-h-screen items-center justify-center px-5 pb-8 pt-20 sm:px-8 sm:pt-20 lg:px-12 lg:pt-16">
         <section className="mx-auto flex w-full max-w-[900px] flex-col items-center text-center">
           <motion.div
-            initial={{ opacity: 0, y: 24 }}
+            initial={{ opacity: 0, y: rise(24) }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.65, delay: 0.12 }}
+            transition={{ duration: dur(0.65), delay: wait(0.12) }}
             className="mb-5"
           >
-            <p className="text-xs uppercase tracking-[0.18em] text-white">Risk command center</p>
-            <h1 className="mx-auto mt-2 max-w-3xl text-2xl font-bold leading-tight text-white sm:text-4xl lg:text-5xl">
+            <p className="eyebrow">Risk command center</p>
+            <h1 className="display-editorial mx-auto mt-2 max-w-3xl text-foreground">
               Proteja sua conta antes do próximo trade.
             </h1>
-            <p className="mx-auto mt-2 max-w-xl text-xs leading-5 text-slate-200 sm:text-base sm:leading-6">
+            <p className="mx-auto mt-2 max-w-xl text-xs leading-5 text-muted-foreground sm:text-base sm:leading-6">
               Monitore risco, drawdown, regras críticas e posições MT5 em um único painel.
             </p>
           </motion.div>
@@ -206,12 +215,12 @@ export default function AuthPage() {
             {bullets.map((bullet, index) => (
               <motion.div
                 key={bullet}
-                className="flex min-h-[52px] flex-col items-center justify-center gap-1.5 rounded-2xl border border-white/10 bg-white/[0.05] px-3 py-2 text-center text-[11px] font-medium leading-4 text-slate-100 backdrop-blur-md sm:text-xs"
-                initial={{ opacity: 0, y: 12 }}
+                className="flex min-h-[52px] flex-col items-center justify-center gap-1.5 rounded-lg border border-border bg-background/60 px-3 py-2 text-center text-[11px] font-medium leading-4 text-foreground/90 backdrop-blur-md sm:text-xs"
+                initial={{ opacity: 0, y: rise(12) }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.45, delay: 0.22 + index * 0.06 }}
+                transition={{ duration: dur(0.45), delay: wait(0.22 + index * 0.06) }}
               >
-                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 {bullet}
               </motion.div>
             ))}
@@ -219,26 +228,27 @@ export default function AuthPage() {
 
           <motion.div
             ref={authCardRef}
-            className="relative w-full max-w-[460px] overflow-hidden rounded-[1.75rem] border border-white/12 bg-slate-950/82 p-6 text-left shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-8"
-            initial={{ opacity: 0, y: 24 }}
+            layout={!shouldReduceMotion}
+            className="relative w-full max-w-[440px] overflow-hidden rounded-lg border border-border bg-background/92 p-6 text-left shadow-lg backdrop-blur-xl sm:p-8"
+            initial={{ opacity: 0, y: rise(24) }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.65, delay: 0.28 }}
+            transition={{ duration: dur(0.65), delay: wait(0.28) }}
           >
             <AnimatePresence mode="wait">
               <motion.div
                 key={mode}
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: rise(10) }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.25 }}
+                exit={{ opacity: 0, y: rise(-10) }}
+                transition={{ duration: dur(0.25) }}
               >
                 <div className="text-center mb-6">
-                  <h2 className="text-xl font-bold text-white">
+                  <h2 className="text-xl font-bold text-foreground">
                     {mode === "login" && "Entre no Fortify"}
                     {mode === "signup" && "Criar conta"}
                     {mode === "forgot" && "Recuperar senha"}
                   </h2>
-                  <p className="text-sm text-slate-400 mt-1.5">
+                  <p className="text-sm text-muted-foreground mt-1.5">
                     {mode === "login" && "Monitore risco, drawdown e regras críticas antes do próximo trade."}
                     {mode === "signup" && "Comece a monitorar suas contas agora"}
                     {mode === "forgot" && "Enviaremos um link para redefinir sua senha"}
@@ -253,15 +263,15 @@ export default function AuthPage() {
                       onClick={handleGoogleLogin}
                       disabled={googleLoading || loading}
                       aria-label="Continuar com Google"
-                      className="w-full gap-2 border-white/10 bg-white/[0.055] text-white hover:bg-white/10 hover:text-white"
+                      className="w-full gap-2"
                     >
-                      <GoogleMark />
+                      {googleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleMark />}
                       {googleLoading ? "Abrindo Google..." : "Continuar com Google"}
                     </Button>
                     <div className="flex items-center gap-3">
-                      <span className="h-px flex-1 bg-white/10" />
-                      <span className="text-[11px] uppercase tracking-wide text-slate-500">ou entre com e-mail</span>
-                      <span className="h-px flex-1 bg-white/10" />
+                      <span className="h-px flex-1 bg-border" />
+                      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">ou entre com e-mail</span>
+                      <span className="h-px flex-1 bg-border" />
                     </div>
                   </div>
                 )}
@@ -269,12 +279,12 @@ export default function AuthPage() {
                 <form onSubmit={handleSubmit} className="space-y-4">
                   {mode === "signup" && (
                     <div className="space-y-2">
-                      <Label htmlFor="name" className="text-xs text-slate-400 font-medium">Nome completo</Label>
+                      <Label htmlFor="name" className="text-xs text-muted-foreground font-medium">Nome completo</Label>
                       <div className="relative">
-                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                           id="name"
-                          className="border-white/10 bg-white/[0.055] pl-10 text-white placeholder:text-slate-500 focus-visible:ring-primary/40"
+                          className="pl-10"
                           placeholder="Seu nome"
                           value={form.name}
                           onChange={(e) => updateField("name", e.target.value)}
@@ -284,13 +294,13 @@ export default function AuthPage() {
                   )}
 
                   <div className="space-y-2">
-                    <Label htmlFor="email" className="text-xs text-slate-400 font-medium">E-mail</Label>
+                    <Label htmlFor="email" className="text-xs text-muted-foreground font-medium">E-mail</Label>
                     <div className="relative">
-                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="email"
                         type="email"
-                        className="border-white/10 bg-white/[0.055] pl-10 text-white placeholder:text-slate-500 focus-visible:ring-primary/40"
+                        className="pl-10"
                         placeholder="seu@email.com"
                         value={form.email}
                         onChange={(e) => updateField("email", e.target.value)}
@@ -301,13 +311,13 @@ export default function AuthPage() {
 
                   {mode !== "forgot" && (
                     <div className="space-y-2">
-                      <Label htmlFor="password" className="text-xs text-slate-400 font-medium">Senha</Label>
+                      <Label htmlFor="password" className="text-xs text-muted-foreground font-medium">Senha</Label>
                       <div className="relative">
-                        <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                        <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                           id="password"
                           type={showPassword ? "text" : "password"}
-                          className="border-white/10 bg-white/[0.055] pl-10 pr-10 text-white placeholder:text-slate-500 focus-visible:ring-primary/40"
+                          className="pl-10 pr-10"
                           placeholder="••••••••"
                           value={form.password}
                           onChange={(e) => updateField("password", e.target.value)}
@@ -317,7 +327,8 @@ export default function AuthPage() {
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 transition-colors hover:text-white"
+                          aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
                         >
                           {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
@@ -345,11 +356,7 @@ export default function AuthPage() {
                     className="w-full gap-2 group"
                   >
                     {loading ? (
-                      <motion.div
-                        className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full"
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      />
+                      <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <>
                         {mode === "login" && "Entrar"}
@@ -364,7 +371,7 @@ export default function AuthPage() {
                 <div className="pt-4 text-center">
                   {mode === "login" && (
                     <div className="space-y-3">
-                      <p className="text-sm text-slate-400">
+                      <p className="text-sm text-muted-foreground">
                         Não tem conta?{" "}
                         <button onClick={() => setMode("signup")} className="text-primary font-semibold transition-colors hover:text-primary/80">
                           Criar conta grátis
@@ -378,7 +385,7 @@ export default function AuthPage() {
                   )}
                   {mode === "signup" && (
                     <div className="space-y-3">
-                      <p className="text-sm text-slate-400">
+                      <p className="text-sm text-muted-foreground">
                         Já tem conta?{" "}
                         <button onClick={() => setMode("login")} className="text-primary font-semibold transition-colors hover:text-primary/80">
                           Já tenho conta
@@ -402,10 +409,10 @@ export default function AuthPage() {
           </motion.div>
 
           <motion.div
-            className="mt-4 flex items-center justify-center gap-6 text-[10px] text-slate-500 uppercase tracking-wider"
+            className="mt-4 flex items-center justify-center gap-6 text-[10px] text-muted-foreground uppercase tracking-wider"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.8 }}
+            transition={{ duration: dur(0.4), delay: wait(0.8) }}
           >
             <span className="flex items-center gap-1.5">
               <Lock className="h-3 w-3" /> Criptografia SSL
@@ -417,10 +424,10 @@ export default function AuthPage() {
           </motion.div>
 
           <motion.p
-            className="mt-5 text-center text-[11px] text-slate-500"
+            className="mt-5 text-center text-[11px] text-muted-foreground"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 1.1 }}
+            transition={{ duration: dur(0.4), delay: wait(1.1) }}
           >
             &copy; 2026 Fortify. Controle total sobre suas operações.
           </motion.p>
