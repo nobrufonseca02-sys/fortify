@@ -34,7 +34,19 @@ export function parseLibraryRuleSelection(search: string): LibraryRuleSelectionR
   return { status: 'valid', initialSelection, resolved };
 }
 
-export function LibraryRuleSelectionNotice({ status }: { status: LibraryRuleSelectionResult['status'] }) {
+export function LibraryRuleSelectionNotice({
+  status,
+  // Recovery instruction for a broken Library link. Defaults to "pick it
+  // yourself", which is only true on surfaces that always render a
+  // RuleBindingSelector (CreateAccount). The fast-connect form on /accounts
+  // hides the selector when there is no resolved selection, so it overrides
+  // this with the deferred-binding wording instead of telling the trader to
+  // select something that isn't on screen.
+  invalidHint = 'Selecione manualmente.',
+}: {
+  status: LibraryRuleSelectionResult['status'];
+  invalidHint?: string;
+}) {
   if (status === 'none') return null;
   const valid = status === 'valid';
 
@@ -59,7 +71,7 @@ export function LibraryRuleSelectionNotice({ status }: { status: LibraryRuleSele
             Revise os dados antes de conectar sua conta.
           </>
         ) : (
-          'Não foi possível carregar a regra enviada pela Biblioteca. Selecione manualmente.'
+          `Não foi possível carregar a regra enviada pela Biblioteca. ${invalidHint}`
         )}
       </span>
     </div>

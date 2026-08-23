@@ -5,11 +5,12 @@ import { motion } from 'motion/react';
 import { type Mt5ConnectionStatus } from '@/types/fortify';
 import {
   Plus, Trash2, Wallet, ChevronRight, Shield, AlertTriangle, XCircle, BookOpen, Link2,
-  RefreshCw, Loader2, Cloud, Settings2, ArrowUpRight, ArrowDownRight,
+  RefreshCw, Loader2, Settings2, ArrowUpRight, ArrowDownRight, HelpCircle,
 } from 'lucide-react';
 import { useAccountsStore } from '@/hooks/useAccountsStore';
 import { useAllRuleEvaluations } from '@/hooks/useRuleEvaluations';
 import { mapRowsForAccount } from '@/lib/ruleEvaluationView';
+import { hasServerMonitoringGap, SERVER_MONITORING_GAP_LABEL } from '@/lib/betaReadiness';
 import { supabase } from '@/integrations/supabase/client';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -21,20 +22,19 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { GuidedEmptyState } from '@/components/BetaReadinessChecklist';
-import { getConnectErrorMessage } from '@/lib/betaReadiness';
-import { gatewayJsonHeaders } from '@/lib/gateway';
 import { useSubscriptionPlan } from '@/hooks/useSubscriptionPlan';
-import { RuleBindingSelector } from '@/components/rules/RuleBindingSelector';
 import {
-  accountCurrencyValue,
-  emptyRuleBindingDraft,
   fetchActiveRuleBindings,
-  initialBalanceValue,
+  emptyRuleBindingDraft,
   isRuleBindingDraftComplete,
-  saveAccountRuleBinding,
+  getAccountRuleBindingStatus,
+  resolveRuleBinding,
+  initialBalanceValue,
+  accountCurrencyValue,
   type AccountRuleBindingRow,
   type RuleBindingDraft,
 } from '@/lib/ruleBinding';
+import { RuleBindingSelector } from '@/components/rules/RuleBindingSelector';
 import { parseLibraryRuleSelection, LibraryRuleSelectionNotice } from '@/lib/libraryRuleSelection';
 import { provisionAndConnectTradingAccount } from '@/lib/accountProvisioning';
 
@@ -49,15 +49,19 @@ const mt5StatusConfig: Record<Mt5ConnectionStatus, { label: string; icon: typeof
   auth_error: { label: 'Erro de autenticação', icon: AlertTriangle, className: 'bg-destructive/15 text-destructive' },
 };
 
-const PROVIDER_META = {
-  metaapi: { label: 'MetaApi', icon: Cloud },
-};
+// NO_DATA is not a cosmetic fourth state. An account with no mt5_connections
+// row, or with zero rule evaluations (which is every fast-connected account
+// until its rule binding is completed), is *not being monitored* — rendering it
+// as SEGURO would assert a safety guarantee Fortify is not actually providing.
+// Same trigger Dashboard.tsx's buildHealthRow already uses for its 'nodata'.
+type AccountHealthStatus = 'SAFE' | 'WARNING' | 'VIOLATED' | 'NO_DATA';
 
-const StatusBadge = ({ status }: { status: 'SAFE' | 'WARNING' | 'VIOLATED' }) => {
-  const config = {
+const StatusBadge = ({ status }: { status: AccountHealthStatus }) => {
+  const config: Record<AccountHealthStatus, { label: string; icon: typeof Shield; className: string }> = {
     SAFE: { label: 'SEGURO', icon: Shield, className: 'bg-success/15 text-success' },
     WARNING: { label: 'ATENÇÃO', icon: AlertTriangle, className: 'bg-warning/15 text-warning' },
     VIOLATED: { label: 'VIOLADO', icon: XCircle, className: 'bg-destructive/15 text-destructive' },
+    NO_DATA: { label: 'SEM DADOS', icon: HelpCircle, className: 'bg-muted text-muted-foreground' },
   };
   const c = config[status];
   const Icon = c.icon;
@@ -98,7 +102,6 @@ const Accounts = () => {
     : '');
   const [mt5Login, setMt5Login] = useState('');
   const [mt5Server, setMt5Server] = useState('');
-  const [brokerName, setBrokerName] = useState('');
   const [mt5Password, setMt5Password] = useState('');
   const [ruleBindingDraft, setRuleBindingDraft] = useState<RuleBindingDraft>(() =>
     librarySelection.status === 'valid'
@@ -171,16 +174,32 @@ const Accounts = () => {
     setAccountName('');
     setMt5Login('');
     setMt5Server('');
-    setBrokerName('');
     setMt5Password('');
     setRuleBindingDraft(emptyRuleBindingDraft());
   };
 
+  // Fast connect: only account name + MT5 login/server/password are required
+  // to activate an account. When arriving from the Library with a firm/program
+  // already picked (libraryResolved), that specific binding is still saved
+  // right away — the trader already made that choice, it's not extra
+  // friction. Otherwise the audited rule binding is deliberately deferred:
+  // the account is created and shows up here immediately, and the "Vincular
+  // regra da mesa" prompt on its card takes the trader to /accounts/:id/rules
+  // (AccountRuleManagement) to finish it whenever they're ready. This never
+  // auto-fills or auto-acknowledges a binding — that only ever happens
+  // through RuleBindingSelector's own manual checkbox.
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userId) return;
-    if (!accountName || !mt5Login || !mt5Server || !brokerName || !mt5Password) return;
-    if (!isRuleBindingDraftComplete(ruleBindingDraft)) {
+    if (!accountName || !mt5Login || !mt5Server || !mt5Password) return;
+    // `libraryResolved` is only the *initial* suggestion parsed out of the URL:
+    // the trader can freely edit the pre-filled RuleBindingSelector before
+    // submitting. Resolve the draft as it actually stands at submit time — the
+    // same guard CreateAccount.handleCreate uses — so the trading_accounts row
+    // (prop_firm/program/account_type/start_balance/currency) and the
+    // account_rule_bindings snapshot can never describe different firms/sizes.
+    const submittedBinding = libraryResolved ? resolveRuleBinding(ruleBindingDraft) : null;
+    if (libraryResolved && (!isRuleBindingDraftComplete(ruleBindingDraft) || !submittedBinding)) {
       toast({
         title: 'Vínculo de regras obrigatório',
         description: 'Complete a regra oficial e confirme os itens manuais antes de conectar.',
@@ -204,109 +223,46 @@ const Accounts = () => {
     setSaving(true);
     const gatewayUrl = import.meta.env.VITE_METAAPI_GATEWAY_URL || 'http://localhost:3001';
 
-    // Both branches below only ever close the form and refresh this page's
-    // own data on completion — never navigate away. The RuleBindingSelector
-    // already forces a completed, acknowledged binding before submit is even
-    // enabled, so by the time either branch finishes, the account (and its
-    // rule binding, when it succeeds) already exists; the trader should just
-    // see it appear here, including a degraded "Erro de autenticação" card
-    // state if MetaApi rejected the credentials, rather than being routed
-    // off this page.
-    if (libraryResolved) {
-      const result = await provisionAndConnectTradingAccount({
-        supabase,
-        userId,
-        accessToken: session.access_token,
-        gatewayUrl,
-        resolvedBinding: libraryResolved,
-        ruleBindingDraft,
-        accountName,
-        startBalance: parseFloat(initialBalanceValue(libraryResolved.accountSize.initialBalance)) || 0,
-        currency: accountCurrencyValue(libraryResolved.accountSize.initialBalance, libraryResolved.accountSize.currency),
-        accountType: libraryResolved.program.programType,
-        mt5Login,
-        mt5Server,
-        mt5Broker: brokerName,
-        mt5Password,
+    const result = await provisionAndConnectTradingAccount({
+      supabase,
+      userId,
+      accessToken: session.access_token,
+      gatewayUrl,
+      resolvedBinding: submittedBinding,
+      ruleBindingDraft: submittedBinding ? ruleBindingDraft : null,
+      accountName,
+      startBalance: submittedBinding ? parseFloat(initialBalanceValue(submittedBinding.accountSize.initialBalance)) || 0 : undefined,
+      currency: submittedBinding ? accountCurrencyValue(submittedBinding.accountSize.initialBalance, submittedBinding.accountSize.currency) : undefined,
+      accountType: submittedBinding?.program.programType,
+      mt5Login,
+      mt5Server,
+      mt5Password,
+    });
+
+    setSaving(false);
+
+    if (!result.tradingAccountId) {
+      toast({ title: 'Erro ao registrar conta', description: result.insertMessage || 'Não foi possível salvar a conta.', variant: 'destructive' });
+      return;
+    }
+
+    if (result.connectOk) {
+      toast({
+        title: 'Conta conectada',
+        description: result.bindingDeferred
+          ? 'Conta ativa. Vincule a regra da mesa quando puder para acompanhar os limites corretos.'
+          : 'Conexão e vínculo versionado de regras salvos com sucesso.',
       });
-
-      setSaving(false);
-
-      if (!result.tradingAccountId) {
-        toast({ title: 'Erro ao registrar conta', description: result.insertMessage || 'Não foi possível salvar a conta.', variant: 'destructive' });
-        return;
-      }
-
-      if (result.connectOk) {
-        toast({ title: 'Conta MetaApi registrada', description: 'Conexão e vínculo versionado de regras salvos com sucesso.' });
-      } else {
-        toast({ title: 'Conta criada, MetaApi falhou', description: result.connectMessage || 'Erro ao provisionar MetaApi', variant: 'destructive' });
-      }
-
-      if (!result.bindingOk) {
-        toast({
-          title: 'Conta criada com regra pendente',
-          description: result.bindingMessage || 'Abra a conta para concluir o vínculo de regras.',
-          variant: 'destructive',
-        });
-      }
     } else {
-      // Plain connect flow (no Library selection): the gateway creates the
-      // trading_accounts row itself when tradingAccountId is null.
-      try {
-        const res = await fetch(`${gatewayUrl}/metaapi/connect`, {
-          method: 'POST',
-          headers: gatewayJsonHeaders(session.access_token),
-          body: JSON.stringify({
-            accountName,
-            mt5Login,
-            mt5Server,
-            brokerName,
-            mt5Password,
-            tradingAccountId: null,
-            userId,
-          }),
-        });
-        const data = await res.json();
+      toast({ title: 'Conta criada, MetaApi falhou', description: result.connectMessage || 'Erro ao provisionar MetaApi', variant: 'destructive' });
+    }
 
-        if (!res.ok) {
-          setSaving(false);
-          console.error('MetaApi connection failed:', data);
-          toast({ title: 'Erro ao registrar conta', description: getConnectErrorMessage(data), variant: 'destructive' });
-          return;
-        }
-
-        if (!data?.tradingAccountId || !data?.connection?.id) {
-          setSaving(false);
-          toast({
-            title: 'Conta criada com regra pendente',
-            description: 'O gateway não retornou os identificadores necessários para salvar o vínculo.',
-            variant: 'destructive',
-          });
-        } else {
-          try {
-            await saveAccountRuleBinding({
-              userId,
-              tradingAccountId: data.tradingAccountId,
-              mt5ConnectionId: data.connection.id,
-              draft: ruleBindingDraft,
-            });
-            toast({ title: 'Conta MetaApi registrada', description: 'Conexão e vínculo versionado de regras salvos com sucesso.' });
-          } catch (error: any) {
-            toast({
-              title: 'Conta criada com regra pendente',
-              description: error?.message || 'Abra a conta para concluir o vínculo de regras.',
-              variant: 'destructive',
-            });
-          }
-        }
-        setSaving(false);
-      } catch (err: any) {
-        setSaving(false);
-        console.error('MetaApi connection error:', err);
-        toast({ title: 'Erro ao registrar conta', description: err?.message || 'Erro de conexão com o backend', variant: 'destructive' });
-        return;
-      }
+    if (!result.bindingDeferred && !result.bindingOk) {
+      toast({
+        title: 'Conta criada com regra pendente',
+        description: result.bindingMessage || 'Abra a conta para concluir o vínculo de regras.',
+        variant: 'destructive',
+      });
     }
 
     resetConnectForm();
@@ -346,19 +302,40 @@ const Accounts = () => {
       const connectionStatus = (rawConnectionStatus || 'disconnected') as Mt5ConnectionStatus;
       const mt5Status = mt5StatusConfig[connectionStatus] || mt5StatusConfig.disconnected;
       const ruleBinding = ruleBindings[account.id];
-      const propFirmName = ruleBinding?.rule_snapshot?.propFirm?.name || account.detectedPropFirm || null;
+      // Only the audited account_rule_bindings row counts as "bound".
+      // account.detectedPropFirm is a medium-confidence substring guess the
+      // gateway makes from the MT5 server name (its own detection_notes ask the
+      // trader to confirm program/phase/size), so it must never silence the
+      // binding prompt nor be rendered like a confirmed binding.
+      const bindingStatus = getAccountRuleBindingStatus(ruleBinding);
+      const boundPropFirmName = ruleBinding?.rule_snapshot?.propFirm?.name || null;
+      const detectedPropFirmName = account.detectedPropFirm || null;
+      const isRuleBound = bindingStatus.code === 'linked' && Boolean(boundPropFirmName);
+      // Genuinely bound, but the server evaluator cannot run for it. This is a
+      // known cause, so it earns a specific message instead of collapsing into
+      // the generic NO_DATA "sync me" reading.
+      const serverMonitoringGap = hasServerMonitoringGap({ account, hasActiveBinding: isRuleBound });
 
       const hasViolation = evals.some(e => e.status === 'VIOLATED');
       const hasWarning = evals.some(e => e.status === 'WARNING');
-      const healthStatus = hasViolation ? 'VIOLATED' as const : hasWarning ? 'WARNING' as const : 'SAFE' as const;
+      // No connection row or no evaluations => nothing is being monitored, so
+      // the card must say so instead of collapsing to SAFE.
+      const healthStatus: AccountHealthStatus = (!mt5Connection || evals.length === 0)
+        ? 'NO_DATA'
+        : hasViolation ? 'VIOLATED' : hasWarning ? 'WARNING' : 'SAFE';
 
-      return { account, pnl, pnlPct, isPositive, mt5Connection, connectionStatus, mt5Status, ruleBinding, propFirmName, healthStatus };
+      return {
+        account, pnl, pnlPct, isPositive, mt5Connection, connectionStatus, mt5Status,
+        ruleBinding, bindingStatus, boundPropFirmName, detectedPropFirmName, isRuleBound, healthStatus,
+        serverMonitoringGap,
+      };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accounts, ruleRows, mt5Connections, ruleBindings]);
 
   const violatedCount = accountsView.filter(v => v.healthStatus === 'VIOLATED').length;
   const warningCount = accountsView.filter(v => v.healthStatus === 'WARNING').length;
+  const noDataCount = accountsView.filter(v => v.healthStatus === 'NO_DATA').length;
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
@@ -387,7 +364,16 @@ const Accounts = () => {
                   {warningCount} em atenção
                 </span>
               )}
-              {violatedCount === 0 && warningCount === 0 && (
+              {noDataCount > 0 && (
+                <span className="inline-flex items-center gap-1.5 font-medium text-muted-foreground">
+                  <HelpCircle className="w-3.5 h-3.5" aria-hidden="true" />
+                  {noDataCount} {noDataCount === 1 ? 'conta sem monitoramento' : 'contas sem monitoramento'}
+                </span>
+              )}
+              {/* Only claim "tudo dentro dos limites" when every account is
+                  actually being evaluated — an unmonitored account is not a
+                  compliant one. */}
+              {violatedCount === 0 && warningCount === 0 && noDataCount === 0 && (
                 <span className="inline-flex items-center gap-1.5 font-medium text-success">
                   <Shield className="w-3.5 h-3.5" aria-hidden="true" />
                   Tudo dentro dos limites
@@ -422,28 +408,21 @@ const Accounts = () => {
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           onSubmit={handleConnect}
-          className="rounded-xl border border-border bg-card p-6 space-y-5"
+          className="rounded-lg border border-border bg-card p-6 space-y-5"
         >
           <h2 className="text-sm font-semibold text-foreground">Conectar conta MT5</h2>
-          <LibraryRuleSelectionNotice status={librarySelection.status} />
-          <div className="rounded-lg border border-border bg-muted/20 p-4">
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Sua conta Fortify é usada para acessar o dashboard. O login, servidor e senha MT5 são enviados somente ao backend local para provisionar a MetaApi; a senha não é exibida novamente nem salva em texto puro no Supabase. Use senha investidor/read-only quando a corretora permitir.
-            </p>
-          </div>
+          <LibraryRuleSelectionNotice
+            status={librarySelection.status}
+            invalidHint="Conecte a conta agora e vincule a regra da mesa logo em seguida."
+          />
+          <p className="text-[11px] text-muted-foreground">
+            Senha MT5 vai só pro backend, provisiona a MetaApi e não é salva em texto puro. Use senha investidor/read-only quando a corretora permitir.
+          </p>
 
-          <div className="flex items-start gap-3 rounded-lg border border-primary bg-primary/5 p-3">
-            <Cloud className="w-4 h-4 mt-0.5 text-primary" />
-            <div>
-              <div className="text-sm font-medium text-foreground">{PROVIDER_META.metaapi.label}</div>
-              <div className="text-[11px] text-muted-foreground">Sincronização cloud automática.</div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Nome da conexão</label>
-              <Input value={accountName} onChange={e => setAccountName(e.target.value)} placeholder="Ex.: FTMO 100k" required />
+              <label className="text-xs font-medium text-muted-foreground">Nome da conta</label>
+              <Input value={accountName} onChange={e => setAccountName(e.target.value)} placeholder="Ex.: 100k Challenge Express" required />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Login MT5</label>
@@ -453,11 +432,7 @@ const Accounts = () => {
               <label className="text-xs font-medium text-muted-foreground">Servidor</label>
               <Input value={mt5Server} onChange={e => setMt5Server(e.target.value)} placeholder="Ex.: ICMarketsSC-Live" required />
             </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Broker</label>
-              <Input value={brokerName} onChange={e => setBrokerName(e.target.value)} placeholder="Ex.: IC Markets" required />
-            </div>
-            <div className="space-y-1.5 md:col-span-4">
+            <div className="space-y-1.5 md:col-span-3">
               <label className="text-xs font-medium text-muted-foreground">Senha MT5</label>
               <Input
                 type="password"
@@ -467,39 +442,49 @@ const Accounts = () => {
                 autoComplete="off"
                 required
               />
-              <p className="text-[11px] text-muted-foreground">
-                Use a senha de acesso da conta MT5 fornecida pela mesa para sincronização via MetaApi.
-              </p>
             </div>
           </div>
 
-          <RuleBindingSelector
-            value={ruleBindingDraft}
-            onChange={setRuleBindingDraft}
-            platformConstraint="MT5"
-            disabled={saving}
-            initialSelection={librarySelection.status === 'valid' ? librarySelection.initialSelection : undefined}
-          />
+          {libraryResolved && (
+            <RuleBindingSelector
+              value={ruleBindingDraft}
+              onChange={setRuleBindingDraft}
+              platformConstraint="MT5"
+              disabled={saving}
+              initialSelection={librarySelection.status === 'valid' ? librarySelection.initialSelection : undefined}
+            />
+          )}
 
           <div className="flex items-center gap-3">
-            <Button type="submit" variant="solid" disabled={saving || !isRuleBindingDraftComplete(ruleBindingDraft)}>
+            <Button
+              type="submit"
+              variant="solid"
+              disabled={saving || (Boolean(libraryResolved) && !isRuleBindingDraftComplete(ruleBindingDraft))}
+            >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              Salvar
+              Conectar
             </Button>
             <Button type="button" variant="outline" onClick={resetConnectForm}>Cancelar</Button>
           </div>
+          {/* The invalid-link notice above already says the binding comes
+              later, so don't repeat it in that case. */}
+          {!libraryResolved && librarySelection.status !== 'invalid' && (
+            <p className="text-[11px] text-muted-foreground">
+              O vínculo com a regra da mesa fica pra logo em seguida, depois que a conta conectar.
+            </p>
+          )}
         </motion.form>
       )}
 
       {/* Account Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {accountsView.map(({ account, pnlPct, isPositive, mt5Connection, connectionStatus, mt5Status, propFirmName, healthStatus }) => {
+        {accountsView.map(({ account, pnlPct, isPositive, mt5Connection, connectionStatus, mt5Status, bindingStatus, boundPropFirmName, detectedPropFirmName, isRuleBound, healthStatus, serverMonitoringGap }) => {
           const Mt5StatusIcon = mt5Status.icon;
 
           return (
             <div
               key={account.id}
-              className="group rounded-xl border border-border bg-card p-5 space-y-4 cursor-pointer transition-colors hover:border-primary/30 hover:bg-accent/20 focus-within:border-primary/30"
+              className="group rounded-lg border border-border bg-card p-5 space-y-4 cursor-pointer transition-colors hover:border-primary/30 hover:bg-accent/20 focus-within:border-primary/30"
               onClick={() => navigate(`/accounts/${account.id}`)}
             >
               {/* Header: nome, mesa proprietária em destaque, saúde */}
@@ -540,13 +525,42 @@ const Accounts = () => {
                       </AlertDialogContent>
                     </AlertDialog>
                   </div>
-                  {propFirmName ? (
-                    <p className="text-xs font-medium text-primary mt-1 truncate">{propFirmName}</p>
+                  {isRuleBound ? (
+                    <div className="mt-1 space-y-0.5">
+                      <p className="text-xs font-medium text-primary truncate">{boundPropFirmName}</p>
+                      {/* The binding is real and audited — but nothing on the
+                          server evaluates it, so saying only "SEM DADOS" here
+                          would read as "sync pending" when the actual cause is
+                          known and permanent until the account also gets a
+                          legacy rule set. */}
+                      {serverMonitoringGap && (
+                        <p className="flex items-start gap-1 text-[11px] text-warning">
+                          <AlertTriangle className="w-3 h-3 shrink-0 mt-[1px]" aria-hidden="true" />
+                          <span>{SERVER_MONITORING_GAP_LABEL}</span>
+                        </p>
+                      )}
+                    </div>
                   ) : (
-                    <p className="inline-flex items-center gap-1 text-xs font-medium text-warning mt-1">
-                      <AlertTriangle className="w-3 h-3 shrink-0" aria-hidden="true" />
-                      Vincular regra da mesa
-                    </p>
+                    <div className="mt-1 space-y-0.5">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/accounts/${account.id}/rules`);
+                        }}
+                        className="inline-flex items-center gap-1 text-xs font-medium text-warning hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                      >
+                        <AlertTriangle className="w-3 h-3 shrink-0" aria-hidden="true" />
+                        {bindingStatus.actionLabel}
+                      </button>
+                      {/* The gateway's server-name guess can still be useful
+                          context, but only labelled as the guess it is. */}
+                      {bindingStatus.code === 'pending' && detectedPropFirmName && (
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {detectedPropFirmName} (detectado, não vinculado)
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
                 <StatusBadge status={healthStatus} />
@@ -573,7 +587,16 @@ const Accounts = () => {
                       </span>
                     )}
                   </>
-                ) : null}
+                ) : (
+                  /* Several gateway failure paths return before ever inserting
+                     an mt5_connections row. Rendering nothing here used to let a
+                     card show equity 0, no connection indicator at all and a
+                     green shield at the same time. */
+                  <span className="inline-flex items-center gap-1 font-semibold uppercase tracking-wider px-2 py-1 rounded-full bg-muted text-muted-foreground">
+                    <XCircle className="w-3 h-3" aria-hidden="true" />
+                    Sem conexão MT5
+                  </span>
+                )}
               </div>
 
               {/* Equity + P&L */}

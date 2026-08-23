@@ -55,6 +55,35 @@ function supabaseClientReturning(result: { data: { id: string } | null; error: {
   return { from } as any;
 }
 
+// Fast-connect client: `select()` drives the "reuse an existing active account
+// for this login+server" lookup, `insert()` the fallback creation.
+function fastConnectSupabaseClient(existing: { id: string } | null) {
+  const maybeSingle = vi.fn().mockResolvedValue({ data: existing, error: null });
+  const selectChain: any = {
+    eq: vi.fn(() => selectChain),
+    order: vi.fn(() => selectChain),
+    limit: vi.fn(() => selectChain),
+    maybeSingle,
+  };
+  const insertSingle = vi.fn().mockResolvedValue({ data: { id: 'inserted-account' }, error: null });
+  const insert = vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({ single: insertSingle }) });
+  const from = vi.fn().mockReturnValue({ select: vi.fn(() => selectChain), insert });
+  return { client: { from } as any, insert, selectChain };
+}
+
+function fastConnectParams(supabaseClient: any) {
+  return {
+    supabase: supabaseClient,
+    userId: 'user-1',
+    accessToken: 'token-1',
+    gatewayUrl: 'http://gateway.local',
+    accountName: 'Minha conta',
+    mt5Login: 'login-1',
+    mt5Server: 'server-1',
+    mt5Password: 'secret',
+  };
+}
+
 function mockBindingInsertOnce(result: { data: any; error: { message: string } | null }) {
   const single = vi.fn().mockResolvedValue(result);
   const select = vi.fn().mockReturnValue({ single });
@@ -126,5 +155,63 @@ describe('provisionAndConnectTradingAccount', () => {
     expect(result.connectOk).toBe(true);
     expect(result.bindingOk).toBe(false);
     expect(result.bindingMessage).toBeTruthy();
+  });
+
+  it('defers the audited binding and never writes one when no draft is supplied', async () => {
+    const { client, insert } = fastConnectSupabaseClient(null);
+    mockBindingInsertOnce({ data: { id: 'should-not-be-used' }, error: null });
+    // vi.restoreAllMocks() does not clear vi.fn() call history from the module
+    // mock, so reset it here before asserting it is never reached.
+    (mockedSharedSupabase.from as any).mockClear();
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({ connection: { id: 'conn-4' } }),
+    } as Response);
+
+    const result = await provisionAndConnectTradingAccount(fastConnectParams(client));
+
+    expect(result.tradingAccountId).toBe('inserted-account');
+    expect(result.connectOk).toBe(true);
+    expect(result.bindingDeferred).toBe(true);
+    // A deferred binding is not a failed one — there is nothing to retry.
+    expect(result.bindingOk).toBe(false);
+    expect(result.bindingMessage).toBeNull();
+    // The audited binding table must not be touched without an acknowledged draft.
+    expect(mockedSharedSupabase.from).not.toHaveBeenCalled();
+    // Row created with no prop_firm/program guessed from thin air.
+    expect(insert).toHaveBeenCalledWith(
+      expect.objectContaining({ prop_firm: null, program: null, broker: null }),
+    );
+  });
+
+  it('reuses an existing active account for the same login+server instead of duplicating it', async () => {
+    const { client, insert } = fastConnectSupabaseClient({ id: 'existing-account' });
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({ connection: { id: 'conn-5' } }),
+    } as Response);
+
+    const result = await provisionAndConnectTradingAccount(fastConnectParams(client));
+
+    expect(result.tradingAccountId).toBe('existing-account');
+    expect(result.reusedExistingTradingAccount).toBe(true);
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('does not reuse a row when an audited binding is supplied', async () => {
+    const { client, insert, selectChain } = fastConnectSupabaseClient({ id: 'existing-account' });
+    mockBindingInsertOnce({ data: { id: 'binding-6' }, error: null });
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({ connection: { id: 'conn-6' } }),
+    } as Response);
+
+    const result = await provisionAndConnectTradingAccount(baseParams(client));
+
+    // A resolved binding carries new audited data that must land on a fresh row.
+    expect(selectChain.maybeSingle).not.toHaveBeenCalled();
+    expect(result.reusedExistingTradingAccount).toBe(false);
+    expect(result.tradingAccountId).toBe('inserted-account');
+    expect(insert).toHaveBeenCalled();
   });
 });
