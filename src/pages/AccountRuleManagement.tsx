@@ -6,8 +6,21 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import { hydrateRuleEvaluationRows, type RuleEvaluationRow } from '@/hooks/useRuleEvaluations';
 import { BetaReadinessChecklist, BetaResponsibilityNotice } from '@/components/BetaReadinessChecklist';
-import { buildBetaChecklist, getConnectionStatusMeta, getRulesStatusMeta, getSyncErrorMessage, getSyncStatusMeta } from '@/lib/betaReadiness';
+import {
+  buildBetaChecklist,
+  getConnectionStatusMeta,
+  getRulesStatusMeta,
+  getSyncErrorMessage,
+  getSyncStatusMeta,
+  hasServerMonitoringGap,
+  SERVER_MONITORING_GAP_DESCRIPTION,
+  SERVER_MONITORING_GAP_LABEL,
+} from '@/lib/betaReadiness';
 import { gatewayJsonHeaders } from '@/lib/gateway';
+import {
+  isRuleSetSizeCompatible,
+  resolveAccountSizeForRuleSet,
+} from '@/lib/ruleSetSizeGuard';
 import { RuleBindingSelector } from '@/components/rules/RuleBindingSelector';
 import { BoundRuleEvaluationCard } from '@/components/rules/BoundRuleEvaluationCard';
 import { evaluateBoundAccountRules } from '@/lib/ruleEngine/evaluateAccountRules';
@@ -220,13 +233,12 @@ export default function AccountRuleManagement() {
   }, [accountId, user?.id]);
 
   const currentRuleSet = useMemo(() => ruleSets.find((ruleSet) => ruleSet.id === account?.rule_set_id), [account, ruleSets]);
+  const accountSizeForRules = useMemo(() => resolveAccountSizeForRuleSet(account), [account]);
   const suggestedRuleSets = useMemo(() => {
-    const accountSize = Number(account?.account_size ?? account?.start_balance ?? account?.current_balance ?? 0);
     return ruleSets
       .filter((ruleSet) => {
         const firmSlug = String(ruleSet.programs?.prop_firms?.slug ?? '');
-        const size = Number(ruleSet.account_size ?? 0);
-        const sizeMatch = !size || !accountSize || Math.abs(size - accountSize) <= 1000;
+        const sizeMatch = isRuleSetSizeCompatible(ruleSet.account_size, accountSizeForRules);
         const brokerMatch =
           firmSlug === 'generic-mt5-broker' ||
           (String(account?.detected_broker ?? '').toLowerCase().includes('easy') && firmSlug === 'easymarkets-broker-only') ||
@@ -234,7 +246,31 @@ export default function AccountRuleManagement() {
         return sizeMatch && brokerMatch;
       })
       .slice(0, 4);
-  }, [account, ruleSets]);
+  }, [account, accountSizeForRules, ruleSets]);
+  // The legacy select used to list every rule_set_version with no size filter at
+  // all. Its limits can be absolute dollar values that the gateway applies
+  // verbatim, so a version built for another account size must not be
+  // selectable here — see src/lib/ruleSetSizeGuard.ts.
+  const ruleSetOptions = useMemo(
+    () =>
+      ruleSets.map((ruleSet) => ({
+        ruleSet,
+        sizeCompatible: isRuleSetSizeCompatible(ruleSet.account_size, accountSizeForRules),
+      })),
+    [accountSizeForRules, ruleSets],
+  );
+  const hasIncompatibleRuleSets = useMemo(
+    () => ruleSetOptions.some((option) => !option.sizeCompatible),
+    [ruleSetOptions],
+  );
+  // Also covers accounts already carrying a mismatched rule_set_id from before
+  // this guard existed: the option stays visible so they can see what is bound,
+  // but saving it again is refused until they pick a compatible one (or none).
+  const selectedRuleSetSizeMismatch = useMemo(() => {
+    if (!selectedRuleSetId) return false;
+    const option = ruleSetOptions.find((item) => item.ruleSet.id === selectedRuleSetId);
+    return Boolean(option) && !option!.sizeCompatible;
+  }, [ruleSetOptions, selectedRuleSetId]);
   const groupedEvaluations = useMemo(() => {
     return evaluations.reduce<Record<string, any[]>>((groups, row) => {
       const category = categoryLabel(row.rule_instances?.rule_definitions?.category);
@@ -301,6 +337,21 @@ export default function AccountRuleManagement() {
 
   const saveRuleSet = async () => {
     if (!accountId || !user?.id) return;
+    // Last line of defense behind the disabled option/button: saving here writes
+    // rule_set_id and immediately triggers runSync(), which makes the gateway
+    // evaluate and persist a status from limits sized for a different account.
+    if (selectedRuleSetSizeMismatch) {
+      toast({
+        title: 'Modelo incompatível com o tamanho da conta',
+        description: `Este modelo foi construído para contas de ${fmtMoney(
+          ruleSets.find((ruleSet) => ruleSet.id === selectedRuleSetId)?.account_size,
+        )} e usa limites em valor absoluto. Aplicá-lo a uma conta de ${fmtMoney(
+          accountSizeForRules,
+        )} marcaria a conta como violada indevidamente. Escolha um modelo do tamanho correto.`,
+        variant: 'destructive',
+      });
+      return;
+    }
     setSaving(true);
     const selected = ruleSets.find((ruleSet) => ruleSet.id === selectedRuleSetId);
     const { error } = await (supabase
@@ -468,6 +519,9 @@ export default function AccountRuleManagement() {
           ? 'attention'
           : 'safe';
   const isMissingRuleSet = !ruleBinding && (!account.rule_set_id || account.rule_selection_status === 'unconfigured');
+  // Bound and audited, but the gateway's evaluator has no rule set version to
+  // resolve, so rule_evaluations never gets written for this account.
+  const serverMonitoringGap = hasServerMonitoringGap({ account, hasActiveBinding: Boolean(ruleBinding) });
   const isAutoGeneric = account.rule_selection_status === 'auto_generic';
   const needsReview = currentRuleSet?.review_status === 'needs_review';
   const betaChecklist = buildBetaChecklist({
@@ -583,8 +637,16 @@ export default function AccountRuleManagement() {
             </div>
             <div className="rounded-lg bg-background/70 p-3">
               <p className="text-muted-foreground">Monitoramento automático</p>
+              {/* automatic_monitoring_enabled only says the snapshot's rules are
+                  machine-checkable — it does not mean the server is checking
+                  them. Server evaluation needs a resolvable legacy rule_set_id,
+                  so claiming "habilitado" without that is an overstatement. */}
               <p className="font-medium text-foreground mt-1">
-                {ruleBinding.automatic_monitoring_enabled ? 'Habilitado para regras compatíveis' : 'Não compatível com MT5'}
+                {!ruleBinding.automatic_monitoring_enabled
+                  ? 'Não compatível com MT5'
+                  : serverMonitoringGap
+                    ? 'Somente no app — servidor não avalia'
+                    : 'Habilitado para regras compatíveis'}
               </p>
             </div>
             <div className="rounded-lg bg-background/70 p-3">
@@ -594,6 +656,15 @@ export default function AccountRuleManagement() {
               </p>
             </div>
           </div>
+          {serverMonitoringGap && (
+            <div className="rounded-lg border border-warning/30 bg-warning/5 p-3 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-warning mt-0.5 shrink-0" />
+              <div>
+                <p className="text-xs font-semibold text-foreground">{SERVER_MONITORING_GAP_LABEL}</p>
+                <p className="text-[11px] text-muted-foreground mt-1">{SERVER_MONITORING_GAP_DESCRIPTION}</p>
+              </div>
+            </div>
+          )}
         </section>
       ) : (
         <div className="space-y-3">
@@ -689,17 +760,56 @@ export default function AccountRuleManagement() {
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
             >
               <option value="">Sem regras / monitoramento broker-only</option>
-              {ruleSets.map((ruleSet) => (
-                <option key={ruleSet.id} value={ruleSet.id}>
+              {ruleSetOptions.map(({ ruleSet, sizeCompatible }) => (
+                <option
+                  key={ruleSet.id}
+                  value={ruleSet.id}
+                  disabled={!sizeCompatible}
+                  title={
+                    sizeCompatible
+                      ? undefined
+                      : `Modelo dimensionado para ${fmtMoney(ruleSet.account_size)}. Esta conta é de ${fmtMoney(accountSizeForRules)}.`
+                  }
+                >
                   {ruleSet.programs?.prop_firms?.name || 'Biblioteca'} · {ruleSet.name}
                   {ruleSet.review_status ? ` · ${ruleSet.review_status}` : ''}
+                  {Number(ruleSet.account_size ?? 0) ? ` · ${fmtMoney(ruleSet.account_size)}` : ''}
+                  {sizeCompatible ? '' : ' · incompatível com o tamanho desta conta'}
                 </option>
               ))}
             </select>
-            <button className="pill-btn pill-btn-primary" onClick={saveRuleSet} disabled={saving}>
+            <button
+              className="pill-btn pill-btn-primary"
+              onClick={saveRuleSet}
+              disabled={saving || selectedRuleSetSizeMismatch}
+            >
               {saving ? 'Salvando...' : 'Salvar regras'}
             </button>
           </div>
+          {hasIncompatibleRuleSets && (
+            <p className="text-xs text-muted-foreground">
+              Modelos construídos para outro tamanho de conta ficam desabilitados. Os limites
+              do catálogo legado são valores absolutos aplicados sem ajuste ao saldo desta
+              conta ({fmtMoney(accountSizeForRules)}), então um modelo de outro tamanho
+              marcaria a conta como violada indevidamente.
+            </p>
+          )}
+          {selectedRuleSetSizeMismatch && (
+            <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+              <div>
+                <p className="text-xs font-semibold text-foreground">
+                  Modelo incompatível com o tamanho da conta
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  O modelo selecionado foi construído para contas de{' '}
+                  {fmtMoney(ruleSetOptions.find((item) => item.ruleSet.id === selectedRuleSetId)?.ruleSet.account_size)}
+                  . Selecione um modelo compatível com {fmtMoney(accountSizeForRules)} ou
+                  &quot;Sem regras&quot; antes de salvar.
+                </p>
+              </div>
+            </div>
+          )}
           <p className="text-xs text-muted-foreground">
             Selecionado: {currentRuleSet ? `${currentRuleSet.programs?.prop_firms?.name || 'Biblioteca'} / ${currentRuleSet.name}` : 'Nenhum conjunto de regras ativo'}
             {' · '}

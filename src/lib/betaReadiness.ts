@@ -134,6 +134,38 @@ export function getSyncStatusMeta(status?: string | null, lastSyncAt?: string | 
   };
 }
 
+// Server-side rule evaluation (the gateway's evaluateRulesForConnection, which
+// writes rule_evaluations and therefore drives every real SAFE/WARNING/VIOLATED
+// verdict) only runs when trading_accounts.rule_set_id resolves to a rule set
+// version — see resolveRuleSetVersionId in services/metaapi-gateway/src/server.ts.
+// An account bound purely through account_rule_bindings has an audited,
+// versioned rule snapshot but no usable legacy rule_set_id, so nothing evaluates
+// it on the server. That is a known architectural gap, and it must be stated
+// rather than left looking like "sync just hasn't happened yet".
+const RULE_SET_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function hasServerEvaluableRuleSet(
+  account?: { ruleSetId?: string | null; rule_set_id?: string | null } | null,
+) {
+  return RULE_SET_UUID_RE.test(String(account?.ruleSetId ?? account?.rule_set_id ?? ''));
+}
+
+/**
+ * True when the account has a real active rule binding but the legacy
+ * rule_set_id plumbing that server-side evaluation depends on is not wired for
+ * it — i.e. "bound, but not monitored on the server".
+ */
+export function hasServerMonitoringGap(input: {
+  account?: { ruleSetId?: string | null; rule_set_id?: string | null } | null;
+  hasActiveBinding: boolean;
+}) {
+  return input.hasActiveBinding && !hasServerEvaluableRuleSet(input.account);
+}
+
+export const SERVER_MONITORING_GAP_LABEL = 'Sem monitoramento automático no servidor';
+export const SERVER_MONITORING_GAP_DESCRIPTION =
+  'A regra está vinculada e auditada, mas a avaliação automática no servidor ainda não roda para este vínculo. Confira os limites manualmente antes de operar.';
+
 export function getRulesStatusMeta(input: {
   account?: Partial<TradingAccount> & Record<string, unknown> | null;
   ruleSet?: RuleSetLike;

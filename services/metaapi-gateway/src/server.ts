@@ -7050,7 +7050,17 @@ fastify.post('/metaapi/sync', async (request, reply) => {
           detected_prop_firm: syncDetection.detected_prop_firm,
           detection_confidence: syncDetection.detection_confidence,
           detection_notes: syncDetection.detection_notes,
-          ...(!isUuid((tradingAccount as any).rule_set_id)
+          // Same guard POST /metaapi/connect applies. An account bound through
+          // account_rule_bindings gets rule_selection_status = 'configured' from
+          // the account_rule_bindings_sync_account_status trigger while its
+          // legacy rule_set_id stays unusable — that is expected for a
+          // binding-based account, not a missing configuration. Without the
+          // 'configured' check every sync would flip such an account back to
+          // 'unconfigured' and overwrite account_size, which makes
+          // getRulesStatusMeta render "Regras ausentes" for a correctly bound
+          // account.
+          ...(!isUuid((tradingAccount as any).rule_set_id) &&
+          (tradingAccount as any).rule_selection_status !== 'configured'
             ? {
                 rule_selection_status: 'unconfigured',
                 account_size: startBalance,

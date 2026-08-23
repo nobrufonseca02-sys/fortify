@@ -28,6 +28,14 @@ export interface RuleSetVersion {
   id: string;
   program_id: string;
   name: string;
+  /**
+   * Account size this version was built for, in account currency. Null on most
+   * seeded rows, and absent from the generated Supabase types (which predate
+   * the column). When present it is binding: the version's absolute (`value`)
+   * limits are applied verbatim by the gateway, so it must not govern an
+   * account of a different size (see src/lib/ruleSetSizeGuard.ts).
+   */
+  account_size?: number | null;
   start_date: string | null;
   end_date: string | null;
   source_url: string | null;

@@ -1,5 +1,24 @@
 import type { RuleEvaluationRow } from '@/hooks/useRuleEvaluations';
-import type { RuleEvaluation, RuleType, TradingAccount } from '@/types/fortify';
+import type { Rule, RuleEvaluation, RuleType, TradingAccount } from '@/types/fortify';
+
+// A rule key we cannot map to a known RuleType is NOT a daily-loss rule. It used
+// to be silently coerced into 'MAX_DAILY_LOSS', which fed a foreign rule's
+// current/limit values into the daily-loss and drawdown numbers on Dashboard and
+// Performance. 'UNKNOWN' is deliberately outside RuleType so no `=== 'MAX_...'`
+// lookup can ever match it: the row still shows up (its status is real and must
+// not be hidden) but never supplies a number attributed to a category we did not
+// actually recognise.
+export type MappedRuleType = RuleType | 'UNKNOWN';
+
+export interface MappedRuleEvaluation extends Omit<RuleEvaluation, 'rule'> {
+  rule: Omit<Rule, 'type'> & { type: MappedRuleType };
+  /** Raw rule_definitions.key, kept so callers can show what was unrecognised. */
+  ruleKey: string;
+}
+
+export function isRecognizedRuleType(type: MappedRuleType): type is RuleType {
+  return type !== 'UNKNOWN';
+}
 
 const RULE_KEY_TO_TYPE: Record<string, RuleType> = {
   max_daily_loss: 'MAX_DAILY_LOSS',
@@ -34,12 +53,16 @@ const RULE_KEY_TO_TYPE: Record<string, RuleType> = {
   weekend_holding_block: 'SCALPING_RULE',
 };
 
-export function mapRuleEvaluationRow(row: RuleEvaluationRow): RuleEvaluation {
+export function mapRuleEvaluationRow(row: RuleEvaluationRow): MappedRuleEvaluation {
   const definition = row.rule_instances?.rule_definitions || {};
   const ruleKey = String(definition.key || '');
-  const type = RULE_KEY_TO_TYPE[ruleKey] || 'MAX_DAILY_LOSS';
+  // No fallback category: an unmapped key stays 'UNKNOWN'. This happens for any
+  // row without a matching rule_instances/rule_definitions record — including
+  // every future binding-derived row.
+  const type: MappedRuleType = RULE_KEY_TO_TYPE[ruleKey] || 'UNKNOWN';
 
   return {
+    ruleKey,
     id: row.id,
     tradingAccountId: row.trading_account_id,
     ruleId: row.rule_instance_id,
@@ -62,7 +85,7 @@ export function mapRuleEvaluationRow(row: RuleEvaluationRow): RuleEvaluation {
   };
 }
 
-export function mapRowsForAccount(rows: RuleEvaluationRow[], accountId: string): RuleEvaluation[] {
+export function mapRowsForAccount(rows: RuleEvaluationRow[], accountId: string): MappedRuleEvaluation[] {
   return rows
     .filter(row => row.trading_account_id === accountId)
     .map(mapRuleEvaluationRow);
@@ -75,7 +98,12 @@ export function getAccountEvaluationSummary(account: TradingAccount, rows: RuleE
   const profitTarget = evals.find(e => e.rule.type === 'PROFIT_TARGET');
   const dailyRemaining = dailyLoss ? Math.max(0, dailyLoss.limitValue - dailyLoss.currentValue) : 0;
   const maxLossRemaining = totalLoss ? Math.max(0, totalLoss.limitValue - totalLoss.currentValue) : 0;
+  // Only recognised risk categories feed the risk aggregates. An 'UNKNOWN' row
+  // has no trustworthy category, so it must not move healthScore/avgRisk.
   const riskEvals = evals.filter(e => ['MAX_DAILY_LOSS', 'MAX_TOTAL_LOSS', 'TRAILING_MAX_LOSS'].includes(e.rule.type));
+  // ...but it is still a real evaluation, so it is surfaced here rather than
+  // dropped, and its VIOLATED/WARNING status below still counts.
+  const unrecognizedEvals = evals.filter(e => !isRecognizedRuleType(e.rule.type));
   const closestRule = riskEvals.length > 0 ? riskEvals.reduce((a, b) => a.progressPct > b.progressPct ? a : b) : null;
   const hasViolation = evals.some(e => e.status === 'VIOLATED');
   const hasWarning = evals.some(e => e.status === 'WARNING');
@@ -88,6 +116,7 @@ export function getAccountEvaluationSummary(account: TradingAccount, rows: RuleE
     dailyLoss,
     totalLoss,
     profitTarget,
+    unrecognizedEvals,
     dailyRemaining,
     maxLossRemaining,
     closestRule,

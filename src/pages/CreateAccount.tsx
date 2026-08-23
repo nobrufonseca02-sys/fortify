@@ -36,6 +36,7 @@ import {
   type LibraryRuleSelectionResult,
 } from '@/lib/libraryRuleSelection';
 import { provisionAndConnectTradingAccount } from '@/lib/accountProvisioning';
+import { isRuleSetSizeCompatible } from '@/lib/ruleSetSizeGuard';
 import logoFtmo from '@/assets/brands/ftmo.svg';
 import logoAlphaCapitalGroup from '@/assets/brands/alpha-capital-group.svg';
 import logoFundedNext from '@/assets/brands/fundednext.png';
@@ -297,6 +298,16 @@ const CreateAccount = () => {
   const balance = parseFloat(startBalance) || 0;
   const effectiveRisk = riskPerTrade ?? (customRisk ? parseFloat(customRisk) : 0);
 
+  // programData.version is what ends up in trading_accounts.rule_set_id, and the
+  // gateway evaluates its limits verbatim — including the absolute dollar ones.
+  // A version built for a different account size would therefore fail the
+  // account on limits that were never meant for it, so it blocks the wizard
+  // instead of being silently rescaled. See src/lib/ruleSetSizeGuard.ts.
+  const legacyRuleSetVersion = programData?.version ?? null;
+  const legacyRuleSetSize = Number(legacyRuleSetVersion?.account_size ?? 0) || null;
+  const legacyRuleSetSizeMismatch =
+    Boolean(legacyRuleSetVersion) && !isRuleSetSizeCompatible(legacyRuleSetSize, balance);
+
   // Handle incoming state from Library page
   useEffect(() => {
     const state = location.state as { firmId?: string; programId?: string; firmName?: string; programName?: string } | null;
@@ -429,7 +440,7 @@ const CreateAccount = () => {
       if (ruleSource === 'template') return rules.length > 0;
       return true;
     }
-    if (step === 1) return !!accountName && balance > 0;
+    if (step === 1) return !!accountName && balance > 0 && !legacyRuleSetSizeMismatch;
     if (step === 2) return rules.some(r => r.enabled) || Boolean(resolveRuleBinding(ruleBindingDraft));
     if (step === 3) return effectiveRisk > 0;
     if (step === 4) {
@@ -449,6 +460,17 @@ const CreateAccount = () => {
       toast({
         title: 'Vínculo de regras obrigatório',
         description: 'Complete a seleção oficial e confirme as regras manuais antes de criar a conta.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (legacyRuleSetSizeMismatch) {
+      toast({
+        title: 'Modelo incompatível com o saldo informado',
+        description: `O modelo do programa selecionado foi construído para contas de ${fmt(
+          legacyRuleSetSize ?? 0,
+        )} e usa limites em valor absoluto. Ajuste o saldo inicial ou escolha outro programa antes de criar a conta.`,
         variant: 'destructive',
       });
       return;
@@ -592,7 +614,10 @@ const CreateAccount = () => {
                           className="group relative rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5"
                         >
                           {logoImage ? (
-                            <div className="w-14 h-14 rounded-lg flex items-center justify-center border border-border bg-background p-2 mb-2">
+                            // bg-brand-chip is a fixed dark chip, not the theme-adaptive bg-background —
+                            // several of these logo assets are white-fill SVGs that disappear against
+                            // bg-background once it flips to white in light mode. See index.css.
+                            <div className="w-14 h-14 rounded-lg flex items-center justify-center border border-brand-chip-border bg-brand-chip p-2 mb-2">
                               <img src={logoImage} alt="" aria-hidden="true" className="max-h-full max-w-full object-contain" />
                             </div>
                           ) : (
@@ -641,7 +666,7 @@ const CreateAccount = () => {
                   {selectedFirm && (
                     <div className="rounded-xl border border-border bg-card p-4 mb-4 flex items-center gap-4">
                       {FIRM_LOGO_IMAGES[selectedFirm.slug] ? (
-                        <div className="w-14 h-14 rounded-lg flex items-center justify-center border border-border bg-background p-2 flex-shrink-0">
+                        <div className="w-14 h-14 rounded-lg flex items-center justify-center border border-brand-chip-border bg-brand-chip p-2 flex-shrink-0">
                           <img src={FIRM_LOGO_IMAGES[selectedFirm.slug]} alt="" aria-hidden="true" className="max-h-full max-w-full object-contain" />
                         </div>
                       ) : (
@@ -757,6 +782,13 @@ const CreateAccount = () => {
                               </h4>
                               <span className="text-[10px] px-2 py-0.5 rounded-full bg-success/15 text-success ml-auto">Pronto</span>
                             </div>
+                            {legacyRuleSetSize ? (
+                              <p className="text-[11px] text-muted-foreground">
+                                Modelo dimensionado para contas de {fmt(legacyRuleSetSize)}. Use o
+                                mesmo saldo inicial na próxima etapa — os limites em valor absoluto
+                                não são reescalados.
+                              </p>
+                            ) : null}
                             <div className="flex flex-wrap gap-2">
                               {rules.filter(r => r.enabled).map((rule, i) => (
                                 <span key={i} className="text-[10px] px-2 py-1 rounded-lg bg-muted text-foreground flex items-center gap-1">
@@ -813,6 +845,22 @@ const CreateAccount = () => {
                 <input value={accountType} onChange={e => setAccountType(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Ex: Challenge Phase 1" />
               </div>
             </div>
+
+            {legacyRuleSetSizeMismatch && (
+              <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 flex items-start gap-3">
+                <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Modelo incompatível com o saldo informado</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    O modelo &quot;{legacyRuleSetVersion?.name}&quot; foi construído para contas de{' '}
+                    {fmt(legacyRuleSetSize ?? 0)} e usa limites em valor absoluto, aplicados sem
+                    ajuste ao saldo da conta. Com {fmt(balance)} sua conta seria marcada como
+                    violada indevidamente. Ajuste o saldo inicial ou volte à etapa Biblioteca e
+                    escolha um programa do tamanho correto.
+                  </p>
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
 
