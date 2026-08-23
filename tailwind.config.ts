@@ -66,6 +66,8 @@ export default {
           foreground: "hsl(var(--info-foreground))",
         },
         "surface-elevated": "hsl(var(--surface-elevated))",
+        "brand-chip": "hsl(var(--brand-chip-bg))",
+        "brand-chip-border": "hsl(var(--brand-chip-border))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",

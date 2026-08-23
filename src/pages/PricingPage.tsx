@@ -237,7 +237,7 @@ export default function PricingPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-5">
-      <div className="rounded-2xl hero-surface p-5 md:p-6 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+      <div className="hero-surface p-5 md:p-6 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div className="max-w-2xl">
           <p className="eyebrow mb-2">Planos Fortify</p>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">Escolha o plano da sua operação</h1>
@@ -253,7 +253,7 @@ export default function PricingPage() {
       </div>
 
       {!billingEnabled && (
-        <div className="rounded-xl border border-warning/30 bg-warning/5 p-4">
+        <div className="rounded-lg border border-warning/30 bg-warning/5 p-4">
           <p className="text-sm font-medium text-foreground">Checkout Stripe desativado localmente</p>
           <p className="text-xs text-muted-foreground mt-1">
             Configure `VITE_BILLING_ENABLED=true` no frontend e `STRIPE_SECRET_KEY` no gateway para criar sessões reais.
@@ -262,7 +262,7 @@ export default function PricingPage() {
       )}
 
       {(checkoutError || checkoutNotice) && (
-        <div className={`rounded-xl border p-4 ${checkoutError ? 'border-destructive/35 bg-destructive/10' : 'border-primary/30 bg-primary/10'}`}>
+        <div className={`rounded-lg border p-4 ${checkoutError ? 'border-destructive/35 bg-destructive/10' : 'border-primary/30 bg-primary/10'}`}>
           <p className="text-sm font-medium text-foreground">
             {checkoutError ? 'Checkout indisponível' : 'Checkout Stripe'}
           </p>
@@ -314,7 +314,7 @@ export default function PricingPage() {
           };
 
           return (
-            <section key={plan.id} className={`rounded-xl border bg-card p-5 space-y-5 ${plan.highlighted ? 'border-primary/50 shadow-lg shadow-primary/5' : 'border-border'}`}>
+            <section key={plan.id} className={`rounded-lg border bg-card p-5 space-y-5 ${plan.highlighted ? 'border-primary/50 shadow-lg shadow-primary/5' : 'border-border'}`}>
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
@@ -361,7 +361,7 @@ export default function PricingPage() {
         })}
       </div>
 
-      <section className="rounded-xl border border-border bg-card p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+      <section className="rounded-lg border border-border bg-card p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <PlusCircle className="h-5 w-5 text-primary" />

@@ -23,6 +23,12 @@ export function TradingViewMarkIcon({ className = "" }: { className?: string }) 
   );
 }
 
+// Hardcodes text-white — intentionally, not adaptive. Its one call site (the modal
+// header below) sits on bg-[#05060a]/bg-[#070914], which are fixed hex colors, not
+// bg-background/bg-card — that surface never flips to white in light mode, so the
+// white text stays legible. If this component is ever reused on a theme-adaptive
+// surface, it needs the same fixed-chip treatment as TradingViewMarkIcon's other
+// call sites (see the floating button below and RiskCalculator.tsx).
 function TradingViewLogo({ className = "", size = "button" }: { className?: string; size?: "button" | "header" }) {
   const iconClassName = size === "header" ? "h-8 w-12" : "h-7 w-10";
   const textClassName = size === "header" ? "text-[26px]" : "text-[22px]";
@@ -58,10 +64,14 @@ export function TradingViewProvider({ children }: { children: React.ReactNode })
   return (
     <TradingViewContext.Provider value={value}>
       {children}
+      {/* bg-[#131722] is TradingView's own dark navy (matches the fixed chip already used
+          around this same icon in RiskCalculator.tsx) — fixed on purpose, not bg-card,
+          because TradingViewMarkIcon is a white-on-transparent asset that disappears
+          against bg-card once it flips to white in light mode. */}
       <button
         type="button"
         onClick={() => openChart()}
-        className="fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-border bg-card shadow-md transition-colors hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+        className="fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-[#131722] shadow-md transition-colors hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
         title="Abrir gráfico TradingView"
         aria-label="Abrir gráfico TradingView"
       >

@@ -463,7 +463,7 @@ function Dashboard() {
       <motion.header
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl hero-surface p-5 md:p-6"
+        className="hero-surface p-5 md:p-6"
       >
         <p className="eyebrow mb-3">Console operacional</p>
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">Painel de saúde das contas</h1>
@@ -473,7 +473,7 @@ function Dashboard() {
       </motion.header>
 
       {checkoutSuccess && (
-        <div className="rounded-xl border border-success/25 bg-success/10 p-4">
+        <div className="rounded-lg border border-success/25 bg-success/10 p-4">
           <p className="text-sm font-semibold text-foreground">
             {checkoutConfirming ? 'Confirmando pagamento com a Stripe...' : checkoutMessage || 'Pagamento recebido. Seu plano será ativado em instantes.'}
           </p>
@@ -481,7 +481,7 @@ function Dashboard() {
       )}
 
       {!hasActivePlan && (
-        <section className="rounded-xl border border-warning/25 bg-warning/5 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <section className="rounded-lg border border-warning/25 bg-warning/5 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <p className="text-sm text-foreground">Escolha um plano para liberar o monitoramento de contas.</p>
           <button type="button" onClick={() => navigate('/pricing')} className="pill-btn pill-btn-primary">
             Ver planos
@@ -491,7 +491,7 @@ function Dashboard() {
 
       <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
         {summaryCards.map((card) => (
-          <div key={card.label} className="rounded-xl border border-border bg-card p-4 min-h-[104px]">
+          <div key={card.label} className="rounded-lg border border-border bg-card p-4 min-h-[104px]">
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{card.label}</p>
             <p className="text-lg font-bold text-foreground mt-3">{card.value}</p>
             {'detail' in card && card.detail && <p className="text-[11px] text-muted-foreground mt-1 truncate">{card.detail}</p>}
@@ -500,7 +500,7 @@ function Dashboard() {
       </section>
 
       {accounts.length === 0 ? (
-        <section className="rounded-2xl border border-border bg-card p-6 text-center">
+        <section className="rounded-lg border border-border bg-card p-6 text-center">
           <Shield className="w-9 h-9 text-primary mx-auto mb-3" />
           <p className="text-sm font-semibold text-foreground">Nenhuma conta MT5 conectada ainda.</p>
           <button type="button" onClick={() => navigate('/mt5')} className="pill-btn pill-btn-primary mt-4">
@@ -508,7 +508,7 @@ function Dashboard() {
           </button>
         </section>
       ) : (
-        <section className="rounded-2xl border border-border bg-card overflow-hidden">
+        <section className="rounded-lg border border-border bg-card overflow-hidden">
           <div className="p-5 border-b border-border/60">
             <h2 className="text-sm font-bold text-foreground">Saúde por conta</h2>
           </div>
@@ -537,7 +537,7 @@ function Dashboard() {
       )}
 
       <section className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="rounded-lg border border-border bg-card overflow-hidden">
           <div className="p-5 border-b border-border/60">
             <h2 className="text-sm font-bold text-foreground">Últimos trades</h2>
             <p className="text-xs text-muted-foreground mt-1">Histórico recente será exibido com base nas sincronizações MT5.</p>
@@ -574,7 +574,7 @@ function Dashboard() {
           )}
         </div>
 
-        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="rounded-lg border border-border bg-card overflow-hidden">
           <div className="p-5 border-b border-border/60">
             <h2 className="text-sm font-bold text-foreground">Análise rápida por ativo</h2>
             <p className="text-xs text-muted-foreground mt-1">Leitura simples de exposição e prejuízo usando dados já sincronizados.</p>
@@ -604,7 +604,7 @@ function Dashboard() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-border bg-card overflow-hidden">
+      <section className="rounded-lg border border-border bg-card overflow-hidden">
         <div className="p-5 border-b border-border/60">
           <h2 className="text-sm font-bold text-foreground">Checklist pré-trade</h2>
           <p className="text-xs text-muted-foreground mt-1">Confirme os pontos críticos antes de abrir uma nova operação.</p>
@@ -615,7 +615,7 @@ function Dashboard() {
               <ChecklistRow key={item.label} item={item} />
             ))}
           </div>
-          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+          <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
             <p className="text-[11px] uppercase tracking-wide text-primary font-medium">Recomendação</p>
             <p className="text-sm font-semibold text-foreground mt-2">{preTradeChecklist.recommendation}</p>
           </div>
@@ -633,7 +633,7 @@ function Dashboard() {
 
 function AssetMetric({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <div className="rounded-xl border border-border/60 bg-background/30 p-3">
+    <div className="rounded-lg border border-border/60 bg-background/30 p-3">
       <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className="text-sm font-bold text-foreground mt-2">{value}</p>
       <p className="text-[11px] text-muted-foreground mt-1">{detail}</p>
@@ -646,7 +646,7 @@ function ChecklistRow({ item }: { item: ChecklistItem }) {
   const Icon = style.icon;
 
   return (
-    <div className="rounded-xl border border-border/60 bg-background/30 p-3">
+    <div className="rounded-lg border border-border/60 bg-background/30 p-3">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-foreground">{item.label}</p>

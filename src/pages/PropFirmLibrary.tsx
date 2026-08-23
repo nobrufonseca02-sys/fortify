@@ -256,7 +256,11 @@ function FirmCard({ name, programs, onSelect }: { name: PropFirmName; programs: 
       className="group flex min-h-36 flex-col justify-between rounded-lg border border-border bg-card/60 p-4 text-left transition-[color,background-color,border-color] duration-150 hover:border-primary/55 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:border-border disabled:hover:bg-card/60"
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="flex h-9 max-w-[132px] min-w-9 items-center justify-center rounded-md border border-border bg-background px-2 text-primary">
+        {/* bg-brand-chip / border-brand-chip-border are fixed dark, not theme-adaptive —
+            most of the imported firm logos above are single-color (white-fill) SVGs/PNGs
+            that would disappear against an adaptive bg-background in light mode. See the
+            --brand-chip-bg comment in index.css. */}
+        <div className="flex h-9 max-w-[132px] min-w-9 items-center justify-center rounded-md border border-brand-chip-border bg-brand-chip px-2 text-primary">
           {logo ? (
             <img src={logo} alt="" aria-hidden="true" className="max-h-5 w-auto max-w-[108px] object-contain" />
           ) : (
@@ -548,7 +552,7 @@ export default function PropFirmLibrary() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-7 px-4 py-6 pb-32 sm:px-6 lg:px-8">
-      <div className="rounded-2xl hero-surface p-7 md:p-10 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+      <div className="hero-surface p-7 md:p-10 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
         <div className="max-w-2xl">
           <p className="eyebrow mb-4">Consulta oficial</p>
           <h1 className="display-editorial-sm text-foreground">

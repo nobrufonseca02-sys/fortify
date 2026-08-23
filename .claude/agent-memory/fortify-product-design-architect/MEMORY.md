@@ -1,2 +1,6 @@
 - [Design token system](project_design_token_system.md) — state of the black/white/blue palette after the 2026-08-01 sitewide redesign; what's still unfixed (AccountRules.tsx dead page, unused decorative components)
 - [Density page judgment calls](feedback_density_pages.md) — why PropFirmLibrary/Accounts info architecture was kept as-is (already correct), only palette changed
+- [Risk Calculator redesign](project_risk_calculator_redesign.md) — trading-console layout for RiskCalculator.tsx; 2026-08-16: dropped badge/pill vocabulary that still read as "Lovable", fixed radius scale, added exception-first coloring
+- [Identity derived from mark](project_identity_derived_from_mark.md) — 2026-08-16: formalized index.css tokens as explicit translations of FortifyMark's geometry; fixed hero-surface/Card radius+shadow drift; .card-premium in MT5Dashboard.tsx still broken (next-pass candidate)
+- [AuthPage redesign](project_authpage_redesign.md) — 2026-08-17: closed the AuthPage.tsx drift item (slate-* colors, rounded-[1.75rem]); added reduced-motion guards for Motion (CSS rule doesn't cover it); .card-premium still the next candidate
+- [Light mode logo sweep](project_light_mode_logo_sweep.md) — 2026-08-17: fixed white-only brand assets (TradingView mark, prop-firm logos) vanishing on bg-background/bg-card in light mode; new --brand-chip token in index.css

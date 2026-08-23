@@ -5,11 +5,30 @@
 @tailwind utilities;
 
 /*
-  FORTIFY design tokens — black / white structural base, single blue accent.
-  Neutrals are pure gray (no hue tint) so surfaces stack cleanly; --primary is
-  the only accent used for actions, links and focus. Status colors (success/
-  warning/destructive/info) stay hue-distinct from the accent and from each
-  other on purpose — this is a risk product, state must never be color-blind.
+  FORTIFY visual identity — derived from the mark (src/components/brand/FortifyMark.tsx),
+  not from a color extracted out of it. The mark is two flat polygons, hard 0°/90°-adjacent
+  angles, no curves, drawn in `currentColor` with no color of its own — a monochromatic,
+  structural, "built" form (fortress/shield/F). Every token below is a translation of that
+  form language into UI, not a decoration layered on top of it:
+
+  - Monochromatic-first, one accent: black/white does the structural work (background,
+    surfaces, text, borders) exactly like the mark does; --primary (blue) is the ONE color
+    added on top, and only for actions/links/focus — same restraint as the mark using
+    currentColor instead of carrying its own palette.
+  - Small, consistent radius, never soft: the mark has zero curvature. A UI can't run at
+    literal 0px (touch targets, legibility) without feeling hostile, so --radius translates
+    "hard-angled" into "as tight as usable" — 8px, one step, applied uniformly. This is a
+    deliberate translation, not a literal one; see the radius-scale note below.
+  - Flat surfaces, no soft/ambient glow: the mark is two solid fills, no gradient, no drop
+    shadow. Elevation in the product comes from the --surface-0..3 step scale + a 1px
+    border, never from blur or radial glow (see "Restrained component layer" below).
+  - Numeric data in a dedicated mono face (JetBrains Mono): the mark's precision is
+    geometric; on financial figures, precision is legibility — tabular figures prevent
+    digit misreads on balances/limits, the one place FORTIFY can least afford ambiguity.
+  - Status colors (success/warning/destructive/info) stay hue-distinct from the accent and
+    from each other on purpose — this is a risk product, state must never be color-blind.
+
+  Neutrals are pure gray (no hue tint) so surfaces stack cleanly.
 */
 @layer base {
   :root {
@@ -42,6 +61,12 @@
     --input: 0 0% 16%;
     --ring: 217 91% 60%;
 
+    /* Radius scale — capped here, one step, tied to the mark's hard angles (see identity
+       comment above). `tailwind.config.ts` only remaps rounded-lg/-md/-sm to this token;
+       Tailwind's default rounded-xl/-2xl/-3xl (12px/16px/24px) are NOT wired to --radius —
+       using them on a structural surface (card, panel, section, form) is drift, not a
+       valid "bigger" option. rounded-full stays available and intentional for pills/
+       avatars/status dots (see .pill-btn) — full-round reads as a token, not a container. */
     --radius: 0.5rem;
 
     /* Status palette — kept hue-distinct from --primary and each other */
@@ -72,6 +97,17 @@
     --font-display: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --font-body: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+    /* Fixed-color chip for embedding third-party brand marks (prop-firm logos, etc.)
+       whose source asset is hardcoded to a single color — most commonly white-on-
+       transparent. --background/--card/--surface-* flip with the theme (white in
+       light mode), which makes a white-only asset disappear; we can't recolor someone
+       else's logo to fix that, so instead the chip that holds it gets a small,
+       constant dark backing that reads correctly in both themes. Deliberately NOT
+       overridden in the light-theme block below — that's the point. Only use this for
+       logo/wordmark chips; it is not a general-purpose surface token. */
+    --brand-chip-bg: 0 0% 9%;
+    --brand-chip-border: 0 0% 20%;
   }
 
   :root[data-theme='light'] {
@@ -165,13 +201,22 @@
   Restrained component layer. Every surface here is a flat fill + 1px border
   from the token scale above — no gradients, no glow, no blur-as-decoration.
   Blue (--primary) is reserved for actions, links and focus; it never fills a
-  whole panel or headline.
+  whole panel or headline. Elevation is the --surface-0..3 step scale, not
+  box-shadow; box-shadow is reserved for things that actually float above the
+  page flow (dialogs, popovers, toasts, a fixed overlay button) — never for a
+  card that just sits in the layout. Icons follow lucide-react's default 2px
+  stroke at 14/16/20px (h-3.5/h-4/h-5) to match the mark's uniform line weight;
+  don't mix in a second icon set or a bolder stroke.
 */
 @layer utilities {
-  /* Flat elevated panel — replaces the old radial-glow "hero-surface" */
+  /* Flat elevated panel — replaces the old radial-glow "hero-surface".
+     border-radius is baked in here (not left to a `rounded-*` utility at the
+     call site) so every hero-surface gets the same --radius by construction —
+     see the radius-scale note above. */
   .hero-surface {
     background: hsl(var(--surface-1));
     border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
   }
 
   /* Header / overlay surface — solid fill, only enough blur to read as "above" content */
