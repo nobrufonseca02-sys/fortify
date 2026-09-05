@@ -27,6 +27,12 @@ const RuleManager = lazy(() => import("./pages/RuleManager"));
 const Performance = lazy(() => import("./pages/Performance"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const PricingPage = lazy(() => import("./pages/PricingPage"));
+const SalesLandingPage = lazy(() => import("./pages/SalesLandingPage"));
+const ComoFuncionaPage = lazy(() => import("./pages/landing/ComoFuncionaPage"));
+const RecursosPage = lazy(() => import("./pages/landing/RecursosPage"));
+const MesasPage = lazy(() => import("./pages/landing/MesasPage"));
+const FaqPage = lazy(() => import("./pages/landing/FaqPage"));
+const QuemSomosPage = lazy(() => import("./pages/landing/QuemSomosPage"));
 const BlogIndex = lazy(() => import("./pages/BlogIndex"));
 const BlogPost = lazy(() => import("./pages/BlogPost"));
 const SubscriptionManagementPage = lazy(() => import("./pages/SubscriptionManagementPage"));
@@ -148,7 +154,10 @@ function ProtectedRoutes() {
     <AppLayout>
       <Suspense fallback={<AuthLoadingScreen />}>
         <Routes>
-          <Route path="/" element={<Dashboard />} />
+          {/* Biblioteca de Mesas is the first thing a trader sees on entry —
+              Dashboard moves to its own path, reached via the button on the
+              library page (and the sidebar). */}
+          <Route path="/" element={<PropFirmLibrary />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/calculator" element={<Navigate to="/risk-calculator" replace />} />
           <Route path="/risk-calculator" element={<RiskCalculator />} />
@@ -160,10 +169,10 @@ function ProtectedRoutes() {
           <Route path="/accounts/:id/coach" element={<AccountCoach />} />
           <Route path="/accounts/:accountId/rules" element={<AccountRuleManagement />} />
           <Route path="/performance" element={<Performance />} />
-          <Route path="/rules" element={<Navigate to="/library" replace />} />
+          <Route path="/rules" element={<Navigate to="/" replace />} />
           <Route path="/rules/demo" element={<RuleEngineDemo />} />
           <Route path="/rules/manage" element={<RuleManager />} />
-          <Route path="/library" element={<PropFirmLibrary />} />
+          <Route path="/library" element={<Navigate to="/" replace />} />
           <Route path="/integrations/mt5" element={<Navigate to="/mt5" replace />} />
           <Route path="/mt5" element={<Mt5Redirect />} />
           <Route path="/mt5/:connectionId" element={<MT5Dashboard />} />
@@ -213,6 +222,16 @@ function AppContent() {
     <BrowserRouter>
       <Suspense fallback={<AuthLoadingScreen />}>
         <Routes>
+          <Route path="/vendas" element={<SalesLandingPage />} />
+          <Route path="/vendas/como-funciona" element={<ComoFuncionaPage />} />
+          <Route path="/vendas/recursos" element={<RecursosPage />} />
+          <Route path="/vendas/mesas" element={<MesasPage />} />
+          <Route path="/vendas/faq" element={<FaqPage />} />
+          <Route path="/vendas/quem-somos" element={<QuemSomosPage />} />
+          {/* Aliases em inglês: rotas canônicas são as em português (convenção
+              já existente em /vendas/*), estas existem só para links externos. */}
+          <Route path="/about" element={<Navigate to="/vendas/quem-somos" replace />} />
+          <Route path="/how-it-works" element={<Navigate to="/vendas/como-funciona" replace />} />
           <Route path="/pricing" element={<PricingRoute />} />
           <Route path="/blog" element={<BlogIndex />} />
           <Route path="/blog/:slug" element={<BlogPost />} />
