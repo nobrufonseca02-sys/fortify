@@ -5,7 +5,6 @@ import { CoverflowCarousel, type CoverflowSlide } from '@/components/ui/coverflo
 import {
   PublicCard,
   PublicClosingCta,
-  PublicPageHeader,
   PublicSection,
   PublicShell,
   ScrollReveal,
@@ -84,11 +83,10 @@ export default function MesasPage() {
 
   return (
     <PublicShell>
-      <PublicPageHeader
-        eyebrow="Catálogo auditado"
-        title={`${featured.length} mesas proprietárias já mapeadas`}
-        description="Cada mesa tem as regras extraídas da fonte oficial e registradas com data de revisão. Escolha uma para ver o que ela oferece."
-      />
+      {/* Título só para leitor de tela e indexação: o cabeçalho visível foi
+          retirado a pedido, mas uma página pública sem nenhum h1 perde a
+          âncora de documento. */}
+      <h1 className="sr-only">{`${featured.length} mesas proprietárias suportadas pelo Fortify`}</h1>
 
       <PublicSection>
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
