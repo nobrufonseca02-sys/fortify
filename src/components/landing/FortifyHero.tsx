@@ -59,60 +59,68 @@ type OrbitItem = {
 };
 
 /**
- * SISTEMA ORBITAL DO HERO
+ * SISTEMA ORBITAL DO HERO — geometria derivada do exemplo de referência.
  *
- * Esta é a geometria anterior, retomada a pedido. A tentativa seguinte
- * (elipse 0,34 num container de 220vw, com véu radial no centro) deixava as
- * linhas mais amplas, mas o véu apagava justamente os anéis internos — que
- * são os que dão a leitura de "sistema" nesta escala. Aqui as órbitas são
- * grandes circunferências levemente achatadas: só os arcos laterais entram
- * na tela, o que produz as curvas verticais da referência.
+ * Medidas tiradas do exemplo: achatamento ry/rx ≈ 0,6, anéis com espaçamento
+ * UNIFORME, e as marcas em 5 pares espelhados nos ângulos 8°, 346°, 28°,
+ * 312° e 46° do lado direito (com o espelho em 180−ângulo à esquerda).
  *
- * `RING_FLATTEN` 0,78 é um achatamento discreto, calibrado para manter os
- * chips diagonais dentro da altura útil do miolo — com 0,88 o par mais
- * diagonal (40,7° do horizontal) não caberia em nenhum anel.
+ * A regra que resolve "linha não pode passar por cima das palavras" é
+ * estrutural, não um véu por cima: o PRIMEIRO anel desenhado tem que CONTER
+ * a caixa de texto inteira. O texto vive no vazio central, dentro do anel —
+ * é assim que o exemplo se comporta. Medida real da nossa caixa (medida no
+ * navegador): 472×435 px, ou seja semi-eixos de 236×218.
+ *
+ * Verificado por solver em 1024/1280/1440/1920px:
+ *   - contenção do texto pelo 1º anel: pior caso 0,88 (≤1 = contém)
+ *   - todos os anéis ultrapassam a meia-tela → a órbita cobre a página
+ *   - nenhum chip fora do viewport, fora da faixa central ou sobre o texto
+ *   - desvio angular total vs. exemplo: 13° somando os 5 pares
+ * Mexer em qualquer número aqui exige rodar a verificação de novo.
  */
-const RING_FLATTEN = 0.78;
-const ORBIT_CONTAINER_WIDTH = 'w-[min(1120px,100vw)]';
-const ORBIT_RINGS = [28, 34.5, 41, 47.5, 54, 61, 68];
+const RING_FLATTEN = 0.6;
+const ORBIT_CONTAINER_WIDTH = 'w-[min(1700px,105vw)]';
+const ORBIT_RINGS = [45, 50, 55, 60, 65, 70, 75];
 
 /**
- * Os dois segmentos de arco azuis da referência — um à esquerda e um à
- * direita, sobrepostos às linhas cinzas.
+ * Os dois arcos de acento do exemplo, espelhados no anel 50% — na faixa
+ * angular que continua dentro do viewport até em 1024px.
  */
 const ACCENT_ARCS = [
-  { rx: 34.5, from: 191, to: 209 },
-  { rx: 41, from: 331, to: 352 },
+  { rx: 50, from: 200, to: 218 },
+  { rx: 50, from: 322, to: 340 },
 ];
 
 /**
- * Marcas em órbita, em 5 pares espelhados: cada logo da direita tem sua
- * contraparte à esquerda no mesmo anel, no ângulo espelhado. Os ângulos são
- * os medidos na referência, remapeados para a faixa 28%–47,5% porque nosso
- * título é bem mais longo que o dela.
+ * Marcas em órbita, nos 5 pares espelhados do exemplo.
  *
- * `darkIcon` marca os app-icons que vêm com fundo escuro: eles passam por
+ * Dois pares no anel 45%, dois no 50% e um no 55% — o exemplo também
+ * concentra as marcas numa faixa de anéis, em vez de uma por anel.
+ *
+ * `darkIcon` marca os app-icons que vêm com fundo escuro: passam por
  * grayscale+invert+contraste e viram símbolo preto sobre o branco do chip,
  * em vez de um disco preto dentro do círculo.
  */
 const ORBIT_ITEMS: OrbitItem[] = [
-  // Anel 28% — par do Meta/Figma na referência (184,8° / 355,2°)
-  { key: 'the5ers', label: 'The5ers', icon: iconThe5ers, rx: 28, angle: 355.2 },
-  { key: 'alphacapital', label: 'Alpha Capital Group', icon: iconAlphaCapital, rx: 28, angle: 184.8, darkIcon: true },
+  // Anel 45% — par quase horizontal (alvo 8° no exemplo)
+  { key: 'the5ers', label: 'The5ers', icon: iconThe5ers, rx: 45, angle: 13 },
+  { key: 'alphacapital', label: 'Alpha Capital Group', icon: iconAlphaCapital, rx: 45, angle: 167, darkIcon: true },
 
-  // Anel 34,5% — par do cubo/Google Ads (24,1° / 155,9°)
-  { key: 'topstep', label: 'Topstep', icon: iconTopstep, rx: 34.5, angle: 24.1, darkIcon: true },
-  { key: 'google', label: 'Google', icon: iconGoogle, rx: 34.5, angle: 155.9 },
+  // Anel 45% — par logo acima da horizontal (alvo 346°)
+  { key: 'ftmo', label: 'FTMO', icon: iconFtmo, rx: 45, angle: 346, darkIcon: true },
+  { key: 'e8', label: 'E8 Markets', icon: iconE8, rx: 45, angle: 194, darkIcon: true },
 
-  // Anel 41% — dois pares, como na referência, onde 33,7% e 35,4% quase coincidem
-  { key: 'apex', label: 'Apex Trader Funding', icon: iconApex, rx: 41, angle: 319.2, darkIcon: true },
-  { key: 'hantec', label: 'Hantec Trader', icon: iconHantec, rx: 41, angle: 220.8 },
-  { key: 'ftmo', label: 'FTMO', icon: iconFtmo, rx: 41, angle: 346.1, darkIcon: true },
-  { key: 'e8', label: 'E8 Markets', icon: iconE8, rx: 41, angle: 193.9, darkIcon: true },
+  // Anel 50% — par abaixo da horizontal (alvo 28°)
+  { key: 'topstep', label: 'Topstep', icon: iconTopstep, rx: 50, angle: 29, darkIcon: true },
+  { key: 'google', label: 'Google', icon: iconGoogle, rx: 50, angle: 151 },
 
-  // Anel 47,5% — par do gradiente/Mailchimp (5,4° / 174,6°)
-  { key: 'tradingview', label: 'TradingView', icon: iconTradingView, rx: 47.5, angle: 5.4, darkIcon: true },
-  { key: 'fxify', label: 'FXIFY', icon: iconFxify, rx: 47.5, angle: 174.6, darkIcon: true },
+  // Anel 50% — par diagonal superior (alvo 312°)
+  { key: 'apex', label: 'Apex Trader Funding', icon: iconApex, rx: 50, angle: 314, darkIcon: true },
+  { key: 'hantec', label: 'Hantec Trader', icon: iconHantec, rx: 50, angle: 226 },
+
+  // Anel 55% — par diagonal inferior (alvo 46°)
+  { key: 'tradingview', label: 'TradingView', icon: iconTradingView, rx: 55, angle: 41, darkIcon: true },
+  { key: 'fxify', label: 'FXIFY', icon: iconFxify, rx: 55, angle: 139, darkIcon: true },
 ];
 
 /**
@@ -278,19 +286,26 @@ function OrbitField() {
   return (
     <div
       aria-hidden="true"
-      /* A máscara faz anéis e chips desvanecerem embaixo, para não passarem
-         por cima da barra de logos monocromáticas — o mesmo degradê da
-         referência. Duplicada com prefixo -webkit- por causa do Safari. */
-      style={{
-        maskImage: 'linear-gradient(to bottom, #000 0%, #000 58%, transparent 90%)',
-        WebkitMaskImage: 'linear-gradient(to bottom, #000 0%, #000 58%, transparent 90%)',
-      }}
       className={cn(
         'pointer-events-none absolute left-1/2 top-1/2 hidden aspect-square -translate-x-1/2 -translate-y-1/2 lg:block',
         ORBIT_CONTAINER_WIDTH,
       )}
     >
-      <svg viewBox="0 0 100 100" className="h-full w-full overflow-visible">
+      {/* A máscara vale só para as LINHAS: o degradê apaga os anéis antes da
+          barra de logos monocromáticas, como no exemplo. Aplicada no container
+          ela também lavava os chips de baixo, que caem dentro do degradê.
+          O container é quadrado e do tamanho da largura, então a base da faixa
+          visível cai sempre perto de 75% da altura dele (74,7% em 1440, 75,5%
+          em 1024, 77,3% em 1920) — daí os stops em 64% e 76%.
+          Duplicada com prefixo -webkit- por causa do Safari. */}
+      <svg
+        viewBox="0 0 100 100"
+        className="h-full w-full overflow-visible"
+        style={{
+          maskImage: 'linear-gradient(to bottom, #000 0%, #000 64%, transparent 76%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, #000 0%, #000 64%, transparent 76%)',
+        }}
+      >
         {ORBIT_RINGS.map((rx) => (
           <ellipse
             key={rx}
