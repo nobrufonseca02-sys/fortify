@@ -201,9 +201,19 @@ function PricingRoute() {
   return <PricingPage />;
 }
 
-function AuthGuard() {
+/** Exportado para teste: é ele que decide se /auth abre a tela ou manda
+ *  para o painel, e foi exatamente aí que o CTA de cadastro quebrava. */
+export function AuthGuard() {
   const { session } = useAuth();
-  if (session) {
+  // Pedido explícito de abrir a tela de autenticação (veio de um CTA do
+  // site). Sem isso, quem já tem sessão é mandado direto para o painel e
+  // nunca consegue chegar na tela — nem para entrar com outra conta.
+  //
+  // Lido do router, e não de window.location: dentro de uma rota é o router
+  // que tem a URL corrente.
+  const { search } = useLocation();
+  const pediuTelaDeAuth = new URLSearchParams(search).has('intent');
+  if (session && !pediuTelaDeAuth) {
     const intendedPlan = window.sessionStorage.getItem('intended_plan_slug') || window.sessionStorage.getItem('fortify_intended_plan');
     if (intendedPlan) {
       // Volta para a página de onde o checkout partiu. Lista fechada de

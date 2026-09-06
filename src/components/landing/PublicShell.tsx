@@ -41,6 +41,17 @@ export function useForcedLightTheme(enabled = true) {
   }, [enabled]);
 }
 
+/**
+ * Destino dos CTAs de cadastro do site.
+ *
+ * O `intent=signup` existe porque /auth, com sessão ativa, redireciona para
+ * o painel — então clicar em "Criar conta" no site jogava quem já estava
+ * logado para dentro do produto, em vez de abrir a tela de autenticação.
+ * Com o parâmetro, a tela abre do mesmo jeito (para entrar com outra conta,
+ * ou cadastrar uma nova).
+ */
+export const AUTH_SIGNUP_PATH = '/auth?intent=signup';
+
 export function trackCta(ctaId: string, location: string, destination: string) {
   pushDataLayerEvent('cta_click', { cta_id: ctaId, cta_location: location, destination });
 }

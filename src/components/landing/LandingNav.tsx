@@ -3,6 +3,7 @@ import { ArrowRight, Menu, X } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FortifyMark } from '@/components/brand/FortifyMark';
 import { useAuth } from '@/hooks/useAuth';
+import { AUTH_SIGNUP_PATH } from '@/components/landing/PublicShell';
 import { pushDataLayerEvent } from '@/lib/analytics';
 import { cn } from '@/lib/utils';
 
@@ -92,7 +93,7 @@ export function LandingNav({ className }: { className?: string }) {
               </button>
               <button
                 type="button"
-                onClick={() => go('header_signup', '/auth')}
+                onClick={() => go('header_signup', AUTH_SIGNUP_PATH)}
                 className="inline-flex items-center gap-1.5 rounded-full bg-zinc-900 px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-zinc-800"
               >
                 Começar agora

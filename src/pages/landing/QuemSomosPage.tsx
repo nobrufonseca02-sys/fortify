@@ -7,6 +7,7 @@ import {
   PublicPageHeader,
   PublicSection,
   PublicShell,
+  AUTH_SIGNUP_PATH,
   ScrollReveal,
   SectionHeading,
   trackCta,
@@ -69,8 +70,8 @@ export default function QuemSomosPage() {
   }, []);
 
   const goToAuth = (ctaId: string) => {
-    trackCta(ctaId, 'quem_somos', '/auth');
-    navigate('/auth');
+    trackCta(ctaId, 'quem_somos', AUTH_SIGNUP_PATH);
+    navigate(AUTH_SIGNUP_PATH);
   };
 
   return (

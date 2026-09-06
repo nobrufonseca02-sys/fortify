@@ -7,6 +7,7 @@ import {
   PublicClosingCta,
   PublicSection,
   PublicShell,
+  AUTH_SIGNUP_PATH,
   ScrollReveal,
   trackCta,
 } from '@/components/landing/PublicShell';
@@ -209,8 +210,8 @@ export default function MesasPage() {
         description="Escolha a mesa, confirme a versão das regras que vale para a sua conta e acompanhe os limites em tempo real."
         primaryLabel="Criar conta"
         onPrimary={() => {
-          trackCta('firms_primary', 'mesas', '/auth');
-          navigate('/auth');
+          trackCta('firms_primary', 'mesas', AUTH_SIGNUP_PATH);
+          navigate(AUTH_SIGNUP_PATH);
         }}
         secondaryLabel="Ver como usar"
         onSecondary={() => {

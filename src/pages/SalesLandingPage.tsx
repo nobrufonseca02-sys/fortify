@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FortifyHero } from '@/components/landing/FortifyHero';
+import { AUTH_SIGNUP_PATH } from '@/components/landing/PublicShell';
 import { pushDataLayerEvent } from '@/lib/analytics';
 import { SUPPORT_WHATSAPP_URL } from '@/lib/support';
 
@@ -39,8 +40,8 @@ export default function SalesLandingPage() {
   return (
     <FortifyHero
       onPrimary={() => {
-        trackCta('hero_primary', '/auth');
-        navigate('/auth');
+        trackCta('hero_primary', AUTH_SIGNUP_PATH);
+        navigate(AUTH_SIGNUP_PATH);
       }}
       onSecondary={() => {
         trackCta('hero_secondary', 'whatsapp_support');

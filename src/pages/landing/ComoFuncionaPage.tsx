@@ -15,6 +15,7 @@ import {
   PublicPageHeader,
   PublicSection,
   PublicShell,
+  AUTH_SIGNUP_PATH,
   ScrollReveal,
   SectionHeading,
   trackCta,
@@ -153,8 +154,8 @@ export default function ComoFuncionaPage() {
         description="Escolha a mesa, confira as regras e conecte sua conta MT5. O acompanhamento começa na primeira sincronização."
         primaryLabel="Criar conta"
         onPrimary={() => {
-          trackCta('how_primary', 'como_usar', '/auth');
-          navigate('/auth');
+          trackCta('how_primary', 'como_usar', AUTH_SIGNUP_PATH);
+          navigate(AUTH_SIGNUP_PATH);
         }}
         secondaryLabel="Ver mesas suportadas"
         onSecondary={() => {

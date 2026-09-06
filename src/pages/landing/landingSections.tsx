@@ -11,6 +11,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import {
+  AUTH_SIGNUP_PATH,
   PublicFooter,
   PublicPageHeader,
   PublicShell,
@@ -218,8 +219,8 @@ export function FinalCtaSection() {
           <button
             type="button"
             onClick={() => {
-              trackCta('final_cta', 'cta_final', '/auth');
-              navigate('/auth');
+              trackCta('final_cta', 'cta_final', AUTH_SIGNUP_PATH);
+              navigate(AUTH_SIGNUP_PATH);
             }}
             className="inline-flex items-center justify-center gap-2 rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white shadow-[0_10px_30px_rgba(24,24,27,0.16)] transition-colors hover:bg-zinc-800"
           >
