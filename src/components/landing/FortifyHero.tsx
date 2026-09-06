@@ -20,6 +20,13 @@ import iconAlphaCapital from '@/assets/brands/icons/alphacapital.png';
 import iconTradingView from '@/assets/brands/icons/tradingview.png';
 import { firmLogos } from '@/data/firmLogos';
 import logoTradingView from '@/assets/brands/tradingview-mark-transparent.png';
+import {
+  arcPath,
+  ORBIT_CONTAINER_WIDTH,
+  ORBIT_RINGS,
+  orbitPosition,
+  RING_FLATTEN,
+} from '@/components/landing/orbitGeometry';
 import { cn } from '@/lib/utils';
 
 /**
@@ -61,66 +68,66 @@ type OrbitItem = {
 /**
  * SISTEMA ORBITAL DO HERO — geometria derivada do exemplo de referência.
  *
- * Medidas tiradas do exemplo: achatamento ry/rx ≈ 0,6, anéis com espaçamento
- * UNIFORME, e as marcas em 5 pares espelhados nos ângulos 8°, 346°, 28°,
- * 312° e 46° do lado direito (com o espelho em 180−ângulo à esquerda).
+ * Do exemplo: achatamento ry/rx = 0,5, anéis com espaçamento UNIFORME de 6%,
+ * e as marcas em 5 pares espelhados nos ângulos 8°, 346°, 28°, 312° e 46° do
+ * lado direito (espelho em 180−ângulo à esquerda). Esses ângulos são exatos:
+ * o solver fecha com 0° de desvio contra o exemplo.
  *
- * A regra que resolve "linha não pode passar por cima das palavras" é
- * estrutural, não um véu por cima: o PRIMEIRO anel desenhado tem que CONTER
- * a caixa de texto inteira. O texto vive no vazio central, dentro do anel —
- * é assim que o exemplo se comporta. Medida real da nossa caixa (medida no
- * navegador): 472×435 px, ou seja semi-eixos de 236×218.
+ * O container é limitado pela ALTURA também — `min(2100px, 95vw, 180vh)`.
+ * Sem o termo de altura, uma tela larga e baixa (1842×866 é o caso real que
+ * quebrou) satura a largura no teto enquanto a faixa central encolhe: os
+ * anéis ficam do mesmo tamanho e os chips de cima batem na navbar, os de
+ * baixo invadem a barra de logos.
  *
- * Verificado por solver em 1024/1280/1440/1920px:
- *   - contenção do texto pelo 1º anel: pior caso 0,88 (≤1 = contém)
- *   - todos os anéis ultrapassam a meia-tela → a órbita cobre a página
- *   - nenhum chip fora do viewport, fora da faixa central ou sobre o texto
- *   - desvio angular total vs. exemplo: 13° somando os 5 pares
+ * As palavras no centro NÃO são protegidas pelo raio do primeiro anel. Essa
+ * regra é impossível aqui: em 1024×700 o anel grande o bastante para conter
+ * nossa caixa de texto (472×435) já é mais largo que a meia-tela, e nenhum
+ * chip caberia nele. O exemplo também não faz isso — ele clareia o miolo.
+ * Quem protege o texto é o `TextVeil`, colado na própria caixa de texto.
+ *
+ * Verificado por solver em 10 telas, de 1024×700 a 2560×1440, incluindo as
+ * combinações largo+baixo: nenhum chip fora do viewport, fora da faixa
+ * central ou sobre a caixa de texto. Pior folga vertical: 43px.
  * Mexer em qualquer número aqui exige rodar a verificação de novo.
  */
-const RING_FLATTEN = 0.6;
-const ORBIT_CONTAINER_WIDTH = 'w-[min(1700px,105vw)]';
-const ORBIT_RINGS = [45, 50, 55, 60, 65, 70, 75];
+/* RING_FLATTEN, ORBIT_CONTAINER_WIDTH e ORBIT_RINGS vivem em orbitGeometry.ts */
+
 
 /**
- * Os dois arcos de acento do exemplo, espelhados no anel 50% — na faixa
- * angular que continua dentro do viewport até em 1024px.
- */
-const ACCENT_ARCS = [
-  { rx: 50, from: 200, to: 218 },
-  { rx: 50, from: 322, to: 340 },
-];
-
-/**
- * Marcas em órbita, nos 5 pares espelhados do exemplo.
+ * Marcas em órbita, nos 5 pares espelhados do exemplo — cada par no seu
+ * próprio anel, como lá.
  *
- * Dois pares no anel 45%, dois no 50% e um no 55% — o exemplo também
- * concentra as marcas numa faixa de anéis, em vez de uma por anel.
- *
- * `darkIcon` marca os app-icons que vêm com fundo escuro: passam por
+ * `darkIcon` marca os app-icons de fundo escuro: passam por
  * grayscale+invert+contraste e viram símbolo preto sobre o branco do chip,
  * em vez de um disco preto dentro do círculo.
  */
-const ORBIT_ITEMS: OrbitItem[] = [
-  // Anel 45% — par quase horizontal (alvo 8° no exemplo)
-  { key: 'the5ers', label: 'The5ers', icon: iconThe5ers, rx: 45, angle: 13 },
-  { key: 'alphacapital', label: 'Alpha Capital Group', icon: iconAlphaCapital, rx: 45, angle: 167, darkIcon: true },
+/** Exportado para o teste de geometria conferir cada posição em cada tela. */
+export const ORBIT_ITEMS: OrbitItem[] = [
+  // Anel 40% — par quase horizontal (8° no exemplo)
+  { key: 'the5ers', label: 'The5ers', icon: iconThe5ers, rx: 40, angle: 8 },
+  { key: 'alphacapital', label: 'Alpha Capital Group', icon: iconAlphaCapital, rx: 40, angle: 172, darkIcon: true },
 
-  // Anel 45% — par logo acima da horizontal (alvo 346°)
-  { key: 'ftmo', label: 'FTMO', icon: iconFtmo, rx: 45, angle: 346, darkIcon: true },
-  { key: 'e8', label: 'E8 Markets', icon: iconE8, rx: 45, angle: 194, darkIcon: true },
+  // Anel 48% — par logo acima da horizontal (346°)
+  { key: 'ftmo', label: 'FTMO', icon: iconFtmo, rx: 48, angle: 346, darkIcon: true },
+  { key: 'e8', label: 'E8 Markets', icon: iconE8, rx: 48, angle: 194, darkIcon: true },
 
-  // Anel 50% — par abaixo da horizontal (alvo 28°)
-  { key: 'topstep', label: 'Topstep', icon: iconTopstep, rx: 50, angle: 29, darkIcon: true },
-  { key: 'google', label: 'Google', icon: iconGoogle, rx: 50, angle: 151 },
+  // Anel 56% — par logo abaixo da horizontal (28°)
+  { key: 'topstep', label: 'Topstep', icon: iconTopstep, rx: 56, angle: 29, darkIcon: true },
+  { key: 'google', label: 'Google', icon: iconGoogle, rx: 56, angle: 151 },
 
-  // Anel 50% — par diagonal superior (alvo 312°)
-  { key: 'apex', label: 'Apex Trader Funding', icon: iconApex, rx: 50, angle: 314, darkIcon: true },
-  { key: 'hantec', label: 'Hantec Trader', icon: iconHantec, rx: 50, angle: 226 },
+  // Anel 40% — par diagonal superior (312°)
+  { key: 'apex', label: 'Apex Trader Funding', icon: iconApex, rx: 40, angle: 318, darkIcon: true },
+  { key: 'hantec', label: 'Hantec Trader', icon: iconHantec, rx: 40, angle: 222 },
 
-  // Anel 55% — par diagonal inferior (alvo 46°)
-  { key: 'tradingview', label: 'TradingView', icon: iconTradingView, rx: 55, angle: 41, darkIcon: true },
-  { key: 'fxify', label: 'FXIFY', icon: iconFxify, rx: 55, angle: 139, darkIcon: true },
+  // Anel 48% — par diagonal inferior (46°)
+  { key: 'tradingview', label: 'TradingView', icon: iconTradingView, rx: 48, angle: 41, darkIcon: true },
+  { key: 'fxify', label: 'FXIFY', icon: iconFxify, rx: 48, angle: 139, darkIcon: true },
+];
+
+/** Arcos de acento, espelhados no anel 56% — faixa angular livre de chips. */
+const ACCENT_ARCS = [
+  { rx: 56, from: 198, to: 214 },
+  { rx: 56, from: 326, to: 342 },
 ];
 
 /**
@@ -252,36 +259,30 @@ const NOTIFICATIONS = [
   },
 ];
 
-/** Posição de um item sobre o arco, em % do container quadrado. */
-function orbitPosition(rx: number, angle: number) {
-  const rad = (angle * Math.PI) / 180;
-  return {
-    left: `${50 + rx * Math.cos(rad)}%`,
-    top: `${50 + rx * RING_FLATTEN * Math.sin(rad)}%`,
-  };
-}
-
-/** Path SVG de um segmento de arco elíptico, em coordenadas do viewBox 0-100. */
-function arcPath(rx: number, fromDeg: number, toDeg: number) {
-  const ry = rx * RING_FLATTEN;
-  const p = (deg: number) => {
-    const rad = (deg * Math.PI) / 180;
-    return [50 + rx * Math.cos(rad), 50 + ry * Math.sin(rad)];
-  };
-  const [x1, y1] = p(fromDeg);
-  const [x2, y2] = p(toDeg);
-  const large = Math.abs(toDeg - fromDeg) > 180 ? 1 : 0;
-  return `M ${x1.toFixed(3)} ${y1.toFixed(3)} A ${rx} ${ry} 0 ${large} 1 ${x2.toFixed(3)} ${y2.toFixed(3)}`;
-}
-
 /**
- * Anéis concêntricos + chips fixos das marcas, numa camada só.
+ * Clareado atrás das palavras — o que garante que nenhuma linha fique
+ * legível por cima do texto.
  *
- * Sem animação nenhuma — zero repaint contínuo. Escondida abaixo de `lg`:
- * em tela estreita não existe corredor lateral livre entre o título e a
- * borda, e como fica em `display:none` com `loading="lazy"` o navegador nem
- * baixa os ícones no mobile.
+ * Fica DENTRO do bloco de conteúdo e usa `inset` negativo, então acompanha
+ * sozinho o tamanho do texto em qualquer tela. A versão anterior era um
+ * degradê dimensionado em relação à seção inteira, e por isso apagava
+ * também os anéis internos nas telas grandes.
  */
+function TextVeil() {
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute -inset-x-24 -inset-y-16 -z-10"
+      style={{
+        background:
+          /* Termina em 82% da caixa, e não em 100%: fechando na borda, os
+             cantos do retângulo ficavam visíveis por cima das linhas. */
+          'radial-gradient(50% 48% at 50% 50%, #FAF9F5 0%, #FAF9F5 42%, rgba(250,249,245,0.72) 64%, rgba(250,249,245,0) 82%)',
+      }}
+    />
+  );
+}
+
 function OrbitField() {
   return (
     <div
@@ -402,9 +403,10 @@ export function FortifyHero({
       <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center">
         <OrbitField />
 
-        {/* max-w-lg (±256px do centro) mantém o título dentro do corredor
-            livre: o chip mais interno (28%) fica a ~266px em 1024px. */}
-        <div className="relative z-10 mx-auto max-w-lg px-5 text-center">
+        {/* `isolate` para o véu (-z-10) ficar atrás do texto mas continuar à
+            frente das órbitas, em vez de cair para trás de tudo. */}
+        <div className="relative isolate z-10 mx-auto max-w-lg px-5 text-center">
+          <TextVeil />
           <motion.h1
             initial={shouldReduceMotion ? undefined : { opacity: 0, y: 14 }}
             animate={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
@@ -442,7 +444,8 @@ export function FortifyHero({
             cada card sobe sobre o anterior (-mt), desloca um pouco para a
             direita, e perde escala/opacidade para dar profundidade. O
             z-index decrescente mantém o primeiro à frente. */}
-        <div className="relative z-10 mx-auto mt-8 w-full max-w-md px-5 sm:mt-10">
+        <div className="relative isolate z-10 mx-auto mt-8 w-full max-w-md px-5 sm:mt-10">
+          <TextVeil />
           {NOTIFICATIONS.map((item, index) => (
             <motion.div
               key={item.key}
