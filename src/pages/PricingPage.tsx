@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'motion/react';
 import NumberFlow from '@number-flow/react';
-import { CheckCircle2, CreditCard, Loader2, PlusCircle, ShieldCheck, Star } from 'lucide-react';
+import { CheckCircle2, Loader2, PlusCircle, ShieldCheck, Star } from 'lucide-react';
 import { PublicShell } from '@/components/landing/PublicShell';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
@@ -283,19 +283,10 @@ export default function PricingPage({ variant = 'auto' }: { variant?: 'auto' | '
     <div
       className={
         isPublic
-          ? 'mx-auto w-full max-w-6xl px-5 pb-16 pt-14 sm:px-8 sm:pt-20'
+          ? 'mx-auto w-full max-w-6xl px-5 pb-16 pt-4 sm:px-8 sm:pt-8'
           : 'mx-auto w-full max-w-6xl p-6'
       }
     >
-      {hasActivePaidStripeSubscription && (
-        <div className="mb-6 flex justify-end">
-          <Button variant="outline" onClick={() => navigate('/subscription')} className="gap-2">
-            <CreditCard className="h-4 w-4" />
-            Gerenciar assinatura
-          </Button>
-        </div>
-      )}
-
       <header className="mx-auto max-w-2xl text-center">
         <p className="eyebrow">Planos Fortify</p>
         <h1 className="mt-3 text-[2rem] font-bold leading-[1.08] tracking-[-0.02em] text-foreground text-balance sm:text-[2.6rem]">
@@ -330,7 +321,7 @@ export default function PricingPage({ variant = 'auto' }: { variant?: 'auto' | '
         </div>
       )}
 
-      <div className="mt-10 flex justify-center">
+      <div className="mt-8 flex justify-center">
         <div className="inline-flex items-center rounded-full border border-border bg-muted/40 p-1 text-sm">
           <span className="rounded-full bg-background px-4 py-1.5 font-semibold text-foreground shadow-sm">
             Mensal
@@ -344,7 +335,7 @@ export default function PricingPage({ variant = 'auto' }: { variant?: 'auto' | '
         </div>
       </div>
 
-      <div className="mt-10 grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-8 grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-4">
         {(isLoading ? [] : visiblePlans).map((plan) => {
           const family = planFamily(plan);
           const isCurrent = currentPlanId === plan.id;
