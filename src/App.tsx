@@ -33,6 +33,7 @@ const RecursosPage = lazy(() => import("./pages/landing/RecursosPage"));
 const MesasPage = lazy(() => import("./pages/landing/MesasPage"));
 const FaqPage = lazy(() => import("./pages/landing/FaqPage"));
 const QuemSomosPage = lazy(() => import("./pages/landing/QuemSomosPage"));
+const PlanosPage = lazy(() => import("./pages/landing/PlanosPage"));
 const BlogIndex = lazy(() => import("./pages/BlogIndex"));
 const BlogPost = lazy(() => import("./pages/BlogPost"));
 const SubscriptionManagementPage = lazy(() => import("./pages/SubscriptionManagementPage"));
@@ -205,7 +206,13 @@ function AuthGuard() {
   if (session) {
     const intendedPlan = window.sessionStorage.getItem('intended_plan_slug') || window.sessionStorage.getItem('fortify_intended_plan');
     if (intendedPlan) {
-      return <Navigate to={`/pricing?checkoutPlan=${encodeURIComponent(intendedPlan)}`} replace />;
+      // Volta para a página de onde o checkout partiu. Lista fechada de
+      // destinos: o valor vem do sessionStorage, então não pode virar um
+      // redirecionamento aberto.
+      const origem = window.sessionStorage.getItem('fortify_checkout_return_path');
+      const destino = origem === '/vendas/planos' ? '/vendas/planos' : '/pricing';
+      window.sessionStorage.removeItem('fortify_checkout_return_path');
+      return <Navigate to={`${destino}?checkoutPlan=${encodeURIComponent(intendedPlan)}`} replace />;
     }
     return <Navigate to="/" replace />;
   }
@@ -228,6 +235,7 @@ function AppContent() {
           <Route path="/vendas/mesas" element={<MesasPage />} />
           <Route path="/vendas/faq" element={<FaqPage />} />
           <Route path="/vendas/quem-somos" element={<QuemSomosPage />} />
+          <Route path="/vendas/planos" element={<PlanosPage />} />
           {/* Aliases em inglês: rotas canônicas são as em português (convenção
               já existente em /vendas/*), estas existem só para links externos. */}
           <Route path="/about" element={<Navigate to="/vendas/quem-somos" replace />} />

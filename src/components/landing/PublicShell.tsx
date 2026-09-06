@@ -250,7 +250,7 @@ const FOOTER_LINKS: { label: string; to: string }[] = [
   { label: 'Recursos', to: '/vendas/recursos' },
   { label: 'Mesas suportadas', to: '/vendas/mesas' },
   { label: 'Quem somos', to: '/vendas/quem-somos' },
-  { label: 'Planos', to: '/pricing' },
+  { label: 'Planos', to: '/vendas/planos' },
   { label: 'FAQ', to: '/vendas/faq' },
   { label: 'Blog', to: '/blog' },
 ];

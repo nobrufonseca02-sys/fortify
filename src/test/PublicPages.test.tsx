@@ -56,7 +56,12 @@ describe('páginas públicas', () => {
       .getAllByRole('link')
       .map((link) => link.getAttribute('href'))
       .filter(Boolean);
-    expect(navLinks).toEqual(expect.arrayContaining(['/vendas/como-funciona', '/pricing', '/blog']));
+    // Planos aponta para a página pública, não para /pricing: /pricing é a tela
+    // de assinatura do produto e, com sessão, abre dentro do AppLayout.
+    expect(navLinks).toEqual(
+      expect.arrayContaining(['/vendas/como-funciona', '/vendas/planos', '/blog']),
+    );
+    expect(navLinks).not.toContain('/pricing');
     unmount();
 
     renderPublic(<ComoFuncionaPage />);

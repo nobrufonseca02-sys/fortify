@@ -90,7 +90,21 @@ function priceValue(plan: FortifyPlan) {
   return Number(plan.price_amount ?? plan.price_cents ?? 0) / 100;
 }
 
-export default function PricingPage() {
+/**
+ * A mesma tela serve a duas rotas:
+ *
+ * - `variant='auto'` (/pricing): pública quando deslogado, dentro do
+ *   AppLayout quando logado. É a tela de assinatura do produto.
+ * - `variant='public'` (/vendas/planos): SEMPRE pública, mesmo com sessão.
+ *   É a página de planos do site — clicar em Planos no menu do site não
+ *   pode jogar o visitante para dentro do produto.
+ *
+ * O checkout é o mesmo nos dois casos: uma sessão Stripe criada pelo
+ * gateway, que exige JWT do Supabase. Sem sessão o botão guarda o plano
+ * escolhido e manda para /auth; ao voltar, o checkout retoma sozinho na
+ * mesma página de onde saiu.
+ */
+export default function PricingPage({ variant = 'auto' }: { variant?: 'auto' | 'public' } = {}) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { session } = useAuth();
@@ -152,6 +166,9 @@ export default function PricingPage() {
     if (!session?.access_token) {
       window.sessionStorage.setItem('fortify_intended_plan', planSelector);
       window.sessionStorage.setItem('intended_plan_slug', planSelector);
+      // Guarda a rota de origem: quem clicou em Assinar na página pública
+      // precisa voltar para ela depois do login, e não cair no produto.
+      window.sessionStorage.setItem('fortify_checkout_return_path', window.location.pathname);
       const message = 'Entre ou crie sua conta para continuar o checkout.';
       setCheckoutNotice(message);
       toast({ title: 'Sessão necessária', description: message });
@@ -257,11 +274,10 @@ export default function PricingPage() {
     startCheckout(plan);
   }, [currentPlanId, intendedPlan, plans, resumeAttempted, session?.access_token]);
 
-  // Deslogado, /pricing é uma página pública e ganha navbar, rodapé e tema
-  // claro forçado, como as demais páginas de marketing. Logada, a mesma página
-  // vive dentro do AppLayout e precisa respeitar o tema escolhido no produto —
-  // por isso a casca é condicional, e não fixa no componente.
-  const isPublic = !session;
+  // Em /vendas/planos a casca pública é obrigatória. Em /pricing ela vale só
+  // para quem está deslogado — logado, quem dá a moldura é o AppLayout, e o
+  // tema escolhido no produto tem que ser respeitado.
+  const isPublic = variant === 'public' || !session;
 
   const content = (
     <div

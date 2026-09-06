@@ -62,10 +62,10 @@ afterEach(() => {
   mockSession = null;
 });
 
-function renderPricing() {
+function renderPricing(props?: { variant?: 'auto' | 'public' }) {
   return render(
     <MemoryRouter>
-      <PricingPage />
+      <PricingPage {...props} />
     </MemoryRouter>,
   );
 }
@@ -98,6 +98,17 @@ describe('PricingPage', () => {
     renderPricing();
     expect(screen.getByRole('contentinfo')).toBeInTheDocument();
     // um link de navegação pública que só existe dentro do PublicShell
+    expect(
+      screen.getAllByRole('link').some((l) => l.getAttribute('href') === '/vendas/como-funciona'),
+    ).toBe(true);
+  });
+
+  it('variant=public mantém a casca pública mesmo com sessão ativa', () => {
+    // É o que separa /vendas/planos de /pricing: clicar em Planos no menu do
+    // site não pode jogar o visitante logado para dentro do produto.
+    mockSession = { user: { id: 'user-1' }, access_token: 'token-1' };
+    renderPricing({ variant: 'public' });
+    expect(screen.getByRole('contentinfo')).toBeInTheDocument();
     expect(
       screen.getAllByRole('link').some((l) => l.getAttribute('href') === '/vendas/como-funciona'),
     ).toBe(true);
