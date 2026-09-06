@@ -61,62 +61,58 @@ type OrbitItem = {
 /**
  * SISTEMA ORBITAL DO HERO
  *
- * Elipses concêntricas MUITO maiores que o viewport: o container tem
- * `min(2200px, 220vw)` de largura, então só os dois anéis internos cabem
- * inteiros na tela — do terceiro em diante a linha sai pelas laterais e vira
- * arco, que é o efeito de "sistema orbital maior que a composição".
+ * Esta é a geometria anterior, retomada a pedido. A tentativa seguinte
+ * (elipse 0,34 num container de 220vw, com véu radial no centro) deixava as
+ * linhas mais amplas, mas o véu apagava justamente os anéis internos — que
+ * são os que dão a leitura de "sistema" nesta escala. Aqui as órbitas são
+ * grandes circunferências levemente achatadas: só os arcos laterais entram
+ * na tela, o que produz as curvas verticais da referência.
  *
- * `RING_FLATTEN` 0,34 = proporção ~2,9:1 (largo e baixo). Não é um círculo
- * levemente achatado: é uma elipse assumida.
- *
- * A geometria abaixo não foi estimada — saiu de um solver que verifica, em
- * 1024/1280/1440/1920px, que nenhum chip (a) invade a coluna de texto,
- * (b) sai do viewport na horizontal, (c) sai da faixa central na vertical,
- * (d) colide com outro chip. Mexer em qualquer um dos números exige rodar a
- * verificação de novo.
+ * `RING_FLATTEN` 0,78 é um achatamento discreto, calibrado para manter os
+ * chips diagonais dentro da altura útil do miolo — com 0,88 o par mais
+ * diagonal (40,7° do horizontal) não caberia em nenhum anel.
  */
-const RING_FLATTEN = 0.34;
-const ORBIT_CONTAINER_WIDTH = 'w-[min(2200px,220vw)]';
-const ORBIT_RINGS = [10, 18, 26, 34, 42, 50, 58, 66];
+const RING_FLATTEN = 0.78;
+const ORBIT_CONTAINER_WIDTH = 'w-[min(1120px,100vw)]';
+const ORBIT_RINGS = [28, 34.5, 41, 47.5, 54, 61, 68];
 
 /**
- * Dois segmentos de acento — a única cor nas linhas. Ficam espelhados no anel
- * 26, na faixa angular que continua dentro do viewport mesmo em 1024px (fora
- * dela o arco virava um risco cortado na borda), e recebem uma respiração de
- * opacidade muito lenta: é a única animação contínua da composição.
+ * Os dois segmentos de arco azuis da referência — um à esquerda e um à
+ * direita, sobrepostos às linhas cinzas.
  */
 const ACCENT_ARCS = [
-  { rx: 26, from: 208, to: 228 },
-  { rx: 26, from: 312, to: 332 },
+  { rx: 34.5, from: 191, to: 209 },
+  { rx: 41, from: 331, to: 352 },
 ];
 
 /**
- * Marcas em órbita, em 5 pares espelhados (cada logo da direita tem sua
- * contraparte à esquerda no mesmo anel, no ângulo espelhado). O espelhamento
- * é o que dá a leitura de "sistema" em vez de "logos espalhadas".
+ * Marcas em órbita, em 5 pares espelhados: cada logo da direita tem sua
+ * contraparte à esquerda no mesmo anel, no ângulo espelhado. Os ângulos são
+ * os medidos na referência, remapeados para a faixa 28%–47,5% porque nosso
+ * título é bem mais longo que o dela.
  *
- * Anel/ângulo saíram do solver citado acima. Posição vertical @1440px:
- *   -165px  Apex / Hantec        (anel 26)
- *    -85px  FTMO / E8            (anel 18)
- *      0px  The5ers / Alpha Cap. (anel 18, na horizontal)
- *    +85px  Topstep / Google     (anel 18)
- *   +200px  TradingView / FXIFY  (anel 34)
+ * `darkIcon` marca os app-icons que vêm com fundo escuro: eles passam por
+ * grayscale+invert+contraste e viram símbolo preto sobre o branco do chip,
+ * em vez de um disco preto dentro do círculo.
  */
 const ORBIT_ITEMS: OrbitItem[] = [
-  { key: 'apex', label: 'Apex Trader Funding', icon: iconApex, rx: 26, angle: 302, darkIcon: true },
-  { key: 'hantec', label: 'Hantec Trader', icon: iconHantec, rx: 26, angle: 238 },
+  // Anel 28% — par do Meta/Figma na referência (184,8° / 355,2°)
+  { key: 'the5ers', label: 'The5ers', icon: iconThe5ers, rx: 28, angle: 355.2 },
+  { key: 'alphacapital', label: 'Alpha Capital Group', icon: iconAlphaCapital, rx: 28, angle: 184.8, darkIcon: true },
 
-  { key: 'ftmo', label: 'FTMO', icon: iconFtmo, rx: 18, angle: 321, darkIcon: true },
-  { key: 'e8', label: 'E8 Markets', icon: iconE8, rx: 18, angle: 219, darkIcon: true },
+  // Anel 34,5% — par do cubo/Google Ads (24,1° / 155,9°)
+  { key: 'topstep', label: 'Topstep', icon: iconTopstep, rx: 34.5, angle: 24.1, darkIcon: true },
+  { key: 'google', label: 'Google', icon: iconGoogle, rx: 34.5, angle: 155.9 },
 
-  { key: 'the5ers', label: 'The5ers', icon: iconThe5ers, rx: 18, angle: 0 },
-  { key: 'alphacapital', label: 'Alpha Capital Group', icon: iconAlphaCapital, rx: 18, angle: 180, darkIcon: true },
+  // Anel 41% — dois pares, como na referência, onde 33,7% e 35,4% quase coincidem
+  { key: 'apex', label: 'Apex Trader Funding', icon: iconApex, rx: 41, angle: 319.2, darkIcon: true },
+  { key: 'hantec', label: 'Hantec Trader', icon: iconHantec, rx: 41, angle: 220.8 },
+  { key: 'ftmo', label: 'FTMO', icon: iconFtmo, rx: 41, angle: 346.1, darkIcon: true },
+  { key: 'e8', label: 'E8 Markets', icon: iconE8, rx: 41, angle: 193.9, darkIcon: true },
 
-  { key: 'topstep', label: 'Topstep', icon: iconTopstep, rx: 18, angle: 39, darkIcon: true },
-  { key: 'google', label: 'Google', icon: iconGoogle, rx: 18, angle: 141 },
-
-  { key: 'tradingview', label: 'TradingView', icon: iconTradingView, rx: 34, angle: 52, darkIcon: true },
-  { key: 'fxify', label: 'FXIFY', icon: iconFxify, rx: 34, angle: 128, darkIcon: true },
+  // Anel 47,5% — par do gradiente/Mailchimp (5,4° / 174,6°)
+  { key: 'tradingview', label: 'TradingView', icon: iconTradingView, rx: 47.5, angle: 5.4, darkIcon: true },
+  { key: 'fxify', label: 'FXIFY', icon: iconFxify, rx: 47.5, angle: 174.6, darkIcon: true },
 ];
 
 /**
@@ -271,17 +267,24 @@ function arcPath(rx: number, fromDeg: number, toDeg: number) {
 }
 
 /**
- * Camada 1 — as linhas.
+ * Anéis concêntricos + chips fixos das marcas, numa camada só.
  *
- * Só o desenho: nenhuma logo aqui. Fica atrás do véu (ver `CenterVeil`), que é
- * o que garante que nenhuma linha passe por trás de título, CTA ou cards.
- * Escondida abaixo de `lg`: em tela estreita não existe corredor lateral e,
- * em `display:none` com `loading="lazy"`, o mobile nem baixa os ícones.
+ * Sem animação nenhuma — zero repaint contínuo. Escondida abaixo de `lg`:
+ * em tela estreita não existe corredor lateral livre entre o título e a
+ * borda, e como fica em `display:none` com `loading="lazy"` o navegador nem
+ * baixa os ícones no mobile.
  */
-function OrbitRings({ reduceMotion }: { reduceMotion: boolean | null }) {
+function OrbitField() {
   return (
     <div
       aria-hidden="true"
+      /* A máscara faz anéis e chips desvanecerem embaixo, para não passarem
+         por cima da barra de logos monocromáticas — o mesmo degradê da
+         referência. Duplicada com prefixo -webkit- por causa do Safari. */
+      style={{
+        maskImage: 'linear-gradient(to bottom, #000 0%, #000 58%, transparent 90%)',
+        WebkitMaskImage: 'linear-gradient(to bottom, #000 0%, #000 58%, transparent 90%)',
+      }}
       className={cn(
         'pointer-events-none absolute left-1/2 top-1/2 hidden aspect-square -translate-x-1/2 -translate-y-1/2 lg:block',
         ORBIT_CONTAINER_WIDTH,
@@ -296,14 +299,15 @@ function OrbitRings({ reduceMotion }: { reduceMotion: boolean | null }) {
             rx={rx}
             ry={rx * RING_FLATTEN}
             fill="none"
-            stroke="#E4E1D9"
+            stroke="#E6E3DC"
             strokeWidth="1"
             vectorEffect="non-scaling-stroke"
           />
         ))}
 
+        {/* Segmentos azuis da referência, por cima das linhas cinzas */}
         {ACCENT_ARCS.map(({ rx, from, to }) => (
-          <motion.path
+          <path
             key={`${rx}-${from}`}
             d={arcPath(rx, from, to)}
             fill="none"
@@ -311,75 +315,33 @@ function OrbitRings({ reduceMotion }: { reduceMotion: boolean | null }) {
             strokeWidth="1.5"
             strokeLinecap="round"
             vectorEffect="non-scaling-stroke"
-            initial={{ opacity: 0.55 }}
-            animate={reduceMotion ? { opacity: 0.55 } : { opacity: [0.28, 0.7, 0.28] }}
-            transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
+            opacity="0.75"
           />
         ))}
       </svg>
-    </div>
-  );
-}
 
-/**
- * Véu central — a peça que faz a regra "linha nunca cruza texto" ser
- * estrutural, e não um ajuste fino de ângulo.
- *
- * É um degradê radial da própria cor de fundo, entre as linhas e o conteúdo.
- * Onde o texto vive, a opacidade é 1 e a linha simplesmente deixa de existir;
- * a transição é suave, então não aparece borda. Como vive no espaço da seção
- * (inset-0), a geometria acompanha o viewport sozinha — não depende do
- * tamanho do container das órbitas.
- */
-function CenterVeil() {
-  return (
-    <div
-      aria-hidden="true"
-      className="pointer-events-none absolute inset-0 z-[5]"
-      style={{
-        background:
-          'radial-gradient(46% 44% at 50% 47%, #FAF9F5 0%, #FAF9F5 42%, rgba(250,249,245,0.92) 62%, rgba(250,249,245,0.55) 80%, rgba(250,249,245,0) 100%)',
-      }}
-    />
-  );
-}
-
-/**
- * Camada 2 — os chips das marcas, acima do véu.
- *
- * Mesmo container e mesma matemática de elipse das linhas, então cada chip cai
- * exatamente em cima do seu anel. Círculo branco simples: sem badge, sem aro
- * colorido, sem glow. O nome vai no title/alt (leitor de tela e tooltip) —
- * escrito no chip virava uma fileira de botões.
- */
-function OrbitLogos() {
-  return (
-    <div
-      aria-hidden="false"
-      className={cn(
-        'pointer-events-none absolute left-1/2 top-1/2 z-[6] hidden aspect-square -translate-x-1/2 -translate-y-1/2 lg:block',
-        ORBIT_CONTAINER_WIDTH,
-      )}
-    >
       {ORBIT_ITEMS.map((item) => (
         <div
           key={item.key}
           className="absolute -translate-x-1/2 -translate-y-1/2"
           style={orbitPosition(item.rx, item.angle)}
         >
+          {/* Chip circular branco com só o símbolo da marca. O nome vai no
+              title/alt (leitor de tela e tooltip): escrito no chip virava
+              uma fileira de botões. */}
           <div
             title={item.label}
-            className="flex h-12 w-12 items-center justify-center rounded-full bg-white ring-1 ring-zinc-900/[0.06] shadow-[0_2px_8px_rgba(24,24,27,0.06),0_8px_24px_rgba(24,24,27,0.06)]"
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-white ring-1 ring-zinc-900/[0.06] shadow-[0_4px_14px_rgba(24,24,27,0.10),0_1px_3px_rgba(24,24,27,0.06)]"
           >
             <img
               src={item.icon}
               alt={item.label}
               loading="lazy"
               decoding="async"
-              width={28}
-              height={28}
+              width={30}
+              height={30}
               className={cn(
-                'h-7 w-7',
+                'h-[30px] w-[30px]',
                 item.darkIcon
                   ? /* grayscale tira o matiz do fundo (o Apex é um degradê azul, o
                        Alpha Capital é navy), invert troca símbolo branco por preto e
@@ -423,13 +385,11 @@ export function FortifyHero({
       {/* Miolo: as órbitas são absolutas e centradas NESTE wrapper, então o
           centro dos anéis cai no centro real do conteúdo. */}
       <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center">
-        <OrbitRings reduceMotion={shouldReduceMotion} />
-        <CenterVeil />
-        <OrbitLogos />
+        <OrbitField />
 
-        {/* max-w-md em lg e max-w-lg a partir de xl: é a largura de texto que o
-            solver das órbitas assumiu para garantir o corredor lateral livre. */}
-        <div className="relative z-10 mx-auto max-w-md px-5 text-center xl:max-w-lg">
+        {/* max-w-lg (±256px do centro) mantém o título dentro do corredor
+            livre: o chip mais interno (28%) fica a ~266px em 1024px. */}
+        <div className="relative z-10 mx-auto max-w-lg px-5 text-center">
           <motion.h1
             initial={shouldReduceMotion ? undefined : { opacity: 0, y: 14 }}
             animate={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
@@ -443,7 +403,7 @@ export function FortifyHero({
             initial={shouldReduceMotion ? undefined : { opacity: 0, y: 14 }}
             animate={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
             transition={{ duration: 0.55, delay: 0.1 }}
-            className="mt-7 flex flex-col items-center justify-center gap-3 sm:-mx-8 sm:flex-row"
+            className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row"
           >
             <button
               type="button"
