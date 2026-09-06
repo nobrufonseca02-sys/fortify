@@ -1,10 +1,8 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
   BellRing,
-  Building2,
   Calculator,
-  ChevronRight,
   Gauge,
   Layers,
   Link2,
@@ -178,63 +176,6 @@ export function FeaturesSection() {
           </ScrollReveal>
         ))}
       </div>
-    </section>
-  );
-}
-
-export function FirmsSection() {
-  const navigate = useNavigate();
-
-  return (
-    <section className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-14">
-      {/*
-        Único lugar do sistema público onde a marca de terceiro fica sobre
-        ladrilho escuro, e não sobre cartão branco. Não é descuido de
-        consistência: metade destes assets é wordmark BRANCO sobre
-        transparente (ftmo.svg, apex, e8, fxify) e a outra metade é imagem
-        opaca colorida (the5ers.png, fundingpips.jpg). Não existe um
-        tratamento único que deixe os dois grupos legíveis sobre branco —
-        `brightness-0` salva o primeiro grupo e transforma o segundo em
-        retângulo preto. O ladrilho escuro (--brand-chip-*) é a decisão que
-        já existe no produto para esse mesmo problema, na Biblioteca de
-        Mesas. Aqui ele só foi alinhado ao raio e ao espaçamento do resto.
-      */}
-      <ScrollReveal>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {propFirmFilterOptions.firms.map((name) => {
-            const logo = firmLogos[name];
-            return (
-              <div
-                key={name}
-                className="flex h-20 items-center justify-center rounded-2xl border border-brand-chip-border bg-brand-chip px-4 transition-colors hover:border-brand-chip-border/60"
-              >
-                {logo ? (
-                  <img src={logo} alt={name} loading="lazy" className="max-h-7 w-auto max-w-[120px] object-contain" />
-                ) : (
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <Building2 className="h-4 w-4" />
-                    <span className="text-[11px] font-medium">{name}</span>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </ScrollReveal>
-
-      <ScrollReveal className="mt-8 flex justify-center">
-        <button
-          type="button"
-          onClick={() => {
-            trackCta('trust_section', 'mesas', '/auth');
-            navigate('/auth');
-          }}
-          className="inline-flex items-center justify-center gap-2 rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white shadow-[0_10px_30px_rgba(24,24,27,0.16)] transition-colors hover:bg-zinc-800"
-        >
-          Comece a monitorar sua conta
-          <ChevronRight className="h-4 w-4" />
-        </button>
-      </ScrollReveal>
     </section>
   );
 }

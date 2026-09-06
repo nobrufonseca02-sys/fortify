@@ -9,12 +9,14 @@ import {
   ChevronDown,
   ChevronRight,
   ExternalLink,
+  LayoutDashboard,
   Link2,
   Search,
   ShieldCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CoverflowCarousel, type CoverflowSlide } from '@/components/ui/coverflow-carousel';
 import { fortifyMotion } from '@/lib/motion';
 import {
   propFirmFilterOptions,
@@ -23,48 +25,22 @@ import {
   type PropFirmRuleProgram,
   type RuleAccountSize,
 } from '@/data/propFirmRules';
-import logoFtmo from '@/assets/brands/ftmo.svg';
-import logoAlphaCapitalGroup from '@/assets/brands/alpha-capital-group.svg';
-import logoBrightFunded from '@/assets/brands/brightfunded.png';
-import logoFundedNext from '@/assets/brands/fundednext.png';
-import logoHantecTrader from '@/assets/brands/hantec-trader.svg';
-import logoFxify from '@/assets/brands/fxify.svg';
-import logoTopstep from '@/assets/brands/topstep.webp';
-import logoTheTradingPit from '@/assets/brands/the-trading-pit.svg';
-import logoApexTraderFunding from '@/assets/brands/apex-trader-funding.svg';
-import logoE8Markets from '@/assets/brands/e8-markets.svg';
-import logoThe5ers from '@/assets/brands/the5ers.png';
-import logoAsapFundingProp from '@/assets/brands/asap-funding-prop.svg';
-import logoFundingPips from '@/assets/brands/fundingpips.jpg';
-import logoNpFuture from '@/assets/brands/np-future.png';
+import { firmLogos } from '@/data/firmLogos';
+import {
+  accountRules,
+  cleanValue,
+  countLabel,
+  executionLimit,
+  firmPrograms,
+  firmStatusLabel,
+  formatAccountLabel,
+  getFirmPlatforms,
+  getFirmStatus,
+  payoutSummary,
+  phaseSummary,
+  type FirmStatus,
+} from '@/lib/propFirmSummary';
 
-// Real, first-party firm logos we were able to source (official press kit / brand-assets page
-// or the firm's own site header). Firms without an entry here fall back to the generic icon —
-// see the task report for why each one is missing (Cloudflare/bot-protected site, no logo asset
-// published, etc). Keyed by the exact PropFirmName display string.
-const firmLogos: Partial<Record<PropFirmName, string>> = {
-  FTMO: logoFtmo,
-  'Alpha Capital Group': logoAlphaCapitalGroup,
-  BrightFunded: logoBrightFunded,
-  FundedNext: logoFundedNext,
-  'Hantec Trader': logoHantecTrader,
-  FXIFY: logoFxify,
-  Topstep: logoTopstep,
-  'The Trading Pit': logoTheTradingPit,
-  'Apex Trader Funding': logoApexTraderFunding,
-  'E8 Markets': logoE8Markets,
-  The5ers: logoThe5ers,
-  'ASAP Funding Prop': logoAsapFundingProp,
-  // App-icon mark (Apple App Store listing, official FundingPips developer account) — their
-  // own site's asset paths are blocked by a Vercel Security Checkpoint bot-challenge even
-  // though the HTML document itself loads, see task report.
-  FundingPips: logoFundingPips,
-  // Favicon — NP Future's site header is text-only (no logo image anywhere on the page), this
-  // 300x300 brand mark is the best first-party asset available, see task report.
-  'NP Future': logoNpFuture,
-};
-
-type FirmStatus = 'operational' | 'unavailable' | 'legacy';
 type TransitionDirection = 1 | -1;
 
 function LibraryStageMotion({
@@ -127,87 +103,6 @@ const completenessLabel = {
   partial: 'Dados parciais',
   legacy: 'Dados legados',
 };
-
-const firmStatusLabel: Record<FirmStatus, string> = {
-  operational: 'Operacional',
-  unavailable: 'Indisponível',
-  legacy: 'Legado',
-};
-
-function cleanValue(value?: string | null) {
-  const normalized = value?.trim();
-  if (!normalized || ['-', '--', 'n/a', 'na', 'tbd', 'undefined', 'null'].includes(normalized.toLowerCase())) {
-    return 'Verificar';
-  }
-
-  return normalized
-    .replace(/Indisponível em fonte oficial vigente/gi, 'Não público')
-    .replace(/Não informado publicamente/gi, 'Não público')
-    .replace(/Confirmar no termo oficial/gi, 'Verificar')
-    .replace(/(?:US)?\$\s*/gi, 'US$ ');
-}
-
-function formatAccountLabel(value: string) {
-  const normalized = cleanValue(value).replace(/^US\$\s*/i, '$');
-  const shortDollar = normalized.match(/^\$(\d+(?:[.,]\d+)?)(K|M)$/i);
-  if (shortDollar) {
-    const amount = shortDollar[1].replace('.', ',');
-    return `US$ ${amount} ${shortDollar[2].toUpperCase() === 'K' ? 'mil' : 'milhões'}`;
-  }
-
-  const fullDollar = normalized.match(/^\$([\d,]+)$/);
-  if (fullDollar) return `US$ ${fullDollar[1].replace(/,/g, '.')}`;
-  return normalized;
-}
-
-function firmPrograms(firm: PropFirmName | null) {
-  if (!firm) return [];
-  return propFirmRulePrograms.filter((program) => program.firm === firm);
-}
-
-function accountRules(program?: PropFirmRuleProgram) {
-  if (!program || program.evidenceStatus === 'official_source_unavailable') return [];
-  return program.accountLevelRules ?? [];
-}
-
-function getFirmStatus(programs: PropFirmRuleProgram[]): FirmStatus {
-  if (programs.some((program) => accountRules(program).length > 0)) return 'operational';
-  if (programs.some((program) => program.evidenceStatus === 'official_source_unavailable')) return 'unavailable';
-  return 'legacy';
-}
-
-function getFirmPlatforms(programs: PropFirmRuleProgram[]) {
-  return Array.from(
-    new Set(
-      programs.flatMap((program) => [
-        ...program.platforms,
-        ...accountRules(program).flatMap((account) => account.platforms),
-      ]),
-    ),
-  ).filter(Boolean);
-}
-
-function phaseSummary(account: RuleAccountSize) {
-  return account.phases
-    .map((phase) => `${phase.label}: ${cleanValue(phase.profitTarget)}`)
-    .join(' · ');
-}
-
-function executionLimit(account: RuleAccountSize) {
-  if (account.maxContracts !== 'Não aplicável') return cleanValue(account.maxContracts);
-  if (account.maxLots !== 'Não aplicável') return cleanValue(account.maxLots);
-  return 'Não aplicável';
-}
-
-function payoutSummary(account: RuleAccountSize) {
-  const split = cleanValue(account.payoutSplit);
-  const timing = cleanValue(account.firstPayoutTiming);
-  return split === timing ? split : `${split} · ${timing}`;
-}
-
-function countLabel(value: number, singular: string, plural: string) {
-  return `${value} ${value === 1 ? singular : plural}`;
-}
 
 function shortRisk(value: string) {
   const firstSentence = cleanValue(value).split(/(?<=[.!?])\s/)[0];
@@ -498,6 +393,33 @@ export default function PropFirmLibrary() {
 
   const operationalFirms = firms.filter(({ programs }) => getFirmStatus(programs) === 'operational');
   const coverageFirms = firms.filter(({ programs }) => getFirmStatus(programs) !== 'operational');
+
+  // A visual showcase, not the primary picker — that's still the grid below,
+  // which lists every operational firm including the ones with no sourced
+  // logo (an icon fallback there, not here: this carousel is image-led, so
+  // it only features firms we have a real first-party mark for).
+  const featuredSlides: CoverflowSlide[] = useMemo(
+    () =>
+      operationalFirms
+        .filter(({ name }) => firmLogos[name])
+        .map(({ name, programs: firmRulePrograms }) => {
+          const operationalPrograms = firmRulePrograms.filter((program) => accountRules(program).length > 0);
+          const markets = Array.from(new Set(firmRulePrograms.map((program) => program.market))).join(' · ');
+          const platforms = getFirmPlatforms(firmRulePrograms);
+          return {
+            src: firmLogos[name] as string,
+            alt: `Logo ${name}`,
+            title: name,
+            subtitle: markets || 'Mercado não público',
+            meta: [
+              { label: 'Modelos', value: countLabel(operationalPrograms.length, 'modelo', 'modelos') },
+              { label: 'Plataformas', value: platforms.length ? platforms.map((p) => cleanValue(p)).join(' · ') : 'Não público' },
+              { label: 'Status', value: firmStatusLabel.operational },
+            ],
+          };
+        }),
+    [operationalFirms],
+  );
   const programs = firmPrograms(selectedFirm).filter((program) => accountRules(program).length > 0);
   const selectedProgram = programs.find((program) => program.id === selectedProgramId);
   const accounts = accountRules(selectedProgram);
@@ -561,6 +483,14 @@ export default function PropFirmLibrary() {
           <p className="text-sm md:text-base text-muted-foreground mt-4 max-w-md leading-relaxed">
             Escolha uma mesa, veja os modelos disponíveis e consulte as regras principais antes de conectar sua conta.
           </p>
+          <button
+            type="button"
+            onClick={() => navigate('/dashboard')}
+            className="pill-btn pill-btn-primary mt-5"
+          >
+            <LayoutDashboard className="h-4 w-4" />
+            Ver meu Dashboard
+          </button>
         </div>
         {selectedFirm && (
           <button type="button" onClick={goBack} className="pill-btn shrink-0">
@@ -589,6 +519,22 @@ export default function PropFirmLibrary() {
               />
             </div>
           </div>
+
+          {!query && featuredSlides.length > 3 && (
+            <section aria-labelledby="featured-firms-title" data-library-reveal>
+              <h3 id="featured-firms-title" className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                Mesas em destaque
+              </h3>
+              <CoverflowCarousel
+                slides={featuredSlides}
+                imageFit="contain"
+                showCaption
+                showNavigation
+                cardClassName="border border-brand-chip-border bg-brand-chip"
+                label="Mesas proprietárias em destaque"
+              />
+            </section>
+          )}
 
           {firms.length ? (
             <div className="space-y-7">
