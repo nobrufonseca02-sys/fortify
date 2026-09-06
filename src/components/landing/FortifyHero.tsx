@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { ArrowRight, RefreshCw } from 'lucide-react';
-import iconGmail from '@/assets/brands/icons/gmail.png';
+import iconGmail from '@/assets/brands/icons/gmail.svg';
 import { LandingNav } from '@/components/landing/LandingNav';
 // Ícones oficiais coloridos de cada marca (app-icon/favicon publicado por
 // ela). Usados junto com o nome em texto: os wordmarks de firmLogos.ts são
@@ -221,7 +221,20 @@ function VerifiedAvatar() {
 function GmailBadge() {
   return (
     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white">
-      <img src={iconGmail} alt="Gmail" width={36} height={36} loading="lazy" decoding="async" className="h-5 w-5 object-contain" />
+      {/* Marca oficial do Gmail desde a redesenhada de 2020 — o "M" multicolor.
+          Conferida contra o asset da própria Google
+          (gstatic.com/images/branding/product/2x/gmail_2020q4_96dp.png): mesmas
+          cores #EA4335 / #4285F4 / #34A853 / #FBBC04. Em SVG porque a proporção
+          é 4:3 e o desenho fica nítido em qualquer tamanho. */}
+      <img
+        src={iconGmail}
+        alt="Gmail"
+        width={20}
+        height={15}
+        loading="lazy"
+        decoding="async"
+        className="w-5 object-contain"
+      />
     </span>
   );
 }
