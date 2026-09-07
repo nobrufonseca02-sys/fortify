@@ -1,34 +1,35 @@
-import { useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { FortifyMark } from "@/components/brand/FortifyMark";
 import { trackSignUp } from "@/lib/analytics";
-import { Shield, Lock, Mail, User, ArrowRight, Eye, EyeOff, ChevronRight, CheckCircle2, Loader2 } from "lucide-react";
+import { Lock, Mail, User, ArrowRight, Eye, EyeOff, ChevronRight, Loader2, LogIn, UserPlus, KeyRound } from "lucide-react";
+import { firmLogos } from "@/data/firmLogos";
 
 type AuthMode = "login" | "signup" | "forgot";
 
+// Same real, first-party logo set the prop-firm library carousel uses (see
+// src/data/firmLogos.ts) — duplicated once so the strip can loop seamlessly.
+const firmLogoEntries = Object.entries(firmLogos) as [string, string][];
+const marqueeLogos = [...firmLogoEntries, ...firmLogoEntries];
+
+// Static comet-streak background from the reference layout, self-hosted at
+// public/backgrounds/auth-comet.jpg instead of hotlinked from the demo's own
+// asset host, so this page never depends on a third party's storage bucket.
 function AuthBackground() {
   return (
     <div className="pointer-events-none fixed inset-0 overflow-hidden bg-background" aria-hidden="true">
-      <video
-        className="absolute inset-0 h-full w-full object-cover object-center"
-        src="/backgrounds/fortify-blackhole-auth.mp4"
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="auto"
-        aria-hidden="true"
+      <img
+        src="/backgrounds/auth-comet.jpg"
+        alt=""
+        className="absolute inset-0 h-full w-full object-cover"
       />
-      <div className="absolute inset-0 bg-background/35" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,transparent_0%,transparent_36%,hsl(var(--background)/0.24)_58%,hsl(var(--background)/0.86)_100%)]" />
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,hsl(var(--background)/0.86)_0%,hsl(var(--background)/0.18)_35%,hsl(var(--background)/0.1)_52%,hsl(var(--background)/0.58)_100%)]" />
-      <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-background via-background/75 to-transparent" />
+      <div className="absolute inset-0 ring-1 ring-black/30" />
+      <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-background/70 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-background via-background/55 to-transparent" />
     </div>
   );
 }
@@ -44,15 +45,45 @@ function GoogleMark() {
   );
 }
 
+// The same real prop-firm logos shown in the library's coverflow carousel,
+// scrolling continuously in a strip pinned to the bottom of the viewport —
+// fixed positioning (like the header) so it never adds page height, and
+// always reads as "the end of the page" regardless of card height/mode.
+// No chip/tile behind each mark (the user asked for bare logos, not the
+// PropFirmLibrary carousel's boxed treatment) — a soft white drop-shadow
+// keeps the darker marks readable against the background image without
+// drawing a visible rectangle. FundingPips' source file is a flat JPEG with
+// no transparency, so that one still renders as a small square regardless —
+// an artifact of that asset, not something CSS can undo.
+//
+// A faixa translúcida com blur fica; o que saiu foi só a borda de cima, que
+// desenhava uma linha separando a tira do resto da tela.
+function FirmLogoMarquee({ reduceMotion }: { reduceMotion: boolean }) {
+  return (
+    <footer className="fixed inset-x-0 bottom-0 z-20 bg-background/45 py-3 backdrop-blur-md">
+      <div className="relative overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]">
+        <div className={`flex w-max items-center gap-8 ${reduceMotion ? "" : "animate-marquee"}`}>
+          {marqueeLogos.map(([name, src], index) => (
+            <img
+              key={`${name}-${index}`}
+              src={src}
+              alt={name}
+              className="h-6 w-auto shrink-0 object-contain [filter:drop-shadow(0_0_1px_rgba(255,255,255,0.5))_drop-shadow(0_0_5px_rgba(255,255,255,0.2))]"
+            />
+          ))}
+        </div>
+      </div>
+    </footer>
+  );
+}
+
 export default function AuthPage() {
-  const navigate = useNavigate();
   const shouldReduceMotion = useReducedMotion();
   const [mode, setMode] = useState<AuthMode>("login");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({ email: "", password: "", name: "" });
-  const authCardRef = useRef<HTMLDivElement | null>(null);
   const supportWhatsAppUrl =
     "https://wa.me/5521994177491?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20Fortify.";
 
@@ -136,303 +167,220 @@ export default function AuthPage() {
     }
   };
 
-  const choosePaidPlan = () => {
-    window.sessionStorage.setItem("fortify_intended_plan", "pro_monthly");
-    window.sessionStorage.setItem("intended_plan_slug", "pro_monthly");
-    setMode("signup");
-  };
-
-  const openPlans = () => {
-    navigate("/pricing");
-  };
-
-  const focusLoginCard = () => {
-    setMode("login");
-    authCardRef.current?.scrollIntoView({ behavior: shouldReduceMotion ? "auto" : "smooth", block: "center" });
-    window.setTimeout(() => {
-      document.getElementById("email")?.focus();
-    }, shouldReduceMotion ? 0 : 250);
-  };
-
-  const bullets = [
-    "Controle de limite diário",
-    "Monitoramento de drawdown",
-    "Alertas para regras críticas",
-    "Calculadora de risco integrada",
-    "TradingView integrado para análise gráfica",
-  ];
+  // The header's CTA pill mirrors the reference banner's single highlighted
+  // nav action — here it always offers the *other* mode, so it also serves
+  // as the way back to login from the forgot-password screen.
+  const headerCtaMode: AuthMode = mode === "login" ? "signup" : "login";
+  const headerCtaLabel = mode === "login" ? "Criar conta" : "Entrar";
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
       <AuthBackground />
 
-      <div className="fixed left-4 top-4 z-20 flex items-center gap-3 sm:left-7 sm:top-6">
-        <FortifyMark className="h-10 w-10 shrink-0 text-foreground opacity-95 sm:h-12 sm:w-12" />
-        <div className="flex flex-col leading-none">
-          <span className="text-base font-bold uppercase tracking-[0.14em] text-foreground sm:text-xl">Fortify</span>
-          <span className="mt-1 text-[10px] uppercase tracking-[0.1em] text-muted-foreground sm:text-[11px]">
-            Sistema de gestão de risco
-          </span>
-        </div>
-      </div>
-
-      <div className="fixed right-4 top-16 z-20 flex items-center gap-2 sm:right-7 sm:top-6">
-        <a
-          href={supportWhatsAppUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="rounded-full border border-border bg-background/60 px-4 py-2 text-xs font-semibold text-foreground backdrop-blur-md transition-colors hover:border-primary/40 hover:bg-primary/10 sm:px-5 sm:text-sm"
-        >
-          Suporte
-        </a>
-        <button
-          type="button"
-          onClick={focusLoginCard}
-          className="rounded-full border border-border bg-background/60 px-4 py-2 text-xs font-semibold text-foreground backdrop-blur-md transition-colors hover:border-primary/40 hover:bg-primary/10 sm:px-5 sm:text-sm"
-        >
-          Login
-        </button>
-      </div>
-
-      <main className="relative z-10 flex min-h-screen items-center justify-center px-5 pb-8 pt-20 sm:px-8 sm:pt-20 lg:px-12 lg:pt-16">
-        <section className="mx-auto flex w-full max-w-[900px] flex-col items-center text-center">
-          <motion.div
-            initial={{ opacity: 0, y: rise(24) }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: dur(0.65), delay: wait(0.12) }}
-            className="mb-5"
-          >
-            <p className="eyebrow">Risk command center</p>
-            <h1 className="display-editorial mx-auto mt-2 max-w-3xl text-foreground">
-              Proteja sua conta antes do próximo trade.
-            </h1>
-            <p className="mx-auto mt-2 max-w-xl text-xs leading-5 text-muted-foreground sm:text-base sm:leading-6">
-              Monitore risco, drawdown, regras críticas e posições MT5 em um único painel.
-            </p>
-          </motion.div>
-
-          <div className="mb-5 grid w-full max-w-4xl gap-2 sm:grid-cols-2 lg:grid-cols-5">
-            {bullets.map((bullet, index) => (
-              <motion.div
-                key={bullet}
-                className="flex min-h-[52px] flex-col items-center justify-center gap-1.5 rounded-lg border border-border bg-background/60 px-3 py-2 text-center text-[11px] font-medium leading-4 text-foreground/90 backdrop-blur-md sm:text-xs"
-                initial={{ opacity: 0, y: rise(12) }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: dur(0.45), delay: wait(0.22 + index * 0.06) }}
-              >
-                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                {bullet}
-              </motion.div>
-            ))}
+      <header className="fixed inset-x-0 top-0 z-20 flex items-center justify-between px-5 pt-4 sm:px-8 sm:pt-6 lg:px-16">
+        <div className="flex items-center gap-3">
+          <FortifyMark className="h-9 w-9 shrink-0 text-foreground opacity-95 sm:h-10 sm:w-10" />
+          <div className="hidden flex-col leading-none sm:flex">
+            <span className="text-sm font-bold uppercase tracking-[0.14em] text-foreground">Fortify</span>
+            <span className="mt-1 text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
+              Sistema de gestão de risco
+            </span>
           </div>
+        </div>
 
-          <motion.div
-            ref={authCardRef}
-            layout={!shouldReduceMotion}
-            className="relative w-full max-w-[440px] overflow-hidden rounded-lg border border-border bg-background/92 p-6 text-left shadow-lg backdrop-blur-xl sm:p-8"
-            initial={{ opacity: 0, y: rise(24) }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: dur(0.65), delay: wait(0.28) }}
+        <div className="flex items-center gap-1 rounded-full border border-border bg-background/50 p-1 backdrop-blur-md">
+          <a
+            href={supportWhatsAppUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-full px-3.5 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground sm:px-4 sm:text-sm"
           >
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={mode}
-                initial={{ opacity: 0, y: rise(10) }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: rise(-10) }}
-                transition={{ duration: dur(0.25) }}
-              >
-                <div className="text-center mb-6">
-                  <h2 className="text-xl font-bold text-foreground">
-                    {mode === "login" && "Entre no Fortify"}
-                    {mode === "signup" && "Criar conta"}
-                    {mode === "forgot" && "Recuperar senha"}
-                  </h2>
-                  <p className="text-sm text-muted-foreground mt-1.5">
-                    {mode === "login" && "Monitore risco, drawdown e regras críticas antes do próximo trade."}
-                    {mode === "signup" && "Comece a monitorar suas contas agora"}
-                    {mode === "forgot" && "Enviaremos um link para redefinir sua senha"}
-                  </p>
-                </div>
+            Suporte
+          </a>
+          <button
+            type="button"
+            onClick={() => setMode(headerCtaMode)}
+            className="pill-btn-primary flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs sm:px-4 sm:text-sm"
+          >
+            {headerCtaLabel}
+            <ArrowRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </header>
 
-                {mode !== "forgot" && (
-                  <div className="mb-5 space-y-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleGoogleLogin}
-                      disabled={googleLoading || loading}
-                      aria-label="Continuar com Google"
-                      className="w-full gap-2"
-                    >
-                      {googleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleMark />}
-                      {googleLoading ? "Abrindo Google..." : "Continuar com Google"}
-                    </Button>
-                    <div className="flex items-center gap-3">
-                      <span className="h-px flex-1 bg-border" />
-                      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">ou entre com e-mail</span>
-                      <span className="h-px flex-1 bg-border" />
+      <main className="relative z-10 flex min-h-screen flex-col items-center justify-center px-5 pb-24 pt-20 sm:px-8">
+        <motion.div
+          layout={!shouldReduceMotion}
+          initial={{ opacity: 0, y: rise(20) }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: dur(0.6), delay: wait(0.1) }}
+          className="relative w-full max-w-sm overflow-hidden rounded-lg border border-border bg-background/60 p-6 shadow-lg backdrop-blur-md sm:p-7"
+        >
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={mode}
+              initial={{ opacity: 0, y: rise(10) }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: rise(-10) }}
+              transition={{ duration: dur(0.25) }}
+              className="flex flex-col items-center text-center"
+            >
+              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-lg border border-border bg-background/80">
+                {mode === "login" && <LogIn className="h-5 w-5 text-foreground" />}
+                {mode === "signup" && <UserPlus className="h-5 w-5 text-foreground" />}
+                {mode === "forgot" && <KeyRound className="h-5 w-5 text-foreground" />}
+              </div>
+
+              <h2 className="text-xl font-bold text-foreground">
+                {mode === "login" && "Entrar no Fortify"}
+                {mode === "signup" && "Criar conta grátis"}
+                {mode === "forgot" && "Recuperar senha"}
+              </h2>
+              <p className="mt-1.5 max-w-[260px] text-sm text-muted-foreground">
+                {mode === "login" && "Acesse o painel de risco da sua conta."}
+                {mode === "signup" && "Comece a monitorar as regras da sua prop firm agora."}
+                {mode === "forgot" && "Enviaremos um link de redefinição para o seu e-mail."}
+              </p>
+
+              <form onSubmit={handleSubmit} className="mt-6 w-full space-y-3 text-left">
+                {mode === "signup" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="name" className="text-xs text-muted-foreground font-medium">Nome completo</Label>
+                    <div className="relative">
+                      <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="name"
+                        className="pl-10"
+                        placeholder="Seu nome"
+                        value={form.name}
+                        onChange={(e) => updateField("name", e.target.value)}
+                      />
                     </div>
                   </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  {mode === "signup" && (
-                    <div className="space-y-2">
-                      <Label htmlFor="name" className="text-xs text-muted-foreground font-medium">Nome completo</Label>
-                      <div className="relative">
-                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="name"
-                          className="pl-10"
-                          placeholder="Seu nome"
-                          value={form.name}
-                          onChange={(e) => updateField("name", e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="space-y-2">
-                    <Label htmlFor="email" className="text-xs text-muted-foreground font-medium">E-mail</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="email"
-                        type="email"
-                        className="pl-10"
-                        placeholder="seu@email.com"
-                        value={form.email}
-                        onChange={(e) => updateField("email", e.target.value)}
-                        required
-                      />
-                    </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-xs text-muted-foreground font-medium">E-mail</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="email"
+                      type="email"
+                      className="pl-10"
+                      placeholder="seu@email.com"
+                      value={form.email}
+                      onChange={(e) => updateField("email", e.target.value)}
+                      required
+                    />
                   </div>
+                </div>
 
-                  {mode !== "forgot" && (
-                    <div className="space-y-2">
-                      <Label htmlFor="password" className="text-xs text-muted-foreground font-medium">Senha</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="password"
-                          type={showPassword ? "text" : "password"}
-                          className="pl-10 pr-10"
-                          placeholder="••••••••"
-                          value={form.password}
-                          onChange={(e) => updateField("password", e.target.value)}
-                          required
-                          minLength={6}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
-                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
-                        >
-                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {mode === "login" && (
-                    <div className="flex justify-end">
+                {mode !== "forgot" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="password" className="text-xs text-muted-foreground font-medium">Senha</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        className="pl-10 pr-10"
+                        placeholder="••••••••"
+                        value={form.password}
+                        onChange={(e) => updateField("password", e.target.value)}
+                        required
+                        minLength={6}
+                      />
                       <button
                         type="button"
-                        onClick={() => setMode("forgot")}
-                        className="text-xs text-primary/85 transition-colors hover:text-primary"
+                        onClick={() => setShowPassword(!showPassword)}
+                        aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
                       >
-                        Esqueceu a senha?
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
-                  )}
+                  </div>
+                )}
 
-                  <Button
-                    type="submit"
-                    disabled={loading}
-                    variant="premium"
-                    size="lg"
-                    className="w-full gap-2 group"
-                  >
-                    {loading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <>
-                        {mode === "login" && "Entrar"}
-                        {mode === "signup" && "Criar conta"}
-                        {mode === "forgot" && "Enviar link"}
-                        <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                      </>
-                    )}
-                  </Button>
-                </form>
-
-                <div className="pt-4 text-center">
-                  {mode === "login" && (
-                    <div className="space-y-3">
-                      <p className="text-sm text-muted-foreground">
-                        Não tem conta?{" "}
-                        <button onClick={() => setMode("signup")} className="text-primary font-semibold transition-colors hover:text-primary/80">
-                          Criar conta grátis
-                        </button>
-                      </p>
-                      <div className="grid grid-cols-2 gap-2">
-                        <Button type="button" variant="outline" size="sm" onClick={choosePaidPlan}>Assinar Fortify</Button>
-                        <Button type="button" variant="outline" size="sm" onClick={openPlans}>Ver planos</Button>
-                      </div>
-                    </div>
-                  )}
-                  {mode === "signup" && (
-                    <div className="space-y-3">
-                      <p className="text-sm text-muted-foreground">
-                        Já tem conta?{" "}
-                        <button onClick={() => setMode("login")} className="text-primary font-semibold transition-colors hover:text-primary/80">
-                          Já tenho conta
-                        </button>
-                      </p>
-                      <div className="grid grid-cols-2 gap-2">
-                        <Button type="button" variant="outline" size="sm" onClick={() => setMode("signup")}>Começar pelo beta</Button>
-                        <Button type="button" variant="outline" size="sm" onClick={openPlans}>Ver planos</Button>
-                      </div>
-                    </div>
-                  )}
-                  {mode === "forgot" && (
-                    <button onClick={() => setMode("login")} className="text-sm text-primary font-semibold transition-colors hover:text-primary/80 flex items-center gap-1 mx-auto">
-                      <ChevronRight className="h-3 w-3 rotate-180" />
-                      Voltar ao login
+                {mode === "login" && (
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setMode("forgot")}
+                      className="text-xs text-primary/85 transition-colors hover:text-primary"
+                    >
+                      Esqueceu a senha?
                     </button>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="pill-btn pill-btn-primary w-full justify-center gap-2 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      {mode === "login" && "Entrar"}
+                      {mode === "signup" && "Criar conta"}
+                      {mode === "forgot" && "Enviar link"}
+                      <ArrowRight className="h-4 w-4" />
+                    </>
                   )}
-                </div>
-              </motion.div>
-            </AnimatePresence>
-          </motion.div>
+                </button>
+              </form>
 
-          <motion.div
-            className="mt-4 flex items-center justify-center gap-6 text-[10px] text-muted-foreground uppercase tracking-wider"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: dur(0.4), delay: wait(0.8) }}
-          >
-            <span className="flex items-center gap-1.5">
-              <Lock className="h-3 w-3" /> Criptografia SSL
-            </span>
-            <span className="w-1 h-1 rounded-full bg-muted-foreground/20" />
-            <span className="flex items-center gap-1.5">
-              <Shield className="h-3 w-3" /> Dados protegidos
-            </span>
-          </motion.div>
+              {mode !== "forgot" && (
+                <>
+                  <div className="my-4 flex w-full items-center gap-3">
+                    <div className="h-px flex-1 bg-border" />
+                    <span className="text-xs text-muted-foreground">ou continue com</span>
+                    <div className="h-px flex-1 bg-border" />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleGoogleLogin}
+                    disabled={googleLoading || loading}
+                    className="pill-btn w-full justify-center gap-2 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {googleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleMark />}
+                    {googleLoading ? "Abrindo Google..." : "Continuar com Google"}
+                  </button>
+                </>
+              )}
 
-          <motion.p
-            className="mt-5 text-center text-[11px] text-muted-foreground"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: dur(0.4), delay: wait(1.1) }}
-          >
-            &copy; 2026 Fortify. Controle total sobre suas operações.
-          </motion.p>
-        </section>
+              <div className="pt-4 text-center">
+                {mode === "login" && (
+                  <p className="text-sm text-muted-foreground">
+                    Não tem conta?{" "}
+                    <button onClick={() => setMode("signup")} className="text-primary font-semibold transition-colors hover:text-primary/80">
+                      Criar conta grátis
+                    </button>
+                  </p>
+                )}
+                {mode === "signup" && (
+                  <p className="text-sm text-muted-foreground">
+                    Já tem conta?{" "}
+                    <button onClick={() => setMode("login")} className="text-primary font-semibold transition-colors hover:text-primary/80">
+                      Já tenho conta
+                    </button>
+                  </p>
+                )}
+                {mode === "forgot" && (
+                  <button onClick={() => setMode("login")} className="text-sm text-primary font-semibold transition-colors hover:text-primary/80 flex items-center gap-1 mx-auto">
+                    <ChevronRight className="h-3 w-3 rotate-180" />
+                    Voltar ao login
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          </AnimatePresence>
+        </motion.div>
       </main>
+
+      <FirmLogoMarquee reduceMotion={!!shouldReduceMotion} />
     </div>
   );
 }
