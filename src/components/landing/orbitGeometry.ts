@@ -31,17 +31,18 @@ export const RING_FLATTEN = 0.7;
 export const ORBIT_CONTAINER_WIDTH = 'w-[min(1600px,95vw,135vh)]';
 
 /**
- * Anéis em % da largura do container, com espaçamento uniforme de 4%.
+ * Anéis em % da largura do container, espaçamento uniforme de 8%.
  *
- * Começa em 40 e o passo divide 8 porque os chips ficam em 40, 48 e 56: os
- * anéis deles continuam existindo exatamente onde estavam, e os novos entram
- * no meio. Nada mais precisa se mover.
+ * Os anéis novos entram PARA DENTRO (16, 24, 32), não para fora. Medido no
+ * navegador: em 1440x900 só cinco anéis chegam a aparecer, o maior é o 72 —
+ * 80, 88 e 96 já passam inteiros por fora do viewport. Anel maior que isso é
+ * nó no DOM que ninguém vê, então para fora não há linha a ganhar sem mexer
+ * no tamanho do container (o que moveria todos os chips).
  *
- * Vai até 116 de propósito — o `<svg>` é `overflow-visible`, então os anéis
- * de fora passam da borda do container e continuam preenchendo os cantos da
- * tela em vez de terminar num círculo visível.
+ * O 8 ficou de fora porque o véu do texto cobre 100% dele. Do 16 em diante
+ * sobra arco visível dos dois lados do conteúdo.
  */
-export const ORBIT_RINGS = Array.from({ length: 20 }, (_, i) => 40 + i * 4);
+export const ORBIT_RINGS = Array.from({ length: 11 }, (_, i) => 16 + i * 8);
 
 /** Os mesmos limites usados pelo solver, para o teste conferir o que foi resolvido. */
 export const ORBIT_LIMITS = {
