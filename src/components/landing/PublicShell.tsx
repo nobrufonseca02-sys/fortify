@@ -5,6 +5,7 @@ import { motion } from 'motion/react';
 import { ArrowRight } from 'lucide-react';
 import { FortifyMark } from '@/components/brand/FortifyMark';
 import { LandingNav } from '@/components/landing/LandingNav';
+import { RevealText } from '@/components/landing/publicMotion';
 import { fortifyMotion } from '@/lib/motion';
 import { pushDataLayerEvent } from '@/lib/analytics';
 import { SUPPORT_WHATSAPP_URL } from '@/lib/support';
@@ -71,7 +72,10 @@ export function ScrollReveal({
     <motion.div
       initial={{ opacity: 0, y: 14 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-80px' }}
+      // Borda de cima em zero: com margem negativa no topo o gatilho vira uma
+      // faixa, e um bloco que caia acima dela num salto de rolagem nunca
+      // aparece (o `once` não deixa tentar de novo).
+      viewport={{ once: true, margin: '0px 0px -80px 0px' }}
       transition={{ ...fortifyMotion.reveal, delay }}
       className={className}
     >
@@ -117,15 +121,26 @@ export function PublicPageHeader({
 }) {
   return (
     <header className="mx-auto w-full max-w-6xl px-5 pb-2 pt-14 sm:px-8 sm:pt-20">
-      <ScrollReveal className="max-w-2xl">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">{eyebrow}</p>
-        <h1 className="mt-4 text-[2rem] font-bold leading-[1.06] tracking-[-0.02em] text-zinc-900 text-balance sm:text-[2.6rem]">
-          {title}
-        </h1>
+      {/* O título fica FORA do ScrollReveal: se herdasse o fade de bloco, as
+          palavras subiriam enquanto o conjunto ainda está invisível e a
+          revelação se perderia. Eyebrow e apoio continuam no fade. */}
+      <div className="max-w-2xl">
+        <ScrollReveal>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">{eyebrow}</p>
+        </ScrollReveal>
+        <RevealText
+          as="h1"
+          text={title}
+          delay={0.08}
+          stagger={0.05}
+          className="mt-4 block text-[2rem] font-bold leading-[1.06] tracking-[-0.02em] text-zinc-900 text-balance sm:text-[2.6rem]"
+        />
         {description && (
-          <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-zinc-600">{description}</p>
+          <ScrollReveal delay={0.2}>
+            <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-zinc-600">{description}</p>
+          </ScrollReveal>
         )}
-      </ScrollReveal>
+      </div>
     </header>
   );
 }
@@ -171,17 +186,24 @@ export function SectionHeading({
   className?: string;
 }) {
   return (
-    <ScrollReveal className={cn('max-w-2xl', className)}>
+    <div className={cn('max-w-2xl', className)}>
       {eyebrow && (
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">{eyebrow}</p>
+        <ScrollReveal>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">{eyebrow}</p>
+        </ScrollReveal>
       )}
-      <h2 className="mt-3 text-[1.55rem] font-bold leading-[1.12] tracking-[-0.02em] text-zinc-900 text-balance sm:text-[2rem]">
-        {title}
-      </h2>
+      <RevealText
+        as="h2"
+        text={title}
+        delay={eyebrow ? 0.08 : 0}
+        className="mt-3 block text-[1.55rem] font-bold leading-[1.12] tracking-[-0.02em] text-zinc-900 text-balance sm:text-[2rem]"
+      />
       {description && (
-        <p className="mt-3 text-[15px] leading-relaxed text-zinc-600">{description}</p>
+        <ScrollReveal delay={0.2}>
+          <p className="mt-3 text-[15px] leading-relaxed text-zinc-600">{description}</p>
+        </ScrollReveal>
       )}
-    </ScrollReveal>
+    </div>
   );
 }
 

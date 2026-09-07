@@ -27,6 +27,7 @@ import {
   orbitPosition,
   RING_FLATTEN,
 } from '@/components/landing/orbitGeometry';
+import { RevealText } from '@/components/landing/publicMotion';
 import { cn } from '@/lib/utils';
 
 /**
@@ -298,8 +299,11 @@ function TextVeil() {
 
 function OrbitField() {
   return (
-    <div
+    <motion.div
       aria-hidden="true"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 1.1, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
       className={cn(
         'pointer-events-none absolute left-1/2 top-1/2 hidden aspect-square -translate-x-1/2 -translate-y-1/2 lg:block',
         ORBIT_CONTAINER_WIDTH,
@@ -385,9 +389,10 @@ function OrbitField() {
           </div>
         </div>
       ))}
-    </div>
+    </motion.div>
   );
 }
+
 export function FortifyHero({
   onPrimary,
   onSecondary,
@@ -420,19 +425,18 @@ export function FortifyHero({
             frente das órbitas, em vez de cair para trás de tudo. */}
         <div className="relative isolate z-10 mx-auto max-w-lg px-5 text-center">
           <TextVeil />
-          <motion.h1
-            initial={shouldReduceMotion ? undefined : { opacity: 0, y: 14 }}
-            animate={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
-            transition={{ duration: 0.55 }}
+          <RevealText
+            as="h1"
+            text="Plataforma inteligente de gestão de risco"
+            trigger="load"
+            stagger={0.055}
             className="text-[2rem] font-bold leading-[1.08] tracking-tight text-zinc-900 sm:text-[2.6rem] md:text-[3rem]"
-          >
-            Plataforma inteligente de gestão de risco
-          </motion.h1>
+          />
 
           <motion.div
             initial={shouldReduceMotion ? undefined : { opacity: 0, y: 14 }}
             animate={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, delay: 0.1 }}
+            transition={{ duration: 0.55, delay: 0.85 }}
             className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row"
           >
             <button
@@ -464,7 +468,7 @@ export function FortifyHero({
               key={item.key}
               initial={shouldReduceMotion ? undefined : { opacity: 0, y: 14 }}
               animate={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
-              transition={{ duration: 0.45, delay: 0.2 + index * 0.08 }}
+              transition={{ duration: 0.45, delay: 1.05 + index * 0.12 }}
               style={{
                 zIndex: NOTIFICATIONS.length - index,
                 transform: `scale(${1 - index * 0.035})`,
