@@ -16,6 +16,12 @@ type AuthMode = "login" | "signup" | "forgot";
 const firmLogoEntries = Object.entries(firmLogos) as [string, string][];
 const marqueeLogos = [...firmLogoEntries, ...firmLogoEntries];
 
+// Proporção acima de ~6:1 não cabe na caixa padrão sem virar um fio. O arquivo
+// da FundedNext é 898x87 (10,32:1) e não tem UMA coluna de margem para aparar —
+// medido no bitmap. Caixa mais larga para a altura subir de 12px para 16px, que
+// é o melhor possível sem um asset compacto da marca.
+const WIDE_MARKS = new Set(["FundedNext"]);
+
 // Static comet-streak background from the reference layout, self-hosted at
 // public/backgrounds/auth-comet.jpg instead of hotlinked from the demo's own
 // asset host, so this page never depends on a third party's storage bucket.
@@ -62,13 +68,19 @@ function FirmLogoMarquee({ reduceMotion }: { reduceMotion: boolean }) {
   return (
     <footer className="fixed inset-x-0 bottom-0 z-20 bg-background/45 py-3 backdrop-blur-md">
       <div className="relative overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]">
-        <div className={`flex w-max items-center gap-8 ${reduceMotion ? "" : "animate-marquee"}`}>
+        <div className={`flex w-max items-center gap-6 ${reduceMotion ? "" : "animate-marquee"}`}>
           {marqueeLogos.map(([name, src], index) => (
             <img
               key={`${name}-${index}`}
               src={src}
               alt={name}
-              className="h-6 w-auto shrink-0 object-contain [filter:drop-shadow(0_0_1px_rgba(255,255,255,0.5))_drop-shadow(0_0_5px_rgba(255,255,255,0.2))]"
+              /* Caixa IGUAL para toda marca, com object-contain: é o que padroniza.
+                 Só travar a altura não resolvia — com a proporção indo de 1:1
+                 (BrightFunded, FundingPips, NP Future) a 10,3:1 (FundedNext), a
+                 mesma altura de 24px produzia larguras de 24px a 248px, 10x de
+                 diferença. Agora cada logo ocupa 120x28 e se ajusta dentro disso:
+                 wordmark largo limita pela largura, marca quadrada pela altura. */
+              className={`h-7 ${WIDE_MARKS.has(name) ? "w-[168px]" : "w-[120px]"} shrink-0 object-contain [filter:drop-shadow(0_0_1px_rgba(255,255,255,0.5))_drop-shadow(0_0_5px_rgba(255,255,255,0.2))]`}
             />
           ))}
         </div>
