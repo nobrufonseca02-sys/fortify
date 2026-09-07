@@ -30,8 +30,18 @@ export const RING_FLATTEN = 0.7;
  *  central encolhe, e os chips batem na navbar e na barra de logos. */
 export const ORBIT_CONTAINER_WIDTH = 'w-[min(1600px,95vw,135vh)]';
 
-/** Em % da largura do container, espaçamento uniforme de 8%. */
-export const ORBIT_RINGS = [40, 48, 56, 64, 72, 80, 88, 96];
+/**
+ * Anéis em % da largura do container, com espaçamento uniforme de 4%.
+ *
+ * Começa em 40 e o passo divide 8 porque os chips ficam em 40, 48 e 56: os
+ * anéis deles continuam existindo exatamente onde estavam, e os novos entram
+ * no meio. Nada mais precisa se mover.
+ *
+ * Vai até 116 de propósito — o `<svg>` é `overflow-visible`, então os anéis
+ * de fora passam da borda do container e continuam preenchendo os cantos da
+ * tela em vez de terminar num círculo visível.
+ */
+export const ORBIT_RINGS = Array.from({ length: 20 }, (_, i) => 40 + i * 4);
 
 /** Os mesmos limites usados pelo solver, para o teste conferir o que foi resolvido. */
 export const ORBIT_LIMITS = {
