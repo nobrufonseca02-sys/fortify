@@ -166,12 +166,11 @@ export const LandingFooter = PublicFooter;
  * Recursos mostrar tudo: sem isso as duas URLs teriam o mesmo conteúdo
  * inteiro, o que é conteúdo duplicado e manutenção em dobro.
  */
-export function FeaturesSection({ limit }: { limit?: number } = {}) {
-  const visiveis = typeof limit === 'number' ? features.slice(0, limit) : features;
+export function FeaturesSection() {
   return (
     <section className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-14">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {visiveis.map(({ icon: Icon, title, description }) => (
+        {features.map(({ icon: Icon, title, description }) => (
           <ScrollReveal key={title}>
             <div className="h-full rounded-lg border border-border bg-card/60 p-5">
               <div className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-primary">
@@ -187,13 +186,12 @@ export function FeaturesSection({ limit }: { limit?: number } = {}) {
   );
 }
 
-export function FaqSection({ limit }: { limit?: number } = {}) {
-  const visiveis = typeof limit === 'number' ? faqItems.slice(0, limit) : faqItems;
+export function FaqSection() {
   return (
     <section className="mx-auto max-w-3xl px-5 py-10 sm:px-8 sm:py-14">
       <ScrollReveal>
         <Accordion type="single" collapsible className="rounded-lg border border-border bg-card/60 px-5">
-          {visiveis.map((item, index) => (
+          {faqItems.map((item, index) => (
             <AccordionItem key={item.question} value={`item-${index}`} className="border-border">
               <AccordionTrigger className="text-left text-sm text-foreground hover:no-underline">
                 {item.question}

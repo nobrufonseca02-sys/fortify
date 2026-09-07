@@ -101,30 +101,3 @@ export function RevealText({
     </Tag>
   );
 }
-
-/**
- * Bloco que sobe e aparece ao entrar na tela. É o `ScrollReveal` do
- * PublicShell, repetido aqui com o mesmo gatilho do RevealText para os dois
- * ficarem em fase quando aparecem juntos.
- */
-export function RevealBlock({
-  children,
-  className,
-  delay = 0,
-}: {
-  children: ReactNode;
-  className?: string;
-  delay?: number;
-}) {
-  return (
-    <motion.div
-      className={className}
-      initial={{ opacity: 0, y: 18 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={IN_VIEW}
-      transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay }}
-    >
-      {children}
-    </motion.div>
-  );
-}
