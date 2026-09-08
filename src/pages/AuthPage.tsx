@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { Input } from "@/components/ui/input";
@@ -90,9 +90,51 @@ function FirmLogoMarquee({ reduceMotion }: { reduceMotion: boolean }) {
   );
 }
 
+/**
+ * Provedores externos que o projeto Supabase tem LIGADOS.
+ *
+ * Existe porque `signInWithOAuth` não devolve erro quando o provedor está
+ * desligado: ele monta a URL de autorização e o navegador segue, e quem
+ * clicava caía num 400 do Supabase. O toast de "ainda não está configurado"
+ * logo abaixo nunca disparava — o erro acontece depois de sair da página.
+ *
+ * Lido do endpoint público de settings, então no dia em que o Google for
+ * habilitado no painel o botão volta sozinho, sem tocar no código. Enquanto a
+ * resposta não chega o botão fica escondido, para não piscar um caminho que
+ * pode não existir.
+ */
+function useProvedoresExternos() {
+  const [provedores, setProvedores] = useState<Record<string, boolean> | null>(null);
+
+  useEffect(() => {
+    const url = import.meta.env.VITE_SUPABASE_URL?.trim();
+    const chave = (
+      import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY
+    )?.trim();
+    if (!url || !chave) return;
+
+    let ativo = true;
+    fetch(`${url}/auth/v1/settings`, { headers: { apikey: chave } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((dados) => {
+        if (ativo && dados) setProvedores(dados.external ?? {});
+      })
+      .catch(() => {
+        // Sem resposta, fica só o login por e-mail. Melhor um caminho a menos
+        // que um botão que leva a uma tela de erro.
+      });
+    return () => {
+      ativo = false;
+    };
+  }, []);
+
+  return provedores;
+}
+
 export default function AuthPage() {
   const shouldReduceMotion = useReducedMotion();
   const { search } = useLocation();
+  const provedoresExternos = useProvedoresExternos();
 
   // `?intent=signup` abre direto o cadastro. É para onde apontam os CTAs
   // "Começar agora" e "Criar conta" da landing: quem chega por ali ainda não
@@ -353,7 +395,7 @@ export default function AuthPage() {
                 </button>
               </form>
 
-              {mode !== "forgot" && (
+              {mode !== "forgot" && provedoresExternos?.google && (
                 <>
                   <div className="my-4 flex w-full items-center gap-3">
                     <div className="h-px flex-1 bg-border" />

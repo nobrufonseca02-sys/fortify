@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AuthGuard } from '../App';
+import { AuthGuard, eRotaDoProduto } from '../App';
 import { AUTH_SIGNUP_PATH } from '../components/landing/PublicShell';
 
 /**
@@ -108,5 +108,47 @@ describe('AuthGuard', () => {
     window.sessionStorage.setItem('fortify_checkout_return_path', 'https://exemplo-externo.com');
     renderEm('/auth');
     expect(screen.getByTestId('pricing')).toBeInTheDocument();
+  });
+});
+
+/**
+ * Guarda da classificação de rotas de quem NÃO tem sessão.
+ *
+ * Antes, qualquer URL fora do site virava a tela de login: um link de anúncio
+ * errado ou antigo mostrava um muro de senha em vez de dizer que a página não
+ * existe. Agora só rota que existe no produto pede login — e é esta função que
+ * decide, então ela precisa acertar as rotas com parâmetro também.
+ */
+describe('eRotaDoProduto', () => {
+  it('reconhece as rotas do produto, inclusive as com parâmetro', () => {
+    for (const rota of [
+      '/',
+      '/dashboard',
+      '/accounts',
+      '/accounts/new',
+      '/accounts/abc-123',
+      '/accounts/abc-123/checklist',
+      '/accounts/abc-123/rules',
+      '/risk-calculator',
+      '/mt5',
+      '/mt5/conexao-9',
+      '/settings',
+      '/subscription',
+      '/adm',
+    ]) {
+      expect(eRotaDoProduto(rota), `${rota} deveria pedir login`).toBe(true);
+    }
+  });
+
+  it('não reconhece URL inventada, que tem de virar 404 e não tela de senha', () => {
+    for (const rota of [
+      '/promo-antiga-do-anuncio',
+      '/vendas/campanha-que-nao-existe',
+      '/accounts/abc/rota-inventada',
+      '/dashboard/sub-rota-inexistente',
+      '/adm/usuarios',
+    ]) {
+      expect(eRotaDoProduto(rota), `${rota} não deveria pedir login`).toBe(false);
+    }
   });
 });

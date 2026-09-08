@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef } from "react";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, matchPath, useLocation } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -144,44 +144,71 @@ function Mt5Redirect() {
   return <Navigate to={`/accounts${location.search}`} replace />;
 }
 
+/**
+ * Rotas do produto, em UMA lista só.
+ *
+ * A lista tem dois consumidores: o <Routes> de quem tem sessão, e a decisão
+ * que se toma com quem não tem. Como é a mesma fonte, não existe o risco de
+ * uma rota nova entrar no <Routes> e ficar de fora da checagem de sessão.
+ *
+ * A Biblioteca de Mesas é o que o trader vê ao entrar — o Painel tem caminho
+ * próprio, alcançado pelo botão da biblioteca e pela barra lateral.
+ */
+const ROTAS_DO_PRODUTO = [
+  { path: "/", element: <PropFirmLibrary /> },
+  { path: "/dashboard", element: <Dashboard /> },
+  { path: "/calculator", element: <Navigate to="/risk-calculator" replace /> },
+  { path: "/risk-calculator", element: <RiskCalculator /> },
+  { path: "/coach", element: <Coach /> },
+  { path: "/accounts", element: <Accounts /> },
+  { path: "/accounts/new", element: <CreateAccount /> },
+  { path: "/accounts/:id", element: <AccountDashboard /> },
+  { path: "/accounts/:id/checklist", element: <AccountChecklist /> },
+  { path: "/accounts/:id/coach", element: <AccountCoach /> },
+  { path: "/accounts/:accountId/rules", element: <AccountRuleManagement /> },
+  { path: "/performance", element: <Performance /> },
+  { path: "/rules", element: <Navigate to="/" replace /> },
+  { path: "/rules/demo", element: <RuleEngineDemo /> },
+  { path: "/rules/manage", element: <RuleManager /> },
+  { path: "/library", element: <Navigate to="/" replace /> },
+  { path: "/integrations/mt5", element: <Navigate to="/mt5" replace /> },
+  { path: "/mt5", element: <Mt5Redirect /> },
+  { path: "/mt5/:connectionId", element: <MT5Dashboard /> },
+  { path: "/settings", element: <SettingsPage /> },
+  { path: "/pricing", element: <PricingPage /> },
+  { path: "/subscription", element: <SubscriptionManagementPage /> },
+  { path: "/adm", element: <AdminPage /> },
+  { path: "/admin", element: <Navigate to="/adm" replace /> },
+];
+
+/** A URL é de uma rota que existe no produto? */
+export function eRotaDoProduto(pathname: string) {
+  return ROTAS_DO_PRODUTO.some(({ path }) => matchPath(path, pathname) !== null);
+}
+
 function ProtectedRoutes() {
   const { session } = useAuth();
+  const { pathname } = useLocation();
 
   if (!session) {
-    return <Navigate to="/auth" replace />;
+    // A raiz é onde cai quem digita só o domínio, ou recebe a indicação de um
+    // amigo sem caminho nenhum. Essa pessoa tem que ver o site, não um
+    // formulário pedindo a senha de uma conta que ela não tem.
+    if (pathname === "/") return <Navigate to="/vendas" replace />;
+
+    // Rota real do produto: pede login. URL que não existe: 404 de verdade.
+    // Antes tudo virava login, então um link de anúncio errado ou antigo
+    // mostrava um muro de senha em vez de dizer que a página não existe.
+    return eRotaDoProduto(pathname) ? <Navigate to="/auth" replace /> : <NotFound />;
   }
 
   return (
     <AppLayout>
       <Suspense fallback={<AuthLoadingScreen />}>
         <Routes>
-          {/* Biblioteca de Mesas is the first thing a trader sees on entry —
-              Dashboard moves to its own path, reached via the button on the
-              library page (and the sidebar). */}
-          <Route path="/" element={<PropFirmLibrary />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/calculator" element={<Navigate to="/risk-calculator" replace />} />
-          <Route path="/risk-calculator" element={<RiskCalculator />} />
-          <Route path="/coach" element={<Coach />} />
-          <Route path="/accounts" element={<Accounts />} />
-          <Route path="/accounts/new" element={<CreateAccount />} />
-          <Route path="/accounts/:id" element={<AccountDashboard />} />
-          <Route path="/accounts/:id/checklist" element={<AccountChecklist />} />
-          <Route path="/accounts/:id/coach" element={<AccountCoach />} />
-          <Route path="/accounts/:accountId/rules" element={<AccountRuleManagement />} />
-          <Route path="/performance" element={<Performance />} />
-          <Route path="/rules" element={<Navigate to="/" replace />} />
-          <Route path="/rules/demo" element={<RuleEngineDemo />} />
-          <Route path="/rules/manage" element={<RuleManager />} />
-          <Route path="/library" element={<Navigate to="/" replace />} />
-          <Route path="/integrations/mt5" element={<Navigate to="/mt5" replace />} />
-          <Route path="/mt5" element={<Mt5Redirect />} />
-          <Route path="/mt5/:connectionId" element={<MT5Dashboard />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/pricing" element={<PricingPage />} />
-          <Route path="/subscription" element={<SubscriptionManagementPage />} />
-          <Route path="/adm" element={<AdminPage />} />
-          <Route path="/admin" element={<Navigate to="/adm" replace />} />
+          {ROTAS_DO_PRODUTO.map(({ path, element }) => (
+            <Route key={path} path={path} element={element} />
+          ))}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
