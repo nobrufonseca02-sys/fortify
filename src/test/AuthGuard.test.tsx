@@ -23,8 +23,8 @@ vi.mock('../pages/AuthPage', () => ({
   default: () => <div data-testid="tela-de-auth">tela de auth</div>,
 }));
 
-function renderEm(rota: string) {
-  return render(
+function arvore(rota: string) {
+  return (
     // Suspense porque AuthPage é lazy em App.tsx: sem a fronteira o React
     // devolve o fallback e o teste não veria a tela.
     <MemoryRouter initialEntries={[rota]}>
@@ -36,8 +36,12 @@ function renderEm(rota: string) {
         <Route path="/vendas/planos" element={<div data-testid="planos">planos</div>} />
       </Routes>
       </Suspense>
-    </MemoryRouter>,
+    </MemoryRouter>
   );
+}
+
+function renderEm(rota: string) {
+  return render(arvore(rota));
 }
 
 beforeEach(() => {
@@ -81,6 +85,21 @@ describe('AuthGuard', () => {
     window.sessionStorage.setItem('fortify_checkout_return_path', '/vendas/planos');
     renderEm('/auth');
     expect(screen.getByTestId('planos')).toBeInTheDocument();
+  });
+
+  it('quem autentica NA tela com pedido explícito segue adiante, não fica preso', async () => {
+    // Este é o beco sem saída que o parâmetro criava: o CTA do site levava
+    // para /auth?intent=signup, a pessoa entrava ali e continuava vendo o
+    // mesmo formulário, porque o `intent` fica na URL a viagem inteira.
+    const { rerender } = renderEm(AUTH_SIGNUP_PATH);
+    expect(await screen.findByTestId('tela-de-auth')).toBeInTheDocument();
+
+    // A sessão aparece com a tela já montada: o login aconteceu AQUI.
+    mockSession = { user: { id: 'user-1' }, access_token: 'token-1' };
+    rerender(arvore(AUTH_SIGNUP_PATH));
+
+    expect(await screen.findByTestId('painel')).toBeInTheDocument();
+    expect(screen.queryByTestId('tela-de-auth')).not.toBeInTheDocument();
   });
 
   it('rota de retorno desconhecida cai em /pricing, sem redirecionamento aberto', () => {

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "react-router-dom";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -91,7 +92,15 @@ function FirmLogoMarquee({ reduceMotion }: { reduceMotion: boolean }) {
 
 export default function AuthPage() {
   const shouldReduceMotion = useReducedMotion();
-  const [mode, setMode] = useState<AuthMode>("login");
+  const { search } = useLocation();
+
+  // `?intent=signup` abre direto o cadastro. É para onde apontam os CTAs
+  // "Começar agora" e "Criar conta" da landing: quem chega por ali ainda não
+  // tem conta, e cair num formulário de login pedindo senha é um muro.
+  // Só o valor `signup` abre o cadastro; qualquer outro intent cai no login.
+  const [mode, setMode] = useState<AuthMode>(() =>
+    new URLSearchParams(search).get("intent") === "signup" ? "signup" : "login",
+  );
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);

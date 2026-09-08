@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useDocumentMeta } from '@/hooks/useDocumentMeta';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, BookOpen, Gauge, ShieldCheck, Target, Timer } from 'lucide-react';
 import {
@@ -64,6 +65,16 @@ const PRINCIPLES = [
 
 export default function QuemSomosPage() {
   const navigate = useNavigate();
+
+  // Título, descrição e canônica próprios: sem isso as sete páginas do
+  // site dividiam o mesmo título genérico, o que confunde o Google e
+  // derruba o índice de qualidade de anúncio.
+  useDocumentMeta({
+    title: 'Quem somos — FORTIFY',
+    description:
+      'Por que o Fortify existe: controle de risco auditável para quem opera capital de mesa proprietária. Não é corretora, não dá sinais de entrada.',
+    path: '/vendas/quem-somos',
+  });
 
   useEffect(() => {
     pushDataLayerEvent('view_about_page', {});

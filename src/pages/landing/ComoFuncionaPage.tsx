@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useDocumentMeta } from '@/hooks/useDocumentMeta';
 import { useNavigate } from 'react-router-dom';
 import {
   Activity,
@@ -80,6 +81,16 @@ const ACCOUNT_SIGNALS = [
 
 export default function ComoFuncionaPage() {
   const navigate = useNavigate();
+
+  // Título, descrição e canônica próprios: sem isso as sete páginas do
+  // site dividiam o mesmo título genérico, o que confunde o Google e
+  // derruba o índice de qualidade de anúncio.
+  useDocumentMeta({
+    title: 'Como usar o Fortify em sete passos — FORTIFY',
+    description:
+      'Da escolha da mesa proprietária ao primeiro alerta: os sete passos para conectar sua conta MT5 e monitorar as regras que valem para ela.',
+    path: '/vendas/como-funciona',
+  });
 
   useEffect(() => {
     pushDataLayerEvent('view_landing_page', { page: 'como_funciona' });

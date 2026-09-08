@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useDocumentMeta } from '@/hooks/useDocumentMeta';
 import { useNavigate } from 'react-router-dom';
 import { ExternalLink, Layers } from 'lucide-react';
 import { CoverflowCarousel, type CoverflowSlide } from '@/components/ui/coverflow-carousel';
@@ -37,6 +38,16 @@ import {
 export default function MesasPage() {
   const navigate = useNavigate();
   const [selectedIndex, setSelectedIndex] = useState(0);
+
+  // Título, descrição e canônica próprios: sem isso as sete páginas do
+  // site dividiam o mesmo título genérico, o que confunde o Google e
+  // derruba o índice de qualidade de anúncio.
+  useDocumentMeta({
+    title: 'Mesas proprietárias suportadas — FORTIFY',
+    description:
+      'FTMO, FundedNext, Apex, Topstep, The5ers e outras: as regras de cada mesa extraídas da fonte oficial, com data de revisão registrada.',
+    path: '/vendas/mesas',
+  });
 
   useEffect(() => {
     pushDataLayerEvent('view_landing_page', { page: 'mesas' });

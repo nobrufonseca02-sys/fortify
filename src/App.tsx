@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useRef } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -213,7 +213,21 @@ export function AuthGuard() {
   // que tem a URL corrente.
   const { search } = useLocation();
   const pediuTelaDeAuth = new URLSearchParams(search).has('intent');
-  if (session && !pediuTelaDeAuth) {
+
+  // Havia sessão quando esta tela montou?
+  //
+  // O `intent` sozinho não serve para decidir: ele fica na URL a viagem
+  // inteira. Quem chegava por um CTA, entrava aqui e autenticava continuava
+  // preso, olhando o mesmo formulário depois de já estar logado.
+  //
+  // A distinção é a origem da sessão: se já existia ao abrir, o visitante
+  // pediu a tela de propósito e fica nela; se apareceu depois, ele acabou de
+  // autenticar AQUI e tem que passar. Dá para confiar no valor do primeiro
+  // render porque AppContent só monta o router depois que o auth resolve.
+  const jaTinhaSessaoAoAbrir = useRef(Boolean(session));
+  const acabouDeAutenticar = !jaTinhaSessaoAoAbrir.current && Boolean(session);
+
+  if (session && (!pediuTelaDeAuth || acabouDeAutenticar)) {
     const intendedPlan = window.sessionStorage.getItem('intended_plan_slug') || window.sessionStorage.getItem('fortify_intended_plan');
     if (intendedPlan) {
       // Volta para a página de onde o checkout partiu. Lista fechada de

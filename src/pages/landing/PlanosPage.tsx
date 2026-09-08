@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useDocumentMeta } from '@/hooks/useDocumentMeta';
 import PricingPage from '@/pages/PricingPage';
 import { pushDataLayerEvent } from '@/lib/analytics';
 
@@ -15,6 +16,16 @@ import { pushDataLayerEvent } from '@/lib/analytics';
  * divergiriam no primeiro reajuste.
  */
 export default function PlanosPage() {
+  // Título, descrição e canônica próprios: sem isso as sete páginas do
+  // site dividiam o mesmo título genérico, o que confunde o Google e
+  // derruba o índice de qualidade de anúncio.
+  useDocumentMeta({
+    title: 'Planos e preços — FORTIFY',
+    description:
+      'Escolha o plano pelo número de contas MT5 acompanhadas ao mesmo tempo. Todo plano inclui monitoramento de regras, alertas e painel de contas.',
+    path: '/vendas/planos',
+  });
+
   useEffect(() => {
     pushDataLayerEvent('view_landing_page', { page: 'planos' });
   }, []);

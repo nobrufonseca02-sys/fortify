@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useDocumentMeta } from '@/hooks/useDocumentMeta';
 import { useNavigate } from 'react-router-dom';
 import { FortifyHero } from '@/components/landing/FortifyHero';
 import { AUTH_SIGNUP_PATH, trackCta, useForcedLightTheme } from '@/components/landing/PublicShell';
@@ -15,6 +16,16 @@ import { SUPPORT_WHATSAPP_URL } from '@/lib/support';
  */
 export default function SalesLandingPage() {
   const navigate = useNavigate();
+
+  // Título, descrição e canônica próprios: sem isso as sete páginas do
+  // site dividiam o mesmo título genérico, o que confunde o Google e
+  // derruba o índice de qualidade de anúncio.
+  useDocumentMeta({
+    title: 'Fortify — controle de risco para contas de mesa proprietária',
+    description:
+      'Monitore perda diária, drawdown e consistência das regras da sua mesa proprietária em contas MT5, com alerta antes de a violação acontecer.',
+    path: '/vendas',
+  });
 
   useEffect(() => {
     pushDataLayerEvent('view_sales_landing_page', {});

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Rotas públicas do Fortify. As rotas do produto (painel, contas, calculadora)
+  ficam de fora de propósito: exigem sessão e não têm o que indexar.
+
+  Se o domínio mudar, trocar a base aqui — o sitemap é o único lugar que
+  precisa de URL absoluta (a canônica das páginas sai da origem em tempo de
+  execução, em src/hooks/useDocumentMeta.ts).
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://fortify-delta.vercel.app/vendas</loc><priority>1.0</priority></url>
+  <url><loc>https://fortify-delta.vercel.app/vendas/planos</loc><priority>0.9</priority></url>
+  <url><loc>https://fortify-delta.vercel.app/vendas/como-funciona</loc><priority>0.8</priority></url>
+  <url><loc>https://fortify-delta.vercel.app/vendas/recursos</loc><priority>0.8</priority></url>
+  <url><loc>https://fortify-delta.vercel.app/vendas/mesas</loc><priority>0.8</priority></url>
+  <url><loc>https://fortify-delta.vercel.app/vendas/quem-somos</loc><priority>0.6</priority></url>
+  <url><loc>https://fortify-delta.vercel.app/vendas/faq</loc><priority>0.6</priority></url>
+  <url><loc>https://fortify-delta.vercel.app/blog</loc><priority>0.7</priority></url>
+  <url><loc>https://fortify-delta.vercel.app/blog/ftmo-vs-fundednext-regras-de-risco</loc><priority>0.6</priority></url>
+</urlset>
