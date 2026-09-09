@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscriptionPlan, type FortifyPlan } from '@/hooks/useSubscriptionPlan';
 import { createAddonCheckoutSession, createCheckoutSession, isBillingEnabled } from '@/lib/billing';
-import { hasMarketingConsent, trackBeginCheckout } from '@/lib/analytics';
+import { hasMarketingConsent, trackBeginCheckout, trackSelectPlan } from '@/lib/analytics';
 import { toast } from '@/hooks/use-toast';
 
 const EXTRA_ACCOUNT_ADDON_SLUG = 'extra_account_monthly';
@@ -162,6 +162,16 @@ export default function PricingPage({ variant = 'auto' }: { variant?: 'auto' | '
       toast({ title: 'Plano beta', description: message });
       return;
     }
+
+    // Dispara antes de qualquer ramificação: é o mesmo passo do funil tanto
+    // para quem vai ao cadastro quanto para quem segue direto ao checkout.
+    trackSelectPlan({
+      slug: planSelector,
+      name: plan.name,
+      priceCents: plan.price_amount,
+      currency: plan.currency,
+      autenticado: Boolean(session?.access_token),
+    });
 
     if (!session?.access_token) {
       window.sessionStorage.setItem('fortify_intended_plan', planSelector);

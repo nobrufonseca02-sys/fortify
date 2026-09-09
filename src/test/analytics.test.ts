@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { trackBeginCheckout, trackPurchase } from '@/lib/analytics';
+import { captureUtmParams, trackBeginCheckout, trackPurchase, trackSelectPlan } from '@/lib/analytics';
 
 /**
  * Guarda de um erro que custaria dinheiro em decisão de mídia.
@@ -13,7 +13,21 @@ import { trackBeginCheckout, trackPurchase } from '@/lib/analytics';
  * O lado servidor (webhook da Stripe) já dividia por 100; só o cliente não.
  */
 
-type EventoDataLayer = { event: string; ecommerce?: { value?: number; currency?: string } };
+type EventoDataLayer = {
+  event: string;
+  autenticado?: boolean;
+  utm_source?: string;
+  utm_campaign?: string;
+  ecommerce?: { value?: number; currency?: string; items?: { item_id?: string }[] };
+};
+
+const CHAVE_UTM = 'fortify_utm_params';
+
+/** Coloca o navegador numa URL com os parâmetros dados, como se fosse um clique de anúncio. */
+function chegarPor(query: string) {
+  window.history.replaceState({}, '', `/vendas/planos${query}`);
+  captureUtmParams();
+}
 
 function fila(): EventoDataLayer[] {
   return (window as unknown as { dataLayer: EventoDataLayer[] }).dataLayer || [];
@@ -63,6 +77,110 @@ describe('valor dos eventos de conversão', () => {
 
   it('assume BRL quando a moeda não vem preenchida', () => {
     trackBeginCheckout({ slug: 'advanced_monthly', priceCents: 29700 });
+    expect(ultimoEvento('begin_checkout')?.ecommerce?.currency).toBe('BRL');
+  });
+});
+
+/**
+ * Guarda do sinal de meio de funil.
+ *
+ * O clique em "Assinar" de quem não tem conta não gerava evento nenhum: o
+ * funil ficava só com PageView e, muito depois, Purchase. Como compra é rara
+ * no começo de uma campanha, sem esse evento o pixel não tem em que otimizar.
+ */
+describe('select_plan, o sinal de meio de funil', () => {
+  it('dispara para quem ainda não tem conta, que é o caso que estava cego', () => {
+    trackSelectPlan({ slug: 'advanced_monthly', name: 'Advanced', priceCents: 29700, autenticado: false });
+    const evento = ultimoEvento('select_plan');
+    expect(evento).toBeDefined();
+    expect(evento?.autenticado).toBe(false);
+    expect(evento?.ecommerce?.items?.[0]?.item_id).toBe('advanced_monthly');
+  });
+
+  it('marca separadamente quem já estava autenticado', () => {
+    trackSelectPlan({ slug: 'pro_monthly', priceCents: 49700, autenticado: true });
+    expect(ultimoEvento('select_plan')?.autenticado).toBe(true);
+  });
+
+  it('usa a mesma conversão de centavos dos outros eventos', () => {
+    trackSelectPlan({ slug: 'beginner_monthly', priceCents: 9700, autenticado: false });
+    expect(ultimoEvento('select_plan')?.ecommerce?.value).toBe(97);
+  });
+
+  it('não é o mesmo evento que begin_checkout — o funil tem dois passos', () => {
+    trackSelectPlan({ slug: 'pro_monthly', priceCents: 49700, autenticado: false });
+    expect(ultimoEvento('begin_checkout')).toBeUndefined();
+
+    trackBeginCheckout({ slug: 'pro_monthly', priceCents: 49700 });
+    expect(fila().filter((e) => e.event === 'select_plan')).toHaveLength(1);
+    expect(fila().filter((e) => e.event === 'begin_checkout')).toHaveLength(1);
+  });
+});
+
+/**
+ * Guarda da janela de atribuição.
+ *
+ * O primeiro toque vence, mas antes ele valia PARA SEMPRE: quem chegou por
+ * uma campanha uma vez teria toda compra futura atribuída a ela, e a medição
+ * de qualquer campanha nova nasceria contaminada por tráfego antigo.
+ */
+describe('atribuição de primeiro toque', () => {
+  beforeEach(() => {
+    localStorage.removeItem(CHAVE_UTM);
+  });
+
+  it('guarda o primeiro toque e o anexa aos eventos de conversão', () => {
+    chegarPor('?utm_source=meta&utm_campaign=lancamento');
+    trackSelectPlan({ slug: 'advanced_monthly', priceCents: 29700, autenticado: false });
+    const evento = ultimoEvento('select_plan');
+    expect(evento?.utm_source).toBe('meta');
+    expect(evento?.utm_campaign).toBe('lancamento');
+  });
+
+  it('o primeiro toque vence o segundo dentro da janela', () => {
+    chegarPor('?utm_source=meta&utm_campaign=primeira');
+    chegarPor('?utm_source=google&utm_campaign=segunda');
+    trackSelectPlan({ slug: 'pro_monthly', priceCents: 49700, autenticado: false });
+    expect(ultimoEvento('select_plan')?.utm_campaign).toBe('primeira');
+  });
+
+  it('atribuição vencida é substituída pelo toque atual, não carregada para sempre', () => {
+    chegarPor('?utm_source=meta&utm_campaign=campanha_velha');
+    // Envelhece o registro para além da janela de 90 dias.
+    const guardado = JSON.parse(localStorage.getItem(CHAVE_UTM) as string);
+    guardado.capturadoEm = Date.now() - 91 * 86_400_000;
+    localStorage.setItem(CHAVE_UTM, JSON.stringify(guardado));
+
+    chegarPor('?utm_source=google&utm_campaign=campanha_nova');
+    trackSelectPlan({ slug: 'pro_monthly', priceCents: 49700, autenticado: false });
+    expect(ultimoEvento('select_plan')?.utm_campaign).toBe('campanha_nova');
+  });
+
+  it('não anexa atribuição vencida a evento nenhum', () => {
+    chegarPor('?utm_source=meta&utm_campaign=antiga');
+    const guardado = JSON.parse(localStorage.getItem(CHAVE_UTM) as string);
+    guardado.capturadoEm = Date.now() - 200 * 86_400_000;
+    localStorage.setItem(CHAVE_UTM, JSON.stringify(guardado));
+
+    trackPurchase({ transactionId: 'cs_1', valueCents: 29700, planSlug: 'advanced_monthly' });
+    expect(ultimoEvento('purchase')?.utm_source).toBeUndefined();
+  });
+});
+
+/**
+ * GA4 e Meta esperam ISO 4217 em maiúsculo. A tabela `plans` guarda a moeda no
+ * padrão da Stripe, que é minúsculo ("brl"), e o valor ia cru para o dataLayer.
+ */
+describe('moeda', () => {
+  it('normaliza o minúsculo que vem do banco', () => {
+    trackPurchase({ transactionId: 'cs_2', valueCents: 29700, currency: 'brl', planSlug: 'advanced_monthly' });
+    expect(ultimoEvento('purchase')?.ecommerce?.currency).toBe('BRL');
+  });
+
+  it('normaliza também no select_plan e no begin_checkout', () => {
+    trackSelectPlan({ slug: 'pro_monthly', priceCents: 49700, currency: 'brl', autenticado: true });
+    expect(ultimoEvento('select_plan')?.ecommerce?.currency).toBe('BRL');
+    trackBeginCheckout({ slug: 'pro_monthly', priceCents: 49700, currency: 'brl' });
     expect(ultimoEvento('begin_checkout')?.ecommerce?.currency).toBe('BRL');
   });
 });

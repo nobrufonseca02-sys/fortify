@@ -37,7 +37,45 @@ export function setMarketingConsent(granted: boolean) {
 
 const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid', 'fbclid'] as const;
 
-/** Captures first-touch UTM/click params on landing and persists them for later attribution on sign_up/purchase events. */
+/**
+ * GA4 e Meta esperam a moeda em ISO 4217 MAIÚSCULO. A coluna `currency` da
+ * tabela `plans` guarda no padrão da Stripe, que é minúsculo ("brl") — e o
+ * valor ia cru para o dataLayer.
+ */
+function moedaNormalizada(moeda?: string | null) {
+  return (moeda || 'BRL').toUpperCase();
+}
+
+/**
+ * Janela de atribuição do primeiro toque, em dias.
+ *
+ * O primeiro toque vence — esse é o modelo. Mas ele não pode valer para
+ * sempre: sem janela, quem chegou por uma campanha uma vez teria toda compra
+ * futura atribuída a ela, e a medição de qualquer campanha nova nasceria
+ * envenenada por tráfego antigo. 90 dias cobre com folga as janelas de
+ * conversão do Meta (7 dias de clique) e do Google Ads (30 dias).
+ */
+const UTM_JANELA_DIAS = 90;
+
+type AtribuicaoGuardada = { params: Record<string, string>; capturadoEm: number };
+
+function lerAtribuicao(): AtribuicaoGuardada | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const bruto = window.localStorage.getItem(UTM_STORAGE_KEY);
+    if (!bruto) return null;
+    const dados = JSON.parse(bruto);
+    // Registro antigo, sem data: não há como saber se ainda está na janela,
+    // então trata como vencido e deixa o próximo toque recapturar.
+    if (!dados || typeof dados.capturadoEm !== 'number' || !dados.params) return null;
+    const idadeEmDias = (Date.now() - dados.capturadoEm) / 86_400_000;
+    return idadeEmDias <= UTM_JANELA_DIAS ? (dados as AtribuicaoGuardada) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Guarda os UTMs e ids de clique do primeiro toque, para atribuir os eventos de cadastro e compra. */
 export function captureUtmParams() {
   if (typeof window === 'undefined') return;
   const params = new URLSearchParams(window.location.search);
@@ -47,19 +85,15 @@ export function captureUtmParams() {
     if (value) found[key] = value;
   }
   if (Object.keys(found).length === 0) return;
-  // First touch wins -- don't overwrite an existing stored attribution.
-  if (window.localStorage.getItem(UTM_STORAGE_KEY)) return;
-  window.localStorage.setItem(UTM_STORAGE_KEY, JSON.stringify(found));
+  // Primeiro toque vence, mas só dentro da janela: atribuição vencida é
+  // substituída pelo toque atual.
+  if (lerAtribuicao()) return;
+  const registro: AtribuicaoGuardada = { params: found, capturadoEm: Date.now() };
+  window.localStorage.setItem(UTM_STORAGE_KEY, JSON.stringify(registro));
 }
 
 function getStoredUtmParams(): Record<string, string> {
-  if (typeof window === 'undefined') return {};
-  try {
-    const raw = window.localStorage.getItem(UTM_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
+  return lerAtribuicao()?.params ?? {};
 }
 
 export function pushDataLayerEvent(event: string, params: Record<string, unknown> = {}) {
@@ -88,6 +122,39 @@ function centavosParaReais(centavos?: number | null) {
   return typeof centavos === 'number' ? centavos / 100 : undefined;
 }
 
+/**
+ * Plano escolhido — o sinal de meio de funil.
+ *
+ * Existe porque o clique em "Assinar" de quem ainda não tem conta não gerava
+ * evento nenhum: a pessoa era mandada para o cadastro e o funil ficava só com
+ * PageView e, muito depois, Purchase. No começo de uma campanha a compra é
+ * rara, então sem um evento no meio o pixel não tem em que otimizar.
+ *
+ * É um evento SEPARADO de `begin_checkout` de propósito. O begin_checkout
+ * dispara quando a sessão da Stripe é criada de fato; reaproveitá-lo aqui
+ * contaria duas vezes o mesmo passo e estragaria a taxa de conversão entre
+ * as etapas. O funil fica: select_plan -> begin_checkout -> purchase.
+ */
+export function trackSelectPlan(params: {
+  slug: string;
+  name?: string | null;
+  priceCents?: number | null;
+  currency?: string | null;
+  /** Se a pessoa já tinha sessão no momento do clique. Separa quem vai para o
+   *  cadastro de quem segue direto para o checkout. */
+  autenticado: boolean;
+}) {
+  pushDataLayerEvent('select_plan', {
+    autenticado: params.autenticado,
+    ecommerce: {
+      currency: moedaNormalizada(params.currency),
+      value: centavosParaReais(params.priceCents),
+      items: [{ item_id: params.slug, item_name: params.name || params.slug }],
+    },
+    ...getStoredUtmParams(),
+  });
+}
+
 export function trackBeginCheckout(params: {
   slug: string;
   name?: string | null;
@@ -96,7 +163,7 @@ export function trackBeginCheckout(params: {
 }) {
   pushDataLayerEvent('begin_checkout', {
     ecommerce: {
-      currency: params.currency || 'BRL',
+      currency: moedaNormalizada(params.currency),
       value: centavosParaReais(params.priceCents),
       items: [{ item_id: params.slug, item_name: params.name || params.slug }],
     },
@@ -114,7 +181,7 @@ export function trackPurchase(params: {
   pushDataLayerEvent('purchase', {
     ecommerce: {
       transaction_id: params.transactionId,
-      currency: params.currency || 'BRL',
+      currency: moedaNormalizada(params.currency),
       value: centavosParaReais(params.valueCents),
       items: [{ item_id: params.planSlug, item_name: params.planSlug }],
     },

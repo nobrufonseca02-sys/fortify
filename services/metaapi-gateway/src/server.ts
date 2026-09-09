@@ -5827,8 +5827,29 @@ async function sendMetaCapiPurchaseEvent(params: {
   }
 }
 
-// Server-side mirror of the client GA4 `purchase` event, same transactionId for dedup.
-// No-ops if GA4 isn't configured yet -- never throws, webhook must still 200.
+// Espelho server-side do `purchase` que o cliente também envia.
+//
+// ATENCAO -- o comentario anterior dizia "same transactionId for dedup", e isso
+// NAO e verdade: o GA4 nao deduplica cliente-vs-servidor por transaction_id
+// como o Meta faz por event_id. O Meta deduplica de fato (mesmo event_id); o
+// GA4 nao, e ainda por cima este envio usa um client_id sintetico
+// (`server.<sessionId>`), que nao corresponde ao client_id real do navegador --
+// entao a sessao de origem tambem se perde na atribuicao.
+//
+// Consequencia pratica: se GA4_MEASUREMENT_ID e GA4_API_SECRET forem
+// preenchidos ENQUANTO a tag de purchase do GA4 estiver ativa no GTM, a
+// receita conta em dobro no GA4 e na importacao de conversao do Google Ads.
+//
+// Decisao: manter o client-side como fonte unica do purchase no GA4 (ele tem o
+// client_id de verdade, logo atribuicao correta) e deixar estas duas variaveis
+// VAZIAS. Isto aqui fica como recurso de contingencia -- se um dia for ligado,
+// desligar antes a tag de purchase do GA4 no GTM.
+//
+// O Meta CAPI acima e caso diferente: la o envio server-side vale a pena, e
+// deduplica certo pelo event_id.
+//
+// Nao faz nada se o GA4 nao estiver configurado -- e nunca lanca, o webhook
+// precisa responder 200 de qualquer forma.
 async function sendGa4MeasurementProtocolPurchaseEvent(params: {
   transactionId: string;
   value: number;
