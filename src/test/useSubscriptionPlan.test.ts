@@ -76,15 +76,32 @@ describe('planoLiberaContaMt5', () => {
     }
   });
 
-  it('não libera plano sem conta no limite, que é o que sobrou dos planos legados', () => {
+  it('não libera plano com limite zero', () => {
     expect(
       planoLiberaContaMt5({
-        plan_id: 'vip',
+        plan_id: 'monthly',
         status: 'active',
         account_limit: 0,
         current_period_end: NOVENTA_DIAS,
       }),
     ).toBe(false);
+  });
+
+  // ATENÇÃO — este teste documenta uma exposição real, não um comportamento
+  // desejado. O plano legado `vip` está ativo no banco com account_limit 25 e
+  // preço nulo: quem estiver nele passa por este portão e ganha 25 contas
+  // monitoradas sem pagar nada, e cada conta gera custo MetaApi. O portão está
+  // certo (o limite é maior que zero); o dado é que está errado. A correção é
+  // desativar o plano no banco, não afrouxar a regra aqui.
+  it('deixa passar o legado `vip`, porque ele tem limite 25 no banco', () => {
+    expect(
+      planoLiberaContaMt5({
+        plan_id: 'vip',
+        status: 'active',
+        account_limit: 25,
+        current_period_end: NOVENTA_DIAS,
+      }),
+    ).toBe(true);
   });
 
   it('não libera quando não há assinatura nenhuma', () => {
