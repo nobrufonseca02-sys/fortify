@@ -44,12 +44,41 @@ function isMissingAddonTableError(error: any) {
   return error?.code === '42P01' || error?.code === 'PGRST205' || message.includes('subscription_addons');
 }
 
-function isSubscriptionUsable(subscription: FortifySubscription | null | undefined) {
+/**
+ * Assinatura que existe e está dentro do período. Serve para EXIBIR qual é o
+ * plano do usuário — não para decidir se ele pode usar o produto.
+ */
+type AssinaturaMinima = Pick<
+  FortifySubscription,
+  'plan_id' | 'status' | 'account_limit' | 'current_period_end'
+>;
+
+function isSubscriptionCurrent(subscription: AssinaturaMinima | null | undefined) {
   if (!subscription) return false;
   if (!['active', 'trialing'].includes(String(subscription.status))) return false;
   if (!subscription.current_period_end) return true;
   const expiresAt = Date.parse(subscription.current_period_end);
   return Number.isFinite(expiresAt) && expiresAt > Date.now();
+}
+
+/**
+ * Assinatura que realmente libera conectar conta MT5.
+ *
+ * Espelha a regra do gateway (`isPaidPlan` em services/metaapi-gateway/src/server.ts):
+ * `beta_free` NUNCA libera custo MetaApi, mesmo com status ativo e período
+ * vigente — está na documentação do produto e é decisão de arquitetura, porque
+ * o MetaApi cobra por conta monitorada.
+ *
+ * Antes daqui só se olhava status e período, então o cliente considerava o
+ * `beta_free` um plano ativo com 1 conta disponível. O botão de conectar ficava
+ * liberado, a pessoa digitava as credenciais reais da corretora, enviava — e
+ * só então o gateway recusava. Todo cadastro novo cai em `beta_free`, então
+ * esse era o primeiro contato de QUALQUER visitante que se cadastrasse.
+ */
+export function planoLiberaContaMt5(subscription: AssinaturaMinima | null | undefined) {
+  if (!isSubscriptionCurrent(subscription)) return false;
+  if (String(subscription?.plan_id || '').toLowerCase() === 'beta_free') return false;
+  return Number(subscription?.account_limit ?? 0) > 0;
 }
 
 export function useSubscriptionPlan() {
@@ -109,9 +138,12 @@ export function useSubscriptionPlan() {
       if (addonRes.error && !isMissingAddonTableError(addonRes.error)) throw addonRes.error;
 
       const subscriptions = (subscriptionRes.data ?? []) as FortifySubscription[];
-      const activeSubscription = subscriptions.find(isSubscriptionUsable) ?? null;
+      const activeSubscription = subscriptions.find(isSubscriptionCurrent) ?? null;
       const activeAccountCount = Number(connectionCountRes.count ?? 0);
-      const includedAccountLimit = Number(activeSubscription?.account_limit ?? 0);
+      // Zero quando o plano não é pago, igual ao gateway, que devolve
+      // `accountLimit: hasActivePaidPlan ? accountLimit : 0`.
+      const planoPago = planoLiberaContaMt5(activeSubscription);
+      const includedAccountLimit = planoPago ? Number(activeSubscription?.account_limit ?? 0) : 0;
       const extraAccountQuantity = addonRes.error
         ? 0
         : (addonRes.data ?? []).reduce((sum: number, item: any) => {
@@ -129,7 +161,7 @@ export function useSubscriptionPlan() {
         totalAccountLimit: accountLimit,
         accountLimit,
         remainingAccounts: Math.max(0, accountLimit - activeAccountCount),
-        hasActivePlan: isSubscriptionUsable(activeSubscription),
+        hasActivePlan: planoPago,
       };
     },
   });

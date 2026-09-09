@@ -483,7 +483,7 @@ const CreateAccount = () => {
       if (!subscriptionPlan.hasActivePlan || subscriptionPlan.remainingAccounts <= 0) {
         toast({
           title: 'Plano Fortify necessário',
-          description: subscriptionPlan.hasActivePlan ? 'Você atingiu o limite de contas do seu plano.' : 'Escolha um plano ou solicite acesso beta antes de conectar MT5.',
+          description: subscriptionPlan.hasActivePlan ? 'Você atingiu o limite de contas do seu plano.' : 'Escolha um plano para conectar sua conta MT5.',
           variant: 'destructive',
         });
         navigate('/settings');

@@ -289,7 +289,7 @@ export function getConnectErrorMessage(data: any) {
     invalid_user_session: 'Sessão Fortify inválida ou expirada. Faça login novamente e tente conectar.',
     user_mismatch: 'A sessão Fortify não corresponde ao usuário da requisição. Recarregue o app e tente novamente.',
     ownership_mismatch: 'Esta conta não pertence ao usuário autenticado. Abra a conta correta ou faça login novamente.',
-    plan_required: 'Escolha um plano Fortify ou solicite acesso beta antes de conectar uma nova conta MT5.',
+    plan_required: 'Escolha um plano Fortify para conectar sua conta MT5.',
     account_limit_exceeded: 'Você atingiu o limite de contas do seu plano. Remova uma conta do monitoramento ou faça upgrade.',
     duplicate_mt5_account: 'Este login/servidor MT5 já está conectado por outro usuário Fortify. Use uma conta MT5 própria.',
     subscription_lookup_failed: 'Não foi possível validar seu plano Fortify. Recarregue a sessão e tente novamente.',

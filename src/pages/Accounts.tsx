@@ -5,7 +5,7 @@ import { motion } from 'motion/react';
 import { type Mt5ConnectionStatus } from '@/types/fortify';
 import {
   Plus, Trash2, Wallet, ChevronRight, Shield, AlertTriangle, XCircle, BookOpen, Link2,
-  RefreshCw, Loader2, Settings2, ArrowUpRight, ArrowDownRight, HelpCircle,
+  RefreshCw, Loader2, Settings2, ArrowUpRight, ArrowDownRight, HelpCircle, Hash, KeyRound,
 } from 'lucide-react';
 import { useAccountsStore } from '@/hooks/useAccountsStore';
 import { useAllRuleEvaluations } from '@/hooks/useRuleEvaluations';
@@ -115,7 +115,7 @@ const Accounts = () => {
     if (!canConnectNewAccount) {
       toast({
         title: 'Plano Fortify necessário',
-        description: plan.hasActivePlan ? 'Você atingiu o limite de contas do seu plano.' : 'Escolha um plano ou solicite acesso beta em Planos.',
+        description: plan.hasActivePlan ? 'Você atingiu o limite de contas do seu plano.' : 'Escolha um plano para conectar sua conta MT5.',
         variant: 'destructive',
       });
       return;
@@ -214,7 +214,7 @@ const Accounts = () => {
     if (!canConnectNewAccount) {
       toast({
         title: 'Plano Fortify necessário',
-        description: plan.hasActivePlan ? 'Você atingiu o limite de contas do seu plano.' : 'Escolha um plano ou solicite acesso beta antes de conectar.',
+        description: plan.hasActivePlan ? 'Você atingiu o limite de contas do seu plano.' : 'Escolha um plano para conectar sua conta MT5.',
         variant: 'destructive',
       });
       return;
@@ -339,33 +339,34 @@ const Accounts = () => {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
-      <div className="border-b border-border pb-6 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+      <div className="hero-surface p-6 md:p-8 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
         <div className="max-w-2xl">
-          <h1 className="text-2xl md:text-[1.75rem] font-bold text-foreground tracking-tight">Minhas Contas</h1>
+          <span className="eyebrow">Contas conectadas</span>
+          <h1 className="display-editorial-sm text-foreground mt-1">Minhas Contas</h1>
           <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
             Conecte sua conta MT5 e acompanhe a saúde dela em um só lugar.
           </p>
           {accounts.length > 0 && (
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 mt-4 text-xs">
-              <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-2 mt-4">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-2.5 py-1 text-xs text-muted-foreground">
                 <Wallet className="w-3.5 h-3.5" aria-hidden="true" />
                 <strong className="font-mono font-semibold text-foreground tabular-nums">{accounts.length}</strong>
                 {accounts.length === 1 ? 'conta conectada' : 'contas conectadas'}
               </span>
               {violatedCount > 0 && (
-                <span className="inline-flex items-center gap-1.5 font-medium text-destructive">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-destructive/30 bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
                   <XCircle className="w-3.5 h-3.5" aria-hidden="true" />
                   {violatedCount} {violatedCount === 1 ? 'conta violada' : 'contas violadas'}
                 </span>
               )}
               {warningCount > 0 && (
-                <span className="inline-flex items-center gap-1.5 font-medium text-warning">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-warning/30 bg-warning/10 px-2.5 py-1 text-xs font-medium text-warning">
                   <AlertTriangle className="w-3.5 h-3.5" aria-hidden="true" />
                   {warningCount} em atenção
                 </span>
               )}
               {noDataCount > 0 && (
-                <span className="inline-flex items-center gap-1.5 font-medium text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-2.5 py-1 text-xs font-medium text-muted-foreground">
                   <HelpCircle className="w-3.5 h-3.5" aria-hidden="true" />
                   {noDataCount} {noDataCount === 1 ? 'conta sem monitoramento' : 'contas sem monitoramento'}
                 </span>
@@ -374,7 +375,7 @@ const Accounts = () => {
                   actually being evaluated — an unmonitored account is not a
                   compliant one. */}
               {violatedCount === 0 && warningCount === 0 && noDataCount === 0 && (
-                <span className="inline-flex items-center gap-1.5 font-medium text-success">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-2.5 py-1 text-xs font-medium text-success">
                   <Shield className="w-3.5 h-3.5" aria-hidden="true" />
                   Tudo dentro dos limites
                 </span>
@@ -385,7 +386,7 @@ const Accounts = () => {
         <div className="flex flex-col items-start md:items-end gap-3 shrink-0">
           <button
             onClick={openConnectForm}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="pill-btn pill-btn-primary"
           >
             <Plus className="w-4 h-4" aria-hidden="true" />
             Conectar Conta
@@ -408,9 +409,12 @@ const Accounts = () => {
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           onSubmit={handleConnect}
-          className="rounded-lg border border-border bg-card p-6 space-y-5"
+          className="hero-surface p-6 md:p-8 space-y-5"
         >
-          <h2 className="text-sm font-semibold text-foreground">Conectar conta MT5</h2>
+          <div className="space-y-1">
+            <span className="eyebrow">Nova conexão</span>
+            <h2 className="text-base font-semibold text-foreground">Conectar conta MT5</h2>
+          </div>
           <LibraryRuleSelectionNotice
             status={librarySelection.status}
             invalidHint="Conecte a conta agora e vincule a regra da mesa logo em seguida."
@@ -419,43 +423,77 @@ const Accounts = () => {
             Senha MT5 vai só pro backend, provisiona a MetaApi e não é salva em texto puro. Use senha investidor/read-only quando a corretora permitir.
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-1.5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="space-y-1.5 md:col-span-2">
               <label className="text-xs font-medium text-muted-foreground">Nome da conta</label>
-              <Input value={accountName} onChange={e => setAccountName(e.target.value)} placeholder="Ex.: 100k Challenge Express" required />
+              <div className="relative">
+                <Wallet className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <Input
+                  value={accountName}
+                  onChange={e => setAccountName(e.target.value)}
+                  placeholder="Ex.: 100k Challenge Express"
+                  required
+                  className="pl-10"
+                />
+              </div>
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Login MT5</label>
-              <Input value={mt5Login} onChange={e => setMt5Login(e.target.value)} placeholder="Ex.: 12345678" required />
+              <div className="relative">
+                <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <Input
+                  value={mt5Login}
+                  onChange={e => setMt5Login(e.target.value)}
+                  placeholder="Ex.: 12345678"
+                  required
+                  className="pl-10"
+                />
+              </div>
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Servidor</label>
-              <Input value={mt5Server} onChange={e => setMt5Server(e.target.value)} placeholder="Ex.: ICMarketsSC-Live" required />
+              <div className="relative">
+                <Link2 className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <Input
+                  value={mt5Server}
+                  onChange={e => setMt5Server(e.target.value)}
+                  placeholder="Ex.: ICMarketsSC-Live"
+                  required
+                  className="pl-10"
+                />
+              </div>
             </div>
-            <div className="space-y-1.5 md:col-span-3">
+            <div className="space-y-1.5 md:col-span-2">
               <label className="text-xs font-medium text-muted-foreground">Senha MT5</label>
-              <Input
-                type="password"
-                value={mt5Password}
-                onChange={e => setMt5Password(e.target.value)}
-                placeholder="Digite a senha MT5"
-                autoComplete="off"
-                required
-              />
+              <div className="relative">
+                <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <Input
+                  type="password"
+                  value={mt5Password}
+                  onChange={e => setMt5Password(e.target.value)}
+                  placeholder="Digite a senha MT5"
+                  autoComplete="off"
+                  required
+                  className="pl-10"
+                />
+              </div>
             </div>
           </div>
 
           {libraryResolved && (
-            <RuleBindingSelector
-              value={ruleBindingDraft}
-              onChange={setRuleBindingDraft}
-              platformConstraint="MT5"
-              disabled={saving}
-              initialSelection={librarySelection.status === 'valid' ? librarySelection.initialSelection : undefined}
-            />
+            <div className="pt-5 border-t border-border space-y-4">
+              <span className="eyebrow">Regra da mesa</span>
+              <RuleBindingSelector
+                value={ruleBindingDraft}
+                onChange={setRuleBindingDraft}
+                platformConstraint="MT5"
+                disabled={saving}
+                initialSelection={librarySelection.status === 'valid' ? librarySelection.initialSelection : undefined}
+              />
+            </div>
           )}
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 pt-2">
             <Button
               type="submit"
               variant="solid"
@@ -484,7 +522,7 @@ const Accounts = () => {
           return (
             <div
               key={account.id}
-              className="group rounded-lg border border-border bg-card p-5 space-y-4 cursor-pointer transition-colors hover:border-primary/30 hover:bg-accent/20 focus-within:border-primary/30"
+              className="card-premium group rounded-lg p-5 space-y-4 cursor-pointer transition-colors hover:border-primary/30 hover:bg-accent/20 focus-within:border-primary/30"
               onClick={() => navigate(`/accounts/${account.id}`)}
             >
               {/* Header: nome, mesa proprietária em destaque, saúde */}
@@ -496,10 +534,10 @@ const Accounts = () => {
                       <AlertDialogTrigger asChild>
                         <button
                           onClick={(e) => e.stopPropagation()}
-                          className="shrink-0 text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                          className="shrink-0 -m-1 p-1.5 text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
                           aria-label={`Excluir conta ${account.nickname}`}
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </AlertDialogTrigger>
                       <AlertDialogContent onClick={(e) => e.stopPropagation()}>
@@ -527,7 +565,7 @@ const Accounts = () => {
                   </div>
                   {isRuleBound ? (
                     <div className="mt-1 space-y-0.5">
-                      <p className="text-xs font-medium text-primary truncate">{boundPropFirmName}</p>
+                      <p className="text-sm font-medium text-primary truncate">{boundPropFirmName}</p>
                       {/* The binding is real and audited — but nothing on the
                           server evaluates it, so saying only "SEM DADOS" here
                           would read as "sync pending" when the actual cause is
@@ -567,7 +605,7 @@ const Accounts = () => {
               </div>
 
               {/* Conexão MT5 + frescor do dado (só o essencial) */}
-              <div className="flex items-center gap-2 flex-wrap text-[11px] min-h-[22px]">
+              <div className="rounded-md bg-muted/10 px-2.5 py-2 flex items-center gap-2 flex-wrap text-[11px] min-h-[22px]">
                 {loadingConnections && !mt5Connection ? (
                   <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-muted text-muted-foreground">
                     <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
@@ -599,12 +637,14 @@ const Accounts = () => {
                 )}
               </div>
 
-              {/* Equity + P&L */}
-              <div className="flex items-center justify-between pt-3 border-t border-border">
+              {/* Equity + P&L — the "holding" block, given real visual weight */}
+              <div className="pt-3 border-t border-border">
                 <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Equity</span>
-                <div className="text-right">
-                  <span className="font-mono font-bold text-foreground tabular-nums">{fmt(account.currentEquity, account.baseCurrency)}</span>
-                  <span className={`ml-2 inline-flex items-center gap-0.5 text-xs font-mono font-semibold tabular-nums ${isPositive ? 'text-success' : 'text-destructive'}`}>
+                <div className="mt-1 flex items-end justify-between gap-2">
+                  <span className="font-mono font-bold text-foreground tabular-nums text-xl md:text-2xl">
+                    {fmt(account.currentEquity, account.baseCurrency)}
+                  </span>
+                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-mono font-semibold tabular-nums ${isPositive ? 'bg-success/15 text-success' : 'bg-destructive/15 text-destructive'}`}>
                     {isPositive ? <ArrowUpRight className="w-3 h-3" aria-hidden="true" /> : <ArrowDownRight className="w-3 h-3" aria-hidden="true" />}
                     {isPositive ? '+' : ''}{pnlPct}%
                   </span>

@@ -74,7 +74,7 @@ export function PlanStatusPanel({ compact = false }: { compact?: boolean }) {
           <p className="text-xs text-muted-foreground mt-1">
             {hasActivePlan
               ? `${activeAccountCount}/${accountLimit} contas MT5 em monitoramento. Restam ${remainingAccounts}.`
-              : 'Escolha um plano ou solicite acesso beta antes de conectar uma nova conta MT5.'}
+              : 'Escolha um plano para conectar sua conta MT5.'}
           </p>
           {error ? (
             <p className="text-xs text-destructive mt-1">Não foi possível validar o plano. Recarregue a sessão ou revise o Supabase.</p>
