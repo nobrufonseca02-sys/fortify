@@ -42,7 +42,60 @@ const MAIN_PLAN_SLUGS = new Set([
   'advanced_monthly',
   'pro_monthly',
   'enterprise_monthly',
+  'beginner_annual',
+  'advanced_annual',
+  'pro_annual',
+  'enterprise_annual',
 ]);
+
+/** Cada anual e o mensal da mesma familia, para calcular o desconto real. */
+const PARES_ANUAL_MENSAL: [string, string][] = [
+  ['beginner_annual', 'beginner_monthly'],
+  ['advanced_annual', 'advanced_monthly'],
+  ['pro_annual', 'pro_monthly'],
+  ['enterprise_annual', 'enterprise_monthly'],
+];
+
+/**
+ * Desconto minimo para um plano anual poder ir para a tela.
+ *
+ * O anual do Enterprise esta cadastrado com 0,17% de desconto (R$10.147 contra
+ * R$10.164 de doze mensalidades: R$17 de economia para travar um ano). Isso nao
+ * passa como oferta — passa como erro de cadastro, ou pior, como pegadinha.
+ *
+ * A trava existe para o problema ser de DADO, nao de codigo: enquanto qualquer
+ * anual estiver abaixo deste piso, a aba anual inteira fica desligada com o
+ * motivo na tela. Corrigido o preco no banco, ela liga sozinha, sem deploy.
+ */
+const DESCONTO_ANUAL_MINIMO = 0.05;
+
+/** Desconto do anual sobre doze mensalidades. `null` se faltar algum preco. */
+export function descontoAnual(precoAnual?: number | null, precoMensal?: number | null) {
+  const anual = Number(precoAnual ?? 0);
+  const mensal = Number(precoMensal ?? 0);
+  if (anual <= 0 || mensal <= 0) return null;
+  return 1 - anual / (mensal * 12);
+}
+
+/**
+ * A aba anual pode ser exibida? Só se TODOS os quatro anuais estiverem
+ * compraveis e com desconto acima do piso — mostrar tres de quatro deixaria a
+ * tela inconsistente e faria o visitante procurar o plano que falta.
+ */
+export function anuaisProntosParaVenda(planos: FortifyPlan[]) {
+  const por = (chave: string) => planos.find((p) => String(p.slug || p.id) === chave);
+  return PARES_ANUAL_MENSAL.every(([anualSlug, mensalSlug]) => {
+    const anual = por(anualSlug);
+    const mensal = por(mensalSlug);
+    if (!anual || !mensal) return false;
+    if (!hasConfiguredPrice(anual)) return false;
+    const desconto = descontoAnual(
+      anual.price_amount ?? anual.price_cents,
+      mensal.price_amount ?? mensal.price_cents,
+    );
+    return desconto !== null && desconto >= DESCONTO_ANUAL_MINIMO;
+  });
+}
 
 const supportLabels: Record<string, string> = {
   basic: 'Suporte básico',
@@ -117,6 +170,10 @@ export default function PricingPage({ variant = 'auto' }: { variant?: 'auto' | '
     activeAccountCount,
     hasActivePlan,
   } = useSubscriptionPlan();
+  const anuaisLiberados = useMemo(() => anuaisProntosParaVenda(plans), [plans]);
+  // Mensal continua sendo o padrão: o anual é upsell, não pedágio de entrada.
+  const [intervalo, setIntervalo] = useState<'month' | 'year'>('month');
+  const intervaloEfetivo = anuaisLiberados ? intervalo : 'month';
   const [busyPlan, setBusyPlan] = useState<string | null>(null);
   const [busyAddon, setBusyAddon] = useState(false);
   const [resumeAttempted, setResumeAttempted] = useState(false);
@@ -140,11 +197,11 @@ export default function PricingPage({ variant = 'auto' }: { variant?: 'auto' | '
   const visiblePlans = useMemo(() => {
     return plans.filter((plan) => (
       MAIN_PLAN_SLUGS.has(String(plan.slug || plan.id)) &&
-      plan.billing_interval === 'month' &&
+      plan.billing_interval === (intervaloEfetivo === 'year' ? 'year' : 'month') &&
       !isAddonPlan(plan) &&
       hasConfiguredPrice(plan)
     ));
-  }, [plans]);
+  }, [plans, intervaloEfetivo]);
 
   const addonPlan = useMemo(
     () => plans.find((plan) => isAddonPlan(plan)) ?? null,
@@ -333,15 +390,37 @@ export default function PricingPage({ variant = 'auto' }: { variant?: 'auto' | '
 
       <div className="mt-8 flex justify-center">
         <div className="inline-flex items-center rounded-full border border-border bg-muted/40 p-1 text-sm">
-          <span className="rounded-full bg-background px-4 py-1.5 font-semibold text-foreground shadow-sm">
-            Mensal
-          </span>
-          <span
-            title="Cobrança anual chega em breve — os planos anuais ainda estão em validação."
-            className="cursor-not-allowed rounded-full px-4 py-1.5 text-muted-foreground/60"
+          <button
+            type="button"
+            onClick={() => setIntervalo('month')}
+            className={
+              intervaloEfetivo === 'month'
+                ? 'rounded-full bg-background px-4 py-1.5 font-semibold text-foreground shadow-sm'
+                : 'rounded-full px-4 py-1.5 text-muted-foreground transition-colors hover:text-foreground'
+            }
           >
-            Anual <span className="text-[10px] uppercase tracking-wide">em breve</span>
-          </span>
+            Mensal
+          </button>
+          {anuaisLiberados ? (
+            <button
+              type="button"
+              onClick={() => setIntervalo('year')}
+              className={
+                intervaloEfetivo === 'year'
+                  ? 'rounded-full bg-background px-4 py-1.5 font-semibold text-foreground shadow-sm'
+                  : 'rounded-full px-4 py-1.5 text-muted-foreground transition-colors hover:text-foreground'
+              }
+            >
+              Anual
+            </button>
+          ) : (
+            <span
+              title="Um dos planos anuais está cadastrado com desconto abaixo do mínimo. A aba liga sozinha quando o preço for corrigido."
+              className="cursor-not-allowed rounded-full px-4 py-1.5 text-muted-foreground/60"
+            >
+              Anual <span className="text-[10px] uppercase tracking-wide">em breve</span>
+            </span>
+          )}
         </div>
       </div>
 
