@@ -72,16 +72,32 @@ export function trackSignUp() {
   pushDataLayerEvent('sign_up', { ...getStoredUtmParams() });
 }
 
+/**
+ * O valor vai em CENTAVOS e é convertido aqui, uma vez só.
+ *
+ * A tabela `plans` guarda preço em centavos (R$97 = 9700). Antes estes
+ * eventos repassavam o número cru, então o GA4 e o Meta recebiam 9700 como
+ * se fossem reais — ROAS inflado em 100x no primeiro dia de otimização por
+ * valor, e toda decisão de escala tomada em cima de um número errado. O
+ * lado servidor (webhook da Stripe) já dividia certo; só o cliente não.
+ *
+ * O parâmetro se chama `priceCents` de propósito: a ambiguidade do nome
+ * antigo (`price`) foi o que deixou o erro passar.
+ */
+function centavosParaReais(centavos?: number | null) {
+  return typeof centavos === 'number' ? centavos / 100 : undefined;
+}
+
 export function trackBeginCheckout(params: {
   slug: string;
   name?: string | null;
-  price?: number | null;
+  priceCents?: number | null;
   currency?: string | null;
 }) {
   pushDataLayerEvent('begin_checkout', {
     ecommerce: {
       currency: params.currency || 'BRL',
-      value: params.price ?? undefined,
+      value: centavosParaReais(params.priceCents),
       items: [{ item_id: params.slug, item_name: params.name || params.slug }],
     },
     ...getStoredUtmParams(),
@@ -90,7 +106,8 @@ export function trackBeginCheckout(params: {
 
 export function trackPurchase(params: {
   transactionId: string;
-  value?: number | null;
+  /** Em centavos, como vem da tabela `plans`. Convertido para reais aqui. */
+  valueCents?: number | null;
   currency?: string | null;
   planSlug: string;
 }) {
@@ -98,7 +115,7 @@ export function trackPurchase(params: {
     ecommerce: {
       transaction_id: params.transactionId,
       currency: params.currency || 'BRL',
-      value: params.value ?? undefined,
+      value: centavosParaReais(params.valueCents),
       items: [{ item_id: params.planSlug, item_name: params.planSlug }],
     },
     ...getStoredUtmParams(),

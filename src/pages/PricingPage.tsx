@@ -198,7 +198,7 @@ export default function PricingPage({ variant = 'auto' }: { variant?: 'auto' | '
         throw new Error('A Stripe retornou uma URL inválida para checkout.');
       }
       window.sessionStorage.setItem('fortify_pending_plan_slug', planSelector);
-      trackBeginCheckout({ slug: planSelector, name: plan.name, price: plan.price_amount, currency: plan.currency });
+      trackBeginCheckout({ slug: planSelector, name: plan.name, priceCents: plan.price_amount, currency: plan.currency });
       setCheckoutNotice('Checkout criado. Redirecionando para a Stripe...');
       window.location.href = checkoutUrl;
     } catch (error: any) {
