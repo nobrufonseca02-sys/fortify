@@ -14,6 +14,7 @@ import {
   PublicCard,
   PublicClosingCta,
   PublicPageHeader,
+  PublicPanel,
   PublicSection,
   PublicShell,
   AUTH_SIGNUP_PATH,
@@ -113,14 +114,19 @@ export default function ComoFuncionaPage() {
                que é o filho direto do grid. */
             <li key={title} className={cn(index === STEPS.length - 1 && 'md:col-span-2')}>
               <ScrollReveal delay={index * 0.03} className="h-full">
-                <PublicCard className="flex h-full gap-5">
+                {/* Trilho de estado nos passos: aqui o cartão representa uma
+                    posição numa sequência, que é exatamente o caso em que o
+                    trilho carrega informação em vez de enfeitar. */}
+                <PublicCard rail className="flex h-full gap-5 pl-7">
                   <div className="shrink-0">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-zinc-50">
-                      <Icon className="h-4 w-4 text-zinc-500" strokeWidth={2} aria-hidden="true" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-md border border-zinc-200 bg-zinc-50">
+                      <Icon className="h-4 w-4 text-zinc-600" strokeWidth={2} aria-hidden="true" />
                     </div>
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400">
+                    {/* O texto tem que continuar sendo exatamente "Passo N" num
+                        nó só — PublicPages.test.tsx casa /^Passo \d$/. */}
+                    <p className="instrument-label text-[11px] text-zinc-500">
                       Passo {index + 1}
                     </p>
                     <h2 className="mt-1.5 text-[15px] font-semibold text-zinc-900">{title}</h2>
@@ -135,7 +141,7 @@ export default function ComoFuncionaPage() {
 
       {/* O que fica visível no fim */}
       <PublicSection className="pt-0">
-        <div className="rounded-3xl border border-zinc-200/80 bg-white px-6 py-12 sm:px-12">
+        <PublicPanel>
           <SectionHeading
             eyebrow="No fim da jornada"
             title="Uma tela responde se você ainda pode operar."
@@ -157,7 +163,7 @@ export default function ComoFuncionaPage() {
               </li>
             ))}
           </ul>
-        </div>
+        </PublicPanel>
       </PublicSection>
 
       <PublicClosingCta

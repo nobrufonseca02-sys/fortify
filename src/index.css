@@ -303,4 +303,73 @@
   }
   .btn-glow:hover { background: hsl(var(--primary) / 0.9); }
 
+  /* ── Assinatura tipografica dos numeros ────────────────────────────────────
+     Duas vozes numericas, nao uma, porque os numeros desta interface tem dois
+     trabalhos diferentes.
+
+     .numeral-hero — o numero que decide a ordem (lote a abrir, folga ate o
+       limite). Inter com figuras tabulares: largura de digito fixa, entao o
+       valor nao "danca" enquanto o trader digita. Em corpo grande a Inter le
+       como instrumento; mono em 64px le como terminal.
+
+     .numeral-ledger — numero de apoio (razao, distancia, percentual, linha de
+       tabela). JetBrains Mono, monoespacada por construcao.
+       PESO TRAVADO EM 600 DE PROPOSITO: a fonte e carregada em 400/500/600
+       (ver @import no topo do arquivo). Pedir font-bold (700) faz o navegador
+       sintetizar o negrito, engrossando o traco ate fechar o contraforma do
+       zero pontilhado — foi assim que o "0" apareceu cortado na Calculadora de
+       Risco. Nao troque por font-bold; se precisar de mais peso, carregue o
+       700 no @import antes. */
+  .numeral-hero {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+    line-height: 0.95;
+  }
+  .numeral-ledger {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  /* Etiqueta de instrumento — rotulo mono, caixa alta, tracking largo, sempre
+     acima de um valor. A inversao (rotulo minusculo em mono / valor grande em
+     sans) e metade da assinatura visual do Fortify e vale nas duas superficies:
+     no produto escuro e no site claro. Existe como utilitario para parar de
+     repetir a mesma cadeia de cinco classes em cada rotulo.
+
+     TAMANHO E COR FICAM DE FORA DE PROPOSITO: a classe define a VOZ (familia,
+     peso, caixa, tracking), nao a escala. O produto usa 10px/muted-foreground
+     na sua densidade alta; o site publico usa 11px/zinc-500 na densidade baixa.
+     Travar font-size aqui venceria o text-[11px] do Tailwind no call site, ja
+     que este bloco vem depois de @tailwind utilities. */
+  .instrument-label {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    line-height: 1.4;
+  }
+
+  /* Trilho de estado — a outra metade da assinatura. Barra reta de 3px colada
+     na borda esquerda de qualquer superficie que carregue estado (seguro /
+     atencao / critico / em repouso). Vem do traco reto do FortifyMark e
+     sobrevive a rolagem: o estado continua legivel depois que o rotulo ja saiu
+     da tela. A cor entra por --rail-color; sem ela, o trilho fica neutro, que e
+     exatamente o que um formulario vazio deve parecer.
+     Requer overflow-hidden + rounded-* no proprio elemento para o trilho
+     acompanhar o canto arredondado da superficie. */
+  .state-rail { position: relative; }
+  .state-rail::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 3px;
+    background: var(--rail-color, hsl(var(--border)));
+  }
+
 }

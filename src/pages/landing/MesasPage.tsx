@@ -101,9 +101,7 @@ export default function MesasPage() {
       <h1 className="sr-only">{`${featured.length} mesas proprietárias suportadas pelo Fortify`}</h1>
 
       <PublicSection>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
-          Mesas em destaque
-        </p>
+        <p className="instrument-label text-[11px] text-zinc-500">Mesas em destaque</p>
 
         <div className="relative isolate z-0 mt-4">
           <CoverflowCarousel
@@ -130,17 +128,17 @@ export default function MesasPage() {
 
               <dl className="mx-auto mt-8 grid max-w-2xl gap-x-10 gap-y-4 sm:grid-cols-3">
                 <div className="flex flex-col gap-1 border-t border-zinc-200/80 pt-3">
-                  <dt className="text-[11px] uppercase tracking-[0.14em] text-zinc-500">Modelos</dt>
+                  <dt className="instrument-label text-[11px] text-zinc-500">Modelos</dt>
                   <dd className="text-[14px] font-semibold text-zinc-900">
                     {countLabel(detail.programs.length, 'modelo', 'modelos')}
                   </dd>
                 </div>
                 <div className="flex flex-col gap-1 border-t border-zinc-200/80 pt-3">
-                  <dt className="text-[11px] uppercase tracking-[0.14em] text-zinc-500">Plataformas</dt>
+                  <dt className="instrument-label text-[11px] text-zinc-500">Plataformas</dt>
                   <dd className="text-[14px] font-semibold text-zinc-900">{detail.platforms}</dd>
                 </div>
                 <div className="flex flex-col gap-1 border-t border-zinc-200/80 pt-3">
-                  <dt className="text-[11px] uppercase tracking-[0.14em] text-zinc-500">Status</dt>
+                  <dt className="instrument-label text-[11px] text-zinc-500">Status</dt>
                   <dd className="text-[14px] font-semibold text-zinc-900">Operacional</dd>
                 </div>
               </dl>
@@ -158,7 +156,7 @@ export default function MesasPage() {
                 const first = accounts[0];
                 return (
                   <ScrollReveal key={program.id} delay={index * 0.04}>
-                    <PublicCard className="h-full">
+                    <PublicCard rail className="h-full pl-7">
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
                           <h3 className="text-[15px] font-semibold text-zinc-900">{program.programName}</h3>
@@ -185,8 +183,15 @@ export default function MesasPage() {
                             { label: 'Dias mínimos', value: cleanValue(first.minTradingDays) },
                           ].map((row) => (
                             <div key={row.label} className="flex items-baseline justify-between gap-4">
-                              <dt className="shrink-0 text-[12px] text-zinc-500">{row.label}</dt>
-                              <dd className="text-right text-[12.5px] font-medium text-zinc-800">
+                              <dt className="instrument-label shrink-0 text-[10px] text-zinc-500">
+                                {row.label}
+                              </dt>
+                              {/* Estes são os MESMOS números que o painel mostra
+                                  (perda diária, perda máxima, dias mínimos). Na
+                                  voz de ledger — mono tabular, peso 600 — o site
+                                  passa a falar a língua do produto no ponto em
+                                  que os dois tratam do mesmo dado. */}
+                              <dd className="numeral-ledger text-right text-[12px] text-zinc-800">
                                 {row.value}
                               </dd>
                             </div>

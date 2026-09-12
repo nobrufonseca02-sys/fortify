@@ -12,8 +12,11 @@ import {
 } from 'lucide-react';
 import {
   AUTH_SIGNUP_PATH,
+  PublicButton,
+  PublicCard,
   PublicFooter,
   PublicPageHeader,
+  PublicPanel,
   PublicShell,
   ScrollReveal,
   trackCta,
@@ -172,13 +175,19 @@ export function FeaturesSection() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {features.map(({ icon: Icon, title, description }) => (
           <ScrollReveal key={title}>
-            <div className="h-full rounded-lg border border-border bg-card/60 p-5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-primary">
-                <Icon className="h-4 w-4" />
+            {/* Estes cartões rodavam em tokens do PRODUTO (border-border, bg-card,
+                text-primary) enquanto o resto do site rodava em zinc — dois
+                sistemas de cartão na mesma página. Agora usam a primitiva
+                pública, uma só. O chip do ícone perdeu o azul: no site claro a
+                ação é preta, então azul aqui era decoração, e --primary é
+                reservado para ação. */}
+            <PublicCard className="h-full p-5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-md border border-zinc-200 bg-zinc-50 text-zinc-700">
+                <Icon className="h-4 w-4" aria-hidden="true" />
               </div>
-              <h3 className="mt-4 text-sm font-semibold text-foreground">{title}</h3>
-              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{description}</p>
-            </div>
+              <h3 className="mt-4 text-[15px] font-semibold text-zinc-900">{title}</h3>
+              <p className="mt-2 text-[13.5px] leading-relaxed text-zinc-600">{description}</p>
+            </PublicCard>
           </ScrollReveal>
         ))}
       </div>
@@ -190,13 +199,13 @@ export function FaqSection() {
   return (
     <section className="mx-auto max-w-3xl px-5 py-10 sm:px-8 sm:py-14">
       <ScrollReveal>
-        <Accordion type="single" collapsible className="rounded-lg border border-border bg-card/60 px-5">
+        <Accordion type="single" collapsible className="rounded-lg border border-zinc-200 bg-white px-5">
           {faqItems.map((item, index) => (
-            <AccordionItem key={item.question} value={`item-${index}`} className="border-border">
-              <AccordionTrigger className="text-left text-sm text-foreground hover:no-underline">
+            <AccordionItem key={item.question} value={`item-${index}`} className="border-zinc-200">
+              <AccordionTrigger className="text-left text-[15px] font-semibold text-zinc-900 hover:no-underline">
                 {item.question}
               </AccordionTrigger>
-              <AccordionContent className="text-sm leading-relaxed text-muted-foreground">
+              <AccordionContent className="text-[13.5px] leading-relaxed text-zinc-600">
                 {item.answer}
               </AccordionContent>
             </AccordionItem>
@@ -213,26 +222,27 @@ export function FinalCtaSection() {
   return (
     <section className="mx-auto max-w-7xl px-5 pb-14 pt-4 sm:px-8">
       <ScrollReveal>
-        <div className="hero-surface flex flex-col items-center gap-5 p-8 text-center sm:p-12">
-          <ShieldCheck className="h-8 w-8 text-primary" />
-          <h2 className="display-editorial-sm max-w-2xl text-foreground">
+        {/* Usava `hero-surface` (superfície do produto) e um botão preto copiado
+            à mão — o mesmo painel de fechamento do resto do site, escrito duas
+            vezes. Passa a usar as primitivas públicas. O escudo azul saiu: era
+            ornamento, e o fechamento não precisa de ícone para funcionar. */}
+        <PublicPanel className="flex flex-col items-center gap-5 py-12 text-center">
+          <h2 className="max-w-2xl text-[1.55rem] font-bold leading-[1.12] tracking-[-0.02em] text-zinc-900 text-balance sm:text-[2rem]">
             Pare de descobrir a violação depois que ela já aconteceu
           </h2>
-          <p className="max-w-xl text-sm text-muted-foreground">
+          <p className="max-w-xl text-[15px] leading-relaxed text-zinc-600">
             Conecte sua conta MT5, vincule as regras da sua mesa e comece a monitorar em minutos.
           </p>
-          <button
-            type="button"
+          <PublicButton
             onClick={() => {
               trackCta('final_cta', 'cta_final', AUTH_SIGNUP_PATH);
               navigate(AUTH_SIGNUP_PATH);
             }}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white shadow-[0_10px_30px_rgba(24,24,27,0.16)] transition-colors hover:bg-zinc-800"
           >
             Criar conta grátis
             <ArrowRight className="h-4 w-4" />
-          </button>
-        </div>
+          </PublicButton>
+        </PublicPanel>
       </ScrollReveal>
     </section>
   );

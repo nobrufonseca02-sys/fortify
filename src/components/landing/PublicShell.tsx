@@ -126,7 +126,11 @@ export function PublicPageHeader({
           revelação se perderia. Eyebrow e apoio continuam no fade. */}
       <div className="max-w-2xl">
         <ScrollReveal>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">{eyebrow}</p>
+          {/* Etiqueta de instrumento: a mesma voz mono/caixa-alta dos rótulos do
+              produto, um degrau maior (11px) porque aqui a densidade é de
+              leitura, não de pregão. É metade da assinatura do Fortify e o
+              ponto onde o site e o painel passam a parecer a mesma coisa. */}
+          <p className="instrument-label text-[11px] text-zinc-500">{eyebrow}</p>
         </ScrollReveal>
         <RevealText
           as="h1"
@@ -151,25 +155,61 @@ export function PublicPageHeader({
  * escala tipográfica e peso de sombra ficam definidos num lugar só.
  */
 
-/** Cartão padrão: plano, borda de 1px, sem sombra pesada. */
+/**
+ * Cartão padrão: plano, borda de 1px, sem sombra.
+ *
+ * RAIO — exceção declarada, e agora ela deixa de existir. O site rodava com
+ * três raios (2xl nos cartões, 3xl nos painéis, lg nas seções vindas de
+ * landingSections), nenhum escrito em lugar nenhum. Passa a rodar com um só:
+ * `rounded-lg`, o mesmo --radius de 8px do produto. O argumento do teto de 8px
+ * é a angulação dura do FortifyMark, e essa angulação não enfraquece por o
+ * fundo ser claro. A única exceção que sobra é a pílula do CTA
+ * (`rounded-full`), que lê como token e não como container.
+ *
+ * `rail` liga o trilho de estado na borda esquerda. Não é decoração de todo
+ * cartão: usar só onde o cartão representa um passo de sequência ou uma regra
+ * com valor — nos demais vira ruído.
+ */
 export function PublicCard({
   children,
   className,
+  rail = false,
   as: Tag = 'div',
 }: {
   children: ReactNode;
   className?: string;
+  rail?: boolean;
   as?: 'div' | 'li' | 'article';
 }) {
   return (
     <Tag
       className={cn(
-        'rounded-2xl border border-zinc-200/80 bg-white p-6 shadow-[0_1px_2px_rgba(24,24,27,0.04)]',
+        'rounded-lg border border-zinc-200 bg-white p-6',
+        rail && 'state-rail overflow-hidden [--rail-color:theme(colors.zinc.900)]',
         className,
       )}
     >
       {children}
     </Tag>
+  );
+}
+
+/**
+ * Painel largo de conteúdo — o bloco branco que fecha uma seção longa.
+ * Existia copiado à mão em três lugares (`rounded-3xl border border-zinc-200/80
+ * bg-white px-6 py-12 sm:px-12`), cada um livre para divergir no próximo ajuste.
+ */
+export function PublicPanel({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn('rounded-lg border border-zinc-200 bg-white px-6 py-12 sm:px-12', className)}>
+      {children}
+    </div>
   );
 }
 
@@ -189,7 +229,7 @@ export function SectionHeading({
     <div className={cn('max-w-2xl', className)}>
       {eyebrow && (
         <ScrollReveal>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">{eyebrow}</p>
+          <p className="instrument-label text-[11px] text-zinc-500">{eyebrow}</p>
         </ScrollReveal>
       )}
       <RevealText
@@ -227,8 +267,11 @@ export function PublicButton({
       onClick={onClick}
       className={cn(
         'inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold transition-colors',
+        // Sem sombra difusa: elevação no sistema é degrau de superfície, e
+        // box-shadow fica reservado para o que de fato flutua acima do fluxo.
+        // Preto sobre #FAF9F5 já tem contraste de sobra para se destacar.
         variant === 'primary'
-          ? 'bg-zinc-900 text-white shadow-[0_10px_30px_rgba(24,24,27,0.16)] hover:bg-zinc-800'
+          ? 'bg-zinc-900 text-white hover:bg-zinc-700'
           : 'border border-zinc-300 bg-white text-zinc-800 hover:border-zinc-400 hover:bg-zinc-50',
         className,
       )}
@@ -257,7 +300,7 @@ export function PublicClosingCta({
   return (
     <PublicSection>
       <ScrollReveal>
-        <div className="rounded-3xl border border-zinc-200/80 bg-white px-6 py-12 text-center sm:px-12">
+        <PublicPanel className="text-center">
           <h2 className="mx-auto max-w-xl text-[1.55rem] font-bold leading-[1.12] tracking-[-0.02em] text-zinc-900 text-balance sm:text-[2rem]">
             {title}
           </h2>
@@ -273,7 +316,7 @@ export function PublicClosingCta({
               </PublicButton>
             )}
           </div>
-        </div>
+        </PublicPanel>
       </ScrollReveal>
     </PublicSection>
   );

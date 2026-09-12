@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, BookOpen, Gauge, ShieldCheck, Target, Timer } from 'lucide-react';
 import {
   PublicCard,
+  PublicPanel,
   PublicClosingCta,
   PublicPageHeader,
   PublicSection,
@@ -113,7 +114,7 @@ export default function QuemSomosPage() {
           ))}
 
           <ScrollReveal delay={0.2}>
-            <div className="flex h-full flex-col justify-center rounded-2xl border border-dashed border-zinc-300 px-6 py-8">
+            <div className="flex h-full flex-col justify-center rounded-lg border border-dashed border-zinc-300 px-6 py-8">
               <p className="text-[15px] font-semibold leading-snug text-zinc-900">
                 O trader não perde a conta por falta de análise.
               </p>
@@ -127,7 +128,7 @@ export default function QuemSomosPage() {
 
       {/* A proposta */}
       <PublicSection className="pt-0">
-        <div className="rounded-3xl border border-zinc-200/80 bg-white px-6 py-12 sm:px-12">
+        <PublicPanel>
           <SectionHeading
             eyebrow="A proposta"
             title="Transformar o regulamento da mesa em acompanhamento operacional."
@@ -137,7 +138,9 @@ export default function QuemSomosPage() {
           <div className="mt-10 grid gap-8 md:grid-cols-3">
             {PRINCIPLES.map(({ title, body }, index) => (
               <ScrollReveal key={title} delay={index * 0.06}>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400">
+                {/* 01 / 02 / 03 é numeral, não rótulo: vai na voz de ledger
+                    (mono tabular), então os três alinham coluna a coluna. */}
+                <p className="numeral-ledger text-[13px] text-zinc-400">
                   {String(index + 1).padStart(2, '0')}
                 </p>
                 <h3 className="mt-3 text-[15px] font-semibold leading-snug text-zinc-900">{title}</h3>
@@ -145,7 +148,7 @@ export default function QuemSomosPage() {
               </ScrollReveal>
             ))}
           </div>
-        </div>
+        </PublicPanel>
       </PublicSection>
 
       {/* Diferencial */}
@@ -160,9 +163,7 @@ export default function QuemSomosPage() {
             <PublicCard className="h-full bg-zinc-50/60">
               <div className="flex items-center gap-2.5">
                 <BookOpen className="h-4 w-4 text-zinc-400" aria-hidden="true" />
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                  Trade journal
-                </p>
+                <p className="instrument-label text-[11px] text-zinc-500">Trade journal</p>
               </div>
               <p className="mt-4 text-[15px] font-semibold text-zinc-900">Mostra o que aconteceu.</p>
               <p className="mt-2 text-[13.5px] leading-relaxed text-zinc-600">
@@ -176,9 +177,7 @@ export default function QuemSomosPage() {
             <PublicCard className="h-full border-zinc-900/10 bg-zinc-900 text-white">
               <div className="flex items-center gap-2.5">
                 <ShieldCheck className="h-4 w-4 text-white/60" aria-hidden="true" />
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/60">
-                  Fortify
-                </p>
+                <p className="instrument-label text-[11px] text-white/60">Fortify</p>
               </div>
               <p className="mt-4 text-[15px] font-semibold">
                 Mostra a saúde da conta e se você ainda pode operar.
