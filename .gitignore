@@ -38,3 +38,17 @@ supabase/.branches/
 *.sln
 *.sw?
 .vercel
+
+# Capturas e rascunhos de sessão que ficam na raiz.
+# Não são do projeto: vêm de verificação em navegador e de trabalhos avulsos.
+# Padrão só na RAIZ (barra inicial), para não alcançar assets em public/ e src/.
+/*.png
+/*.txt
+/snapshot_full.txt
+/estagio_dev_remote.md
+/sdr_search1.md
+/search2.md
+/search_results_snapshot.md
+
+# Saídas de ferramenta, não código do produto
+/output/
