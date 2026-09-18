@@ -1,0 +1,4 @@
+- [Calculadora: máximo 2 insights](project_calculadora_dois_insights.md) — restrição dura do fundador; quais 2 ficaram e o que foi rebaixado de propósito
+- [Repouso não é erro](project_calculadora_repouso_nao_e_erro.md) — motor devolve "Crítico" com formulário vazio; suprimido na apresentação, não no motor
+- [Fronteiras do site público](project_site_publico_fronteiras.md) — o que dá para restilizar sem vazar para /vendas ou para o produto logado
+- [Raio único de 8px](project_site_publico_raio_unico.md) — a exceção de raio do site foi encerrada; só a pílula de CTA sobrevive
