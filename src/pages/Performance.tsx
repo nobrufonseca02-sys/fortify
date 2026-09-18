@@ -1,17 +1,21 @@
 import { useEffect, useState, useMemo } from 'react';
+import { motion } from 'motion/react';
 import { AccountSelector } from '@/components/AccountSelector';
 import { TradingAccount } from '@/types/fortify';
 import { useAccountsStore } from '@/hooks/useAccountsStore';
 import { useRuleEvaluations } from '@/hooks/useRuleEvaluations';
+import { useThemeColors } from '@/hooks/useThemeColors';
 import { mapRuleEvaluationRow } from '@/lib/ruleEvaluationView';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  AreaChart, Area, LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis,
+  Tooltip as RechartsTooltip, ResponsiveContainer,
 } from 'recharts';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
   TrendingUp, TrendingDown, Calendar, BarChart3, Shield, Activity, Target,
-  ArrowUpRight, ArrowDownRight, Minus, Wallet, RefreshCw,
+  ArrowUpRight, ArrowDownRight, Minus, Wallet, RefreshCw, Info,
 } from 'lucide-react';
 import { GuidedEmptyState } from '@/components/BetaReadinessChecklist';
 
@@ -32,12 +36,17 @@ interface DayData {
 }
 
 type MT5Snapshot = Tables<'mt5_account_snapshots'>;
-type MT5Trade = Pick<Tables<'mt5_trades'>, 'id'>;
+type MT5Trade = Pick<Tables<'mt5_trades'>, 'id' | 'symbol' | 'side' | 'open_time' | 'close_time' | 'volume' | 'profit'>;
 
 function formatDayLabel(dateStr: string): string {
   const [year, month, day] = dateStr.split('-').map(Number);
   const dt = new Date(year, (month || 1) - 1, day || 1);
   return `${dt.getDate()}/${dt.getMonth() + 1}`;
+}
+
+function formatDateTime(value: string | null): string {
+  if (!value) return '—';
+  return new Date(value).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
 function mapSnapshotData(account: TradingAccount, snapshots: MT5Snapshot[], maxLossLimit: number): DayData[] {
@@ -54,17 +63,116 @@ function mapSnapshotData(account: TradingAccount, snapshots: MT5Snapshot[], maxL
 }
 
 /* ── sub-components ──────────────────────────────────────── */
-function StatCard({ icon: Icon, label, value, sub, color }: {
-  icon: React.ElementType; label: string; value: string; sub?: string; color?: string;
+type Tone = 'success' | 'destructive' | 'warning' | 'muted';
+
+const TONE_CLASSES: Record<Tone, string> = {
+  success: 'bg-success/10 text-success',
+  destructive: 'bg-destructive/10 text-destructive',
+  warning: 'bg-warning/10 text-warning',
+  muted: 'bg-muted text-muted-foreground',
+};
+
+function PillBadge({ tone, icon: Icon, children }: {
+  tone: Tone; icon?: React.ElementType; children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4 flex flex-col gap-1">
-      <div className="flex items-center gap-2 text-muted-foreground">
-        <Icon className="h-4 w-4" style={color ? { color } : undefined} />
-        <span className="text-xs uppercase tracking-wider font-medium">{label}</span>
+    <span className={`inline-flex w-fit items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-semibold font-mono tabular-nums ${TONE_CLASSES[tone]}`}>
+      {Icon && <Icon className="h-3 w-3" />}
+      {children}
+    </span>
+  );
+}
+
+function MetricHint({ label, hint }: { label: string; hint: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          className="text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+          aria-label={`Como calculamos: ${label}`}
+        >
+          <Info className="h-3.5 w-3.5" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-[220px] text-xs">{hint}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function StatCard({ icon: Icon, label, value, badge, hint }: {
+  icon: React.ElementType; label: string; value: string; badge?: React.ReactNode; hint?: string;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-card p-4 flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] uppercase tracking-wide font-medium text-muted-foreground">{label}</span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {hint && <MetricHint label={label} hint={hint} />}
+          <Icon className="h-3.5 w-3.5 text-muted-foreground/60" />
+        </div>
       </div>
-      <p className="text-xl font-bold font-mono text-foreground">{value}</p>
-      {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
+      <p className="text-xl font-bold font-mono tabular-nums text-foreground">{value}</p>
+      {badge}
+    </div>
+  );
+}
+
+function HeroStatCard({ className, totalPnl, returnPct, startBalance, sparklineData, successColor, destructiveColor }: {
+  className?: string;
+  totalPnl: number;
+  returnPct: number;
+  startBalance: number;
+  sparklineData: DayData[];
+  successColor: string;
+  destructiveColor: string;
+}) {
+  const isFlat = Math.abs(totalPnl) < 0.005;
+  const isPositive = totalPnl >= 0;
+  const TrendIcon = isFlat ? Minus : isPositive ? TrendingUp : TrendingDown;
+  const BadgeIcon = isFlat ? Minus : isPositive ? ArrowUpRight : ArrowDownRight;
+  const lineColor = isPositive ? successColor : destructiveColor;
+  const hasSpark = sparklineData.length >= 2;
+
+  return (
+    <div className={`rounded-lg border border-border bg-card p-4 flex flex-col gap-2 ${className ?? ''}`}>
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] uppercase tracking-wide font-medium text-muted-foreground">Lucro Total</span>
+        <div className="flex items-center gap-1.5">
+          <MetricHint label="Lucro Total" hint="Equity atual menos o saldo inicial da conta. O gráfico mostra a curva de equity dos últimos pontos sincronizados." />
+          <TrendIcon className="h-3.5 w-3.5 text-muted-foreground/60" />
+        </div>
+      </div>
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <p className={`text-2xl font-bold font-mono tabular-nums ${isFlat ? 'text-foreground' : isPositive ? 'text-success' : 'text-destructive'}`}>
+          {fmt(totalPnl)}
+        </p>
+        <PillBadge tone={isFlat ? 'muted' : isPositive ? 'success' : 'destructive'} icon={BadgeIcon}>
+          {fmtPct(returnPct)}
+        </PillBadge>
+      </div>
+      <p className="text-xs text-muted-foreground">desde o saldo inicial de {fmt(startBalance)}</p>
+      <div className="h-12 mt-1">
+        {hasSpark ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={sparklineData} margin={{ top: 4, right: 2, bottom: 0, left: 2 }}>
+              <Line
+                type="monotone"
+                dataKey="equity"
+                stroke={lineColor}
+                strokeWidth={2}
+                dot={{ r: 2, fill: lineColor, strokeWidth: 0 }}
+                activeDot={{ r: 3 }}
+                isAnimationActive={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="h-full flex items-center text-[11px] text-muted-foreground/70">
+            Histórico insuficiente para o gráfico
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -74,6 +182,112 @@ function ProgressBar({ value, max, color }: { value: number; max: number; color:
   return (
     <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
       <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: color }} />
+    </div>
+  );
+}
+
+function DayResultCard({ data, successColor, destructiveColor, mutedColor, tooltipContentStyle, tooltipLabelStyle }: {
+  data: DayData[];
+  successColor: string;
+  destructiveColor: string;
+  mutedColor: string;
+  tooltipContentStyle: React.CSSProperties;
+  tooltipLabelStyle: React.CSSProperties;
+}) {
+  const recent = data.slice(-20);
+  const positiveDays = data.filter(d => d.dailyPnl > 0).length;
+  const negativeDays = data.filter(d => d.dailyPnl < 0).length;
+  const daysWithResult = positiveDays + negativeDays;
+  const winRatePct = daysWithResult > 0 ? (positiveDays / daysWithResult) * 100 : 0;
+
+  return (
+    <div className="rounded-lg border border-border bg-card p-5 flex flex-col gap-3">
+      <div>
+        <div className="flex items-center justify-between">
+          <h2 className="font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground">Resultado por Dia</h2>
+          <MetricHint
+            label="Resultado por Dia"
+            hint="Cada barra é o resultado (dailyPnl) de um dia com snapshot. Verde = dia positivo, vermelho = dia negativo."
+          />
+        </div>
+        <div className="mt-2 flex items-baseline gap-2">
+          <p className="text-xl font-bold font-mono tabular-nums text-foreground">
+            {positiveDays}/{daysWithResult || 0}
+          </p>
+          <PillBadge tone={daysWithResult === 0 ? 'muted' : winRatePct >= 50 ? 'success' : 'destructive'}>
+            {daysWithResult === 0 ? 'sem dados' : `${winRatePct.toFixed(0)}% positivos`}
+          </PillBadge>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">últimos {recent.length} dias com snapshot</p>
+      </div>
+      <div className="h-32">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={recent} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
+            <XAxis dataKey="day" hide />
+            <RechartsTooltip
+              cursor={{ fill: 'hsl(var(--muted))', opacity: 0.4 }}
+              formatter={(value: number) => [fmt(value), 'Resultado do dia']}
+              contentStyle={tooltipContentStyle}
+              labelStyle={tooltipLabelStyle}
+            />
+            <Bar dataKey="dailyPnl" radius={[2, 2, 2, 2]} isAnimationActive={false}>
+              {recent.map((d, i) => (
+                <Cell key={`${d.date}-${i}`} fill={d.dailyPnl > 0 ? successColor : d.dailyPnl < 0 ? destructiveColor : mutedColor} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+function RecentTradesTable({ trades }: { trades: MT5Trade[] }) {
+  if (trades.length === 0) {
+    return (
+      <div className="rounded-lg border border-border bg-muted/20 p-4">
+        <p className="text-sm font-medium text-foreground">Nenhum trade recente sincronizado</p>
+        <p className="text-xs text-muted-foreground mt-1">
+          Os últimos trades desta conta aparecem aqui após o próximo sync MT5.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="border-b border-border text-left">
+            <th className="py-2 pr-3 font-medium uppercase tracking-wide text-[10px] text-muted-foreground">Ativo</th>
+            <th className="py-2 pr-3 font-medium uppercase tracking-wide text-[10px] text-muted-foreground">Direção</th>
+            <th className="py-2 pr-3 font-medium uppercase tracking-wide text-[10px] text-muted-foreground">Volume</th>
+            <th className="py-2 pr-3 font-medium uppercase tracking-wide text-[10px] text-muted-foreground">Abertura</th>
+            <th className="py-2 pr-3 font-medium uppercase tracking-wide text-[10px] text-muted-foreground">Fechamento</th>
+            <th className="py-2 pl-3 font-medium uppercase tracking-wide text-[10px] text-muted-foreground text-right">Resultado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {trades.map(trade => (
+            <tr key={trade.id} className="border-b border-border/60 last:border-0">
+              <td className="py-2 pr-3 font-medium text-foreground">{trade.symbol}</td>
+              <td className="py-2 pr-3">
+                <span className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${trade.side === 'buy' ? 'bg-success/15 text-success' : 'bg-destructive/15 text-destructive'}`}>
+                  {trade.side === 'buy' ? 'Compra' : trade.side === 'sell' ? 'Venda' : trade.side}
+                </span>
+              </td>
+              <td className="py-2 pr-3 font-mono tabular-nums text-muted-foreground">{trade.volume}</td>
+              <td className="py-2 pr-3 text-muted-foreground whitespace-nowrap">{formatDateTime(trade.open_time)}</td>
+              <td className="py-2 pr-3 text-muted-foreground whitespace-nowrap">
+                {trade.close_time ? formatDateTime(trade.close_time) : 'Em aberto'}
+              </td>
+              <td className={`py-2 pl-3 text-right font-mono tabular-nums font-semibold whitespace-nowrap ${trade.profit >= 0 ? 'text-success' : 'text-destructive'}`}>
+                {fmt(trade.profit)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -135,25 +349,40 @@ function CalendarGrid({ data }: { data: DayData[] }) {
   );
 }
 
-/* ── tooltip ─────────────────────────────────────────────── */
-const tooltipStyle = {
-  contentStyle: {
-    backgroundColor: 'hsl(220, 22%, 9%)',
-    border: '1px solid hsl(220, 16%, 16%)',
-    borderRadius: '8px',
-    fontSize: '12px',
-    fontFamily: 'JetBrains Mono, monospace',
-  },
-  labelStyle: { color: 'hsl(215, 15%, 50%)' },
-};
+function PerformanceHeader() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+    >
+      <p className="font-mono text-[11px] uppercase tracking-widest text-primary font-medium">Console de performance</p>
+      <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground md:text-3xl">Performance</h1>
+      <p className="mt-1.5 max-w-md text-xs text-muted-foreground">Análise completa de desempenho e risco da conta.</p>
+    </motion.div>
+  );
+}
 
 /* ── main page ───────────────────────────────────────────── */
 const Performance = () => {
   const { accounts } = useAccountsStore();
   const [selectedAccount, setSelectedAccount] = useState<TradingAccount | undefined>(accounts[0]);
   const [snapshots, setSnapshots] = useState<MT5Snapshot[]>([]);
-  const [trades, setTrades] = useState<MT5Trade[]>([]);
+  const [recentTrades, setRecentTrades] = useState<MT5Trade[]>([]);
+  const [totalTradesCount, setTotalTradesCount] = useState(0);
   const { data: ruleRows = [] } = useRuleEvaluations(selectedAccount?.id);
+
+  // Resolved once from src/index.css tokens (see useThemeColors) so Recharts' SVG
+  // stroke/fill — which can't reliably resolve `var(--token)` on their own — actually
+  // repaint when the AppLayout.tsx theme toggle flips light/dark.
+  const chartColors = useThemeColors({
+    info: '--info',
+    destructive: '--destructive',
+    success: '--success',
+    border: '--border',
+    mutedForeground: '--muted-foreground',
+    popover: '--popover',
+    popoverForeground: '--popover-foreground',
+  });
 
   useEffect(() => {
     if (!selectedAccount && accounts.length > 0) {
@@ -172,7 +401,8 @@ const Performance = () => {
       if (!selectedAccount?.id) {
         if (isActive) {
           setSnapshots([]);
-          setTrades([]);
+          setRecentTrades([]);
+          setTotalTradesCount(0);
         }
         return;
       }
@@ -190,11 +420,12 @@ const Performance = () => {
 
       if (connectionError || !connection?.id) {
         setSnapshots([]);
-        setTrades([]);
+        setRecentTrades([]);
+        setTotalTradesCount(0);
         return;
       }
 
-      const [snapshotsResult, tradesResult] = await Promise.all([
+      const [snapshotsResult, tradesCountResult, recentTradesResult] = await Promise.all([
         supabase
           .from('mt5_account_snapshots')
           .select('*')
@@ -202,14 +433,21 @@ const Performance = () => {
           .order('date', { ascending: true }),
         supabase
           .from('mt5_trades')
-          .select('id')
+          .select('id', { count: 'exact', head: true })
           .eq('connection_id', connection.id),
+        supabase
+          .from('mt5_trades')
+          .select('id, symbol, side, open_time, close_time, volume, profit')
+          .eq('connection_id', connection.id)
+          .order('open_time', { ascending: false })
+          .limit(10),
       ]);
 
       if (!isActive) return;
 
       setSnapshots(snapshotsResult.error ? [] : snapshotsResult.data ?? []);
-      setTrades(tradesResult.error ? [] : tradesResult.data ?? []);
+      setTotalTradesCount(tradesCountResult.error ? 0 : tradesCountResult.count ?? 0);
+      setRecentTrades(recentTradesResult.error ? [] : recentTradesResult.data ?? []);
     }
 
     loadPerformanceData();
@@ -232,9 +470,20 @@ const Performance = () => {
     return mapSnapshotData(account, snapshots, maxLossLimit);
   }, [account, maxLossLimit, snapshots]);
 
+  const tooltipContentStyle: React.CSSProperties = {
+    backgroundColor: chartColors.popover,
+    border: `1px solid ${chartColors.border}`,
+    borderRadius: 8,
+    fontSize: 12,
+    fontFamily: 'var(--font-mono)',
+    color: chartColors.popoverForeground,
+  };
+  const tooltipLabelStyle: React.CSSProperties = { color: chartColors.mutedForeground };
+
   if (!account) {
     return (
-      <div className="p-6 max-w-4xl mx-auto">
+      <div className="p-6 max-w-4xl mx-auto space-y-6">
+        <PerformanceHeader />
         <GuidedEmptyState
           icon={Wallet}
           title="Nenhuma conta para analisar"
@@ -247,10 +496,7 @@ const Performance = () => {
   if (data.length === 0) {
     return (
       <div className="p-6 max-w-6xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-lg font-bold text-foreground">Performance</h1>
-          <p className="text-xs text-muted-foreground">Análise completa de desempenho e risco da conta.</p>
-        </div>
+        <PerformanceHeader />
 
         <AccountSelector accounts={accounts} selected={selectedAccount} onSelect={setSelectedAccount} />
 
@@ -268,9 +514,10 @@ const Performance = () => {
   const maxDrawdownValue = Math.max(...data.map(d => d.drawdown));
   const currentDrawdown = data[data.length - 1]?.drawdown ?? 0;
   const tradingDays = data.filter(d => d.dailyPnl !== 0).length;
-  const totalTrades = trades.length;
 
   const drawdownRemaining = maxLossLimit - currentDrawdown;
+  const ddUsagePct = maxLossLimit > 0 ? (maxDrawdownValue / maxLossLimit) * 100 : 0;
+  const ddTone: Tone = ddUsagePct >= 80 ? 'destructive' : ddUsagePct >= 50 ? 'warning' : 'muted';
 
   // Recovery
   const isNegative = totalPnl < 0;
@@ -281,6 +528,8 @@ const Performance = () => {
   const profitEval = evals.find(e => e.rule.type === 'PROFIT_TARGET');
   const profitTarget = profitEval?.limitValue ?? account.startBalance * 0.1;
   const profitRemaining = Math.max(profitTarget - Math.max(totalPnl, 0), 0);
+  const goalPct = profitTarget > 0 ? Math.min((Math.max(totalPnl, 0) / profitTarget) * 100, 100) : 0;
+  const goalTone: Tone = goalPct >= 75 ? 'success' : 'muted';
 
   // Risk usage
   const dailyPnls = data.map(d => d.dailyPnl);
@@ -303,22 +552,46 @@ const Performance = () => {
       <AccountSelector accounts={accounts} selected={selectedAccount} onSelect={setSelectedAccount} />
 
       {/* ── RESUMO ──────────────────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <StatCard
-          icon={totalPnl >= 0 ? TrendingUp : TrendingDown}
-          label="Lucro Total"
-          value={fmt(totalPnl)}
-          sub={fmtPct(returnPct)}
-          color={totalPnl >= 0 ? 'hsl(152, 69%, 46%)' : 'hsl(0, 72%, 51%)'}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <HeroStatCard
+          className="col-span-2 sm:col-span-3 lg:col-span-2"
+          totalPnl={totalPnl}
+          returnPct={returnPct}
+          startBalance={account.startBalance}
+          sparklineData={data.slice(-14)}
+          successColor={chartColors.success}
+          destructiveColor={chartColors.destructive}
         />
-        <StatCard icon={TrendingDown} label="Drawdown Máx." value={fmt(maxDrawdownValue)} color="hsl(0, 72%, 51%)" />
-        <StatCard icon={BarChart3} label="Trades Totais" value={String(totalTrades)} />
-        <StatCard icon={Calendar} label="Dias Operados" value={String(tradingDays)} />
-        <StatCard icon={Target} label="Meta Restante" value={fmt(profitRemaining)} />
+        <StatCard
+          icon={TrendingDown}
+          label="Drawdown Máx."
+          value={fmt(maxDrawdownValue)}
+          badge={<PillBadge tone={ddTone}>{ddUsagePct.toFixed(0)}% do limite</PillBadge>}
+          hint="Maior drawdown já registrado nesta conta, comparado ao limite de perda máxima configurado nas regras."
+        />
+        <StatCard
+          icon={BarChart3}
+          label="Trades Totais"
+          value={String(totalTradesCount)}
+          hint="Total de trades sincronizados para esta conta (contagem exata via Supabase, não apenas os exibidos na tabela abaixo)."
+        />
+        <StatCard
+          icon={Calendar}
+          label="Dias Operados"
+          value={String(tradingDays)}
+          hint="Dias com pelo menos um resultado diário diferente de zero, com base nos snapshots sincronizados."
+        />
+        <StatCard
+          icon={Target}
+          label="Meta Restante"
+          value={fmt(profitRemaining)}
+          badge={<PillBadge tone={goalTone}>{goalPct.toFixed(0)}% da meta</PillBadge>}
+          hint="Quanto falta, em dólares, para atingir a meta de lucro configurada para esta conta."
+        />
       </div>
 
-      {totalTrades === 0 && (
-        <div className="rounded-xl border border-warning/30 bg-warning/5 p-4">
+      {totalTradesCount === 0 && (
+        <div className="rounded-lg border border-warning/30 bg-warning/5 p-4">
           <p className="text-sm font-medium text-foreground">Conta sincronizada, mas sem trades fechados</p>
           <p className="text-xs text-muted-foreground mt-1">
             A curva de equity já pode ser acompanhada, mas métricas de consistência e histórico de performance ficam limitadas até existirem trades.
@@ -326,63 +599,108 @@ const Performance = () => {
         </div>
       )}
 
-      {/* ── EQUITY CURVE ───────────────────────────────── */}
-      <section className="rounded-xl border border-border bg-card p-5">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Curva de Equity</h2>
-        <ResponsiveContainer width="100%" height={300}>
-          <AreaChart data={data}>
-            <defs>
-              <linearGradient id="eqGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="hsl(187, 85%, 53%)" stopOpacity={0.25} />
-                <stop offset="95%" stopColor="hsl(187, 85%, 53%)" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 16%, 16%)" />
-            <XAxis dataKey="day" tick={{ fontSize: 10, fill: 'hsl(215, 15%, 50%)' }} />
-            <YAxis tick={{ fontSize: 10, fill: 'hsl(215, 15%, 50%)' }} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
-            <Tooltip {...tooltipStyle} formatter={(value: number, name: string) => [fmt(value), name]} />
-            <Area type="monotone" dataKey="equity" stroke="hsl(187, 85%, 53%)" fill="url(#eqGrad)" strokeWidth={2} name="Equity" />
-            <Area type="monotone" dataKey="drawdownLimit" stroke="hsl(0, 72%, 51%)" fill="transparent" strokeWidth={1.5} strokeDasharray="6 3" name="Limite de Drawdown" />
-          </AreaChart>
-        </ResponsiveContainer>
-        <div className="flex gap-6 mt-3 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: 'hsl(187, 85%, 53%)' }} /> Equity
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="h-0.5 w-4 rounded" style={{ backgroundColor: 'hsl(0, 72%, 51%)' }} /> Limite de Drawdown
-          </span>
-        </div>
-      </section>
+      {/* ── EQUITY CURVE + RESULTADO POR DIA ─────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-4">
+        <section className="rounded-lg border border-border bg-card p-5">
+          <h2 className="font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Curva de Equity</h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <AreaChart data={data}>
+              <defs>
+                <linearGradient id="eqGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={chartColors.info} stopOpacity={0.28} />
+                  <stop offset="95%" stopColor={chartColors.info} stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="ddFloorGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={chartColors.destructive} stopOpacity={0.16} />
+                  <stop offset="95%" stopColor={chartColors.destructive} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <XAxis
+                dataKey="day"
+                tick={{ fontSize: 10, fill: chartColors.mutedForeground }}
+                axisLine={{ stroke: chartColors.border }}
+                tickLine={false}
+              />
+              <YAxis
+                tick={{ fontSize: 10, fill: chartColors.mutedForeground }}
+                tickFormatter={v => `$${(v / 1000).toFixed(0)}k`}
+                axisLine={false}
+                tickLine={false}
+                width={44}
+              />
+              <RechartsTooltip
+                contentStyle={tooltipContentStyle}
+                labelStyle={tooltipLabelStyle}
+                formatter={(value: number, name: string) => [fmt(value), name]}
+              />
+              {/* Danger floor first so the equity area layers on top of it (soft overlapping fills) */}
+              <Area
+                type="monotone"
+                dataKey="drawdownLimit"
+                stroke={chartColors.destructive}
+                strokeWidth={1.5}
+                strokeDasharray="6 3"
+                fill="url(#ddFloorGrad)"
+                name="Limite de Drawdown"
+              />
+              <Area
+                type="monotone"
+                dataKey="equity"
+                stroke={chartColors.info}
+                fill="url(#eqGrad)"
+                strokeWidth={2}
+                name="Equity"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+          <div className="flex gap-6 mt-3 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-info" /> Equity
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-0.5 w-4 rounded bg-destructive" /> Limite de Drawdown
+            </span>
+          </div>
+        </section>
+
+        <DayResultCard
+          data={data}
+          successColor={chartColors.success}
+          destructiveColor={chartColors.destructive}
+          mutedColor={chartColors.mutedForeground}
+          tooltipContentStyle={tooltipContentStyle}
+          tooltipLabelStyle={tooltipLabelStyle}
+        />
+      </div>
 
       {/* ── ANALISE DE DRAWDOWN ──────────────────────────── */}
-      <section className="rounded-xl border border-border bg-card p-5 space-y-5">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Análise de Drawdown</h2>
+      <section className="rounded-lg border border-border bg-card p-5 space-y-5">
+        <h2 className="font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground">Análise de Drawdown</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">Drawdown Atual</p>
-            <p className="text-2xl font-bold font-mono text-destructive">{fmt(currentDrawdown)}</p>
-            <ProgressBar value={currentDrawdown} max={maxLossLimit} color="hsl(0, 72%, 51%)" />
+            <p className="text-2xl font-bold font-mono tabular-nums text-destructive">{fmt(currentDrawdown)}</p>
+            <ProgressBar value={currentDrawdown} max={maxLossLimit} color="hsl(var(--destructive))" />
             <p className="text-xs text-muted-foreground">de {fmt(maxLossLimit)} permitidos</p>
           </div>
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">Drawdown Máximo Histórico</p>
-            <p className="text-2xl font-bold font-mono text-warning">{fmt(maxDrawdownValue)}</p>
-            <ProgressBar value={maxDrawdownValue} max={maxLossLimit} color="hsl(38, 92%, 50%)" />
+            <p className="text-2xl font-bold font-mono tabular-nums text-warning">{fmt(maxDrawdownValue)}</p>
+            <ProgressBar value={maxDrawdownValue} max={maxLossLimit} color="hsl(var(--warning))" />
             <p className="text-xs text-muted-foreground">de {fmt(maxLossLimit)} permitidos</p>
           </div>
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">Margem Restante</p>
-            <p className="text-2xl font-bold font-mono text-success">{fmt(drawdownRemaining)}</p>
-            <ProgressBar value={drawdownRemaining} max={maxLossLimit} color="hsl(152, 69%, 46%)" />
+            <p className="text-2xl font-bold font-mono tabular-nums text-success">{fmt(drawdownRemaining)}</p>
+            <ProgressBar value={drawdownRemaining} max={maxLossLimit} color="hsl(var(--success))" />
             <p className="text-xs text-muted-foreground">disponível antes da violação</p>
           </div>
         </div>
       </section>
 
       {/* ── RECOVERY ANALYSIS ──────────────────────────── */}
-      <section className="rounded-xl border border-border bg-card p-5 space-y-4">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Análise de Recuperação</h2>
+      <section className="rounded-lg border border-border bg-card p-5 space-y-4">
+        <h2 className="font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground">Análise de Recuperação</h2>
         {isNegative ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 space-y-2">
@@ -390,14 +708,14 @@ const Performance = () => {
                 <ArrowDownRight className="h-4 w-4 text-destructive" />
                 <span className="text-xs text-muted-foreground uppercase">Perda Atual</span>
               </div>
-              <p className="text-2xl font-bold font-mono text-destructive">{fmt(totalPnl)}</p>
+              <p className="text-2xl font-bold font-mono tabular-nums text-destructive">{fmt(totalPnl)}</p>
             </div>
             <div className="rounded-lg border border-warning/30 bg-warning/5 p-4 space-y-2">
               <div className="flex items-center gap-2">
                 <ArrowUpRight className="h-4 w-4 text-warning" />
                 <span className="text-xs text-muted-foreground uppercase">Precisa Recuperar</span>
               </div>
-              <p className="text-2xl font-bold font-mono text-warning">{fmt(recoveryNeeded)}</p>
+              <p className="text-2xl font-bold font-mono tabular-nums text-warning">{fmt(recoveryNeeded)}</p>
               <p className="text-xs text-muted-foreground">
                 ({fmtPct(recoveryPct)} sobre o equity atual de {fmt(account.currentEquity)})
               </p>
@@ -410,14 +728,14 @@ const Performance = () => {
                 <ArrowUpRight className="h-4 w-4 text-success" />
                 <span className="text-xs text-muted-foreground uppercase">Lucro Atual</span>
               </div>
-              <p className="text-2xl font-bold font-mono text-success">{fmt(totalPnl)}</p>
+              <p className="text-2xl font-bold font-mono tabular-nums text-success">{fmt(totalPnl)}</p>
             </div>
             <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-2">
               <div className="flex items-center gap-2">
                 <Target className="h-4 w-4 text-primary" />
                 <span className="text-xs text-muted-foreground uppercase">Faltam para a Meta</span>
               </div>
-              <p className="text-2xl font-bold font-mono text-primary">{fmt(profitRemaining)}</p>
+              <p className="text-2xl font-bold font-mono tabular-nums text-primary">{fmt(profitRemaining)}</p>
               <p className="text-xs text-muted-foreground">
                 Meta total: {fmt(profitTarget)} — já alcançou {fmt(Math.max(totalPnl, 0))}
               </p>
@@ -427,37 +745,46 @@ const Performance = () => {
       </section>
 
       {/* ── RISCO UTILIZADO ────────────────────────────── */}
-      <section className="rounded-xl border border-border bg-card p-5 space-y-4">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Risco Utilizado</h2>
+      <section className="rounded-lg border border-border bg-card p-5 space-y-4">
+        <h2 className="font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground">Risco Utilizado</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground">Maior Perda Diária</p>
-            <p className="text-lg font-bold font-mono text-destructive">{fmt(biggestLoss)}</p>
-            <ProgressBar value={Math.abs(biggestLoss)} max={dailyLossLimit} color="hsl(0, 72%, 51%)" />
+            <p className="text-lg font-bold font-mono tabular-nums text-destructive">{fmt(biggestLoss)}</p>
+            <ProgressBar value={Math.abs(biggestLoss)} max={dailyLossLimit} color="hsl(var(--destructive))" />
             <p className="text-[10px] text-muted-foreground">Limite: {fmt(dailyLossLimit)}</p>
           </div>
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground">Maior Lucro Diário</p>
-            <p className="text-lg font-bold font-mono text-success">{fmt(biggestWin)}</p>
+            <p className="text-lg font-bold font-mono tabular-nums text-success">{fmt(biggestWin)}</p>
           </div>
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground">Uso Médio do Limite</p>
-            <p className="text-lg font-bold font-mono text-foreground">{fmt(avgDailyUsage)}</p>
-            <ProgressBar value={avgDailyUsage} max={dailyLossLimit} color="hsl(38, 92%, 50%)" />
+            <p className="text-lg font-bold font-mono tabular-nums text-foreground">{fmt(avgDailyUsage)}</p>
+            <ProgressBar value={avgDailyUsage} max={dailyLossLimit} color="hsl(var(--warning))" />
             <p className="text-[10px] text-muted-foreground">de {fmt(dailyLossLimit)}/dia</p>
           </div>
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground">Uso Máximo do Limite</p>
-            <p className="text-lg font-bold font-mono text-foreground">{fmt(maxDailyUsage)}</p>
-            <ProgressBar value={maxDailyUsage} max={dailyLossLimit} color="hsl(0, 72%, 51%)" />
+            <p className="text-lg font-bold font-mono tabular-nums text-foreground">{fmt(maxDailyUsage)}</p>
+            <ProgressBar value={maxDailyUsage} max={dailyLossLimit} color="hsl(var(--destructive))" />
             <p className="text-[10px] text-muted-foreground">de {fmt(dailyLossLimit)}/dia</p>
           </div>
         </div>
       </section>
 
+      {/* ── TRADES RECENTES ─────────────────────────────── */}
+      <section className="rounded-lg border border-border bg-card p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground">Trades Recentes</h2>
+          <span className="text-[11px] text-muted-foreground">{totalTradesCount} no total</span>
+        </div>
+        <RecentTradesTable trades={recentTrades} />
+      </section>
+
       {/* ── CALENDÁRIO ─────────────────────────────────── */}
-      <section className="rounded-xl border border-border bg-card p-5">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Calendário de Performance</h2>
+      <section className="rounded-lg border border-border bg-card p-5">
+        <h2 className="font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Calendário de Performance</h2>
         <CalendarGrid data={data} />
         <div className="flex gap-4 mt-4 text-[10px] text-muted-foreground">
           <span className="flex items-center gap-1"><span className="h-2 w-2 rounded bg-success/40" /> Lucro</span>
@@ -467,10 +794,10 @@ const Performance = () => {
       </section>
 
       {/* ── ANÁLISE DE SOBREVIVÊNCIA ───────────────────── */}
-      <section className="rounded-xl border border-border bg-card p-5 space-y-4">
+      <section className="rounded-lg border border-border bg-card p-5 space-y-4">
         <div className="flex items-center gap-2">
           <Shield className="h-4 w-4 text-primary" />
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Análise de Sobrevivência</h2>
+          <h2 className="font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground">Análise de Sobrevivência</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {/* Risk level */}
@@ -532,7 +859,7 @@ function InsightRow({ icon: Icon, label, value, detail, color }: {
         <Icon className="h-3.5 w-3.5 text-muted-foreground" />
         <span className="text-xs text-muted-foreground uppercase tracking-wider">{label}</span>
       </div>
-      <p className={`text-lg font-bold font-mono ${color}`}>{value}</p>
+      <p className={`text-lg font-bold font-mono tabular-nums ${color}`}>{value}</p>
       <p className="text-xs text-muted-foreground">{detail}</p>
     </div>
   );

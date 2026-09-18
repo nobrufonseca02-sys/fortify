@@ -28,7 +28,7 @@ const NotFound = () => {
         <p className="text-sm text-muted-foreground mb-8">A rota solicitada não existe.</p>
         <Button onClick={() => navigate("/")} variant="premium" className="gap-2">
           <ArrowLeft className="w-4 h-4" />
-          Voltar ao Painel
+          Voltar ao início
         </Button>
       </motion.div>
     </div>

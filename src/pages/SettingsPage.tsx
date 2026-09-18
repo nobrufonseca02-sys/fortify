@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CreditCard, Loader2, Save, User } from "lucide-react";
-import { motion } from "motion/react";
-import { Button } from "@/components/ui/button";
+import { motion, useReducedMotion } from "motion/react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 import { supabase } from "@/integrations/supabase/client";
+import { fortifyMotion } from "@/lib/motion";
 
 const supportLabels: Record<string, string> = {
   basic: "Suporte básico",
@@ -28,6 +28,23 @@ function displayPlanName(planId?: string | null, planName?: string | null) {
   return planName || "Sem plano ativo";
 }
 
+function SettingsIconChip({ icon }: { icon: React.ReactNode }) {
+  return (
+    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-border bg-background/80">
+      {icon}
+    </div>
+  );
+}
+
+function StatTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 rounded-lg border border-border bg-card/55 p-4">
+      <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{label}</dt>
+      <dd className="mt-2 break-words text-sm font-semibold leading-5 text-foreground">{value}</dd>
+    </div>
+  );
+}
+
 const SettingsPage = () => {
   const navigate = useNavigate();
   const { user, session } = useAuth();
@@ -43,6 +60,8 @@ const SettingsPage = () => {
   const [phone, setPhone] = useState("");
   const [profileLoading, setProfileLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const shouldReduceMotion = useReducedMotion();
+  const revealY = shouldReduceMotion ? 0 : 10;
 
   const currentPlan = useMemo(
     () => plans.find((plan) => plan.id === subscription?.plan_id || plan.slug === subscription?.plan_id) ?? null,
@@ -137,29 +156,46 @@ const SettingsPage = () => {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-lg font-bold text-foreground">Configurações</h1>
-        <p className="text-xs text-muted-foreground">Gerencie seus dados de conta e assinatura.</p>
+    <div className="mx-auto max-w-3xl space-y-7 px-4 py-6 sm:px-6 lg:px-8">
+      <motion.div
+        initial={{ opacity: 0, y: revealY }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={fortifyMotion.gentle}
+        className="hero-surface flex flex-col gap-6 p-7 md:flex-row md:items-end md:justify-between md:p-10"
+      >
+        <div className="max-w-xl">
+          <p className="eyebrow mb-4">Sua conta</p>
+          <h1 className="display-editorial-sm text-foreground">Configurações</h1>
+          <p className="mt-4 max-w-md text-sm leading-relaxed text-muted-foreground md:text-base">
+            Gerencie seus dados de conta e assinatura.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={managePlan}
+          className="pill-btn pill-btn-primary shrink-0"
+        >
+          <CreditCard className="h-4 w-4" />
+          Gerenciar plano
+        </button>
       </motion.div>
 
       <motion.section
-        initial={{ opacity: 0, y: 10 }}
+        initial={{ opacity: 0, y: revealY }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="rounded-2xl border border-border bg-card p-6 space-y-5 shadow-lg shadow-background/30"
+        transition={{ ...fortifyMotion.gentle, delay: 0.05 }}
+        className="card-premium space-y-5 rounded-lg p-6"
+        data-testid="settings-profile-section"
       >
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <User className="w-4 h-4 text-primary" />
-          </div>
+        <div className="flex items-center gap-3">
+          <SettingsIconChip icon={<User className="h-5 w-5 text-foreground" />} />
           <div>
             <h2 className="text-sm font-bold text-foreground">Dados da conta</h2>
             <p className="text-xs text-muted-foreground">Atualize as informações usadas pelo Fortify.</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="full-name" className="text-xs text-muted-foreground">Nome completo</Label>
             <Input
@@ -186,47 +222,42 @@ const SettingsPage = () => {
           </div>
         </div>
 
-        <Button type="button" onClick={saveProfile} disabled={profileLoading || saving} className="gap-2">
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+        <button
+          type="button"
+          onClick={saveProfile}
+          disabled={profileLoading || saving}
+          className="pill-btn pill-btn-primary disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           Salvar alterações
-        </Button>
+        </button>
       </motion.section>
 
       <motion.section
-        initial={{ opacity: 0, y: 10 }}
+        initial={{ opacity: 0, y: revealY }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="rounded-2xl border border-border bg-card p-6 space-y-5 shadow-lg shadow-background/30"
+        transition={{ ...fortifyMotion.gentle, delay: 0.1 }}
+        className="card-premium space-y-5 rounded-lg p-6"
+        data-testid="settings-subscription-section"
       >
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <CreditCard className="w-4 h-4 text-primary" />
-          </div>
+        <div className="flex items-center gap-3">
+          <SettingsIconChip icon={<CreditCard className="h-5 w-5 text-foreground" />} />
           <div>
             <h2 className="text-sm font-bold text-foreground">Assinatura</h2>
             <p className="text-xs text-muted-foreground">Resumo do seu plano Fortify atual.</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="rounded-xl bg-muted/30 border border-border/50 p-4">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 font-medium">Plano atual</p>
-            <p className="text-sm text-foreground font-semibold">{planLoading ? "Carregando..." : planName}</p>
-          </div>
-          <div className="rounded-xl bg-muted/30 border border-border/50 p-4">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 font-medium">Contas utilizadas</p>
-            <p className="text-sm text-foreground font-semibold">{activeAccountCount}/{accountLimit || 0}</p>
-          </div>
-          <div className="rounded-xl bg-muted/30 border border-border/50 p-4">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 font-medium">Suporte</p>
-            <p className="text-sm text-foreground font-semibold">{supportLabel}</p>
-          </div>
-        </div>
+        <dl className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <StatTile label="Plano atual" value={planLoading ? "Carregando..." : planName} />
+          <StatTile label="Contas utilizadas" value={`${activeAccountCount}/${accountLimit || 0}`} />
+          <StatTile label="Suporte" value={supportLabel} />
+        </dl>
 
-        <Button type="button" onClick={managePlan} className="gap-2" variant="outline">
-          <CreditCard className="w-4 h-4" />
+        <button type="button" onClick={managePlan} className="pill-btn">
+          <CreditCard className="h-4 w-4" />
           Gerenciar plano
-        </Button>
+        </button>
       </motion.section>
     </div>
   );

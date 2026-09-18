@@ -19,7 +19,9 @@ const groups = [
   {
     label: "Operação",
     items: [
-      { title: "Painel", url: "/", icon: LayoutDashboard },
+      // Biblioteca de Mesas is the platform's landing page now — it owns "/".
+      { title: "Biblioteca", url: "/", icon: BookOpen },
+      { title: "Painel", url: "/dashboard", icon: LayoutDashboard },
       { title: "Calculadora de Risco", url: "/risk-calculator", icon: Calculator },
 
     ],
@@ -34,7 +36,6 @@ const groups = [
   {
     label: "Recursos",
     items: [
-      { title: "Biblioteca", url: "/library", icon: BookOpen },
       { title: "Planos", url: "/pricing", icon: CreditCard },
       { title: "Configurações", url: "/settings", icon: Settings },
     ],
@@ -45,7 +46,16 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const { isAdmin } = useUserRole();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
+  const displayName =
+    (user?.user_metadata?.full_name as string | undefined)?.trim() ||
+    user?.email?.split("@")[0] ||
+    "Minha conta";
+  const initials = displayName
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("") || "F";
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
@@ -112,6 +122,33 @@ export function AppSidebar() {
         </div>
 
         <div className={`px-3 pb-4 pt-2 border-t border-sidebar-border/60 ${collapsed ? "px-2" : ""}`}>
+          {/* Perfil do usuário conectado — dados reais da sessão Supabase */}
+          {user && (
+            <div className={`mb-2 flex items-center gap-2 rounded-lg px-2 py-2 ${collapsed ? "justify-center px-0" : "bg-sidebar-accent/40"}`}>
+              <span
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[11px] font-bold text-primary"
+                title={user.email || displayName}
+              >
+                {initials}
+              </span>
+              {!collapsed && (
+                <>
+                  <div className="min-w-0 flex-1 leading-tight">
+                    <p className="truncate text-[12px] font-medium text-sidebar-accent-foreground">{displayName}</p>
+                    <p className="truncate text-[10px] text-muted-foreground">{user.email}</p>
+                  </div>
+                  <NavLink
+                    to="/settings"
+                    className="shrink-0 rounded-md p-1 text-muted-foreground hover:text-foreground"
+                    aria-label="Configurações da conta"
+                  >
+                    <Settings className="h-3.5 w-3.5" />
+                  </NavLink>
+                </>
+              )}
+            </div>
+          )}
+
           {!collapsed && (
             <div className="px-2 pb-3">
               <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
