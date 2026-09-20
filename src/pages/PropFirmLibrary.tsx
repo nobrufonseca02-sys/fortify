@@ -9,7 +9,6 @@ import {
   ChevronDown,
   ChevronRight,
   ExternalLink,
-  LayoutDashboard,
   Link2,
   Search,
   ShieldCheck,
@@ -476,21 +475,9 @@ export default function PropFirmLibrary() {
     <div className="mx-auto max-w-7xl space-y-7 px-4 py-6 pb-32 sm:px-6 lg:px-8">
       <div className="hero-surface p-7 md:p-10 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
         <div className="max-w-2xl">
-          <p className="eyebrow mb-4">Consulta oficial</p>
           <h1 className="display-editorial-sm text-foreground">
             Biblioteca de <span className="text-gradient-primary">Mesas Proprietárias</span>
           </h1>
-          <p className="text-sm md:text-base text-muted-foreground mt-4 max-w-md leading-relaxed">
-            Escolha uma mesa, veja os modelos disponíveis e consulte as regras principais antes de conectar sua conta.
-          </p>
-          <button
-            type="button"
-            onClick={() => navigate('/dashboard')}
-            className="pill-btn pill-btn-primary mt-5"
-          >
-            <LayoutDashboard className="h-4 w-4" />
-            Ver meu Dashboard
-          </button>
         </div>
         {selectedFirm && (
           <button type="button" onClick={goBack} className="pill-btn shrink-0">

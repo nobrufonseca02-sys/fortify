@@ -9,6 +9,7 @@ import { RuleType } from '@/types/fortify';
 import type { TemplateRule } from '@/data/propFirmLibrary';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
 interface ExtractedData {
   firmName: string;
@@ -104,7 +105,7 @@ export function RuleExtractor({ onRulesExtracted, className = '' }: RuleExtracto
         // Use pdfjs to extract text
         const arrayBuffer = await file.arrayBuffer();
         const pdfjsLib = await import('pdfjs-dist');
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs`;
+        pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         let fullText = '';

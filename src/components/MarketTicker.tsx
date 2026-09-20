@@ -51,12 +51,6 @@ export function MarketTicker() {
 
   return (
     <section className="flex h-11 overflow-hidden rounded-xl border border-border bg-card/80 shadow-sm shadow-background/20">
-      <div
-        className="hidden shrink-0 items-center border-r border-border/50 px-3 text-[11px] uppercase tracking-wide text-muted-foreground sm:flex"
-        title="Cotações simuladas para visualização. Dados reais serão integrados em uma próxima versão."
-      >
-        Dados simulados
-      </div>
       <div className="group relative min-w-0 flex-1 overflow-hidden">
         <div className="flex w-max animate-[ticker-scroll_62s_linear_infinite] group-hover:[animation-play-state:paused]">
           {tickerItems.map((asset, index) => (

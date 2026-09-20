@@ -13,6 +13,29 @@ function gtag(...args: unknown[]) {
   window.dataLayer.push(args);
 }
 
+export function initializeAnalytics() {
+  if (typeof window === 'undefined') return;
+
+  const consentState = hasMarketingConsent() ? 'granted' : 'denied';
+  gtag('consent', 'default', {
+    ad_storage: consentState,
+    analytics_storage: consentState,
+    ad_user_data: consentState,
+    ad_personalization: consentState,
+  });
+
+  const containerId = String(import.meta.env.VITE_GTM_CONTAINER_ID || '').trim();
+  if (!/^GTM-[A-Z0-9]+$/.test(containerId) || document.querySelector('script[data-fortify-gtm]')) return;
+
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({ 'gtm.start': Date.now(), event: 'gtm.js' });
+  const script = document.createElement('script');
+  script.async = true;
+  script.dataset.fortifyGtm = containerId;
+  script.src = `https://www.googletagmanager.com/gtm.js?id=${encodeURIComponent(containerId)}`;
+  document.head.appendChild(script);
+}
+
 export function hasMarketingConsent(): boolean {
   if (typeof window === 'undefined') return false;
   return window.localStorage.getItem(CONSENT_STORAGE_KEY) === 'granted';

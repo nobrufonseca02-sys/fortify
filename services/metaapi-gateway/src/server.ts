@@ -7,11 +7,52 @@ import { Readable } from 'node:stream';
 import { createClient } from '@supabase/supabase-js';
 import cors from '@fastify/cors';
 import Anthropic from '@anthropic-ai/sdk';
+import {
+  BoundedFixedWindowRateLimiter,
+  parsePositiveInteger,
+  parseTrustedProxyAddresses,
+  safeErrorMetadata,
+  secureSecretEquals,
+} from './security';
 
 const gatewayEnvPath = path.resolve(__dirname, '../.env');
-const gatewayEnvResult = dotenv.config({ path: gatewayEnvPath, override: true });
+const gatewayEnvResult = dotenv.config({ path: gatewayEnvPath, override: false });
 
-const fastify = Fastify({ logger: true });
+const NODE_ENV = process.env.NODE_ENV || 'development';
+const trustedProxyAddresses = parseTrustedProxyAddresses(process.env.TRUSTED_PROXY_ADDRESSES);
+const GATEWAY_BODY_LIMIT_BYTES = parsePositiveInteger(process.env.GATEWAY_BODY_LIMIT_BYTES, 262_144, 16_384, 1_048_576);
+const STRIPE_WEBHOOK_BODY_LIMIT_BYTES = parsePositiveInteger(
+  process.env.STRIPE_WEBHOOK_BODY_LIMIT_BYTES,
+  262_144,
+  16_384,
+  GATEWAY_BODY_LIMIT_BYTES,
+);
+const RATE_LIMIT_MAX_BUCKETS = parsePositiveInteger(process.env.RATE_LIMIT_MAX_BUCKETS, 10_000, 1_000, 100_000);
+
+const fastify = Fastify({
+  bodyLimit: GATEWAY_BODY_LIMIT_BYTES,
+  trustProxy: trustedProxyAddresses.length > 0 ? trustedProxyAddresses : false,
+  logger: {
+    level: process.env.LOG_LEVEL || 'info',
+    redact: {
+      censor: '[REDACTED]',
+      paths: [
+        'req.headers.authorization',
+        'req.headers.cookie',
+        'req.headers["x-internal-cron-secret"]',
+        'req.headers["x-whatsapp-service-secret"]',
+        'req.body.password',
+        'req.body.mt5Password',
+        'password',
+        'mt5Password',
+        'provider_account_id',
+        'providerAccountId',
+        'mt5_login',
+        'mt5Login',
+      ],
+    },
+  },
+});
 const corsAllowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || 'http://localhost:8080,http://localhost:8081,http://localhost:5173')
   .split(',')
   .map((origin) => origin.trim())
@@ -22,6 +63,20 @@ fastify.register(cors, {
   credentials: true,
 });
 
+fastify.addHook('onSend', (_request, reply, payload, done) => {
+  reply.header('Cache-Control', 'no-store');
+  reply.header('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
+  reply.header('Cross-Origin-Opener-Policy', 'same-origin');
+  reply.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
+  reply.header('Referrer-Policy', 'no-referrer');
+  reply.header('X-Content-Type-Options', 'nosniff');
+  reply.header('X-Frame-Options', 'DENY');
+  if (NODE_ENV === 'production') {
+    reply.header('Strict-Transport-Security', 'max-age=31536000');
+  }
+  done(null, payload);
+});
+
 fastify.addHook('preParsing', (request, _reply, payload, done) => {
   const pathname = request.url.split('?')[0];
   if (pathname !== '/billing/webhook') {
@@ -29,16 +84,75 @@ fastify.addHook('preParsing', (request, _reply, payload, done) => {
     return;
   }
 
+  const declaredLength = Number(request.headers['content-length']);
+  if (Number.isFinite(declaredLength) && declaredLength > STRIPE_WEBHOOK_BODY_LIMIT_BYTES) {
+    const error = Object.assign(new Error('Stripe webhook payload is too large'), {
+      statusCode: 413,
+      code: 'FST_ERR_CTP_BODY_TOO_LARGE',
+    });
+    done(error);
+    return;
+  }
+
   const chunks: Buffer[] = [];
+  let receivedBytes = 0;
+  let completed = false;
+
+  const finish = (error?: Error, parsedPayload?: Readable) => {
+    if (completed) return;
+    completed = true;
+    done(error ?? null, parsedPayload);
+  };
+
   payload.on('data', (chunk) => {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    if (completed) return;
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    receivedBytes += buffer.length;
+    if (receivedBytes > STRIPE_WEBHOOK_BODY_LIMIT_BYTES) {
+      finish(
+        Object.assign(new Error('Stripe webhook payload is too large'), {
+          statusCode: 413,
+          code: 'FST_ERR_CTP_BODY_TOO_LARGE',
+        }),
+      );
+      return;
+    }
+    chunks.push(buffer);
   });
   payload.on('end', () => {
+    if (completed) return;
     const rawBody = Buffer.concat(chunks);
     (request as any).rawBody = rawBody;
-    done(null, Readable.from(rawBody));
+    finish(undefined, Readable.from(rawBody));
   });
-  payload.on('error', (error) => done(error));
+  payload.on('error', (error) => finish(error));
+});
+
+fastify.setErrorHandler((error, request, reply) => {
+  const requestedStatus = Number((error as { statusCode?: unknown }).statusCode);
+  const statusCode = Number.isInteger(requestedStatus) && requestedStatus >= 400 && requestedStatus <= 599 ? requestedStatus : 500;
+  const logPayload = {
+    event: 'gateway_request_rejected',
+    requestId: request.id,
+    method: request.method,
+    route: request.routeOptions?.url || request.url.split('?')[0],
+    ...safeErrorMetadata(error),
+  };
+
+  if (statusCode >= 500) fastify.log.error(logPayload);
+  else fastify.log.warn(logPayload);
+
+  if (statusCode === 413) {
+    return reply.status(413).send({
+      error: 'O corpo da requisição excede o limite permitido.',
+      code: 'request_body_too_large',
+    });
+  }
+
+  return reply.status(statusCode).send({
+    error: statusCode >= 500 ? 'Erro interno no gateway Fortify.' : 'A requisição enviada é inválida.',
+    code: statusCode >= 500 ? 'gateway_internal_error' : 'invalid_request',
+  });
 });
 
 const PORT = Number(process.env.PORT || 3001);
@@ -48,7 +162,6 @@ const METAAPI_TOKEN = process.env.METAAPI_TOKEN!;
 const METAAPI_REGION = process.env.METAAPI_REGION || 'new-york';
 const METAAPI_PROVISIONING_MAX_ATTEMPTS = Number(process.env.METAAPI_PROVISIONING_MAX_ATTEMPTS || 4);
 const METAAPI_PROVISIONING_MAX_WAIT_MS = Number(process.env.METAAPI_PROVISIONING_MAX_WAIT_MS || 30000);
-const NODE_ENV = process.env.NODE_ENV || 'development';
 const FORTIFY_ALLOW_BETA_FALLBACK_REQUESTED = process.env.FORTIFY_ALLOW_BETA_FALLBACK === 'true';
 const FORTIFY_ENABLE_PRODUCTION_BETA_FALLBACK = process.env.FORTIFY_ENABLE_PRODUCTION_BETA_FALLBACK === 'true';
 const FORTIFY_ALLOW_BETA_FALLBACK =
@@ -102,6 +215,9 @@ fastify.log.info({
   stripeConfigured: !!STRIPE_SECRET_KEY,
   stripeWebhookConfigured: !!STRIPE_WEBHOOK_SECRET,
   supabaseUrlHost: hostOnly(SUPABASE_URL),
+  trustedProxyCount: trustedProxyAddresses.length,
+  bodyLimitBytes: GATEWAY_BODY_LIMIT_BYTES,
+  webhookBodyLimitBytes: STRIPE_WEBHOOK_BODY_LIMIT_BYTES,
   port: PORT,
 });
 
@@ -747,27 +863,17 @@ function checkoutSuccessUrl() {
   return `${STRIPE_SUCCESS_URL}${separator}session_id={CHECKOUT_SESSION_ID}`;
 }
 
-const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>();
+const rateLimiter = new BoundedFixedWindowRateLimiter(RATE_LIMIT_MAX_BUCKETS);
 
 function getRequestIp(request: FastifyRequest) {
-  const forwarded = request.headers['x-forwarded-for'];
-  const first = Array.isArray(forwarded) ? forwarded[0] : forwarded;
-  return String(first || request.ip || 'local').split(',')[0].trim();
+  // Fastify only derives this value from forwarding headers when the direct
+  // proxy was explicitly allowlisted through TRUSTED_PROXY_ADDRESSES.
+  return request.ip || 'local';
 }
 
 function checkRateLimit(request: FastifyRequest, scope: string, maxRequests: number, windowMs: number) {
   const key = `${scope}:${getRequestIp(request)}`;
-  const now = Date.now();
-  const bucket = rateLimitBuckets.get(key);
-  if (!bucket || bucket.resetAt <= now) {
-    rateLimitBuckets.set(key, { count: 1, resetAt: now + windowMs });
-    return { allowed: true, retryAfterSeconds: 0 };
-  }
-  bucket.count += 1;
-  if (bucket.count > maxRequests) {
-    return { allowed: false, retryAfterSeconds: Math.ceil((bucket.resetAt - now) / 1000) };
-  }
-  return { allowed: true, retryAfterSeconds: 0 };
+  return rateLimiter.check(key, maxRequests, windowMs);
 }
 
 function rateLimitError(retryAfterSeconds: number) {
@@ -2067,6 +2173,17 @@ function isUuid(value: unknown): value is string {
   return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
+function isBoundedText(value: unknown, maxLength: number, allowEmpty = false): value is string {
+  if (typeof value !== 'string') return false;
+  const normalized = value.trim();
+  if (!allowEmpty && normalized.length === 0) return false;
+  const hasControlCharacter = Array.from(normalized).some((character) => {
+    const codePoint = character.codePointAt(0) ?? 0;
+    return codePoint <= 31 || codePoint === 127;
+  });
+  return normalized.length <= maxLength && !hasControlCharacter;
+}
+
 function parseJsonText(text: string): JsonRecord {
   if (!text.trim()) return {};
   try {
@@ -2258,7 +2375,7 @@ async function assertProviderAccountBelongsToUser(providerAccountId: string, use
       event: 'metaapi_provider_account_ownership_check_failed',
       providerAccountId: maskForLog(providerAccountId),
       userId: maskForLog(userId),
-      error: error?.message || String(error),
+      ...safeErrorMetadata(error),
     });
     return false;
   }
@@ -2357,7 +2474,7 @@ async function putProvisioningAccountCredentials(providerAccountId: string, payl
 
   fastify.log.info({
     event: 'metaapi_credentials_reverify_response',
-    url,
+    providerAccountId: maskForLog(providerAccountId),
     status: res.status,
   });
 
@@ -2586,9 +2703,7 @@ async function validateLoadedMetaApiToken() {
       event: 'metaapi_startup_token_validation_failed',
       url,
       tokenPresent: !!METAAPI_TOKEN,
-      error: error?.message || String(error),
-      name: error?.name,
-      cause: error?.cause,
+      ...safeErrorMetadata(error),
     });
   }
 }
@@ -4131,7 +4246,7 @@ fastify.post('/internal/billing/reconcile-subscriptions', async (request, reply)
       });
     }
 
-    if (cronHeader !== INTERNAL_CRON_SECRET) {
+    if (!secureSecretEquals(cronHeader, INTERNAL_CRON_SECRET)) {
       return reply.status(403).send({
         error: 'Reconciliação não autorizada.',
         code: 'internal_reconcile_secret_invalid',
@@ -5621,7 +5736,7 @@ fastify.post('/internal/whatsapp/create-checkout-session', async (request, reply
     if (!secretHeader) {
       return reply.status(401).send({ error: 'Requisição não autorizada.', code: 'whatsapp_service_secret_required' });
     }
-    if (secretHeader !== WHATSAPP_SERVICE_SECRET) {
+    if (!secureSecretEquals(secretHeader, WHATSAPP_SERVICE_SECRET)) {
       return reply.status(403).send({ error: 'Requisição não autorizada.', code: 'whatsapp_service_secret_invalid' });
     }
 
@@ -6026,10 +6141,10 @@ fastify.post('/billing/webhook', async (request, reply) => {
   } catch (error: any) {
     fastify.log.error({
       event: 'stripe_webhook_failed',
-      error: error?.message,
+      ...safeErrorMetadata(error),
     });
     return reply.status(500).send({
-      error: error?.message || 'Failed to process Stripe webhook',
+      error: 'Failed to process Stripe webhook',
       code: 'stripe_webhook_failed',
     });
   }
@@ -6061,9 +6176,19 @@ fastify.post('/metaapi/connect', async (request, reply) => {
         : null;
     const userId = String(body?.userId ?? '').trim();
 
-    if (!accountName || !mt5Login || !mt5Server || !userId) {
+    if (
+      !isBoundedText(body?.accountName, 100) ||
+      typeof body?.mt5Login !== 'string' ||
+      !/^\d{1,32}$/.test(mt5Login) ||
+      !isBoundedText(body?.mt5Server, 128) ||
+      (body?.brokerName !== undefined && !isBoundedText(body.brokerName, 100, true)) ||
+      !isBoundedText(body?.mt5Password, 256) ||
+      !isUuid(userId) ||
+      (tradingAccountId !== null && !isUuid(tradingAccountId))
+    ) {
       return reply.status(400).send({
-        error: 'accountName, mt5Login, mt5Server and userId are required',
+        error: 'Os dados da conta MT5 são inválidos ou excedem o tamanho permitido.',
+        code: 'invalid_metaapi_connect_payload',
       });
     }
 
@@ -6171,17 +6296,28 @@ fastify.post('/metaapi/connect', async (request, reply) => {
           url,
           status: listed.res.status,
           code: failure.code,
-          body: listed.text,
         });
         return reply.status(failure.httpStatus).send({
           error: failure.error,
           code: failure.code,
-          details: listed.body,
+          providerStatus: listed.res.status,
         });
       }
 
       existingMetaApiAccount = findMatchingProvisioningAccount(listed.accounts, mt5Login, mt5Server);
       providerAccountId = existingMetaApiAccount ? getMetaApiAccountId(existingMetaApiAccount) : null;
+
+      if (providerAccountId && !(await assertProviderAccountBelongsToUser(providerAccountId, userId))) {
+        fastify.log.warn({
+          event: 'metaapi_connect_existing_account_ownership_mismatch',
+          providerAccountId: maskForLog(providerAccountId),
+          userId: maskForLog(userId),
+        });
+        return reply.status(409).send({
+          error: 'Esta conta MT5 já está vinculada a outro usuário Fortify.',
+          code: 'provider_account_ownership_mismatch',
+        });
+      }
 
       fastify.log.info({
         event: 'metaapi_existing_account_lookup',
@@ -6191,13 +6327,6 @@ fastify.post('/metaapi/connect', async (request, reply) => {
         connectionStatus: existingMetaApiAccount?.connectionStatus,
         region: existingMetaApiAccount?.region,
       });
-
-      if (!mt5Password) {
-        return reply.status(400).send({
-          error: 'mt5Password is required',
-          code: 'mt5_password_required',
-        });
-      }
 
       if (!providerAccountId) {
         // Password is transient: sent only to MetaApi provisioning, never logged, never persisted.
@@ -6237,22 +6366,18 @@ fastify.post('/metaapi/connect', async (request, reply) => {
           return reply.status(credentialCheck.res.status === 401 || credentialCheck.res.status === 403 ? 403 : 502).send({
             error: 'Could not verify MT5 credentials for this account',
             code: 'metaapi_credential_reverify_failed',
-            details: credentialCheck.body,
+            providerStatus: credentialCheck.res.status,
           });
         }
       }
     } catch (fetchError: any) {
       fastify.log.error({
         event: 'metaapi_connect_fetch_error',
-        error: fetchError?.message || String(fetchError),
-        name: fetchError?.name,
-        cause: fetchError?.cause,
-        url,
+        ...safeErrorMetadata(fetchError),
       });
       return reply.status(502).send({
         error: 'Failed to reach MetaApi provisioning API',
         code: 'metaapi_provisioning_fetch_failed',
-        details: fetchError?.message || 'Network error or invalid URL',
       });
     }
 
@@ -6261,16 +6386,14 @@ fastify.post('/metaapi/connect', async (request, reply) => {
         event: 'metaapi_connect_provisioning_pending_timeout',
         url,
         status: provisioning.res.status,
-        transactionId: provisioning.transactionId,
+        transactionId: maskForLog(provisioning.transactionId),
         attempts: provisioning.attempts,
-        body: provisioning.text,
       });
       return reply.status(202).send({
         error: 'MetaApi provisioning is still pending',
         code: 'metaapi_provisioning_pending',
         transactionId: provisioning.transactionId,
         attempts: provisioning.attempts,
-        details: provisioning.body,
       });
     }
 
@@ -6282,8 +6405,7 @@ fastify.post('/metaapi/connect', async (request, reply) => {
         url,
         status: provisioning.res.status,
         code: failure.code,
-        transactionId: provisioning.transactionId,
-        body: provisioning.text,
+        transactionId: maskForLog(provisioning.transactionId),
       });
 
       if (failure.code !== 'invalid_metaapi_token') {
@@ -6319,7 +6441,7 @@ fastify.post('/metaapi/connect', async (request, reply) => {
       return reply.status(failure.httpStatus).send({
         error: failure.error,
         code: failure.code,
-        details: provisioning.body,
+        providerStatus: provisioning.res.status,
       });
     }
 
@@ -6331,13 +6453,11 @@ fastify.post('/metaapi/connect', async (request, reply) => {
       fastify.log.error({
         event: 'metaapi_connect_missing_provider_account_id',
         status: provisioning?.res.status,
-        transactionId: provisioning?.transactionId,
-        body: provisioning?.body,
+        transactionId: maskForLog(provisioning?.transactionId),
       });
       return reply.status(502).send({
         error: 'MetaApi provisioning response did not include an account id',
         code: 'metaapi_provisioning_failed',
-        details: provisioning?.body,
       });
     }
 
@@ -6588,9 +6708,10 @@ fastify.post('/metaapi/connect', async (request, reply) => {
       transactionId: provisioning?.transactionId ?? null,
     };
   } catch (error) {
-    fastify.log.error(error);
+    fastify.log.error({ event: 'metaapi_connect_unhandled_error', ...safeErrorMetadata(error) });
     return reply.status(500).send({
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: 'Não foi possível conectar a conta MT5.',
+      code: 'metaapi_connect_failed',
     });
   }
 });
@@ -6614,9 +6735,10 @@ fastify.post('/metaapi/sync', async (request, reply) => {
       userId: maskForLog(userId),
     });
 
-    if (!connectionId || !userId) {
+    if (!isUuid(connectionId) || !isUuid(userId)) {
       return reply.status(400).send({
-        error: 'connectionId and userId are required',
+        error: 'connectionId e userId devem ser UUIDs válidos.',
+        code: 'invalid_metaapi_sync_payload',
       });
     }
 
@@ -6641,7 +6763,7 @@ fastify.post('/metaapi/sync', async (request, reply) => {
     if (connErr || !conn) {
       fastify.log.error({
         event: 'metaapi_sync_connection_not_found',
-        connectionId,
+        connectionId: maskForLog(connectionId),
         userId: maskForLog(userId),
         error: connErr?.message,
       });
@@ -6654,8 +6776,7 @@ fastify.post('/metaapi/sync', async (request, reply) => {
     if (!conn.provider_account_id) {
       fastify.log.error({
         event: 'metaapi_sync_missing_provider_account_id',
-        connectionId,
-        provider_account_id: conn.provider_account_id,
+        connectionId: maskForLog(connectionId),
       });
       return reply.status(409).send({ error: 'Missing provider_account_id' });
     }
@@ -6686,8 +6807,8 @@ fastify.post('/metaapi/sync', async (request, reply) => {
     if (tradingAccountErr) {
       fastify.log.error({
         event: 'metaapi_sync_trading_account_read_failed',
-        connectionId,
-        tradingAccountId: conn.trading_account_id,
+        connectionId: maskForLog(connectionId),
+        tradingAccountId: maskForLog(conn.trading_account_id),
         error: tradingAccountErr.message,
       });
       return reply.status(500).send({
@@ -6712,11 +6833,11 @@ fastify.post('/metaapi/sync', async (request, reply) => {
 
     fastify.log.info({
       event: 'metaapi_sync_connection_found',
-      connectionId,
-      provider_account_id: conn.provider_account_id,
-      mt5_login: conn.mt5_login,
+      connectionId: maskForLog(connectionId),
+      providerAccountId: maskForLog(conn.provider_account_id),
+      mt5Login: maskForLog(conn.mt5_login),
       mt5_server: conn.mt5_server,
-      trading_account_id: conn.trading_account_id,
+      tradingAccountId: maskForLog(conn.trading_account_id),
     });
 
     const { error: markRunningErr } = await supabase
@@ -6732,7 +6853,7 @@ fastify.post('/metaapi/sync', async (request, reply) => {
     if (markRunningErr) {
       fastify.log.error({
         event: 'metaapi_sync_status_update_failed',
-        connectionId,
+        connectionId: maskForLog(connectionId),
         error: markRunningErr.message,
       });
       return reply.status(500).send({
@@ -6747,20 +6868,20 @@ fastify.post('/metaapi/sync', async (request, reply) => {
       'Content-Type': 'application/json',
     };
 
-    const accountInfoUrl = `${clientBaseUrl}/users/current/accounts/${conn.provider_account_id}/account-information`;
-    const positionsUrl = `${clientBaseUrl}/users/current/accounts/${conn.provider_account_id}/positions`;
+    const encodedProviderAccountId = encodeURIComponent(String(conn.provider_account_id));
+    const accountInfoUrl = `${clientBaseUrl}/users/current/accounts/${encodedProviderAccountId}/account-information`;
+    const positionsUrl = `${clientBaseUrl}/users/current/accounts/${encodedProviderAccountId}/positions`;
 
     const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
     const until = new Date().toISOString();
     const dealsUrl =
-      `${clientBaseUrl}/users/current/accounts/${conn.provider_account_id}/history-deals/time/` +
+      `${clientBaseUrl}/users/current/accounts/${encodedProviderAccountId}/history-deals/time/` +
       `${encodeURIComponent(since)}/${encodeURIComponent(until)}`;
 
     fastify.log.info({
       event: 'metaapi_sync_fetching_data',
-      accountInfoUrl,
-      positionsUrl,
-      dealsUrl,
+      connectionId: maskForLog(connectionId),
+      providerAccountId: maskForLog(conn.provider_account_id),
     });
 
     const [accountInfoRes, positionsRes, dealsRes] = await Promise.all([
@@ -6837,10 +6958,11 @@ fastify.post('/metaapi/sync', async (request, reply) => {
 
       return reply.status(502).send({
         error: message,
-        details: {
-          accountInformation: accountInfoText,
-          positions: positionsText,
-          deals: dealsText,
+        code: 'metaapi_sync_provider_failed',
+        providerStatus: {
+          accountInformation: accountInfoRes.status,
+          positions: positionsRes.status,
+          deals: dealsRes.status,
         },
       });
     }
@@ -7166,9 +7288,10 @@ fastify.post('/metaapi/sync', async (request, reply) => {
       evaluation,
     };
   } catch (error) {
-    fastify.log.error(error);
+    fastify.log.error({ event: 'metaapi_sync_unhandled_error', ...safeErrorMetadata(error) });
     return reply.status(500).send({
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: 'Não foi possível sincronizar a conta MT5.',
+      code: 'metaapi_sync_failed',
     });
   }
 });
@@ -7180,6 +7303,6 @@ fastify
     await validateLoadedMetaApiToken();
   })
   .catch((err) => {
-    fastify.log.error(err);
+    fastify.log.error({ event: 'metaapi_gateway_start_failed', ...safeErrorMetadata(err) });
     process.exit(1);
   });

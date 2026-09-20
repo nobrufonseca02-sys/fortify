@@ -99,7 +99,7 @@ function MoneyLead({ value, className }: { value: number; className?: string }) 
   );
 }
 
-const categories: AssetCategory[] = ["Forex", "Metals", "Indices", "Commodities"];
+const categories: AssetCategory[] = ["Forex", "Metals", "Indices", "Commodities", "Cripto"];
 
 type PanelState = TradeStatus | "Repouso";
 
@@ -797,12 +797,6 @@ const RiskCalculator = () => {
         </div>
       </div>
 
-      <div className="flex items-start gap-2 border-t border-border/30 pt-4">
-        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
-        <p className="text-[11px] leading-relaxed text-muted-foreground/70">
-          Ferramenta de planejamento; não garante precisão para todos os brokers. Confirme lote, valor por pip/ponto e margem no MT5 antes de operar.
-        </p>
-      </div>
     </div>
   );
 };

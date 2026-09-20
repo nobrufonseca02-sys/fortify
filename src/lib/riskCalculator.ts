@@ -1,4 +1,4 @@
-export type AssetCategory = "Forex" | "Metals" | "Indices" | "Commodities";
+export type AssetCategory = "Forex" | "Metals" | "Indices" | "Commodities" | "Cripto";
 export type CalculationMode = "pip" | "point" | "price";
 export type TradeDirection = "buy" | "sell";
 export type TradeStatus = "Seguro" | "Atenção" | "Crítico";
@@ -75,6 +75,8 @@ export const INSTRUMENT_PRESETS: InstrumentPreset[] = [
   { displaySymbol: "WTI", category: "Commodities", calculationMode: "point", pointSize: 0.01, pointValuePerLot: 10, minLot: 0.01, maxLot: 50, lotStep: 0.01, notes: "Petróleo WTI CFD. Contrato varia por broker." },
   { displaySymbol: "BRENT", category: "Commodities", calculationMode: "point", pointSize: 0.01, pointValuePerLot: 10, minLot: 0.01, maxLot: 50, lotStep: 0.01, notes: "Brent CFD. Confirme valor por ponto." },
   { displaySymbol: "NATGAS", category: "Commodities", calculationMode: "point", pointSize: 0.001, pointValuePerLot: 10, minLot: 0.01, maxLot: 50, lotStep: 0.01, notes: "Gás Natural CFD. Alta variação de contrato." },
+  { displaySymbol: "BTC/USD", category: "Cripto", calculationMode: "point", pointSize: 1, pointValuePerLot: 1, minLot: 0.01, maxLot: 10, lotStep: 0.01, notes: "Bitcoin CFD. Confirme o valor por US$ 1 e o tamanho do contrato no MT5 antes de operar." },
+  { displaySymbol: "ETH/USD", category: "Cripto", calculationMode: "point", pointSize: 1, pointValuePerLot: 1, minLot: 0.01, maxLot: 50, lotStep: 0.01, notes: "Ethereum CFD. Confirme o valor por US$ 1 e o tamanho do contrato no MT5 antes de operar." },
 ];
 
 export const PROP_ACCOUNT_SIZES = [5000, 10000, 25000, 50000, 100000, 200000];

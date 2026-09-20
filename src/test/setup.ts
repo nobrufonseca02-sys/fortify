@@ -1,4 +1,4 @@
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 
 // jsdom doesn't implement ResizeObserver — components that measure their own
 // box (e.g. CoverflowCarousel) need at least a no-op so mounting them in a
