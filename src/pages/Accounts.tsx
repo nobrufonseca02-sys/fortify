@@ -419,9 +419,6 @@ const Accounts = () => {
             status={librarySelection.status}
             invalidHint="Conecte a conta agora e vincule a regra da mesa logo em seguida."
           />
-          <p className="text-[11px] text-muted-foreground">
-            Senha MT5 vai só pro backend, provisiona a MetaApi e não é salva em texto puro. Use senha investidor/read-only quando a corretora permitir.
-          </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="space-y-1.5 md:col-span-2">

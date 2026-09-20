@@ -70,6 +70,7 @@ export function RuleBindingSelector({
   );
   const resolved = resolveRuleBinding(value);
   const complete = isRuleBindingDraftComplete(value);
+  const primarySourceUrl = resolved?.accountSize.sourceRefs[0];
 
   useEffect(() => {
     if (!initialSelection) return;
@@ -278,18 +279,17 @@ export function RuleBindingSelector({
               Payout: {resolved.accountSize.payoutSplit} · {resolved.accountSize.firstPayoutTiming}
             </p>
             <div className="flex flex-wrap gap-2">
-              {resolved.accountSize.sourceRefs.map((url, index) => (
+              {primarySourceUrl && (
                 <a
-                  key={url}
-                  href={url}
+                  href={primarySourceUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
                 >
-                  Fonte oficial {index + 1}
+                  Fonte oficial
                   <ExternalLink className="w-3 h-3" />
                 </a>
-              ))}
+              )}
             </div>
           </div>
         </div>
