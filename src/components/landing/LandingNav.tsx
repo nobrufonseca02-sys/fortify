@@ -25,7 +25,15 @@ const LANDING_NAV_LINKS: {
   { label: 'FAQ', to: '/vendas/faq' },
 ];
 
-export function LandingNav({ className, tone = 'light' }: { className?: string; tone?: 'light' | 'dark' }) {
+export function LandingNav({
+  className,
+  tone = 'light',
+  variant = 'floating',
+}: {
+  className?: string;
+  tone?: 'light' | 'dark';
+  variant?: 'floating' | 'bare';
+}) {
   const { session } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -38,13 +46,20 @@ export function LandingNav({ className, tone = 'light' }: { className?: string; 
     navigate(destination);
   };
 
+  const bare = variant === 'bare';
+
   return (
     <div className={cn('relative mx-auto max-w-6xl px-4 sm:px-6', className)}>
       <nav className={cn(
-        'flex items-center justify-between gap-3 rounded-full border px-3 py-2 backdrop-blur-md sm:px-4',
-        darkTone
-          ? 'border-white/10 bg-[#0b1018]/90 shadow-[0_8px_30px_rgba(0,0,0,0.22)]'
-          : 'border-zinc-200/80 bg-white/80 shadow-[0_8px_30px_rgba(24,24,27,0.06)]',
+        'flex items-center justify-between gap-3 px-3 py-2 sm:px-4',
+        bare
+          ? 'border-0 bg-transparent px-0 py-3 shadow-none backdrop-blur-none'
+          : cn(
+            'rounded-full border backdrop-blur-md',
+            darkTone
+              ? 'border-white/10 bg-[#0b1018]/90 shadow-[0_8px_30px_rgba(0,0,0,0.22)]'
+              : 'border-zinc-200/80 bg-white/80 shadow-[0_8px_30px_rgba(24,24,27,0.06)]',
+          ),
       )}>
         <Link to="/vendas" className="flex shrink-0 items-center gap-2 pl-1">
           <FortifyMark className={cn('h-6 w-6', darkTone ? 'text-white' : 'text-zinc-900')} />
@@ -83,7 +98,7 @@ export function LandingNav({ className, tone = 'light' }: { className?: string; 
             <button
               type="button"
               onClick={() => go('header_dashboard', '/')}
-              className={cn('inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-[13px] font-semibold transition-colors', darkTone ? 'bg-cyan-300 text-slate-950 hover:bg-cyan-200' : 'bg-zinc-900 text-white hover:bg-zinc-800')}
+              className={cn('inline-flex items-center gap-1.5 px-4 py-2 text-[13px] font-semibold transition-colors', bare ? 'rounded-lg' : 'rounded-full', darkTone ? 'bg-cyan-300 text-slate-950 hover:bg-cyan-200' : 'bg-zinc-900 text-white hover:bg-zinc-800')}
             >
               Ir para o painel
               <ArrowRight className="h-3.5 w-3.5" />
@@ -100,7 +115,7 @@ export function LandingNav({ className, tone = 'light' }: { className?: string; 
               <button
                 type="button"
                 onClick={() => go('header_signup', AUTH_SIGNUP_PATH)}
-                className={cn('inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-[13px] font-semibold transition-colors', darkTone ? 'bg-cyan-300 text-slate-950 hover:bg-cyan-200' : 'bg-zinc-900 text-white hover:bg-zinc-800')}
+                className={cn('inline-flex items-center gap-1.5 px-4 py-2 text-[13px] font-semibold transition-colors', bare ? 'rounded-lg' : 'rounded-full', darkTone ? 'bg-cyan-300 text-slate-950 hover:bg-cyan-200' : 'bg-zinc-900 text-white hover:bg-zinc-800')}
               >
                 Começar agora
                 <ArrowRight className="h-3.5 w-3.5" />
