@@ -21,7 +21,7 @@ describe('páginas públicas', () => {
     expect(
       screen.getByRole('heading', {
         level: 1,
-        name: /Controle o risco antes que o mercado controle sua conta/i,
+        name: /Acompanhe os limites da conta antes de operar/i,
       }),
     ).toBeInTheDocument();
 

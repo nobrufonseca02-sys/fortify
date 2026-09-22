@@ -36,7 +36,7 @@ const STEPS = [
   {
     icon: Building2,
     title: 'Escolha sua mesa',
-    body: 'Comece pela Biblioteca de Mesas. O catálogo é curado e cada regra tem a fonte registrada — não é um resumo escrito de memória.',
+    body: 'Use a Biblioteca de Mesas para encontrar sua mesa. Cada regra tem uma fonte oficial registrada.',
   },
   {
     icon: Ruler,
@@ -51,7 +51,7 @@ const STEPS = [
   {
     icon: Link2,
     title: 'Conecte sua conta MT5',
-    body: 'Informe as credenciais de investidor da sua conta. A conexão é feita por um serviço dedicado do Fortify — as credenciais não ficam no navegador.',
+    body: 'Informe as credenciais de investidor da sua conta. A conexão é feita por um serviço dedicado do Fortify e as credenciais não ficam no navegador.',
   },
   {
     icon: Activity,
@@ -60,13 +60,13 @@ const STEPS = [
   },
   {
     icon: Gauge,
-    title: 'A conta ganha um estado',
-    body: 'Cada regra passa a ter valor atual, limite e folga restante. A conta deixa de ser um extrato e vira um painel de saúde.',
+    title: 'Veja o estado da conta',
+    body: 'Cada regra mostra o valor atual, o limite e a folga restante.',
   },
   {
     icon: ShieldCheck,
-    title: 'Você decide com o limite à vista',
-    body: 'Antes da próxima ordem você vê o que já perdeu, o quanto ainda pode perder e qual regra está mais perto de estourar.',
+    title: 'Consulte os limites antes de operar',
+    body: 'Antes da próxima ordem, o painel mostra a perda acumulada, a folga disponível e a regra mais próxima do limite.',
   },
 ];
 
@@ -102,7 +102,7 @@ export default function ComoFuncionaPage() {
       <PublicPageHeader
         eyebrow="Como usar"
         title="Da escolha da mesa ao primeiro alerta, em sete passos."
-        description="Sem planilha, sem cálculo manual de drawdown e sem depender de lembrar o regulamento no meio do pregão."
+        description="Consulte as regras e o drawdown da conta sem depender de cálculo manual durante o pregão."
       />
 
       {/* Os passos */}
@@ -143,9 +143,9 @@ export default function ComoFuncionaPage() {
       <PublicSection className="pt-0">
         <PublicPanel>
           <SectionHeading
-            eyebrow="No fim da jornada"
+            eyebrow="Depois da conexão"
             title="Uma tela responde se você ainda pode operar."
-            description="Não é um relatório para ler depois. É o estado da conta agora, no formato que serve para decidir a próxima ordem."
+            description="O painel mostra o estado atual da conta para orientar a próxima operação."
           />
 
           <ul className="mt-10 grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">

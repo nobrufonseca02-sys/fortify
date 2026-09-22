@@ -105,10 +105,10 @@ const supportLabels: Record<string, string> = {
 };
 
 const bestFor: Record<string, string> = {
-  beginner: 'Melhor para validar a primeira conta com controle de risco.',
-  advanced: 'Melhor para traders com até três contas em acompanhamento.',
-  pro: 'Melhor para operação séria com suporte prioritário.',
-  enterprise: 'Melhor para operação multi-conta com suporte VIP.',
+  beginner: 'Para validar a primeira conta com controle de risco.',
+  advanced: 'Para acompanhar até três contas.',
+  pro: 'Para acompanhar até cinco contas com suporte prioritário.',
+  enterprise: 'Para operações com até dez contas e suporte VIP.',
 };
 
 function planFamily(plan: FortifyPlan) {

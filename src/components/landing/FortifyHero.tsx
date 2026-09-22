@@ -107,7 +107,7 @@ function RiskConsolePreview() {
             ))}
           </div>
           <div className="mt-5 border-t border-white/10 pt-4 text-xs leading-5 text-slate-400">
-            O Fortify organiza a decisão. Você mantém o controle da operação.
+            Consulte regras e o estado da conta antes de operar.
           </div>
         </aside>
       </div>

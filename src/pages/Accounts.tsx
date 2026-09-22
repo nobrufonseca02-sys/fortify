@@ -344,7 +344,7 @@ const Accounts = () => {
           <span className="eyebrow">Contas conectadas</span>
           <h1 className="display-editorial-sm text-foreground mt-1">Minhas Contas</h1>
           <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-            Conecte sua conta MT5 e acompanhe a saúde dela em um só lugar.
+            Conecte sua conta MT5 para acompanhar sincronização, regras e limites.
           </p>
           {accounts.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 mt-4">

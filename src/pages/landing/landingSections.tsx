@@ -41,14 +41,14 @@ const howItWorks = [
     icon: Link2,
     title: 'Conecte sua conta MT5',
     description:
-      'Informe as credenciais da corretora e o Fortify autentica sua conta MT5 através de um gateway dedicado — o token do MetaApi nunca fica no navegador, só no serviço de backend.',
+      'Informe as credenciais da corretora. O Fortify autentica sua conta MT5 por um gateway dedicado; o token do MetaApi permanece no backend.',
   },
   {
     step: '2',
     icon: ShieldCheck,
     title: 'Vincule as regras da sua mesa',
     description:
-      'Escolha a mesa proprietária, o modelo e o tamanho de conta na Biblioteca de Mesas. O Fortify grava um snapshot versionado e auditável das regras que passam a valer para aquela conta — nada é assumido silenciosamente.',
+      'Escolha a mesa proprietária, o modelo e o tamanho de conta na Biblioteca de Mesas. O Fortify grava um snapshot versionado e auditável das regras válidas para aquela conta.',
   },
   {
     step: '3',
@@ -62,7 +62,7 @@ const howItWorks = [
     icon: BellRing,
     title: 'Aja antes de violar',
     description:
-      'Quando uma regra se aproxima do limite, o status muda de forma visível — texto, ícone e cor juntos, nunca só a cor — para você decidir a próxima ação com tempo de sobra.',
+      'Quando uma regra se aproxima do limite, o status mostra texto, ícone e cor. Assim, você identifica o alerta sem depender apenas da cor.',
   },
 ];
 
@@ -71,7 +71,7 @@ const features = [
     icon: ShieldCheck,
     title: 'Vinculação de regras auditada',
     description:
-      'Cada conta guarda um snapshot versionado e com hash de qual regra estava valendo — nunca um "provavelmente era assim".',
+      'Cada conta guarda um snapshot versionado, com hash, das regras aplicáveis.',
   },
   {
     icon: Lock,
@@ -89,7 +89,7 @@ const features = [
     icon: Calculator,
     title: 'Calculadora de risco',
     description:
-      'Simule tamanho de posição e distância até o limite de perda antes de entrar — não depois de já ter violado a regra.',
+      'Calcule o tamanho da posição e a distância até o limite de perda antes de abrir uma operação.',
   },
   {
     icon: Layers,
@@ -112,12 +112,12 @@ const faqItems = [
   },
   {
     question: 'Quais plataformas e mesas o Fortify suporta hoje?',
-    answer: `Contas MT5 (MetaTrader 5), conectadas via gateway dedicado. A Biblioteca de Mesas já cobre ${CATALOG_FIRM_COUNT} mesas proprietárias, entre elas ${catalogFirmsWithLogo.slice(0, 5).join(', ')} e outras — cada uma com suas regras auditadas por conta e por modelo.`,
+    answer: `Contas MT5 (MetaTrader 5), conectadas via gateway dedicado. A Biblioteca de Mesas cobre ${CATALOG_FIRM_COUNT} mesas proprietárias, entre elas ${catalogFirmsWithLogo.slice(0, 5).join(', ')} e outras. Cada uma tem regras auditadas por conta e por modelo.`,
   },
   {
     question: 'E se a minha mesa não estiver no catálogo?',
     answer:
-      'Você ainda pode cadastrar a conta manualmente e configurar as regras específicas dela — a Biblioteca acelera o processo para as mesas já mapeadas, mas não é a única forma de conectar uma conta.',
+      'Você pode cadastrar a conta manualmente e configurar as regras específicas dela. A Biblioteca acelera esse processo para as mesas já mapeadas.',
   },
   {
     question: 'Minhas credenciais MT5 ficam expostas no navegador?',
@@ -228,10 +228,10 @@ export function FinalCtaSection() {
             ornamento, e o fechamento não precisa de ícone para funcionar. */}
         <PublicPanel className="flex flex-col items-center gap-5 py-12 text-center">
           <h2 className="max-w-2xl text-[1.55rem] font-bold leading-[1.12] tracking-[-0.02em] text-zinc-900 text-balance sm:text-[2rem]">
-            Pare de descobrir a violação depois que ela já aconteceu
+            Acompanhe os limites antes da próxima operação
           </h2>
           <p className="max-w-xl text-[15px] leading-relaxed text-zinc-600">
-            Conecte sua conta MT5, vincule as regras da sua mesa e comece a monitorar em minutos.
+            Conecte sua conta MT5 e vincule as regras da sua mesa para acompanhar seus limites.
           </p>
           <PublicButton
             onClick={() => {
@@ -239,7 +239,7 @@ export function FinalCtaSection() {
               navigate(AUTH_SIGNUP_PATH);
             }}
           >
-            Criar conta grátis
+            Criar conta
             <ArrowRight className="h-4 w-4" />
           </PublicButton>
         </PublicPanel>
@@ -247,4 +247,3 @@ export function FinalCtaSection() {
     </section>
   );
 }
-

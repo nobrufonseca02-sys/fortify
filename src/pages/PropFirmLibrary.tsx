@@ -354,9 +354,9 @@ function RulesView({ firm, program, account, onConnect, connectionUnavailable }:
 
       <footer data-library-reveal className="flex flex-col gap-4 rounded-lg border border-primary/25 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
         <div className="max-w-2xl">
-          <p className="text-sm font-semibold text-foreground">Pronto para monitorar esta conta?</p>
+          <p className="text-sm font-semibold text-foreground">Monitoramento desta conta</p>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            A Biblioteca serve para consulta. A gestão automática começa após cadastrar e conectar a conta.
+            A Biblioteca é para consulta. O monitoramento começa após cadastrar e conectar a conta.
           </p>
         </div>
         {onConnect ? (

@@ -1025,8 +1025,8 @@ function DashboardPromoPanel({
   let onClick = onConnect;
 
   if (!hasActivePlan) {
-    title = 'Libere o monitoramento completo';
-    description = 'Escolha um plano para conectar contas MT5 e acompanhar risco, drawdown e regras em tempo real.';
+    title = 'Escolha um plano para monitorar contas MT5';
+    description = 'O plano define quantas contas você pode conectar e acompanhar por risco, drawdown e regras.';
     ctaLabel = 'Ver planos';
     onClick = onPricing;
   } else if (accountsCount === 0) {
@@ -1038,7 +1038,7 @@ function DashboardPromoPanel({
     const remaining = Math.max(0, accountLimit - accountsCount);
     title = remaining > 0 ? `Conecte mais ${remaining} ${remaining === 1 ? 'conta' : 'contas'}` : 'Limite de contas atingido';
     description = remaining > 0
-      ? 'Monitore todas as suas contas de prop firm em um só lugar.'
+      ? 'Acompanhe as contas conectadas e os limites de cada uma.'
       : 'Faça upgrade do plano para conectar mais contas.';
     ctaLabel = remaining > 0 ? 'Conectar outra conta' : 'Fazer upgrade';
     onClick = remaining > 0 ? onConnect : onPricing;

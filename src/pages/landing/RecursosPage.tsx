@@ -21,8 +21,8 @@ export default function RecursosPage() {
   return (
     <LandingSubPage
       eyebrow="Recursos"
-      title="O que o Fortify realmente monitora"
-      description="Cada recurso abaixo existe hoje no produto — nada em roadmap."
+      title="O que o Fortify monitora"
+      description="Recursos disponíveis hoje no produto."
     >
       <FeaturesSection />
       <FinalCtaSection />

@@ -25,42 +25,42 @@ const RULE_PRESSURES = [
   {
     icon: AlertTriangle,
     title: 'Perda diária',
-    body: 'Um limite que zera todo dia e não perdoa atraso de leitura. É a regra que mais reprova conta.',
+    body: 'O limite é reiniciado a cada dia e exige uma leitura atualizada do resultado.',
   },
   {
     icon: Gauge,
     title: 'Drawdown',
-    body: 'Estático ou trailing, sobre saldo ou sobre pico. Muda de mesa para mesa e raramente é lido do mesmo jeito.',
+    body: 'Pode ser estático ou trailing, calculado sobre saldo ou sobre o pico. A forma de cálculo depende da mesa.',
   },
   {
     icon: Target,
     title: 'Meta',
-    body: 'Quanto falta para o objetivo do desafio — e o quanto arriscar a mais deixa de fazer sentido.',
+    body: 'Mostra quanto falta para o objetivo do desafio e ajuda a contextualizar o risco da próxima operação.',
   },
   {
     icon: ShieldCheck,
     title: 'Consistência',
-    body: 'Teto de participação de um único dia no resultado. Costuma aparecer só na hora do saque.',
+    body: 'Limita a participação de um único dia no resultado. Algumas mesas verificam essa regra no saque.',
   },
   {
     icon: Timer,
     title: 'Restrições operacionais',
-    body: 'Dias mínimos, lote máximo, horários e notícias proibidas. Regras pequenas com efeito definitivo.',
+    body: 'Inclui dias mínimos, lote máximo, horários e restrições para notícias.',
   },
 ];
 
 const PRINCIPLES = [
   {
-    title: 'A regra é dado, não interpretação',
-    body: 'Cada conta recebe um snapshot versionado e assinado das regras que valem para ela. Nada é assumido em silêncio, e dá para auditar qual versão estava valendo em qualquer momento.',
+    title: 'Regras auditáveis por conta',
+    body: 'Cada conta recebe um snapshot versionado e assinado das regras aplicáveis. Você pode consultar qual versão estava em vigor.',
   },
   {
-    title: 'O limite importa mais que o histórico',
-    body: 'O número que decide a próxima ordem não é o que você já perdeu: é o quanto ainda pode perder hoje sem quebrar a conta.',
+    title: 'Folga disponível para operar',
+    body: 'O painel destaca quanto ainda pode ser perdido no dia e qual limite está mais próximo.',
   },
   {
-    title: 'Estado antes de cor',
-    body: 'Todo alerta é texto, ícone e cor ao mesmo tempo. Ninguém deveria depender de enxergar vermelho para saber que está no limite.',
+    title: 'Alertas com texto e estado',
+    body: 'Cada alerta combina texto, ícone e cor para deixar o estado da regra claro.',
   },
 ];
 
@@ -90,7 +90,7 @@ export default function QuemSomosPage() {
     <PublicShell>
       <PublicPageHeader
         eyebrow="Quem somos"
-        title="Controle o risco antes que o mercado controle sua conta."
+        title="Acompanhe os limites da conta antes de operar."
         description="O Fortify é uma plataforma de gestão de risco para quem opera capital de mesa proprietária. Existe para responder uma pergunta específica, o dia inteiro: esta conta ainda está dentro das regras?"
       />
 
@@ -98,8 +98,8 @@ export default function QuemSomosPage() {
       <PublicSection>
         <SectionHeading
           eyebrow="O problema"
-          title="Aprovar num desafio é fácil de entender. Continuar dentro das regras, não."
-          description="Uma conta de mesa proprietária não é avaliada por um número só. São várias regras correndo ao mesmo tempo, com bases de cálculo diferentes, e basta uma delas estourar para o resto não importar mais."
+          title="Uma conta de mesa proprietária segue várias regras ao mesmo tempo."
+          description="Perda diária, drawdown, meta e consistência usam bases de cálculo diferentes. Uma violação pode encerrar a conta."
         />
 
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -116,10 +116,10 @@ export default function QuemSomosPage() {
           <ScrollReveal delay={0.2}>
             <div className="flex h-full flex-col justify-center rounded-lg border border-dashed border-zinc-300 px-6 py-8">
               <p className="text-[15px] font-semibold leading-snug text-zinc-900">
-                O trader não perde a conta por falta de análise.
+                Um limite pode ser violado enquanto você está operando.
               </p>
               <p className="mt-2 text-[13.5px] leading-relaxed text-zinc-600">
-                Perde por perder de vista um limite enquanto estava ocupado operando.
+                O Fortify deixa o estado das regras visível durante a operação.
               </p>
             </div>
           </ScrollReveal>
@@ -131,8 +131,8 @@ export default function QuemSomosPage() {
         <PublicPanel>
           <SectionHeading
             eyebrow="A proposta"
-            title="Transformar o regulamento da mesa em acompanhamento operacional."
-            description="O Fortify lê o regulamento da sua mesa uma vez, transforma em regras monitoráveis e passa a acompanhar sua conta MT5 contra elas. O que era um PDF vira um estado que você consulta em segundos."
+            title="Regras da mesa organizadas para acompanhar a conta."
+            description="O Fortify registra as regras da sua mesa e acompanha a conta MT5 em relação a elas. O estado fica disponível no painel."
           />
 
           <div className="mt-10 grid gap-8 md:grid-cols-3">
@@ -155,7 +155,7 @@ export default function QuemSomosPage() {
       <PublicSection className="pt-0">
         <SectionHeading
           eyebrow="Diferencial"
-          title="Um diário de trades olha para trás. O Fortify olha para o limite."
+          title="O Fortify mostra os limites da conta durante a operação."
         />
 
         <div className="mt-10 grid gap-4 md:grid-cols-2">
@@ -165,10 +165,10 @@ export default function QuemSomosPage() {
                 <BookOpen className="h-4 w-4 text-zinc-400" aria-hidden="true" />
                 <p className="instrument-label text-[11px] text-zinc-500">Trade journal</p>
               </div>
-              <p className="mt-4 text-[15px] font-semibold text-zinc-900">Mostra o que aconteceu.</p>
+              <p className="mt-4 text-[15px] font-semibold text-zinc-900">Registra operações concluídas.</p>
               <p className="mt-2 text-[13.5px] leading-relaxed text-zinc-600">
-                Registra entradas, saídas e estatísticas depois do fato. Serve para estudar a
-                operação — e é uma leitura de fim de semana, não de horário de pregão.
+                Registra entradas, saídas e estatísticas depois do fato. Ajuda a analisar operações
+                encerradas.
               </p>
             </PublicCard>
           </ScrollReveal>
@@ -180,11 +180,10 @@ export default function QuemSomosPage() {
                 <p className="instrument-label text-[11px] text-white/60">Fortify</p>
               </div>
               <p className="mt-4 text-[15px] font-semibold">
-                Mostra a saúde da conta e se você ainda pode operar.
+                Mostra o estado atual da conta e seus limites.
               </p>
               <p className="mt-2 text-[13.5px] leading-relaxed text-white/70">
-                Cada regra da sua mesa com o valor atual, o limite e a folga que sobrou. É uma
-                leitura de antes da próxima ordem, não de depois do prejuízo.
+                Cada regra da sua mesa aparece com valor atual, limite e folga disponível.
               </p>
             </PublicCard>
           </ScrollReveal>
@@ -200,8 +199,8 @@ export default function QuemSomosPage() {
       </PublicSection>
 
       <PublicClosingCta
-        title="Conheça a plataforma com a sua própria conta."
-        description="Conecte uma conta MT5, vincule as regras da sua mesa e veja o estado dela em minutos."
+        title="Conecte sua conta MT5"
+        description="Vincule as regras da sua mesa e acompanhe o estado da conta no painel."
         primaryLabel="Criar conta"
         onPrimary={() => goToAuth('about_primary')}
         secondaryLabel="Ver como funciona"

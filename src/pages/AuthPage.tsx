@@ -301,7 +301,7 @@ export default function AuthPage() {
               </h2>
               <p className="mt-1.5 max-w-[260px] text-sm text-muted-foreground">
                 {mode === "login" && "Acesse o painel de risco da sua conta."}
-                {mode === "signup" && "Comece a monitorar as regras da sua prop firm agora."}
+                {mode === "signup" && "Crie sua conta para vincular regras e conectar uma conta MT5."}
                 {mode === "forgot" && "Enviaremos um link de redefinição para o seu e-mail."}
               </p>
 
