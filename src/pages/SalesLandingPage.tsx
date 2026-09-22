@@ -21,7 +21,7 @@ export default function SalesLandingPage() {
   // site dividiam o mesmo título genérico, o que confunde o Google e
   // derruba o índice de qualidade de anúncio.
   useDocumentMeta({
-    title: 'Fortify — controle de risco para contas de mesa proprietária',
+    title: 'Fortify | controle de risco para contas de mesa proprietária',
     description:
       'Monitore perda diária, drawdown e consistência das regras da sua mesa proprietária em contas MT5, com alerta antes de a violação acontecer.',
     path: '/vendas',
