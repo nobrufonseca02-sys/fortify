@@ -172,6 +172,11 @@ function formatPositionCount(count: number) {
   return count === 1 ? '1 posição' : `${count} posições`;
 }
 
+function formatPercent(value: number | null | undefined, maximumFractionDigits = 2) {
+  if (!Number.isFinite(Number(value))) return 'Sem dados';
+  return `${Number(value).toLocaleString('pt-BR', { maximumFractionDigits })}%`;
+}
+
 function getPositionSymbol(position: any) {
   return String(position?.symbol || position?.instrument || 'Sem ativo').trim().toUpperCase();
 }
@@ -510,10 +515,7 @@ function Dashboard() {
   }, [accounts, mt5Connections, positions, ruleRows]);
 
   const riskyAccount = rows.find((row) => row.status === 'critical') || rows.find((row) => row.status === 'warning') || null;
-  const riskyAccountsCount = rows.filter((row) => row.status === 'critical' || row.status === 'warning').length;
-  const criticalAccountsCount = rows.filter((row) => row.status === 'critical').length;
   const openPositions = rows.reduce((sum, row) => sum + row.openPositions, 0);
-  const negativePositions = positions.filter((position) => Number(position?.floating_pnl ?? position?.profit ?? 0) < 0).length;
   const syncedAccountsCount = rows.filter((row) => row.connection?.last_sync_at && !row.hasSyncError).length;
   const staleRow = rows.find((row) => row.stale && row.connection);
   const overall = summaryStatus(rows);
@@ -566,54 +568,73 @@ function Dashboard() {
       value: score,
       status: overallStatus,
       badge: overall,
-      points: equitySeries.map((point) => point.equity),
     },
     {
-      label: 'P&L aberto total',
+      label: 'Risco utilizado',
+      value: riskUsage ? formatPercent(riskUsage.usedPct) : 'Sem dados',
+      status: (!riskUsage ? 'nodata' : riskUsage.usedPct >= 90 ? 'critical' : riskUsage.usedPct >= 70 ? 'warning' : 'safe') as HealthStatus,
+      badge: riskUsage?.account.nickname || 'Sem regra ativa',
+    },
+    {
+      label: 'P&L aberto',
       value: hasOpenPnlData ? signedMoney(totalOpenPnl) : 'Sem dados',
       status: (!hasOpenPnlData ? 'nodata' : totalOpenPnl >= 0 ? 'safe' : 'critical') as HealthStatus,
       badge: hasOpenPnlData ? formatPositionCount(openPositions) : 'Sem posição',
     },
     {
-      label: 'Contas monitoradas',
+      label: 'Contas',
       value: formatAccountCount(rows.length, accountLimit || 0),
       status: (rows.length > 0 ? 'safe' : 'nodata') as HealthStatus,
       badge: formatSyncedCount(syncedAccountsCount),
     },
-    {
-      label: 'Contas em risco',
-      value: String(riskyAccountsCount),
-      status: (criticalAccountsCount > 0 ? 'critical' : riskyAccountsCount > 0 ? 'warning' : 'safe') as HealthStatus,
-      badge: riskyAccount?.account.nickname || 'Sem risco ativo',
-    },
-    {
-      label: 'Risco utilizado',
-      value: riskUsage ? `${riskUsage.usedPct}%` : 'Sem dados',
-      status: (!riskUsage ? 'nodata' : riskUsage.usedPct >= 90 ? 'critical' : riskUsage.usedPct >= 70 ? 'warning' : 'safe') as HealthStatus,
-      badge: riskUsage?.account.nickname || 'Sem regra ativa',
-    },
   ];
 
-  const headlineStats = [
-    {
-      label: 'Contas em risco',
-      value: String(riskyAccountsCount),
-      status: (criticalAccountsCount > 0 ? 'critical' : riskyAccountsCount > 0 ? 'warning' : 'safe') as HealthStatus,
-      hint: criticalAccountsCount > 0 ? `${criticalAccountsCount} crítica${criticalAccountsCount > 1 ? 's' : ''}` : 'nenhuma crítica',
-    },
-    {
-      label: 'Posições abertas',
-      value: String(openPositions),
-      status: (negativePositions > 0 ? 'warning' : 'safe') as HealthStatus,
-      hint: negativePositions > 0 ? `${negativePositions} no prejuízo` : 'nenhuma no prejuízo',
-    },
-    {
-      label: 'Contas conectadas',
-      value: String(rows.length),
-      status: (rows.length > 0 ? 'safe' : 'nodata') as HealthStatus,
-      hint: `limite ${accountLimit || 0}`,
-    },
-  ];
+  const priorityAction = useMemo(() => {
+    if (riskyAccount) {
+      const needsConnectionFix = riskyAccount.hasSyncError || riskyAccount.stale || !riskyAccount.connection;
+      const description = riskyAccount.hasSyncError
+        ? 'A conexão MT5 apresentou um erro e precisa ser revisada antes de operar.'
+        : riskyAccount.stale
+          ? 'A sincronização está atrasada. Atualize a conexão antes de tomar decisões com esses dados.'
+          : 'Há uma regra crítica que precisa ser revisada antes da próxima operação.';
+
+      return {
+        status: riskyAccount.status,
+        title: needsConnectionFix ? `Corrigir conexão de ${riskyAccount.account.nickname}` : `Revisar ${riskyAccount.account.nickname}`,
+        description,
+        cta: needsConnectionFix ? 'Corrigir conexão' : 'Ver regras',
+        onClick: () => navigate(needsConnectionFix ? '/mt5' : `/accounts/${riskyAccount.account.id}/rules`),
+      };
+    }
+
+    if (!hasActivePlan) {
+      return {
+        status: 'nodata' as HealthStatus,
+        title: 'Escolha um plano para monitorar suas contas',
+        description: 'Um plano ativo libera o monitoramento de risco, drawdown e regras das contas MT5.',
+        cta: 'Ver planos',
+        onClick: () => navigate('/pricing'),
+      };
+    }
+
+    if (rows.length === 0) {
+      return {
+        status: 'nodata' as HealthStatus,
+        title: 'Conecte sua primeira conta MT5',
+        description: 'Depois da primeira sincronização, o Fortify mostra os limites e alertas da conta aqui.',
+        cta: 'Conectar conta',
+        onClick: () => navigate('/mt5'),
+      };
+    }
+
+    return {
+      status: 'safe' as HealthStatus,
+      title: 'Nenhum alerta crítico no momento',
+      description: 'As contas monitoradas estão dentro dos limites acompanhados pelo Fortify.',
+      cta: 'Ver contas',
+      onClick: () => navigate('/accounts'),
+    };
+  }, [hasActivePlan, navigate, riskyAccount, rows.length]);
 
   const revealGroup: Variants = {
     hidden: {},
@@ -623,11 +644,12 @@ function Dashboard() {
     hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 8 },
     visible: { opacity: 1, y: 0, transition: fortifyMotion.reveal },
   };
+  const PriorityIcon = statusIcon[priorityAction.status];
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-5 p-4 md:p-6">
-      {/* Ticker de cotações em tempo real — preservado, só reemoldurado */}
-      <div className="overflow-hidden rounded-xl border border-border/60 bg-card/60 px-4 py-2">
+      {/* Uma única moldura para a esteira evita competir com o conteúdo operacional. */}
+      <div className="overflow-hidden border-y border-border/60">
         <MarketTicker />
       </div>
 
@@ -639,17 +661,17 @@ function Dashboard() {
         </div>
       )}
 
-      {/* Command Center */}
+      {/* Visão operacional */}
       <motion.header variants={revealGroup} initial="hidden" animate="visible" className="space-y-5">
-        <motion.div variants={revealItem} className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+        <motion.div variants={revealItem} className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">Console Operacional</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">Painel</h1>
             <p className="mt-1.5 max-w-xl text-sm text-muted-foreground">
-              Acompanhe risco, drawdown e regras das suas contas antes do próximo trade.
+              Estado das contas, limites e sincronização para a próxima decisão.
             </p>
           </div>
 
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative w-full sm:w-64">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
               <input
@@ -666,34 +688,37 @@ function Dashboard() {
               </span>
             </div>
 
-            <div className="flex items-center gap-5">
-              {headlineStats.map((stat) => (
-                <div key={stat.label} className="flex items-center gap-2">
-                  <span className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-full', healthBarColor[stat.status])}>
-                    <span className="h-1.5 w-1.5 rounded-full bg-white/90" aria-hidden="true" />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="font-mono text-xl font-bold leading-none tabular-nums text-foreground">{stat.value}</p>
-                    <p className="mt-1 truncate text-[10px] uppercase tracking-wide text-muted-foreground">{stat.label}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
         </motion.div>
 
-        {/* Faixa de KPIs */}
+        <motion.section
+          variants={revealItem}
+          className={cn('grid gap-4 rounded-xl border p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center', statusStyle[priorityAction.status].className)}
+        >
+          <div className="flex min-w-0 items-start gap-3">
+            <span className={cn('mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full', healthBarColor[priorityAction.status])}>
+              <PriorityIcon className="h-4 w-4 text-white" aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <p className={cn('text-[10px] font-bold uppercase tracking-wide', statusStyle[priorityAction.status].textClass)}>Ação prioritária</p>
+              <h2 className="mt-1 text-sm font-bold text-foreground">{priorityAction.title}</h2>
+              <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">{priorityAction.description}</p>
+            </div>
+          </div>
+          <button type="button" onClick={priorityAction.onClick} className="pill-btn pill-btn-primary shrink-0 justify-center sm:min-w-40">
+            {priorityAction.cta}
+          </button>
+        </motion.section>
+
+        {/* Indicadores essenciais, sem repetir os dados da saúde por conta. */}
         <motion.div
           variants={revealItem}
-          className="grid grid-cols-2 divide-border/60 overflow-hidden rounded-xl border border-border bg-card/60 sm:grid-cols-3 xl:grid-cols-5 xl:divide-x"
+          className="grid grid-cols-2 divide-x divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-card/60 lg:grid-cols-4 lg:divide-y-0"
         >
           {kpis.map((kpi) => (
-            <div key={kpi.label} className="border-b border-border/60 p-4 last:border-b-0 xl:border-b-0">
+            <div key={kpi.label} className="p-4">
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{kpi.label}</p>
-              <div className="mt-2 flex items-end justify-between gap-2">
-                <p className="font-mono text-2xl font-bold tabular-nums text-foreground">{kpi.value}</p>
-                {kpi.points && kpi.points.length > 1 && <Sparkline points={kpi.points} className="h-8 w-16" />}
-              </div>
+              <p className="mt-2 font-mono text-2xl font-bold tabular-nums text-foreground">{kpi.value}</p>
               <span className={cn('mt-2 inline-flex max-w-full items-center gap-1.5 truncate rounded-full border px-2 py-0.5 text-[10px] font-semibold', statusPill[kpi.status])}>
                 <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', healthBarColor[kpi.status])} aria-hidden="true" />
                 <span className="truncate">{kpi.badge}</span>
@@ -710,7 +735,7 @@ function Dashboard() {
           variants={revealItem}
           initial="hidden"
           animate="visible"
-          className="rounded-xl border border-border bg-card/60 p-5 lg:col-span-5"
+          className="rounded-xl border border-border bg-card/60 p-5 lg:order-2 lg:col-span-5"
         >
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -769,7 +794,7 @@ function Dashboard() {
           variants={revealItem}
           initial="hidden"
           animate="visible"
-          className="overflow-hidden rounded-xl border border-border bg-card/60 lg:col-span-4"
+          className="overflow-hidden rounded-xl border border-border bg-card/60 lg:order-1 lg:col-span-7"
         >
           {rows.length > 1 && (
             <div className="flex h-1 w-full">
@@ -813,9 +838,9 @@ function Dashboard() {
           )}
         </motion.section>
 
-        {/* CTA + atividade recente */}
-        <div className="space-y-4 lg:col-span-3">
-          <motion.div variants={revealItem} initial="hidden" animate="visible">
+        {/* Capacidade e atividade permanecem disponíveis, sem disputar o foco principal. */}
+        <div className="grid gap-4 md:grid-cols-3 lg:order-3 lg:col-span-12">
+          <motion.div variants={revealItem} initial="hidden" animate="visible" className="md:col-span-1">
             <DashboardPromoPanel
               hasActivePlan={hasActivePlan}
               accountsCount={accounts.length}
@@ -829,7 +854,7 @@ function Dashboard() {
             variants={revealItem}
             initial="hidden"
             animate="visible"
-            className="overflow-hidden rounded-xl border border-border bg-card/60"
+            className="overflow-hidden rounded-xl border border-border bg-card/60 md:col-span-2"
           >
             <div className="flex items-center justify-between gap-2 border-b border-border/60 p-4">
               <h2 className="text-sm font-bold text-foreground">Atividade recente</h2>
@@ -920,36 +945,6 @@ function Dashboard() {
   );
 }
 
-/** Minimal inline trend line — plain SVG rather than a second Recharts
- * instance per KPI cell. Colors resolve live CSS custom properties, so it
- * stays correct in both themes. */
-function Sparkline({ points, className }: { points: number[]; className?: string }) {
-  if (points.length < 2) {
-    return <div className={cn('h-8 rounded-md bg-muted/40', className)} aria-hidden="true" />;
-  }
-  const min = Math.min(...points);
-  const max = Math.max(...points);
-  const range = max - min || 1;
-  const stepX = 100 / (points.length - 1);
-  const path = points
-    .map((value, index) => `${index === 0 ? 'M' : 'L'}${(index * stepX).toFixed(2)},${(100 - ((value - min) / range) * 100).toFixed(2)}`)
-    .join(' ');
-  const trendUp = points[points.length - 1] >= points[0];
-  return (
-    <svg viewBox="0 0 100 100" preserveAspectRatio="none" className={cn('h-8 w-full', className)} aria-hidden="true">
-      <path
-        d={path}
-        fill="none"
-        stroke={trendUp ? 'hsl(var(--success))' : 'hsl(var(--destructive))'}
-        strokeWidth="4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        vectorEffect="non-scaling-stroke"
-      />
-    </svg>
-  );
-}
-
 /** Signed % change between the last two real equity readings — null (never
  * fabricated) when there isn't at least a two-point history yet. */
 function equityDeltaPct(points: number[]): number | null {
@@ -1003,9 +998,8 @@ function AccountHealthRow({ row, points, onAction }: { row: HealthRow; points: n
   );
 }
 
-/** The one promo/CTA panel — real plan + account-limit state drives which of
- * the three messages shows, same logic the two banners it replaced had
- * (no plan / no accounts / room for more accounts). */
+/** Plan capacity is a quiet secondary control. It keeps the real plan-limit
+ * logic available without visually competing with account risk. */
 function DashboardPromoPanel({
   hasActivePlan,
   accountsCount,
@@ -1045,23 +1039,29 @@ function DashboardPromoPanel({
   }
 
   return (
-    <div className="flex h-full flex-col justify-between rounded-xl border border-primary/30 bg-primary/10 p-5">
-      <div>
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/20">
-          <Shield className="h-4 w-4 text-primary" aria-hidden="true" />
+    <div className="rounded-xl border border-border bg-card/60 p-4">
+      <div className="flex items-start gap-3">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+          <Shield className="h-4 w-4" aria-hidden="true" />
         </span>
-        <h3 className="mt-4 text-base font-bold leading-snug text-foreground">{title}</h3>
-        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{description}</p>
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Capacidade do plano</p>
+          <p className="mt-1 font-mono text-lg font-bold tabular-nums text-foreground">
+            {formatAccountCount(accountsCount, accountLimit)} <span className="font-sans text-xs font-normal text-muted-foreground">contas conectadas</span>
+          </p>
+        </div>
       </div>
-      <div className="mt-5 space-y-2">
-        <button type="button" onClick={onClick} className="pill-btn pill-btn-primary w-full justify-center">
+      <h3 className="mt-4 text-sm font-bold leading-snug text-foreground">{title}</h3>
+      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p>
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <button type="button" onClick={onClick} className="pill-btn pill-btn-primary justify-center">
           {ctaLabel}
         </button>
         <a
           href={SUPPORT_WHATSAPP_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="pill-btn w-full justify-center border-transparent bg-transparent hover:bg-primary/10"
+          className="text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
         >
           Falar com suporte
         </a>
