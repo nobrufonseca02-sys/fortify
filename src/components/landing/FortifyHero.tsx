@@ -1,5 +1,5 @@
 import { motion, useReducedMotion } from 'motion/react';
-import { Activity, ArrowRight, CheckCircle2, Database, ShieldCheck } from 'lucide-react';
+import { Activity, ArrowRight, Database, ShieldCheck } from 'lucide-react';
 import { LandingNav } from '@/components/landing/LandingNav';
 import { RevealText } from '@/components/landing/publicMotion';
 import { firmLogos } from '@/data/firmLogos';
@@ -30,26 +30,35 @@ const integrationMarks = [
 
 const riskSignals = [
   {
-    title: 'Limite diário',
-    description: 'Acompanhe o risco da sessão contra a regra vinculada.',
+    title: 'Limite diário da conta',
+    description: 'Uso da sessão comparado à regra vinculada.',
+    state: 'Acompanhado no painel',
     Icon: Activity,
   },
   {
-    title: 'Drawdown total',
-    description: 'Leia saldo e equity no contexto do programa contratado.',
+    title: 'Drawdown máximo',
+    description: 'Saldo e equity lidos no contexto do programa.',
+    state: 'Regra por programa',
     Icon: ShieldCheck,
   },
   {
-    title: 'Regras da mesa',
-    description: 'Mantenha fonte, versão e perfil da conta organizados.',
+    title: 'Regras vinculadas',
+    description: 'Fonte, versão e perfil organizados na conta.',
+    state: 'Histórico auditável',
     Icon: Database,
   },
 ];
 
-const preTradeChecks = [
-  'Conta MT5 sincronizada',
-  'Programa e tamanho confirmados',
-  'Risco da operação definido',
+const workflowSteps = [
+  ['01', 'Conecte sua conta MT5'],
+  ['02', 'Escolha o programa e o tamanho'],
+  ['03', 'Acompanhe a saúde da conta'],
+];
+
+const overviewItems = [
+  ['Limite diário', 'Margem da sessão em contexto'],
+  ['Drawdown', 'Leitura pelo programa vinculado'],
+  ['Regras da mesa', 'Versão aplicada à sua conta'],
 ];
 
 function RiskConsolePreview() {
@@ -60,55 +69,66 @@ function RiskConsolePreview() {
       initial={shouldReduceMotion ? undefined : { opacity: 0, y: 24 }}
       animate={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
       transition={{ duration: 0.65, delay: 0.55 }}
-      className="mx-auto mt-10 w-full max-w-5xl overflow-hidden rounded-lg border border-zinc-800 bg-[#0b1018] sm:mt-12"
+      className="mx-auto mt-12 w-full max-w-6xl overflow-hidden rounded-lg border border-[#252b36] bg-[#0b0e14] sm:mt-14"
     >
-      <div className="flex items-center justify-between gap-4 border-b border-white/10 px-4 py-3 sm:px-5">
+      <div className="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-3.5 sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-cyan-300/30 bg-cyan-300/10 text-cyan-200">
             <ShieldCheck className="h-4 w-4" aria-hidden="true" />
           </span>
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-white">Visão de risco da conta</p>
-            <p className="mt-0.5 truncate text-xs text-slate-400">Limites, regras vinculadas e sinais da operação.</p>
+            <p className="text-sm font-semibold text-white">Fortify / visão da conta</p>
+            <p className="mt-0.5 truncate text-xs text-slate-400">Risco, regras e estado da conta em uma leitura.</p>
           </div>
         </div>
-        <span className="hidden shrink-0 border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-[11px] font-medium text-emerald-200 sm:inline-flex">
-          Exemplo de leitura
+        <span className="hidden shrink-0 rounded-full border border-white/10 px-2.5 py-1 text-xs font-medium text-slate-300 sm:inline-flex">
+          Prévia do produto
         </span>
       </div>
 
-      <div className="grid lg:grid-cols-[1.35fr_0.65fr]">
-        <div className="divide-y divide-white/10">
-          <div className="px-4 py-4 sm:px-5">
-            <p className="text-xs font-semibold text-cyan-200">Resumo da conta</p>
-            <p className="mt-2 max-w-xl text-base font-medium leading-6 text-slate-100 sm:text-lg">
-              As regras acompanham o programa e o tamanho selecionados para a conta.
-            </p>
-          </div>
-          {riskSignals.map(({ title, description, Icon }) => (
-            <div key={title} className="flex items-start gap-3 px-4 py-4 sm:px-5">
-              <Icon className="mt-0.5 h-4 w-4 shrink-0 text-cyan-200" aria-hidden="true" />
-              <div>
-                <p className="text-sm font-medium text-white">{title}</p>
-                <p className="mt-1 text-xs leading-5 text-slate-400">{description}</p>
-              </div>
+      <div className="grid lg:grid-cols-[minmax(0,1.5fr)_minmax(280px,0.5fr)]">
+        <section className="px-5 py-6 sm:px-6 sm:py-7">
+          <div className="flex flex-col gap-4 border-b border-white/10 pb-5 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold text-cyan-200">Conta e regras</p>
+              <h2 className="mt-2 text-xl font-semibold text-white sm:text-2xl">Risco operacional, organizado por conta.</h2>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-slate-400">
+                O painel usa o programa e o tamanho vinculados para contextualizar cada limite.
+              </p>
             </div>
-          ))}
-        </div>
-
-        <aside className="border-t border-white/10 bg-white/[0.025] p-4 lg:border-l lg:border-t-0 sm:p-5">
-          <p className="text-xs font-semibold text-slate-400">Antes da entrada</p>
-          <div className="mt-4 space-y-3">
-            {preTradeChecks.map((item) => (
-              <div key={item} className="flex items-start gap-2.5 text-xs leading-5 text-slate-300">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-cyan-200" aria-hidden="true" />
-                <span>{item}</span>
+            <span className="text-xs font-medium text-slate-400">Dados do seu ambiente</span>
+          </div>
+          <div className="divide-y divide-white/10">
+            {riskSignals.map(({ title, description, state, Icon }) => (
+              <div key={title} className="grid gap-3 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                <div className="flex items-start gap-3">
+                  <Icon className="mt-0.5 h-4 w-4 shrink-0 text-cyan-200" aria-hidden="true" />
+                  <div>
+                    <p className="text-sm font-medium text-white">{title}</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-400">{description}</p>
+                  </div>
+                </div>
+                <span className="w-fit rounded-full border border-white/10 px-2.5 py-1 text-xs font-medium text-slate-300">
+                  {state}
+                </span>
               </div>
             ))}
           </div>
-          <div className="mt-5 border-t border-white/10 pt-4 text-xs leading-5 text-slate-400">
-            Confira os limites antes de enviar uma ordem.
+        </section>
+
+        <aside className="border-t border-white/10 bg-white/[0.025] px-5 py-6 lg:border-l lg:border-t-0 sm:px-6 sm:py-7">
+          <p className="text-xs font-semibold text-slate-400">Fluxo operacional</p>
+          <div className="mt-5 divide-y divide-white/10 border-y border-white/10">
+            {workflowSteps.map(([step, label]) => (
+              <div key={step} className="flex items-center gap-3 py-3.5">
+                <span className="font-mono text-xs text-cyan-200">{step}</span>
+                <span className="text-sm text-slate-200">{label}</span>
+              </div>
+            ))}
           </div>
+          <p className="mt-5 text-xs leading-5 text-slate-400">
+            O Fortify mostra o estado da conta. As ordens continuam na sua plataforma de negociação.
+          </p>
         </aside>
       </div>
     </motion.div>
@@ -130,22 +150,22 @@ export function FortifyHero({
         <LandingNav />
       </div>
 
-      <main className="mx-auto flex w-full max-w-6xl flex-col px-5 pb-8 pt-16 sm:px-6 sm:pt-20 lg:pt-24">
-        <div className="mx-auto max-w-4xl text-center">
+      <main className="mx-auto flex w-full max-w-6xl flex-col px-5 pb-10 pt-14 sm:px-6 sm:pt-20 lg:pt-24">
+        <div className="mx-auto max-w-3xl text-center">
           <motion.p
             initial={shouldReduceMotion ? undefined : { opacity: 0, y: 10 }}
             animate={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
             transition={{ duration: 0.45 }}
             className="text-xs font-semibold text-primary"
           >
-            Gestão de risco para contas de mesa
+            Monitoramento para MT5
           </motion.p>
           <RevealText
             as="h1"
-            text="Controle de risco para contas de mesa"
+            text="Fortify para contas de mesa"
             trigger="load"
             stagger={0.035}
-            className="mt-4 text-4xl font-bold leading-[1.05] text-zinc-950 sm:text-5xl lg:text-6xl"
+            className="mt-4 text-4xl font-bold leading-[1.05] text-zinc-950 sm:text-5xl lg:text-[3.7rem]"
           />
           <motion.p
             initial={shouldReduceMotion ? undefined : { opacity: 0, y: 12 }}
@@ -153,7 +173,7 @@ export function FortifyHero({
             transition={{ duration: 0.5, delay: 0.35 }}
             className="mx-auto mt-6 max-w-2xl text-base leading-7 text-zinc-600 sm:text-lg"
           >
-            Conecte sua conta MT5, escolha o programa contratado e acompanhe os limites que importam antes de operar.
+            Uma leitura de limite diário, drawdown e regras vinculadas antes da próxima ordem.
           </motion.p>
 
           <motion.div
@@ -175,29 +195,33 @@ export function FortifyHero({
               onClick={onSecondary}
               className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-800 transition-colors hover:border-zinc-400 hover:bg-zinc-50 sm:w-auto"
             >
-              Tirar dúvidas
+              Falar com suporte
             </button>
           </motion.div>
 
           <motion.div
-            initial={shouldReduceMotion ? undefined : { opacity: 0 }}
-            animate={shouldReduceMotion ? undefined : { opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.65 }}
-            className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-zinc-500"
+            initial={shouldReduceMotion ? undefined : { opacity: 0, y: 12 }}
+            animate={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.62 }}
+            className="mt-9 grid overflow-hidden rounded-lg border border-zinc-200 bg-white text-left sm:grid-cols-3"
           >
-            <span>Sem execução de ordens</span>
-            <span aria-hidden="true" className="h-1 w-1 rounded-full bg-zinc-300" />
-            <span>Regras versionadas</span>
-            <span aria-hidden="true" className="h-1 w-1 rounded-full bg-zinc-300" />
-            <span>Compatível com MT5</span>
+            {overviewItems.map(([label, detail], index) => (
+              <div
+                key={label}
+                className={`px-4 py-3.5 ${index > 0 ? 'border-t border-zinc-200 sm:border-l sm:border-t-0' : ''}`}
+              >
+                <p className="text-xs font-medium text-zinc-500">{label}</p>
+                <p className="mt-1 text-sm font-semibold text-zinc-900">{detail}</p>
+              </div>
+            ))}
           </motion.div>
         </div>
 
         <RiskConsolePreview />
 
-        <div className="mt-8 border-t border-zinc-200 pt-5">
+        <div className="mt-10 border-t border-zinc-200 pt-5">
           <p className="text-center text-xs font-medium text-zinc-500">
-            Ferramentas e mesas presentes no seu fluxo
+            Mesas e ferramentas presentes no seu fluxo
           </p>
           <div className="mt-4 flex flex-wrap items-center justify-center gap-x-8 gap-y-4">
             {integrationMarks.map((mark) => (
