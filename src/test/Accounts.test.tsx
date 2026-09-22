@@ -190,14 +190,14 @@ describe('Accounts', () => {
 
     await waitFor(() => expect(mt5ConnectionsSelect.order).toHaveBeenCalled());
     expect(screen.queryByText('Conectar conta MT5')).not.toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: /Conectar Conta/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: /Conectar conta/ }).length).toBeGreaterThan(0);
   });
 
   it('fast-connects with only name/login/server/password when there is no library selection, deferring the rule binding', async () => {
     renderAt('/accounts');
 
     await waitFor(() => expect(mt5ConnectionsSelect.order).toHaveBeenCalled());
-    fireEvent.click(screen.getAllByRole('button', { name: /Conectar Conta/ })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: /Conectar conta/ })[0]);
 
     expect(screen.getByText('Conectar conta MT5')).toBeInTheDocument();
     // The audited rule-binding selector never appears on the fast-connect path.
@@ -267,7 +267,7 @@ describe('Accounts', () => {
 
     await waitFor(() => expect(screen.queryByText('Conectar conta MT5')).not.toBeInTheDocument());
     // Still on the Accounts page — never navigated away, unlike the old MT5Connections page.
-    expect(screen.getByRole('heading', { name: /Minhas.*Contas/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Contas' })).toBeInTheDocument();
   });
 
   it('keeps the binding prompt when the gateway only guessed the prop firm from the server name', async () => {

@@ -339,10 +339,10 @@ const Accounts = () => {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
-      <div className="hero-surface p-6 md:p-8 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+      <header className="flex flex-col gap-6 border-b border-border pb-6 md:flex-row md:items-end md:justify-between">
         <div className="max-w-2xl">
-          <span className="eyebrow">Contas conectadas</span>
-          <h1 className="display-editorial-sm text-foreground mt-1">Minhas Contas</h1>
+          <span className="eyebrow">Monitoramento MT5</span>
+          <h1 className="display-editorial-sm text-foreground mt-1">Contas</h1>
           <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
             Conecte sua conta MT5 para acompanhar sincronização, regras e limites.
           </p>
@@ -389,7 +389,7 @@ const Accounts = () => {
             className="pill-btn pill-btn-primary"
           >
             <Plus className="w-4 h-4" aria-hidden="true" />
-            Conectar Conta
+            Conectar conta
           </button>
           <div className="flex items-center gap-4 text-xs">
             <button onClick={() => navigate('/library')} className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
@@ -398,18 +398,18 @@ const Accounts = () => {
             </button>
             <button onClick={() => navigate('/accounts/new')} className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
               <Settings2 className="w-3.5 h-3.5" aria-hidden="true" />
-              Configuração avançada
+              Cadastro com detalhes
             </button>
           </div>
         </div>
-      </div>
+      </header>
 
       {showConnectForm && (
         <motion.form
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           onSubmit={handleConnect}
-          className="hero-surface p-6 md:p-8 space-y-5"
+          className="card-premium p-6 md:p-8 space-y-5"
         >
           <div className="space-y-1">
             <span className="eyebrow">Nova conexão</span>
@@ -505,7 +505,7 @@ const Accounts = () => {
               later, so don't repeat it in that case. */}
           {!libraryResolved && librarySelection.status !== 'invalid' && (
             <p className="text-[11px] text-muted-foreground">
-              O vínculo com a regra da mesa fica pra logo em seguida, depois que a conta conectar.
+              Depois da conexão, você pode vincular a regra oficial da mesa nesta conta.
             </p>
           )}
         </motion.form>
@@ -668,8 +668,8 @@ const Accounts = () => {
         <GuidedEmptyState
           icon={Wallet}
           title="Nenhuma conta cadastrada"
-          description="Conecte uma conta MT5 demo real pra começar. Assim que conectar, você já vê a mesa proprietária vinculada e a saúde da conta aqui."
-          actionLabel="Conectar Conta"
+          description="Conecte uma conta MT5 para começar. Depois da primeira sincronização, a mesa vinculada e a saúde da conta aparecem aqui."
+          actionLabel="Conectar conta"
           onAction={openConnectForm}
         />
       )}

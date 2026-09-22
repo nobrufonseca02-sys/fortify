@@ -454,18 +454,18 @@ const RiskCalculator = () => {
       ? "Risco dentro de uma faixa conservadora."
       : result.status === "Atenção"
         ? "Opere com cautela. Este trade já pressiona seus limites de perda."
-        : "Risco elevado para conta prop. Considere reduzir lote ou aumentar a qualidade do setup.";
+        : "Risco alto para os limites informados. Reduza o lote ou reveja o stop.";
 
   const riskPercentValue = Math.min(3, Math.max(0.1, toNumber(riskPercent) || 0.1));
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 p-4 md:p-6">
-      <div className="hero-surface p-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between md:p-6">
+      <header className="flex flex-col gap-3 border-b border-border pb-5 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="eyebrow">Command center</p>
+          <p className="eyebrow">Planejamento da operação</p>
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground md:text-3xl">Calculadora de Risco</h1>
           <p className="mt-1.5 max-w-md text-xs text-muted-foreground">
-            Quanto abrir agora — e quanto isso consome do que ainda te sobra até quebrar.
+            Defina entrada e stop para calcular o lote e o impacto no limite diário e no drawdown.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -480,7 +480,7 @@ const RiskCalculator = () => {
             TradingView
           </button>
         </div>
-      </div>
+      </header>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start">
         {/* Painel de decisão — primeiro no DOM para o celular abrir nele, fixo à
@@ -496,7 +496,7 @@ const RiskCalculator = () => {
           >
             <div className="flex items-start justify-between gap-3 border-b border-border/60 px-4 py-3">
               <div>
-                <p className="instrument-label text-[10px] text-muted-foreground">Decisão do trade</p>
+                <p className="instrument-label text-[10px] text-muted-foreground">Resumo do trade</p>
                 <AnimatePresence mode="wait" initial={false}>
                   <motion.span
                     key={panelState}
@@ -542,8 +542,7 @@ const RiskCalculator = () => {
               <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
                 {hasTradeInput ? (
                   <>
-                    arriscando <Money value={ceilMoney(result.lossAtStop)} className="text-[13px] text-foreground" /> ·{" "}
-                    {pct(result.riskPercent)} do saldo
+                    Risco no stop: <Money value={ceilMoney(result.lossAtStop)} className="text-[13px] text-foreground" /> ({pct(result.riskPercent)} do saldo)
                   </>
                 ) : (
                   advisoryText
@@ -584,7 +583,7 @@ const RiskCalculator = () => {
                 ready={hasTradeInput}
               />
               <BufferInsight
-                label="Até quebrar a conta"
+                label="Folga antes do drawdown máximo"
                 limit={drawdownLimitValue}
                 remaining={drawdownBufferAfterStop}
                 consumedPercent={result.totalDrawdownImpactPercent}
@@ -709,7 +708,7 @@ const RiskCalculator = () => {
                 <div className="mt-4 space-y-3">
                   {accountSource !== "manual" && (
                     <p className="text-[11px] text-muted-foreground">
-                      Esta conta ainda não tem regras vinculadas — informe os limites manualmente.
+                      Esta conta ainda não tem regras vinculadas. Informe os limites manualmente.
                     </p>
                   )}
                   <div className="grid gap-4 md:grid-cols-2">

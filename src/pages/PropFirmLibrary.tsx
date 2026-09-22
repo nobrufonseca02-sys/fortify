@@ -262,7 +262,7 @@ function RulesView({ firm, program, account, onConnect, connectionUnavailable }:
     <article className="space-y-7" data-testid="account-rules">
       <header data-library-reveal className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">Aqui estão as regras principais</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">Regras da conta</p>
           <h2 className="mt-2 text-xl font-semibold text-foreground">
             {program.programName} · {formatAccountLabel(account.label)}
           </h2>
@@ -367,7 +367,7 @@ function RulesView({ firm, program, account, onConnect, connectionUnavailable }:
         ) : connectionUnavailable ? (
           <div className="flex items-start gap-2 rounded-lg border border-warning/25 bg-warning/5 px-3 py-2.5 text-xs text-warning sm:max-w-xs">
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
-            <span>Conexão indisponível para este modelo — dados de plataforma ou versão de regra incompletos na Biblioteca.</span>
+            <span>Conexão indisponível para este modelo. Os dados de plataforma ou da versão de regra estão incompletos na Biblioteca.</span>
           </div>
         ) : null}
       </footer>
@@ -473,7 +473,7 @@ export default function PropFirmLibrary() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-7 px-4 py-6 pb-32 sm:px-6 lg:px-8">
-      <div className="hero-surface p-7 md:p-10 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+      <header className="flex flex-col gap-5 border-b border-border pb-5 md:flex-row md:items-end md:justify-between">
         <div className="max-w-2xl">
           <h1 className="display-editorial-sm text-foreground">
             Biblioteca de <span className="text-gradient-primary">Mesas Proprietárias</span>
@@ -485,7 +485,7 @@ export default function PropFirmLibrary() {
             {backLabel}
           </button>
         )}
-      </div>
+      </header>
 
       <LibraryStageMotion stageKey={stageKey} direction={transitionDirection}>
         {!selectedFirm && (
@@ -493,7 +493,7 @@ export default function PropFirmLibrary() {
             <div data-library-reveal className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">Etapa 1 de 4</p>
-              <h2 className="mt-1 text-lg font-semibold text-foreground">Escolha uma mesa proprietária.</h2>
+              <h2 className="mt-1 text-lg font-semibold text-foreground">Escolha uma mesa proprietária</h2>
             </div>
             <div className="relative w-full sm:max-w-sm">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -570,7 +570,7 @@ export default function PropFirmLibrary() {
             <div data-library-reveal>
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">Etapa 2 de 4 · {selectedFirm}</p>
             <h2 className="mt-1 text-lg font-semibold text-foreground">Modelos disponíveis na {selectedFirm}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Agora escolha um modelo.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Escolha o modelo que deseja consultar.</p>
           </div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {programs.map((program) => (
@@ -587,7 +587,7 @@ export default function PropFirmLibrary() {
               Etapa 3 de 4 · {selectedFirm} · {selectedProgram.programName}
             </p>
             <h2 className="mt-1 text-lg font-semibold text-foreground">Escolha a conta</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Agora escolha o tamanho que deseja consultar.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Selecione o tamanho da conta para ver as regras.</p>
           </div>
           <div className="flex flex-wrap gap-2" data-testid="account-options">
             {accounts.map((account) => (

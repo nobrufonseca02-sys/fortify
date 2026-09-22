@@ -357,11 +357,10 @@ export default function PricingPage({ variant = 'auto' }: { variant?: 'auto' | '
       <header className="mx-auto max-w-2xl text-center">
         <p className="eyebrow">Planos Fortify</p>
         <h1 className="mt-3 text-[2rem] font-bold leading-[1.08] tracking-[-0.02em] text-foreground text-balance sm:text-[2.6rem]">
-          Escolha o plano da sua operação
+          Planos para sua operação
         </h1>
         <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground text-balance">
-          Todo plano inclui o monitoramento de regras, os alertas de limite crítico e o painel de
-          contas MT5. O que muda é quantas contas você acompanha ao mesmo tempo.
+          Monitore regras, alertas de limite e contas MT5. O limite de contas varia conforme o plano.
         </p>
       </header>
 
@@ -474,8 +473,8 @@ export default function PricingPage({ variant = 'auto' }: { variant?: 'auto' | '
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
-              className={`relative flex flex-col rounded-2xl border bg-card p-6 ${
-                plan.highlighted ? 'border-primary/70 shadow-[0_8px_30px_hsl(var(--primary)/0.08)]' : 'border-border'
+              className={`relative flex flex-col rounded-lg border bg-card p-6 ${
+                plan.highlighted ? 'border-primary/70 bg-primary/[0.03]' : 'border-border'
               }`}
             >
               {plan.highlighted && plan.recommended_badge && (
@@ -516,7 +515,7 @@ export default function PricingPage({ variant = 'auto' }: { variant?: 'auto' | '
               </div>
 
               {/* 3. Limite de contas — o eixo real de comparação entre os planos */}
-              <div className="mt-5 rounded-xl border border-border bg-muted/40 px-4 py-3">
+              <div className="mt-5 rounded-lg border border-border bg-muted/40 px-4 py-3">
                 <p className="font-mono text-xl font-bold tabular-nums leading-none text-foreground">
                   {plan.account_limit}
                 </p>
@@ -568,7 +567,7 @@ export default function PricingPage({ variant = 'auto' }: { variant?: 'auto' | '
       </div>
 
       {/* O que não muda entre os planos — evita repetir a mesma lista em cada card */}
-      <section className="mt-10 rounded-2xl border border-border bg-card p-6">
+      <section className="mt-10 rounded-lg border border-border bg-card p-6">
         <p className="text-sm font-semibold text-foreground">Incluído em todos os planos</p>
         <ul className="mt-4 grid gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
           {INCLUDED_IN_EVERY_PLAN.map((item) => (
@@ -580,14 +579,14 @@ export default function PricingPage({ variant = 'auto' }: { variant?: 'auto' | '
         </ul>
       </section>
 
-      <section className="mt-4 flex flex-col gap-5 rounded-2xl border border-border bg-card p-6 md:flex-row md:items-center md:justify-between">
+      <section className="mt-4 flex flex-col gap-5 rounded-lg border border-border bg-card p-6 md:flex-row md:items-center md:justify-between">
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <PlusCircle className="h-5 w-5 text-primary" />
             <p className="text-sm font-semibold text-foreground">Conta MT5 extra</p>
           </div>
           <p className="text-sm text-muted-foreground">
-            Conta extra — R$119/mês. Adicione capacidade ao seu plano ativo.
+            Conta extra: R$119/mês. Adicione capacidade ao seu plano ativo.
           </p>
           <p className="text-xs text-muted-foreground">
             {hasActivePaidStripeSubscription

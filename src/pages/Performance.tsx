@@ -21,7 +21,7 @@ import { GuidedEmptyState } from '@/components/BetaReadinessChecklist';
 
 /* ── helpers ─────────────────────────────────────────────── */
 const fmt = (v: number) =>
-  v.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+  v.toLocaleString('pt-BR', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
 const fmtPct = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`;
 

@@ -161,10 +161,10 @@ const SettingsPage = () => {
         initial={{ opacity: 0, y: revealY }}
         animate={{ opacity: 1, y: 0 }}
         transition={fortifyMotion.gentle}
-        className="hero-surface flex flex-col gap-6 p-7 md:flex-row md:items-end md:justify-between md:p-10"
+        className="flex flex-col gap-6 border-b border-border pb-6 md:flex-row md:items-end md:justify-between"
       >
         <div className="max-w-xl">
-          <p className="eyebrow mb-4">Sua conta</p>
+          <p className="eyebrow mb-3">Conta</p>
           <h1 className="display-editorial-sm text-foreground">Configurações</h1>
           <p className="mt-4 max-w-md text-sm leading-relaxed text-muted-foreground md:text-base">
             Gerencie seus dados de conta e assinatura.
@@ -244,7 +244,7 @@ const SettingsPage = () => {
           <SettingsIconChip icon={<CreditCard className="h-5 w-5 text-foreground" />} />
           <div>
             <h2 className="text-sm font-bold text-foreground">Assinatura</h2>
-            <p className="text-xs text-muted-foreground">Resumo do seu plano Fortify atual.</p>
+            <p className="text-xs text-muted-foreground">Plano, limite de contas e suporte.</p>
           </div>
         </div>
 

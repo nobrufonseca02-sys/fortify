@@ -67,7 +67,7 @@ export function AppSidebar() {
             {!collapsed && (
               <div className="flex min-w-0 flex-col leading-none">
                 <h1 className="text-sm font-bold text-foreground tracking-[0.14em] uppercase">Fortify</h1>
-                <span className="mt-1 text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Sistema de gestão de risco</span>
+                <span className="mt-1 text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Gestão de risco para mesas</span>
               </div>
             )}
           </div>
