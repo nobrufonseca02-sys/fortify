@@ -45,7 +45,7 @@ function formatDayLabel(dateStr: string): string {
 }
 
 function formatDateTime(value: string | null): string {
-  if (!value) return '—';
+  if (!value) return 'Sem registro';
   return new Date(value).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
@@ -106,7 +106,7 @@ function StatCard({ icon: Icon, label, value, badge, hint }: {
   return (
     <div className="rounded-lg border border-border bg-card p-4 flex flex-col gap-2">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[11px] uppercase tracking-wide font-medium text-muted-foreground">{label}</span>
+        <span className="text-xs font-medium text-muted-foreground">{label}</span>
         <div className="flex items-center gap-1.5 shrink-0">
           {hint && <MetricHint label={label} hint={hint} />}
           <Icon className="h-3.5 w-3.5 text-muted-foreground/60" />
@@ -137,7 +137,7 @@ function HeroStatCard({ className, totalPnl, returnPct, startBalance, sparklineD
   return (
     <div className={`rounded-lg border border-border bg-card p-4 flex flex-col gap-2 ${className ?? ''}`}>
       <div className="flex items-center justify-between">
-        <span className="text-[11px] uppercase tracking-wide font-medium text-muted-foreground">Lucro Total</span>
+        <span className="text-xs font-medium text-muted-foreground">Lucro total</span>
         <div className="flex items-center gap-1.5">
           <MetricHint label="Lucro Total" hint="Equity atual menos o saldo inicial da conta. O gráfico mostra a curva de equity dos últimos pontos sincronizados." />
           <TrendIcon className="h-3.5 w-3.5 text-muted-foreground/60" />
@@ -204,7 +204,7 @@ function DayResultCard({ data, successColor, destructiveColor, mutedColor, toolt
     <div className="rounded-lg border border-border bg-card p-5 flex flex-col gap-3">
       <div>
         <div className="flex items-center justify-between">
-          <h2 className="font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground">Resultado por Dia</h2>
+          <h2 className="text-sm font-semibold text-foreground">Resultado por dia</h2>
           <MetricHint
             label="Resultado por Dia"
             hint="Cada barra é o resultado (dailyPnl) de um dia com snapshot. Verde = dia positivo, vermelho = dia negativo."
@@ -355,9 +355,9 @@ function PerformanceHeader() {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
     >
-      <p className="font-mono text-[11px] uppercase tracking-widest text-primary font-medium">Console de performance</p>
+      <p className="text-xs font-semibold text-primary">Desempenho da conta</p>
       <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground md:text-3xl">Performance</h1>
-      <p className="mt-1.5 max-w-md text-xs text-muted-foreground">Análise completa de desempenho e risco da conta.</p>
+      <p className="mt-1.5 max-w-md text-sm text-muted-foreground">Acompanhe resultado, risco e histórico da conta.</p>
     </motion.div>
   );
 }
@@ -546,7 +546,7 @@ const Performance = () => {
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <div>
         <h1 className="text-lg font-bold text-foreground">Performance</h1>
-        <p className="text-xs text-muted-foreground">Análise completa de desempenho e risco da conta.</p>
+        <p className="text-sm text-muted-foreground">Acompanhe resultado, risco e histórico da conta.</p>
       </div>
 
       <AccountSelector accounts={accounts} selected={selectedAccount} onSelect={setSelectedAccount} />
@@ -573,7 +573,7 @@ const Performance = () => {
           icon={BarChart3}
           label="Trades Totais"
           value={String(totalTradesCount)}
-          hint="Total de trades sincronizados para esta conta (contagem exata via Supabase, não apenas os exibidos na tabela abaixo)."
+          hint="Total de trades sincronizados para esta conta. A tabela abaixo mostra os mais recentes."
         />
         <StatCard
           icon={Calendar}
@@ -602,7 +602,7 @@ const Performance = () => {
       {/* ── EQUITY CURVE + RESULTADO POR DIA ─────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-4">
         <section className="rounded-lg border border-border bg-card p-5">
-          <h2 className="font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Curva de Equity</h2>
+          <h2 className="mb-4 text-sm font-semibold text-foreground">Curva de equity</h2>
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={data}>
               <defs>
@@ -675,7 +675,7 @@ const Performance = () => {
 
       {/* ── ANALISE DE DRAWDOWN ──────────────────────────── */}
       <section className="rounded-lg border border-border bg-card p-5 space-y-5">
-        <h2 className="font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground">Análise de Drawdown</h2>
+        <h2 className="text-sm font-semibold text-foreground">Drawdown</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">Drawdown Atual</p>
@@ -700,7 +700,7 @@ const Performance = () => {
 
       {/* ── RECOVERY ANALYSIS ──────────────────────────── */}
       <section className="rounded-lg border border-border bg-card p-5 space-y-4">
-        <h2 className="font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground">Análise de Recuperação</h2>
+        <h2 className="text-sm font-semibold text-foreground">Recuperação</h2>
         {isNegative ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 space-y-2">
@@ -737,7 +737,7 @@ const Performance = () => {
               </div>
               <p className="text-2xl font-bold font-mono tabular-nums text-primary">{fmt(profitRemaining)}</p>
               <p className="text-xs text-muted-foreground">
-                Meta total: {fmt(profitTarget)} — já alcançou {fmt(Math.max(totalPnl, 0))}
+                Meta total: {fmt(profitTarget)}. Já alcançado: {fmt(Math.max(totalPnl, 0))}
               </p>
             </div>
           </div>
@@ -746,7 +746,7 @@ const Performance = () => {
 
       {/* ── RISCO UTILIZADO ────────────────────────────── */}
       <section className="rounded-lg border border-border bg-card p-5 space-y-4">
-        <h2 className="font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground">Risco Utilizado</h2>
+        <h2 className="text-sm font-semibold text-foreground">Uso de risco</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground">Maior Perda Diária</p>
@@ -776,7 +776,7 @@ const Performance = () => {
       {/* ── TRADES RECENTES ─────────────────────────────── */}
       <section className="rounded-lg border border-border bg-card p-5 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground">Trades Recentes</h2>
+          <h2 className="text-sm font-semibold text-foreground">Trades recentes</h2>
           <span className="text-[11px] text-muted-foreground">{totalTradesCount} no total</span>
         </div>
         <RecentTradesTable trades={recentTrades} />
@@ -784,7 +784,7 @@ const Performance = () => {
 
       {/* ── CALENDÁRIO ─────────────────────────────────── */}
       <section className="rounded-lg border border-border bg-card p-5">
-        <h2 className="font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Calendário de Performance</h2>
+        <h2 className="mb-4 text-sm font-semibold text-foreground">Calendário de performance</h2>
         <CalendarGrid data={data} />
         <div className="flex gap-4 mt-4 text-[10px] text-muted-foreground">
           <span className="flex items-center gap-1"><span className="h-2 w-2 rounded bg-success/40" /> Lucro</span>
@@ -797,7 +797,7 @@ const Performance = () => {
       <section className="rounded-lg border border-border bg-card p-5 space-y-4">
         <div className="flex items-center gap-2">
           <Shield className="h-4 w-4 text-primary" />
-          <h2 className="font-mono text-xs font-semibold uppercase tracking-wider text-muted-foreground">Análise de Sobrevivência</h2>
+          <h2 className="text-sm font-semibold text-foreground">Leitura de risco</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {/* Risk level */}
@@ -805,10 +805,10 @@ const Performance = () => {
             icon={Activity}
             label="Risco atual da conta"
             value={currentDrawdown > maxLossLimit * 0.7
-              ? 'ALTO'
+              ? 'Alto'
               : currentDrawdown > maxLossLimit * 0.4
-                ? 'MODERADO'
-                : 'BAIXO'}
+                ? 'Moderado'
+                : 'Baixo'}
             detail={`Usando ${fmt(currentDrawdown)} de ${fmt(maxLossLimit)} do limite de drawdown`}
             color={currentDrawdown > maxLossLimit * 0.7
               ? 'text-destructive'
@@ -822,9 +822,11 @@ const Performance = () => {
             label="Média diária de resultado"
             value={fmt(Math.round(avgDailyResult))}
             detail={avgDailyResult > 0
-              ? `Resultado positivo — lucro médio de ${fmt(Math.round(avgDailyResult))} por dia`
-              : `Resultado negativo — perda média de ${fmt(Math.abs(Math.round(avgDailyResult)))} por dia`}
-            color={avgDailyResult >= 0 ? 'text-success' : 'text-destructive'}
+              ? `Lucro médio de ${fmt(Math.round(avgDailyResult))} por dia`
+              : avgDailyResult < 0
+                ? `Perda média de ${fmt(Math.abs(Math.round(avgDailyResult)))} por dia`
+                : 'Ainda não há resultado diário suficiente para calcular uma média.'}
+            color={avgDailyResult > 0 ? 'text-success' : avgDailyResult < 0 ? 'text-destructive' : 'text-muted-foreground'}
           />
           {/* Daily limit usage */}
           <InsightRow
@@ -838,9 +840,11 @@ const Performance = () => {
           <InsightRow
             icon={Target}
             label="Projeção para a meta"
-            value={daysToTarget === Infinity ? '—' : `${daysToTarget} dias`}
+            value={daysToTarget === Infinity ? 'Sem projeção' : `${daysToTarget} dias`}
             detail={daysToTarget === Infinity
-              ? 'Média negativa — não é possível projetar'
+              ? avgDailyResult < 0
+                ? 'A média diária está negativa. Não há projeção para a meta neste momento.'
+                : 'Ainda não há resultado diário suficiente para estimar a meta.'
               : `Mantendo ${fmt(Math.round(avgDailyResult))}/dia, faltam ${daysToTarget} dias para atingir a meta de ${fmt(profitTarget)}`}
             color={daysToTarget <= 15 ? 'text-success' : daysToTarget <= 30 ? 'text-warning' : 'text-muted-foreground'}
           />
@@ -857,7 +861,7 @@ function InsightRow({ icon: Icon, label, value, detail, color }: {
     <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-1">
       <div className="flex items-center gap-2">
         <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="text-xs text-muted-foreground uppercase tracking-wider">{label}</span>
+        <span className="text-xs font-medium text-muted-foreground">{label}</span>
       </div>
       <p className={`text-lg font-bold font-mono tabular-nums ${color}`}>{value}</p>
       <p className="text-xs text-muted-foreground">{detail}</p>

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -94,8 +94,8 @@
     --sidebar-border: 0 0% 14%;
     --sidebar-ring: 217 91% 60%;
 
-    --font-display: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    --font-body: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-display: 'Manrope', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-body: 'Manrope', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
     /* Fixed-color chip for embedding third-party brand marks (prop-firm logos, etc.)
@@ -173,7 +173,7 @@
 
   h1, h2, h3, h4 {
     font-family: var(--font-display);
-    letter-spacing: -0.015em;
+    letter-spacing: 0;
   }
 
   .font-mono { font-family: var(--font-mono); }
@@ -248,7 +248,7 @@
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.14em;
+    letter-spacing: 0;
     color: hsl(var(--muted-foreground));
   }
 
@@ -258,7 +258,7 @@
     font-weight: 700;
     font-size: clamp(2rem, 4.5vw, 3.25rem);
     line-height: 1.05;
-    letter-spacing: -0.02em;
+    letter-spacing: 0;
     text-wrap: balance;
   }
   .display-editorial-sm {
@@ -266,7 +266,7 @@
     font-weight: 700;
     font-size: clamp(1.5rem, 3vw, 2.25rem);
     line-height: 1.1;
-    letter-spacing: -0.015em;
+    letter-spacing: 0;
     text-wrap: balance;
   }
 
@@ -308,8 +308,8 @@
      trabalhos diferentes.
 
      .numeral-hero — o numero que decide a ordem (lote a abrir, folga ate o
-       limite). Inter com figuras tabulares: largura de digito fixa, entao o
-       valor nao "danca" enquanto o trader digita. Em corpo grande a Inter le
+     limite). Manrope com figuras tabulares: largura de digito fixa, entao o
+     valor nao "danca" enquanto o trader digita. Em corpo grande a Manrope le
        como instrumento; mono em 64px le como terminal.
 
      .numeral-ledger — numero de apoio (razao, distancia, percentual, linha de
@@ -324,32 +324,22 @@
     font-family: var(--font-display);
     font-weight: 800;
     font-variant-numeric: tabular-nums;
-    letter-spacing: -0.03em;
+    letter-spacing: 0;
     line-height: 0.95;
   }
   .numeral-ledger {
     font-family: var(--font-mono);
     font-weight: 600;
     font-variant-numeric: tabular-nums;
-    letter-spacing: -0.01em;
+    letter-spacing: 0;
   }
 
-  /* Etiqueta de instrumento — rotulo mono, caixa alta, tracking largo, sempre
-     acima de um valor. A inversao (rotulo minusculo em mono / valor grande em
-     sans) e metade da assinatura visual do Fortify e vale nas duas superficies:
-     no produto escuro e no site claro. Existe como utilitario para parar de
-     repetir a mesma cadeia de cinco classes em cada rotulo.
-
-     TAMANHO E COR FICAM DE FORA DE PROPOSITO: a classe define a VOZ (familia,
-     peso, caixa, tracking), nao a escala. O produto usa 10px/muted-foreground
-     na sua densidade alta; o site publico usa 11px/zinc-500 na densidade baixa.
-     Travar font-size aqui venceria o text-[11px] do Tailwind no call site, ja
-     que este bloco vem depois de @tailwind utilities. */
+  /* Instrument labels stay compact without turning every label into terminal text. */
   .instrument-label {
-    font-family: var(--font-mono);
+    font-family: var(--font-body);
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.12em;
+    letter-spacing: 0;
     line-height: 1.4;
   }
 
