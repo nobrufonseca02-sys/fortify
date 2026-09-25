@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { AUTH_SIGNUP_PATH } from '@/components/landing/PublicShell';
 import { pushDataLayerEvent } from '@/lib/analytics';
 import { cn } from '@/lib/utils';
+import { LANDING_NAV_LINKS } from '@/components/landing/navLinks';
 
 /**
  * Navbar flutuante compartilhada por todas as páginas públicas de marketing
@@ -13,18 +14,6 @@ import { cn } from '@/lib/utils';
  * a landing virou uma tela única, sem rolagem, então "Como funciona", "Mesas"
  * e "FAQ" moraram em páginas separadas.
  */
-const LANDING_NAV_LINKS: {
-  label: string;
-  to: string;
-}[] = [
-  { label: 'Como usar', to: '/vendas/como-funciona' },
-  { label: 'Recursos', to: '/vendas/recursos' },
-  { label: 'Mesas', to: '/vendas/mesas' },
-  { label: 'Planos', to: '/vendas/planos' },
-  { label: 'Quem somos', to: '/vendas/quem-somos' },
-  { label: 'FAQ', to: '/vendas/faq' },
-];
-
 export function LandingNav({
   className,
   tone = 'light',

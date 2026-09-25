@@ -1,19 +1,15 @@
 import { useEffect } from 'react';
 import { useDocumentMeta } from '@/hooks/useDocumentMeta';
-import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, BookOpen, Gauge, ShieldCheck, Target, Timer } from 'lucide-react';
 import {
-  PublicCard,
-  PublicPanel,
-  PublicClosingCta,
-  PublicPageHeader,
-  PublicSection,
-  PublicShell,
-  AUTH_SIGNUP_PATH,
-  ScrollReveal,
-  SectionHeading,
-  trackCta,
-} from '@/components/landing/PublicShell';
+  CinematicSubPage,
+  GlassCard,
+  Reveal,
+  Section,
+  SectionTitle,
+} from '@/components/landing/cinematic/CinematicPage';
+import { FinalCta } from '@/components/landing/cinematic/FinalCta';
+import { FONT_MONO } from '@/components/landing/cinematic/fonts';
 import { pushDataLayerEvent } from '@/lib/analytics';
 
 /**
@@ -65,8 +61,6 @@ const PRINCIPLES = [
 ];
 
 export default function QuemSomosPage() {
-  const navigate = useNavigate();
-
   // Título, descrição e canônica próprios: sem isso as sete páginas do
   // site dividiam o mesmo título genérico, o que confunde o Google e
   // derruba o índice de qualidade de anúncio.
@@ -81,134 +75,104 @@ export default function QuemSomosPage() {
     pushDataLayerEvent('view_about_page', {});
   }, []);
 
-  const goToAuth = (ctaId: string) => {
-    trackCta(ctaId, 'quem_somos', AUTH_SIGNUP_PATH);
-    navigate(AUTH_SIGNUP_PATH);
-  };
-
   return (
-    <PublicShell>
-      <PublicPageHeader
-        eyebrow="Quem somos"
-        title="Acompanhe os limites da conta antes de operar."
-        description="O Fortify é uma plataforma de gestão de risco para quem opera capital de mesa proprietária. Existe para responder uma pergunta específica, o dia inteiro: esta conta ainda está dentro das regras?"
-      />
-
-      {/* O problema */}
-      <PublicSection>
-        <SectionHeading
+    <CinematicSubPage
+      eyebrow="Quem somos"
+      title="Acompanhe os limites da conta antes de operar."
+      description="O Fortify é uma plataforma de gestão de risco para quem opera capital de mesa proprietária. Existe para responder uma pergunta específica, o dia inteiro: esta conta ainda está dentro das regras?"
+    >
+      <Section className="pt-4">
+        <SectionTitle
           eyebrow="O problema"
           title="Uma conta de mesa proprietária segue várias regras ao mesmo tempo."
           description="Perda diária, drawdown, meta e consistência usam bases de cálculo diferentes. Uma violação pode encerrar a conta."
         />
-
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {RULE_PRESSURES.map(({ icon: Icon, title, body }, index) => (
-            <ScrollReveal key={title} delay={index * 0.04}>
-              <PublicCard className="h-full">
-                <Icon className="h-5 w-5 text-zinc-400" strokeWidth={2} aria-hidden="true" />
-                <h3 className="mt-4 text-[15px] font-semibold text-zinc-900">{title}</h3>
-                <p className="mt-2 text-[13.5px] leading-relaxed text-zinc-600">{body}</p>
-              </PublicCard>
-            </ScrollReveal>
+            <Reveal as="li" key={title} delay={(index % 3) * 0.06}>
+              <GlassCard className="transition-transform duration-300 hover:-translate-y-1">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-900 ring-1 ring-white/10">
+                  <Icon className="h-4 w-4 text-zinc-300" strokeWidth={2} aria-hidden="true" />
+                </div>
+                <h3 className="mt-5 text-[15px] font-semibold text-white">{title}</h3>
+                <p className="mt-2 text-[13.5px] leading-relaxed text-zinc-400">{body}</p>
+              </GlassCard>
+            </Reveal>
           ))}
-
-          <ScrollReveal delay={0.2}>
-            <div className="flex h-full flex-col justify-center rounded-lg border border-dashed border-zinc-300 px-6 py-8">
-              <p className="text-[15px] font-semibold leading-snug text-zinc-900">
+          <Reveal as="li" delay={0.12}>
+            <div className="flex h-full flex-col justify-center rounded-[1.6rem] border border-dashed border-white/15 px-6 py-8">
+              <p className="text-[15px] font-semibold leading-snug text-white">
                 Um limite pode ser violado enquanto você está operando.
               </p>
-              <p className="mt-2 text-[13.5px] leading-relaxed text-zinc-600">
+              <p className="mt-2 text-[13.5px] leading-relaxed text-zinc-400">
                 O Fortify deixa o estado das regras visível durante a operação.
               </p>
             </div>
-          </ScrollReveal>
-        </div>
-      </PublicSection>
+          </Reveal>
+        </ul>
+      </Section>
 
-      {/* A proposta */}
-      <PublicSection className="pt-0">
-        <PublicPanel>
-          <SectionHeading
+      <Section>
+        <GlassCard innerClassName="p-8 sm:p-12">
+          <SectionTitle
             eyebrow="A proposta"
             title="Regras da mesa organizadas para acompanhar a conta."
             description="O Fortify registra as regras da sua mesa e acompanha a conta MT5 em relação a elas. O estado fica disponível no painel."
           />
-
           <div className="mt-10 grid gap-8 md:grid-cols-3">
             {PRINCIPLES.map(({ title, body }, index) => (
-              <ScrollReveal key={title} delay={index * 0.06}>
-                {/* 01 / 02 / 03 é numeral, não rótulo: vai na voz de ledger
-                    (mono tabular), então os três alinham coluna a coluna. */}
-                <p className="numeral-ledger text-[13px] text-zinc-400">
-                  {String(index + 1).padStart(2, '0')}
-                </p>
-                <h3 className="mt-3 text-[15px] font-semibold leading-snug text-zinc-900">{title}</h3>
-                <p className="mt-2 text-[13.5px] leading-relaxed text-zinc-600">{body}</p>
-              </ScrollReveal>
+              <Reveal key={title} delay={index * 0.08}>
+                <p className={`${FONT_MONO} text-[13px] tabular-nums text-zinc-500`}>{String(index + 1).padStart(2, '0')}</p>
+                <h3 className="mt-3 text-[15px] font-semibold leading-snug text-white">{title}</h3>
+                <p className="mt-2 text-[13.5px] leading-relaxed text-zinc-400">{body}</p>
+              </Reveal>
             ))}
           </div>
-        </PublicPanel>
-      </PublicSection>
+        </GlassCard>
+      </Section>
 
-      {/* Diferencial */}
-      <PublicSection className="pt-0">
-        <SectionHeading
-          eyebrow="Diferencial"
-          title="O Fortify mostra os limites da conta durante a operação."
-        />
-
+      <Section>
+        <SectionTitle eyebrow="Diferencial" title="O Fortify mostra os limites da conta durante a operação." />
         <div className="mt-10 grid gap-4 md:grid-cols-2">
-          <ScrollReveal>
-            <PublicCard className="h-full bg-zinc-50/60">
+          <Reveal>
+            <GlassCard>
               <div className="flex items-center gap-2.5">
-                <BookOpen className="h-4 w-4 text-zinc-400" aria-hidden="true" />
-                <p className="instrument-label text-[11px] text-zinc-500">Trade journal</p>
+                <BookOpen className="h-4 w-4 text-zinc-500" aria-hidden="true" />
+                <p className={`${FONT_MONO} text-[11px] uppercase tracking-[0.2em] text-zinc-500`}>Trade journal</p>
               </div>
-              <p className="mt-4 text-[15px] font-semibold text-zinc-900">Registra operações concluídas.</p>
-              <p className="mt-2 text-[13.5px] leading-relaxed text-zinc-600">
-                Registra entradas, saídas e estatísticas depois do fato. Ajuda a analisar operações
-                encerradas.
+              <p className="mt-4 text-[15px] font-semibold text-zinc-200">Registra operações concluídas.</p>
+              <p className="mt-2 text-[13.5px] leading-relaxed text-zinc-500">
+                Registra entradas, saídas e estatísticas depois do fato. Ajuda a analisar operações encerradas.
               </p>
-            </PublicCard>
-          </ScrollReveal>
-
-          <ScrollReveal delay={0.06}>
-            <PublicCard className="h-full border-zinc-900/10 bg-zinc-900 text-white">
+            </GlassCard>
+          </Reveal>
+          <Reveal delay={0.08}>
+            <GlassCard className="bg-gradient-to-b from-[rgba(165,88,251,0.5)] via-[rgba(73,34,229,0.2)] to-white/5 shadow-[0_32px_100px_-20px_rgba(115,60,240,0.45)]">
               <div className="flex items-center gap-2.5">
-                <ShieldCheck className="h-4 w-4 text-white/60" aria-hidden="true" />
-                <p className="instrument-label text-[11px] text-white/60">Fortify</p>
+                <ShieldCheck className="h-4 w-4 text-zinc-300" aria-hidden="true" />
+                <p className={`${FONT_MONO} text-[11px] uppercase tracking-[0.2em] text-zinc-300`}>Fortify</p>
               </div>
-              <p className="mt-4 text-[15px] font-semibold">
-                Mostra o estado atual da conta e seus limites.
-              </p>
-              <p className="mt-2 text-[13.5px] leading-relaxed text-white/70">
+              <p className="mt-4 text-[15px] font-semibold text-white">Mostra o estado atual da conta e seus limites.</p>
+              <p className="mt-2 text-[13.5px] leading-relaxed text-zinc-300">
                 Cada regra da sua mesa aparece com valor atual, limite e folga disponível.
               </p>
-            </PublicCard>
-          </ScrollReveal>
+            </GlassCard>
+          </Reveal>
         </div>
-
-        <ScrollReveal className="mt-6">
+        <Reveal className="mt-6">
           <p className="text-[12.5px] leading-relaxed text-zinc-500">
-            O Fortify não é corretora, não executa ordens, não dá recomendação de investimento e não
-            garante aprovação em nenhum desafio. É uma ferramenta de monitoramento: a decisão de
-            operar continua sendo sua.
+            O Fortify não é corretora, não executa ordens, não dá recomendação de investimento e não garante aprovação
+            em nenhum desafio. É uma ferramenta de monitoramento: a decisão de operar continua sendo sua.
           </p>
-        </ScrollReveal>
-      </PublicSection>
+        </Reveal>
+      </Section>
 
-      <PublicClosingCta
+      <FinalCta
         title="Conecte sua conta MT5"
-        description="Vincule as regras da sua mesa e acompanhe o estado da conta no painel."
-        primaryLabel="Criar conta"
-        onPrimary={() => goToAuth('about_primary')}
-        secondaryLabel="Ver como funciona"
-        onSecondary={() => {
-          trackCta('about_secondary', 'quem_somos', '/vendas/como-funciona');
-          navigate('/vendas/como-funciona');
-        }}
+        body="Vincule as regras da sua mesa e acompanhe o estado da conta no painel."
+        secondary={{ label: 'Ver como funciona', to: '/vendas/como-funciona', destination: '/vendas/como-funciona' }}
+        tracking={{ primary: 'about_primary', secondary: 'about_secondary', location: 'quem_somos' }}
       />
-    </PublicShell>
+    </CinematicSubPage>
   );
 }

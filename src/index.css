@@ -363,3 +363,32 @@
   }
 
 }
+
+/* Órbita da landing (/vendas): o braço gira em volta do centro do anel e o
+   filho gira ao contrário na mesma velocidade, para a logo nunca ficar de ponta-cabeça. */
+@keyframes fortify-orbit-arm {
+  from { transform: rotate(var(--start)); }
+  to { transform: rotate(calc(var(--start) + var(--dir) * 360deg)); }
+}
+
+@keyframes fortify-orbit-counter {
+  from { transform: rotate(calc(-1 * var(--start))); }
+  to { transform: rotate(calc(-1 * var(--start) - var(--dir) * 360deg)); }
+}
+
+.fortify-orbit-arm {
+  transform: rotate(var(--start));
+  animation: fortify-orbit-arm var(--duration) linear infinite;
+}
+
+.fortify-orbit-counter {
+  transform: rotate(calc(-1 * var(--start)));
+  animation: fortify-orbit-counter var(--duration) linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fortify-orbit-arm,
+  .fortify-orbit-counter {
+    animation: none;
+  }
+}

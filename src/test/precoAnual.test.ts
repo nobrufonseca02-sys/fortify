@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { anuaisProntosParaVenda, descontoAnual } from '@/pages/PricingPage';
+import { anuaisProntosParaVenda, descontoAnual } from '@/lib/pricingCatalog';
 
 /**
  * Guarda da aba de cobrança anual.

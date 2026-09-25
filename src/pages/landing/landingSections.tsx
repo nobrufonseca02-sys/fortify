@@ -1,6 +1,5 @@
-import { useNavigate } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import {
-  ArrowRight,
   BellRing,
   Calculator,
   Gauge,
@@ -11,17 +10,6 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import {
-  AUTH_SIGNUP_PATH,
-  PublicButton,
-  PublicCard,
-  PublicFooter,
-  PublicPageHeader,
-  PublicPanel,
-  PublicShell,
-  ScrollReveal,
-  trackCta,
-} from '@/components/landing/PublicShell';
-import {
   Accordion,
   AccordionContent,
   AccordionItem,
@@ -29,6 +17,8 @@ import {
 } from '@/components/ui/accordion';
 import { propFirmFilterOptions } from '@/data/propFirmRules';
 import { firmLogos } from '@/data/firmLogos';
+import { CinematicSubPage, GlassCard, Reveal, Section } from '@/components/landing/cinematic/CinematicPage';
+import { FinalCta } from '@/components/landing/cinematic/FinalCta';
 
 // Contagem derivada do catálogo real (src/data/propFirmRules.ts), nunca um
 // número de marketing chumbado — não consegue divergir da Biblioteca.
@@ -136,12 +126,7 @@ const faqItems = [
   },
 ];
 
-
-/**
- * Casca das páginas internas de marketing. Toda a estrutura (tema claro,
- * navbar, rodapé, cabeçalho editorial) mora em PublicShell — aqui fica só a
- * composição, para as páginas antigas continuarem com a mesma assinatura.
- */
+/** Casca das páginas internas de marketing, no visual da landing. */
 export function LandingSubPage({
   eyebrow,
   title,
@@ -151,99 +136,73 @@ export function LandingSubPage({
   eyebrow: string;
   title: string;
   description?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
-    <PublicShell>
-      <PublicPageHeader eyebrow={eyebrow} title={title} description={description} />
+    <CinematicSubPage eyebrow={eyebrow} title={title} description={description}>
       {children}
-    </PublicShell>
+    </CinematicSubPage>
   );
 }
 
-/** Mantido como reexport: várias páginas já importam LandingFooter daqui. */
-export const LandingFooter = PublicFooter;
-
 /**
- *  existe para a landing longa mostrar um recorte e a página de
- * Recursos mostrar tudo: sem isso as duas URLs teriam o mesmo conteúdo
- * inteiro, o que é conteúdo duplicado e manutenção em dobro.
+ * Existe para a landing longa mostrar um recorte e a página de Recursos
+ * mostrar tudo: sem isso as duas URLs teriam o mesmo conteúdo inteiro, o que
+ * é conteúdo duplicado e manutenção em dobro.
  */
 export function FeaturesSection() {
   return (
-    <section className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-14">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {features.map(({ icon: Icon, title, description }) => (
-          <ScrollReveal key={title}>
-            {/* Estes cartões rodavam em tokens do PRODUTO (border-border, bg-card,
-                text-primary) enquanto o resto do site rodava em zinc — dois
-                sistemas de cartão na mesma página. Agora usam a primitiva
-                pública, uma só. O chip do ícone perdeu o azul: no site claro a
-                ação é preta, então azul aqui era decoração, e --primary é
-                reservado para ação. */}
-            <PublicCard className="h-full p-5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-md border border-zinc-200 bg-zinc-50 text-zinc-700">
-                <Icon className="h-4 w-4" aria-hidden="true" />
+    <Section className="pt-4">
+      <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {features.map(({ icon: Icon, title, description }, index) => (
+          <Reveal as="li" key={title} delay={index * 0.06}>
+            <GlassCard className="transition-transform duration-300 hover:-translate-y-1">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-900 ring-1 ring-white/10">
+                <Icon className="h-4 w-4 text-zinc-300" aria-hidden="true" />
               </div>
-              <h3 className="mt-4 text-[15px] font-semibold text-zinc-900">{title}</h3>
-              <p className="mt-2 text-[13.5px] leading-relaxed text-zinc-600">{description}</p>
-            </PublicCard>
-          </ScrollReveal>
+              <h3 className="mt-5 text-[15px] font-semibold text-white">{title}</h3>
+              <p className="mt-2 text-[13.5px] leading-relaxed text-zinc-400">{description}</p>
+            </GlassCard>
+          </Reveal>
         ))}
-      </div>
-    </section>
+      </ul>
+    </Section>
   );
 }
 
 export function FaqSection() {
   return (
-    <section className="mx-auto max-w-3xl px-5 py-10 sm:px-8 sm:py-14">
-      <ScrollReveal>
-        <Accordion type="single" collapsible className="rounded-lg border border-zinc-200 bg-white px-5">
-          {faqItems.map((item, index) => (
-            <AccordionItem key={item.question} value={`item-${index}`} className="border-zinc-200">
-              <AccordionTrigger className="text-left text-[15px] font-semibold text-zinc-900 hover:no-underline">
-                {item.question}
-              </AccordionTrigger>
-              <AccordionContent className="text-[13.5px] leading-relaxed text-zinc-600">
-                {item.answer}
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
-      </ScrollReveal>
-    </section>
+    <Section className="max-w-3xl pt-4">
+      <Reveal>
+        <GlassCard innerClassName="px-5 py-2 sm:px-7 sm:py-3">
+          <Accordion type="single" collapsible>
+            {faqItems.map((item, index) => (
+              <AccordionItem
+                key={item.question}
+                value={`item-${index}`}
+                className="border-white/10 last:border-b-0"
+              >
+                <AccordionTrigger className="text-left text-[15px] font-semibold text-white hover:no-underline [&>svg]:text-zinc-400">
+                  {item.question}
+                </AccordionTrigger>
+                <AccordionContent className="text-[13.5px] leading-relaxed text-zinc-400">
+                  {item.answer}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </GlassCard>
+      </Reveal>
+    </Section>
   );
 }
 
 export function FinalCtaSection() {
-  const navigate = useNavigate();
-
   return (
-    <section className="mx-auto max-w-7xl px-5 pb-14 pt-4 sm:px-8">
-      <ScrollReveal>
-        {/* Usava `hero-surface` (superfície do produto) e um botão preto copiado
-            à mão — o mesmo painel de fechamento do resto do site, escrito duas
-            vezes. Passa a usar as primitivas públicas. O escudo azul saiu: era
-            ornamento, e o fechamento não precisa de ícone para funcionar. */}
-        <PublicPanel className="flex flex-col items-center gap-5 py-12 text-center">
-          <h2 className="max-w-2xl text-[1.55rem] font-bold leading-[1.12] tracking-[-0.02em] text-zinc-900 text-balance sm:text-[2rem]">
-            Acompanhe os limites antes da próxima operação
-          </h2>
-          <p className="max-w-xl text-[15px] leading-relaxed text-zinc-600">
-            Conecte sua conta MT5 e vincule as regras da sua mesa para acompanhar seus limites.
-          </p>
-          <PublicButton
-            onClick={() => {
-              trackCta('final_cta', 'cta_final', AUTH_SIGNUP_PATH);
-              navigate(AUTH_SIGNUP_PATH);
-            }}
-          >
-            Criar conta
-            <ArrowRight className="h-4 w-4" />
-          </PublicButton>
-        </PublicPanel>
-      </ScrollReveal>
-    </section>
+    <FinalCta
+      title="Acompanhe os limites antes da próxima operação"
+      body="Conecte sua conta MT5 e vincule as regras da sua mesa para acompanhar seus limites."
+      tracking={{ primary: 'final_cta', secondary: 'final_secondary', location: 'cta_final' }}
+    />
   );
 }

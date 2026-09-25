@@ -24,22 +24,26 @@ import { cn } from '@/lib/utils';
 export const PUBLIC_BG = '#FAF9F5';
 
 /**
- * Força o tema claro enquanto a página pública está montada e restaura o
- * anterior ao sair. Sem tocar no localStorage: a preferência do usuário dentro
- * do app continua intacta. Página de anúncio precisa ser idêntica para todo
+ * Força um tema enquanto a página pública está montada e restaura o anterior
+ * ao sair. Sem tocar no localStorage: a preferência do usuário dentro do app
+ * continua intacta. Página de anúncio precisa ser idêntica para todo
  * visitante, independente do tema salvo.
  */
-export function useForcedLightTheme(enabled = true) {
+export function useForcedTheme(theme: 'light' | 'dark', enabled = true) {
   useEffect(() => {
     if (!enabled) return;
     const root = document.documentElement;
     const previous = root.dataset.theme;
-    root.dataset.theme = 'light';
+    root.dataset.theme = theme;
     return () => {
       if (previous) root.dataset.theme = previous;
       else delete root.dataset.theme;
     };
-  }, [enabled]);
+  }, [theme, enabled]);
+}
+
+export function useForcedLightTheme(enabled = true) {
+  useForcedTheme('light', enabled);
 }
 
 /**

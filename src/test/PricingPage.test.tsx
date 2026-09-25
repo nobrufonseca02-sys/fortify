@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import PricingPage from '../pages/PricingPage';
@@ -112,6 +112,14 @@ describe('PricingPage', () => {
     expect(
       screen.getAllByRole('link').some((l) => l.getAttribute('href') === '/vendas/como-funciona'),
     ).toBe(true);
+  });
+
+  it('deslogado, Assinar guarda o plano e a rota de volta antes de mandar para o login', () => {
+    window.sessionStorage.clear();
+    renderPricing({ variant: 'public' });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Assinar' })[0]);
+    expect(window.sessionStorage.getItem('intended_plan_slug')).toBe('beginner_monthly');
+    expect(window.sessionStorage.getItem('fortify_checkout_return_path')).toBe(window.location.pathname);
   });
 
   it('logado, renderiza sem a casca pública — quem dá moldura é o AppLayout', () => {

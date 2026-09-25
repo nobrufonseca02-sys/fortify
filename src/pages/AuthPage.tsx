@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,38 +8,28 @@ import { toast } from "@/hooks/use-toast";
 import { FortifyMark } from "@/components/brand/FortifyMark";
 import { trackSignUp } from "@/lib/analytics";
 import { Lock, Mail, User, ArrowRight, Eye, EyeOff, ChevronRight, Loader2, LogIn, UserPlus, KeyRound } from "lucide-react";
-import { firmLogos } from "@/data/firmLogos";
+import { FirmLogoStrip } from "@/components/landing/FirmLogoMarquee";
+import { useForcedTheme } from "@/components/landing/PublicShell";
+import { HorizonArc } from "@/components/landing/cinematic/Orb";
+import { TactileButton } from "@/components/landing/cinematic/TactileButton";
+import { CINEMATIC_FONT_VARS, FONT_DISPLAY, FONT_SANS, useCinematicFonts } from "@/components/landing/cinematic/fonts";
 
 type AuthMode = "login" | "signup" | "forgot";
 
-// Same real, first-party logo set the prop-firm library carousel uses (see
-// src/data/firmLogos.ts) — duplicated once so the strip can loop seamlessly.
-const firmLogoEntries = Object.entries(firmLogos) as [string, string][];
-const marqueeLogos = [...firmLogoEntries, ...firmLogoEntries];
-
-// Proporção acima de ~6:1 não cabe na caixa padrão sem virar um fio. O arquivo
-// da FundedNext é 898x87 (10,32:1) e não tem UMA coluna de margem para aparar —
-// medido no bitmap. Caixa mais larga para a altura subir de 12px para 16px, que
-// é o melhor possível sem um asset compacto da marca.
-const WIDE_MARKS = new Set(["FundedNext"]);
-
-// Static comet-streak background from the reference layout, self-hosted at
-// public/backgrounds/auth-comet.jpg instead of hotlinked from the demo's own
-// asset host, so this page never depends on a third party's storage bucket.
+// Linha de horizonte em diagonal, com a luz branca, violeta e azul da landing.
 function AuthBackground() {
   return (
-    <div className="pointer-events-none fixed inset-0 overflow-hidden bg-background" aria-hidden="true">
-      <img
-        src="/backgrounds/auth-comet.jpg"
-        alt=""
-        className="absolute inset-0 h-full w-full object-cover"
-      />
-      <div className="absolute inset-0 ring-1 ring-black/30" />
-      <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-background/70 to-transparent" />
-      <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-background via-background/55 to-transparent" />
+    <div className="pointer-events-none fixed inset-0 overflow-hidden bg-black" aria-hidden="true">
+      <HorizonArc />
+      <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/70 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black via-black/55 to-transparent" />
     </div>
   );
 }
+
+const FIELD_CLASS =
+  'h-11 rounded-xl border-white/10 bg-zinc-900/60 pl-10 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-white/30 focus-visible:ring-offset-0';
+const LINK_CLASS = 'font-semibold text-violet-300 transition-colors hover:text-violet-200';
 
 function GoogleMark() {
   return (
@@ -67,25 +57,8 @@ function GoogleMark() {
 // desenhava uma linha separando a tira do resto da tela.
 function FirmLogoMarquee({ reduceMotion }: { reduceMotion: boolean }) {
   return (
-    <footer className="fixed inset-x-0 bottom-0 z-20 bg-background/45 py-3 backdrop-blur-md">
-      <div className="relative overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]">
-        <div className={`flex w-max items-center gap-6 ${reduceMotion ? "" : "animate-marquee"}`}>
-          {marqueeLogos.map(([name, src], index) => (
-            <img
-              key={`${name}-${index}`}
-              src={src}
-              alt={name}
-              /* Caixa IGUAL para toda marca, com object-contain: é o que padroniza.
-                 Só travar a altura não resolvia — com a proporção indo de 1:1
-                 (BrightFunded, FundingPips, NP Future) a 10,3:1 (FundedNext), a
-                 mesma altura de 24px produzia larguras de 24px a 248px, 10x de
-                 diferença. Agora cada logo ocupa 120x28 e se ajusta dentro disso:
-                 wordmark largo limita pela largura, marca quadrada pela altura. */
-              className={`h-7 ${WIDE_MARKS.has(name) ? "w-[168px]" : "w-[120px]"} shrink-0 object-contain [filter:drop-shadow(0_0_1px_rgba(255,255,255,0.5))_drop-shadow(0_0_5px_rgba(255,255,255,0.2))]`}
-            />
-          ))}
-        </div>
-      </div>
+    <footer className="fixed inset-x-0 bottom-0 z-20 bg-black/40 py-3 backdrop-blur-md">
+      <FirmLogoStrip reduceMotion={reduceMotion} />
     </footer>
   );
 }
@@ -133,6 +106,9 @@ function useProvedoresExternos() {
 
 export default function AuthPage() {
   const shouldReduceMotion = useReducedMotion();
+  // Mesmo visual das páginas públicas: tema escuro fixo e as fontes da landing.
+  useForcedTheme('dark');
+  useCinematicFonts();
   const { search } = useLocation();
   const provedoresExternos = useProvedoresExternos();
 
@@ -237,37 +213,34 @@ export default function AuthPage() {
   const headerCtaLabel = mode === "login" ? "Criar conta" : "Entrar";
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
+    <div
+      style={CINEMATIC_FONT_VARS}
+      className={`${FONT_SANS} relative min-h-screen overflow-hidden bg-black text-white antialiased`}
+    >
       <AuthBackground />
 
-      <header className="fixed inset-x-0 top-0 z-20 flex items-center justify-between px-5 pt-4 sm:px-8 sm:pt-6 lg:px-16">
-        <div className="flex items-center gap-3">
-          <FortifyMark className="h-9 w-9 shrink-0 text-foreground opacity-95 sm:h-10 sm:w-10" />
-          <div className="hidden flex-col leading-none sm:flex">
-            <span className="text-sm font-bold uppercase tracking-[0.14em] text-foreground">Fortify</span>
-            <span className="mt-1 text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
-              Sistema de gestão de risco
-            </span>
-          </div>
-        </div>
+      <header className="fixed inset-x-0 top-0 z-20 flex items-center justify-between px-4 pt-3 sm:px-8 sm:pt-5 lg:px-16">
+        <Link
+          to="/vendas"
+          className="flex items-center gap-2 rounded-full px-1 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+        >
+          <FortifyMark className="h-7 w-7 shrink-0 text-white" />
+          <span className={`${FONT_DISPLAY} text-[18px] font-semibold tracking-tight text-white`}>Fortify</span>
+        </Link>
 
-        <div className="flex items-center gap-1 rounded-full border border-border bg-background/50 p-1 backdrop-blur-md">
+        <div className="flex items-center gap-1 rounded-full bg-zinc-900/70 p-1 shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_4px_12px_-4px_rgba(0,0,0,0.6)] backdrop-blur-md">
           <a
             href={supportWhatsAppUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-full px-3.5 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground sm:px-4 sm:text-sm"
+            className="rounded-full px-3.5 py-2 text-[13px] font-medium text-zinc-400 transition-colors hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
           >
             Suporte
           </a>
-          <button
-            type="button"
-            onClick={() => setMode(headerCtaMode)}
-            className="pill-btn-primary flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs sm:px-4 sm:text-sm"
-          >
+          <TactileButton size="sm" onClick={() => setMode(headerCtaMode)} className="rounded-full">
             {headerCtaLabel}
-            <ArrowRight className="h-3.5 w-3.5" />
-          </button>
+            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </TactileButton>
         </div>
       </header>
 
@@ -277,8 +250,9 @@ export default function AuthPage() {
           initial={{ opacity: 0, y: rise(20) }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: dur(0.6), delay: wait(0.1) }}
-          className="relative w-full max-w-sm overflow-hidden rounded-lg border border-border bg-background/60 p-6 shadow-lg backdrop-blur-md sm:p-7"
+          className="relative w-full max-w-sm rounded-[1.6rem] border border-white/10 bg-gradient-to-b from-white/10 via-white/[0.04] to-transparent p-1.5 shadow-[0_32px_100px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.2)]"
         >
+          <div className="relative overflow-hidden rounded-[1.25rem] border border-white/5 bg-zinc-950/85 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] backdrop-blur-2xl sm:p-7">
           <AnimatePresence mode="wait">
             <motion.div
               key={mode}
@@ -288,18 +262,18 @@ export default function AuthPage() {
               transition={{ duration: dur(0.25) }}
               className="flex flex-col items-center text-center"
             >
-              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-lg border border-border bg-background/80">
-                {mode === "login" && <LogIn className="h-5 w-5 text-foreground" />}
-                {mode === "signup" && <UserPlus className="h-5 w-5 text-foreground" />}
-                {mode === "forgot" && <KeyRound className="h-5 w-5 text-foreground" />}
+              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-black ring-1 ring-white/15 shadow-[0_0_24px_-6px_rgba(165,88,251,0.6)]">
+                {mode === "login" && <LogIn className="h-5 w-5 text-zinc-100" />}
+                {mode === "signup" && <UserPlus className="h-5 w-5 text-zinc-100" />}
+                {mode === "forgot" && <KeyRound className="h-5 w-5 text-zinc-100" />}
               </div>
 
-              <h2 className="text-xl font-bold text-foreground">
+              <h2 className={`${FONT_DISPLAY} text-2xl font-semibold tracking-tight text-white`}>
                 {mode === "login" && "Entrar no Fortify"}
                 {mode === "signup" && "Criar conta grátis"}
                 {mode === "forgot" && "Recuperar senha"}
               </h2>
-              <p className="mt-1.5 max-w-[260px] text-sm text-muted-foreground">
+              <p className="mt-1.5 max-w-[260px] text-sm text-zinc-400">
                 {mode === "login" && "Acesse o painel de risco da sua conta."}
                 {mode === "signup" && "Crie sua conta para vincular regras e conectar uma conta MT5."}
                 {mode === "forgot" && "Enviaremos um link de redefinição para o seu e-mail."}
@@ -308,12 +282,12 @@ export default function AuthPage() {
               <form onSubmit={handleSubmit} className="mt-6 w-full space-y-3 text-left">
                 {mode === "signup" && (
                   <div className="space-y-2">
-                    <Label htmlFor="name" className="text-xs text-muted-foreground font-medium">Nome completo</Label>
+                    <Label htmlFor="name" className="text-xs font-medium text-zinc-400">Nome completo</Label>
                     <div className="relative">
-                      <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
                       <Input
                         id="name"
-                        className="pl-10"
+                        className={FIELD_CLASS}
                         placeholder="Seu nome"
                         value={form.name}
                         onChange={(e) => updateField("name", e.target.value)}
@@ -323,13 +297,13 @@ export default function AuthPage() {
                 )}
 
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-xs text-muted-foreground font-medium">E-mail</Label>
+                  <Label htmlFor="email" className="text-xs font-medium text-zinc-400">E-mail</Label>
                   <div className="relative">
-                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
                     <Input
                       id="email"
                       type="email"
-                      className="pl-10"
+                      className={FIELD_CLASS}
                       placeholder="seu@email.com"
                       value={form.email}
                       onChange={(e) => updateField("email", e.target.value)}
@@ -340,13 +314,13 @@ export default function AuthPage() {
 
                 {mode !== "forgot" && (
                   <div className="space-y-2">
-                    <Label htmlFor="password" className="text-xs text-muted-foreground font-medium">Senha</Label>
+                    <Label htmlFor="password" className="text-xs font-medium text-zinc-400">Senha</Label>
                     <div className="relative">
-                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
                       <Input
                         id="password"
                         type={showPassword ? "text" : "password"}
-                        className="pl-10 pr-10"
+                        className={`${FIELD_CLASS} pr-10`}
                         placeholder="••••••••"
                         value={form.password}
                         onChange={(e) => updateField("password", e.target.value)}
@@ -357,7 +331,7 @@ export default function AuthPage() {
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
                         aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-500 transition-colors hover:text-zinc-200"
                       >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
@@ -370,18 +344,14 @@ export default function AuthPage() {
                     <button
                       type="button"
                       onClick={() => setMode("forgot")}
-                      className="text-xs text-primary/85 transition-colors hover:text-primary"
+                      className="text-xs text-violet-300 transition-colors hover:text-violet-200"
                     >
                       Esqueceu a senha?
                     </button>
                   </div>
                 )}
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="pill-btn pill-btn-primary w-full justify-center gap-2 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
-                >
+                <TactileButton type="submit" disabled={loading} className="!mt-5 w-full">
                   {loading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
@@ -389,50 +359,50 @@ export default function AuthPage() {
                       {mode === "login" && "Entrar"}
                       {mode === "signup" && "Criar conta"}
                       {mode === "forgot" && "Enviar link"}
-                      <ArrowRight className="h-4 w-4" />
+                      <ArrowRight className="h-4 w-4" aria-hidden="true" />
                     </>
                   )}
-                </button>
+                </TactileButton>
               </form>
 
               {mode !== "forgot" && provedoresExternos?.google && (
                 <>
                   <div className="my-4 flex w-full items-center gap-3">
-                    <div className="h-px flex-1 bg-border" />
-                    <span className="text-xs text-muted-foreground">ou continue com</span>
-                    <div className="h-px flex-1 bg-border" />
+                    <div className="h-px flex-1 bg-white/10" />
+                    <span className="text-xs text-zinc-500">ou continue com</span>
+                    <div className="h-px flex-1 bg-white/10" />
                   </div>
-                  <button
-                    type="button"
+                  <TactileButton
+                    variant="glass"
                     onClick={handleGoogleLogin}
                     disabled={googleLoading || loading}
-                    className="pill-btn w-full justify-center gap-2 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                    className="w-full"
                   >
                     {googleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleMark />}
                     {googleLoading ? "Abrindo Google..." : "Continuar com Google"}
-                  </button>
+                  </TactileButton>
                 </>
               )}
 
               <div className="pt-4 text-center">
                 {mode === "login" && (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-zinc-400">
                     Não tem conta?{" "}
-                    <button onClick={() => setMode("signup")} className="text-primary font-semibold transition-colors hover:text-primary/80">
+                    <button onClick={() => setMode("signup")} className={LINK_CLASS}>
                       Criar conta grátis
                     </button>
                   </p>
                 )}
                 {mode === "signup" && (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-zinc-400">
                     Já tem conta?{" "}
-                    <button onClick={() => setMode("login")} className="text-primary font-semibold transition-colors hover:text-primary/80">
+                    <button onClick={() => setMode("login")} className={LINK_CLASS}>
                       Já tenho conta
                     </button>
                   </p>
                 )}
                 {mode === "forgot" && (
-                  <button onClick={() => setMode("login")} className="text-sm text-primary font-semibold transition-colors hover:text-primary/80 flex items-center gap-1 mx-auto">
+                  <button onClick={() => setMode("login")} className={`${LINK_CLASS} mx-auto flex items-center gap-1 text-sm`}>
                     <ChevronRight className="h-3 w-3 rotate-180" />
                     Voltar ao login
                   </button>
@@ -440,6 +410,7 @@ export default function AuthPage() {
               </div>
             </motion.div>
           </AnimatePresence>
+          </div>
         </motion.div>
       </main>
 
