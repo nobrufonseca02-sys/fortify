@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import MesasPage from '../pages/landing/MesasPage';
 import { firmPrograms, getFirmStatus } from '../lib/propFirmSummary';
 import { propFirmFilterOptions } from '../data/propFirmRules';
-import { firmLogos } from '../data/firmLogos';
+import { firmLogos, isShownInPublicCarousels } from '../data/firmLogos';
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({ user: null, session: null }),
@@ -12,7 +12,7 @@ vi.mock('@/hooks/useAuth', () => ({
 
 /** Mesma regra da página: operacional e com logo de primeira mão. */
 const featured = propFirmFilterOptions.firms.filter(
-  (name) => getFirmStatus(firmPrograms(name)) === 'operational' && firmLogos[name],
+  (name) => getFirmStatus(firmPrograms(name)) === 'operational' && firmLogos[name] && isShownInPublicCarousels(name),
 );
 
 function renderPage() {
@@ -88,16 +88,19 @@ describe('MesasPage', () => {
     expect(plataformas).not.toMatch(/suportadas pela/i);
   });
 
-  it('o carrossel cobre o catálogo inteiro, e o título conta o que ele mostra', () => {
+  it('o carrossel cobre o catálogo, menos as mesas ocultas do site, e o título conta o catálogo', () => {
     renderPage();
-    // Hoje as 14 mesas do catálogo são operacionais e têm logo, então o
-    // carrossel cobre tudo. Se entrar uma mesa sem logo ou sem regra
-    // auditada, este teste falha — e aí o título passaria a mentir.
-    expect(featured).toHaveLength(propFirmFilterOptions.firms.length);
+    // Hoje todas as mesas do catálogo são operacionais e têm logo; só as
+    // listadas em HIDDEN_FROM_PUBLIC_CAROUSELS ficam fora do carrossel.
+    const visiveis = propFirmFilterOptions.firms.filter((name) => isShownInPublicCarousels(name));
+    expect(featured).toHaveLength(visiveis.length);
+    expect(featured).not.toContain('ASAP Funding Prop');
+    expect(screen.queryByAltText('Logo ASAP Funding Prop')).not.toBeInTheDocument();
+    // O título conta as mesas suportadas, não só as que aparecem no carrossel.
     expect(
       screen.getByRole('heading', {
         level: 1,
-        name: new RegExp(`${featured.length} mesas proprietárias`),
+        name: new RegExp(`^${propFirmFilterOptions.firms.length} mesas proprietárias`),
       }),
     ).toBeInTheDocument();
   });

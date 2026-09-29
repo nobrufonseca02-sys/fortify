@@ -10,6 +10,7 @@ import { AuthProvider, useAuth, type AuthStartupError } from "@/hooks/useAuth";
 import { FortifyMark } from "@/components/brand/FortifyMark";
 import { ConsentBanner } from "@/components/ConsentBanner";
 import { captureUtmParams } from "@/lib/analytics";
+import { isAppHost } from "@/lib/hostRouting";
 import { DatabaseZap, ExternalLink, Monitor, RefreshCw, Server } from "lucide-react";
 import { MotionConfig } from "motion/react";
 import { fortifyMotionConfig } from "@/lib/motion";
@@ -192,9 +193,11 @@ function ProtectedRoutes() {
 
   if (!session) {
     // A raiz é onde cai quem digita só o domínio, ou recebe a indicação de um
-    // amigo sem caminho nenhum. Essa pessoa tem que ver o site, não um
-    // formulário pedindo a senha de uma conta que ela não tem.
-    if (pathname === "/") return <Navigate to="/vendas" replace />;
+    // amigo sem caminho nenhum. No domínio de vendas essa pessoa tem que ver
+    // o site, não um formulário pedindo a senha de uma conta que ela não tem.
+    // No subdomínio do produto (VITE_APP_HOSTS) vale o oposto: quem chega ali
+    // já é usuário, então "/" manda direto para o login.
+    if (pathname === "/") return <Navigate to={isAppHost() ? "/auth" : "/vendas"} replace />;
 
     // Rota real do produto: pede login. URL que não existe: 404 de verdade.
     // Antes tudo virava login, então um link de anúncio errado ou antigo

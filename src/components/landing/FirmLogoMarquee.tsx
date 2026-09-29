@@ -1,4 +1,4 @@
-import { firmLogos } from '@/data/firmLogos';
+import { firmLogos, isShownInPublicCarousels } from '@/data/firmLogos';
 
 /**
  * Faixa de logos das mesas proprietárias reais que o Fortify atende, rolando
@@ -8,7 +8,7 @@ import { firmLogos } from '@/data/firmLogos';
  * escuro sem desenhar um retângulo visível.
  */
 
-const firmLogoEntries = Object.entries(firmLogos) as [string, string][];
+const firmLogoEntries = (Object.entries(firmLogos) as [string, string][]).filter(([name]) => isShownInPublicCarousels(name));
 const marqueeLogos = [...firmLogoEntries, ...firmLogoEntries];
 
 // Proporção acima de ~6:1 não cabe na caixa padrão sem virar um fio. O arquivo

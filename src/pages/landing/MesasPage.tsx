@@ -9,7 +9,7 @@ import { FONT_DISPLAY, FONT_MONO } from '@/components/landing/cinematic/fonts';
 import { pushDataLayerEvent } from '@/lib/analytics';
 import { cn } from '@/lib/utils';
 import { propFirmFilterOptions } from '@/data/propFirmRules';
-import { firmLogos } from '@/data/firmLogos';
+import { firmLogos, isShownInPublicCarousels } from '@/data/firmLogos';
 import {
   accountRules,
   cleanValue,
@@ -52,7 +52,7 @@ export default function MesasPage() {
     () =>
       propFirmFilterOptions.firms
         .map((name) => ({ name, programs: firmPrograms(name) }))
-        .filter(({ name, programs }) => getFirmStatus(programs) === 'operational' && firmLogos[name]),
+        .filter(({ name, programs }) => getFirmStatus(programs) === 'operational' && firmLogos[name] && isShownInPublicCarousels(name)),
     [],
   );
 
@@ -91,7 +91,7 @@ export default function MesasPage() {
       {/* Título só para leitor de tela e indexação: o cabeçalho visível foi
           retirado a pedido, mas uma página pública sem nenhum h1 perde a
           âncora de documento. */}
-      <h1 className="sr-only">{`${featured.length} mesas proprietárias suportadas pelo Fortify`}</h1>
+      <h1 className="sr-only">{`${propFirmFilterOptions.firms.length} mesas proprietárias suportadas pelo Fortify`}</h1>
 
       <section aria-label="Mesas em destaque" className="relative overflow-x-clip pb-4 pt-32 sm:pt-36">
         <div className="absolute inset-x-0 top-0 h-[60vh] opacity-80">

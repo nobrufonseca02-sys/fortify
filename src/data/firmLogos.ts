@@ -39,3 +39,11 @@ export const firmLogos: Partial<Record<PropFirmName, string>> = {
   // 300x300 brand mark is the best first-party asset available, see task report.
   'NP Future': logoNpFuture,
 };
+
+// Mesas que continuam na Biblioteca do app, mas não aparecem em nenhum
+// carrossel do site público.
+export const HIDDEN_FROM_PUBLIC_CAROUSELS = new Set<string>(['ASAP Funding Prop']);
+
+export function isShownInPublicCarousels(name: string) {
+  return !HIDDEN_FROM_PUBLIC_CAROUSELS.has(name);
+}
