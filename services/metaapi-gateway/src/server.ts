@@ -2409,7 +2409,10 @@ function findMatchingProvisioningAccount(
 }
 
 async function postProvisioningAccount(url: string, payload: JsonRecord) {
-  const transactionId = `fortify-${randomUUID()}`;
+  // A MetaApi exige exatamente 32 caracteres neste header; um UUID com
+  // prefixo ("fortify-" + hífens) tem 44 e era rejeitado antes de chegar a
+  // provisionar a conta — toda conta MT5 nova falhava na primeira tentativa.
+  const transactionId = randomUUID().replace(/-/g, '');
   let lastRes: Response | null = null;
   let lastText = '';
   let lastBody: JsonRecord = {};
