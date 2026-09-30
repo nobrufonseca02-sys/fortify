@@ -84,8 +84,9 @@ describe('RuleBindingSelector', () => {
 
     expect(saveButton).toBeEnabled();
     expect(screen.getByTestId('rule-binding-readiness')).toHaveTextContent('Vínculo pronto para salvar');
-    expect(screen.getByText('Automático via MT5')).toBeInTheDocument();
-    expect(screen.getByText('Conferência manual')).toBeInTheDocument();
+    // Perda diária é calculada, mas com reset não confirmado: parcial, não automática.
+    expect(screen.getByText('Monitoramento parcial')).toBeInTheDocument();
+    expect(screen.getByText('Revisão manual necessária')).toBeInTheDocument();
   });
 
   it('applies a valid initial selection and still allows manual changes', async () => {

@@ -111,13 +111,49 @@ A meta de lucro informa progresso ou meta atingida e não é tratada como viola�
 
 ## Implementação
 
-- `src/lib/ruleEngine/ruleEngineTypes.ts`: contratos, parser conservador e estados.
-- `src/lib/ruleEngine/dailyLossCalculations.ts`: perda diária.
-- `src/lib/ruleEngine/drawdownCalculations.ts`: drawdown estático/trailing/EOD/intraday.
-- `src/lib/ruleEngine/profitTargetCalculations.ts`: fase e meta de lucro.
-- `src/lib/ruleEngine/evaluateAccountRules.ts`: monitorabilidade, agregação e alertas.
+O motor tem uma única fonte: `services/metaapi-gateway/src/ruleEngine/` (o gateway é implantado sozinho na VM e não enxerga `src/`). Os arquivos em `src/lib/ruleEngine/` só reexportam de lá; `demoFixtures.ts` continua no frontend.
+
+- `ruleEngineTypes.ts`: contratos, parser conservador e estados (inclui `partial`).
+- `dailyLossCalculations.ts`: perda diária (fechado + flutuante, janela de reset).
+- `drawdownCalculations.ts`: drawdown estático/trailing/EOD/intraday.
+- `profitTargetCalculations.ts`: fase e meta de lucro.
+- `evaluateAccountRules.ts`: monitorabilidade, agregação, alertas e `notCalculatedRules`.
+- `bindingTypes.ts` / `snapshotCanonical.ts`: contrato e serialização canônica do snapshot.
+- `snapshotIntegrity.ts` + `ruleSnapshotManifest.json`: conferência do snapshot antes de avaliar.
 - `src/components/rules/BoundRuleEvaluationCard.tsx`: apresentação compacta.
-- `src/pages/AccountRuleManagement.tsx`: leitura dos dados já sincronizados e integração.
+
+## Avaliação canônica no servidor
+
+A cada `POST /metaapi/sync` o gateway (`services/metaapi-gateway/src/canonicalEvaluation.ts`):
+
+1. busca o binding ativo da conta (dono + conta + `binding_status = active`);
+2. confere a integridade do snapshot (abaixo);
+3. roda `evaluateBoundAccountRules` com snapshots, trades fechados e posições desta sincronização;
+4. grava **uma linha nova** em `account_rule_evaluations` (append-only) com `binding_id`, hash, versão, versão do motor, regras e resumo da entrada.
+
+Conta sem binding cai no catálogo antigo (`rule_evaluations`) — fallback explícito, só para contas antigas. Dashboard, Contas e Performance leem `latest_account_rule_evaluations` e só usam a linha se `binding_id` for o binding ativo; depois de trocar a versão, a conta fica "Sem dados" até o próximo sync. Falha ao avaliar marca `sync_status = error`, para a conta não aparecer como monitorada com avaliação velha.
+
+### Integridade do snapshot
+
+O snapshot é montado e hasheado no navegador. O gateway só avalia se as colunas do binding batem com o snapshot, se o hash recalculado no servidor bate com o gravado e se o par `rule_profile_id → hash` consta em `ruleSnapshotManifest.json`. Caso contrário grava `not_monitorable`, sem regras.
+
+O manifesto é gerado do dataset e é append-only (hashes antigos continuam válidos):
+
+```sh
+UPDATE_RULE_MANIFEST=1 npx vitest run src/test/ruleSnapshotManifest.test.ts
+```
+
+Sem a variável, o mesmo teste falha no CI se o dataset mudou e o manifesto não foi regenerado.
+
+Limitação: o banco ainda aceita qualquer snapshot inserido pelo dono (RLS de insert). A proteção está na avaliação — um snapshot forjado nunca é avaliado como monitorado.
+
+### Deploy
+
+1. Aplicar `supabase/migrations/20260930120000_account_rule_evaluations.sql`.
+2. Implantar o gateway (inclui `ruleSnapshotManifest.json`).
+3. Implantar o frontend.
+
+Se o gateway subir antes da migração, ele detecta a tabela ausente e mantém o comportamento anterior (catálogo antigo) sem falhar o sync.
 
 ## Validação runtime — Sprint 8
 
@@ -307,7 +343,7 @@ O catálogo UUID (`rule_set_versions`, `rule_instances`, `rule_evaluations`) con
 Estratégia de retirada:
 
 1. manter leitura do legado para contas antigas;
-2. priorizar vínculo ativo em toda nova avaliação;
+2. vínculo ativo tem prioridade: conta vinculada é avaliada só pelo motor canônico;
 3. migrar cada conta somente com confirmação de mesa/programa/fase/versão;
 4. comparar resultados em paralelo antes de desativar avaliações antigas;
 5. remover escrita legada apenas quando todas as contas operacionais tiverem vínculo auditável.
@@ -318,4 +354,4 @@ Estratégia de retirada:
 - calendário externo e notificações;
 - execução ou bloqueio de ordens;
 - automação de plataformas sem MT5;
-- alterações de sync, MetaApi, Stripe ou schema.
+- sincronização automática em segundo plano (o sync é disparado pelo usuário).

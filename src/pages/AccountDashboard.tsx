@@ -338,7 +338,7 @@ const AccountDashboard = () => {
                   title="Nenhuma conexão MT5 encontrada"
                   description="Conecte o MT5 para o Fortify buscar saldo, equity, posições e trades reais desta conta."
                   actionLabel="Conectar MT5"
-                  onAction={() => navigate('/mt5')}
+                  onAction={() => navigate('/accounts')}
                 />
               )}
             </CardContent>

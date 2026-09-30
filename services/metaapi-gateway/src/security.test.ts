@@ -6,6 +6,7 @@ import {
   parseTrustedProxyAddresses,
   safeErrorMetadata,
   secureSecretEquals,
+  publicErrorMessage,
 } from './security';
 
 test('rate limiter blocks above the limit and resets after the window', () => {
@@ -51,4 +52,11 @@ test('security parsing and error metadata do not expose messages', () => {
     errorCode: 'E_PROVIDER',
     statusCode: 502,
   });
+});
+
+test('publicErrorMessage só repassa mensagens de erros 4xx', () => {
+  assert.equal(publicErrorMessage({ status: 400, message: 'Plano inválido' }, 'Falhou'), 'Plano inválido');
+  assert.equal(publicErrorMessage({ status: 500, message: 'relation "x" does not exist' }, 'Falhou'), 'Falhou');
+  assert.equal(publicErrorMessage(new Error('ECONNRESET 10.0.0.1'), 'Falhou'), 'Falhou');
+  assert.equal(publicErrorMessage(null, 'Falhou'), 'Falhou');
 });

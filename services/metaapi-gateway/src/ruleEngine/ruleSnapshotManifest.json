@@ -1,0 +1,2414 @@
+{
+  "schemaVersion": 1,
+  "profiles": {
+    "alpha-capital-group:alpha-capital-one-2026:alpha-capital-one-2026-100k:ctrader:alpha-capital-one-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:58321abc71816b701162560bfc1e103ed7f3377bca7f747f60c4d41cdbd24813"
+    ],
+    "alpha-capital-group:alpha-capital-one-2026:alpha-capital-one-2026-100k:dxtrade:alpha-capital-one-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:b7b435ec95fd451f88505d09fbfec1638d6640d9da2a0b7ee699c13dde83c081"
+    ],
+    "alpha-capital-group:alpha-capital-one-2026:alpha-capital-one-2026-100k:mt5:alpha-capital-one-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:3e4b9f2500a1431822c5c7cb5c58ee9f4ec52557557655fad6fb7fb13fd04000"
+    ],
+    "alpha-capital-group:alpha-capital-one-2026:alpha-capital-one-2026-100k:tradelocker:alpha-capital-one-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:9de6b7fdfa76013c798901e9a935a1f053da2ab409d0ff928c07970f8560ab03"
+    ],
+    "alpha-capital-group:alpha-capital-one-2026:alpha-capital-one-2026-10k:ctrader:alpha-capital-one-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:b54651265d04ae6e25dab4277721f436c245bacd19a90c7c235143158ec930f6"
+    ],
+    "alpha-capital-group:alpha-capital-one-2026:alpha-capital-one-2026-10k:dxtrade:alpha-capital-one-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:4d7e1ffc77ec66550e86ec7f3e9460159dd32d2c5d193ff4028e8a20df2098a0"
+    ],
+    "alpha-capital-group:alpha-capital-one-2026:alpha-capital-one-2026-10k:mt5:alpha-capital-one-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:546b9c6157ae8d8322973e2152db30e9aa5efdd1b05688139d8ff205e1759b4f"
+    ],
+    "alpha-capital-group:alpha-capital-one-2026:alpha-capital-one-2026-10k:tradelocker:alpha-capital-one-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:3a0a5bf768e3627499d803a5824d646cb17cd630ca0acabbab326e463660ecad"
+    ],
+    "alpha-capital-group:alpha-capital-one-2026:alpha-capital-one-2026-200k:ctrader:alpha-capital-one-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:e0bfda5bd15ba980e62967fd026707e0d41a738def46ebd0643b441e269b5ed7"
+    ],
+    "alpha-capital-group:alpha-capital-one-2026:alpha-capital-one-2026-200k:dxtrade:alpha-capital-one-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:330ce2b08ec5d44de502dce0448c2eb802890a5e711ebd6a84d378eebc003887"
+    ],
+    "alpha-capital-group:alpha-capital-one-2026:alpha-capital-one-2026-200k:mt5:alpha-capital-one-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:f31f1e1f4ffea2c3ef449bfc8ccb30567c2c7a44ed65fab7284637f215939a79"
+    ],
+    "alpha-capital-group:alpha-capital-one-2026:alpha-capital-one-2026-200k:tradelocker:alpha-capital-one-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:db2c93db9ae238f6e6d55534c5f320328ee40349d08305970a3ee5b3d7cf089c"
+    ],
+    "alpha-capital-group:alpha-capital-one-2026:alpha-capital-one-2026-25k:ctrader:alpha-capital-one-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:2daa742f6f0d4f0ea3e88de129e37870ad2eb201011ac8d677f893787ad511d1"
+    ],
+    "alpha-capital-group:alpha-capital-one-2026:alpha-capital-one-2026-25k:dxtrade:alpha-capital-one-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:07cf6589aa30ed77e1ef7dfeb1d19329d45d008296c88da9f9f877ad1cd8a5f7"
+    ],
+    "alpha-capital-group:alpha-capital-one-2026:alpha-capital-one-2026-25k:mt5:alpha-capital-one-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:eb8f55518714e89bab976ad47d7001dfdae86d27756ae5b8ca0df4f301ad40c3"
+    ],
+    "alpha-capital-group:alpha-capital-one-2026:alpha-capital-one-2026-25k:tradelocker:alpha-capital-one-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:985f2405428dd9d1a15b30fa6c41c09a00c97ff5e4a884a7738b6ec62fd490e5"
+    ],
+    "alpha-capital-group:alpha-capital-one-2026:alpha-capital-one-2026-300k:ctrader:alpha-capital-one-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:42fd7979aee67ff5c6ee64930095b39348b5131d66f7e3d70a5920be0171485a"
+    ],
+    "alpha-capital-group:alpha-capital-one-2026:alpha-capital-one-2026-300k:dxtrade:alpha-capital-one-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:d211aaa5073d471f2782a52accc7add7ebb4de277a84b372cf3d395c73d123d9"
+    ],
+    "alpha-capital-group:alpha-capital-one-2026:alpha-capital-one-2026-300k:mt5:alpha-capital-one-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:071fe344ed022df4a608daf60ffb78cb9eb77a342835fda60ab2378747473f6a"
+    ],
+    "alpha-capital-group:alpha-capital-one-2026:alpha-capital-one-2026-300k:tradelocker:alpha-capital-one-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:e2e3e47506ea9a5990c478a15b7493d5e11cf1888e938e26900af4d88a9a131c"
+    ],
+    "alpha-capital-group:alpha-capital-one-2026:alpha-capital-one-2026-50k:ctrader:alpha-capital-one-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:a08754e2b7235a9bfa6ad7e192e6bbb8c7aa435c376b96d4a03a2069cc983ab2"
+    ],
+    "alpha-capital-group:alpha-capital-one-2026:alpha-capital-one-2026-50k:dxtrade:alpha-capital-one-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:902981894b8f66cc51366a28fd42b9c9dd66a8a4952ac17b5fbbff5d0765c708"
+    ],
+    "alpha-capital-group:alpha-capital-one-2026:alpha-capital-one-2026-50k:mt5:alpha-capital-one-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:2125c4ca0ae36e8eef2aea23a56bb7710ef3944f7783afe51bd5a13e1d471bc4"
+    ],
+    "alpha-capital-group:alpha-capital-one-2026:alpha-capital-one-2026-50k:tradelocker:alpha-capital-one-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:b1f5fb49b7c36ce287afe3ac2d44e7bb93bd47423d6cb3346eaee0079dac2bf0"
+    ],
+    "alpha-capital-group:alpha-capital-one-2026:alpha-capital-one-2026-5k:ctrader:alpha-capital-one-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:2a263e990fd6ccbbb43302d60975e6884f047db28ce2164f25d3d9c964424ade"
+    ],
+    "alpha-capital-group:alpha-capital-one-2026:alpha-capital-one-2026-5k:dxtrade:alpha-capital-one-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:8b4b9a08163798eb28e9d30feecf9123bbe5353af2d1f8b8c28e44beeee742ea"
+    ],
+    "alpha-capital-group:alpha-capital-one-2026:alpha-capital-one-2026-5k:mt5:alpha-capital-one-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:b7c4ef8185039081b3816ee17724e7e53f089722e639cd36e9d55d613e4176ca"
+    ],
+    "alpha-capital-group:alpha-capital-one-2026:alpha-capital-one-2026-5k:tradelocker:alpha-capital-one-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:f16b65ea392b85f016b7174f3c26a90f66355787d1a16e9225d255a705a423be"
+    ],
+    "alpha-capital-group:alpha-capital-pro-10-2026:alpha-capital-pro-10-2026-100k:ctrader:alpha-capital-pro-10-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:812f1ccb9940d8fa8b5551cae353ce7b4d864b82c6eba169a079ea194f423932"
+    ],
+    "alpha-capital-group:alpha-capital-pro-10-2026:alpha-capital-pro-10-2026-100k:dxtrade:alpha-capital-pro-10-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:47f162e5f804d479f72aa7e15193ced5519b915e87ad87b0709e9b897665da69"
+    ],
+    "alpha-capital-group:alpha-capital-pro-10-2026:alpha-capital-pro-10-2026-100k:mt5:alpha-capital-pro-10-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:7742423b806b65c283420ba5c48f9078adbe1ced825f91ffc2ef8c56fcdead6c"
+    ],
+    "alpha-capital-group:alpha-capital-pro-10-2026:alpha-capital-pro-10-2026-100k:tradelocker:alpha-capital-pro-10-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:1fe7b6eaf9682106fee4beba30fff7c3f6ec7cc11087e95531b790cfc8b452bf"
+    ],
+    "alpha-capital-group:alpha-capital-pro-10-2026:alpha-capital-pro-10-2026-10k:ctrader:alpha-capital-pro-10-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:ac673124a12e4c3f1f1814756d91aa2101aa1d0a9fa51cb2bfd6d4afdd59e2ed"
+    ],
+    "alpha-capital-group:alpha-capital-pro-10-2026:alpha-capital-pro-10-2026-10k:dxtrade:alpha-capital-pro-10-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:690fc3918753a563e05fea3fe138643f7ba414ec501b77675b28ff2258e9b026"
+    ],
+    "alpha-capital-group:alpha-capital-pro-10-2026:alpha-capital-pro-10-2026-10k:mt5:alpha-capital-pro-10-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:db321beb53e434921c6e35026c58a978b5f79bea62366ca810119031a80e4563"
+    ],
+    "alpha-capital-group:alpha-capital-pro-10-2026:alpha-capital-pro-10-2026-10k:tradelocker:alpha-capital-pro-10-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:5743c0b0b2d278a47c7506f0c58807fdcebad031f3a5d3d7d6ea0f23315c3cc3"
+    ],
+    "alpha-capital-group:alpha-capital-pro-10-2026:alpha-capital-pro-10-2026-200k:ctrader:alpha-capital-pro-10-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:14bdcb9bcb8335d1884edefbeb182edb3e11122a73931266145a9ec2188fc1a8"
+    ],
+    "alpha-capital-group:alpha-capital-pro-10-2026:alpha-capital-pro-10-2026-200k:dxtrade:alpha-capital-pro-10-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:43eb1ab9373ef6051d199462fb5afcc5d90a3da675d15673370f8ef4cdd63d2d"
+    ],
+    "alpha-capital-group:alpha-capital-pro-10-2026:alpha-capital-pro-10-2026-200k:mt5:alpha-capital-pro-10-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:c03224e5ca777984f9b44e0be8d74e9b39488646a2a5f7e4b7e4a75820366b96"
+    ],
+    "alpha-capital-group:alpha-capital-pro-10-2026:alpha-capital-pro-10-2026-200k:tradelocker:alpha-capital-pro-10-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:3e0fceb47a68b0e8d2b69398303276bb93466ba64a426c696a6a314be043c41a"
+    ],
+    "alpha-capital-group:alpha-capital-pro-10-2026:alpha-capital-pro-10-2026-25k:ctrader:alpha-capital-pro-10-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:5fda18c58dbc5eb0fc5d160de9be729359dd39cb4c7d109f8d73da65e84e4997"
+    ],
+    "alpha-capital-group:alpha-capital-pro-10-2026:alpha-capital-pro-10-2026-25k:dxtrade:alpha-capital-pro-10-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:30372e58257c85b11ad6ec3c351f99b03351bfcc9e4696cfbb1b831d8272a615"
+    ],
+    "alpha-capital-group:alpha-capital-pro-10-2026:alpha-capital-pro-10-2026-25k:mt5:alpha-capital-pro-10-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:2bd917110ec96414bae234071e173d179f5a5f3fd62675b1d165aad499ac371b"
+    ],
+    "alpha-capital-group:alpha-capital-pro-10-2026:alpha-capital-pro-10-2026-25k:tradelocker:alpha-capital-pro-10-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:5d392d3e2fd0679724b376bf575a824ff1da58d8edd95eb326e2edcdefd93a11"
+    ],
+    "alpha-capital-group:alpha-capital-pro-10-2026:alpha-capital-pro-10-2026-300k:ctrader:alpha-capital-pro-10-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:596b0789084841c1aebccd501f569d4461ddecce48df082221a3439768705495"
+    ],
+    "alpha-capital-group:alpha-capital-pro-10-2026:alpha-capital-pro-10-2026-300k:dxtrade:alpha-capital-pro-10-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:eeec1088b77c1505c41a4ac33ca91aed1244f43b62e4742bdaa86c52123176f7"
+    ],
+    "alpha-capital-group:alpha-capital-pro-10-2026:alpha-capital-pro-10-2026-300k:mt5:alpha-capital-pro-10-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:f8f09b6c03db68317a246d3e935b42b2ce257a4e3f04b87639fbc64175c620bf"
+    ],
+    "alpha-capital-group:alpha-capital-pro-10-2026:alpha-capital-pro-10-2026-300k:tradelocker:alpha-capital-pro-10-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:c32ac1528b0460ff9543a03ad3b1aba203e42405c912d9bab16fad7ad81df198"
+    ],
+    "alpha-capital-group:alpha-capital-pro-10-2026:alpha-capital-pro-10-2026-50k:ctrader:alpha-capital-pro-10-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:11882d094de3273b9c446dbb29d4a7ca8bfae2a2e42b37d4901a5e68ad0fb63e"
+    ],
+    "alpha-capital-group:alpha-capital-pro-10-2026:alpha-capital-pro-10-2026-50k:dxtrade:alpha-capital-pro-10-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:9fe798a710ec787c91f44b3d97a09af33c0791b2fd3975ec026d772ffd060b51"
+    ],
+    "alpha-capital-group:alpha-capital-pro-10-2026:alpha-capital-pro-10-2026-50k:mt5:alpha-capital-pro-10-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:be6ec0ff1b271d3d44e257a00b11fcf05ff5e9f1d75c82f753ebb0d312cfbf6b"
+    ],
+    "alpha-capital-group:alpha-capital-pro-10-2026:alpha-capital-pro-10-2026-50k:tradelocker:alpha-capital-pro-10-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:ee99d1667f0b81ccd44fd210bad0fd758ba9a858b95d6bc9aec417794f0cb4c2"
+    ],
+    "alpha-capital-group:alpha-capital-pro-10-2026:alpha-capital-pro-10-2026-5k:ctrader:alpha-capital-pro-10-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:3e68ddd3aa87b2981c5e5adac310e7fe2e26676555912e8f8dfad5af0cc43dae"
+    ],
+    "alpha-capital-group:alpha-capital-pro-10-2026:alpha-capital-pro-10-2026-5k:dxtrade:alpha-capital-pro-10-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:239239f4a144ba958ad0a14718213e20b772b8a81b9d945a3944f1de0810b190"
+    ],
+    "alpha-capital-group:alpha-capital-pro-10-2026:alpha-capital-pro-10-2026-5k:mt5:alpha-capital-pro-10-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:bf7808df8714bccab3a9059ef129e817d22015e668cebd7eb65c7ed2feed7143"
+    ],
+    "alpha-capital-group:alpha-capital-pro-10-2026:alpha-capital-pro-10-2026-5k:tradelocker:alpha-capital-pro-10-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:5b8a28af91e44cc1372da7476925222a4478793394e1040b2d0de8635a9c8d39"
+    ],
+    "alpha-capital-group:alpha-capital-pro-6-2026:alpha-capital-pro-6-2026-100k:ctrader:alpha-capital-pro-6-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:43fb43facfb0dccaff6b70c56951565d717623789926d87a2a22dea24692eebd"
+    ],
+    "alpha-capital-group:alpha-capital-pro-6-2026:alpha-capital-pro-6-2026-100k:dxtrade:alpha-capital-pro-6-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:6a26aecf9da72b32cc9e70b6b18b30cde1458b53595b4b96bf5f71ef2c949d21"
+    ],
+    "alpha-capital-group:alpha-capital-pro-6-2026:alpha-capital-pro-6-2026-100k:mt5:alpha-capital-pro-6-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:a1e60e589e27b4102ab9f2696ec9298c08974f4eb55eb201dea319705bdaa4b0"
+    ],
+    "alpha-capital-group:alpha-capital-pro-6-2026:alpha-capital-pro-6-2026-100k:tradelocker:alpha-capital-pro-6-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:4ee09f94918fd14e5a86ebaad45fd63aa56c32604d6c7434027a6e8c13e9a0e9"
+    ],
+    "alpha-capital-group:alpha-capital-pro-6-2026:alpha-capital-pro-6-2026-10k:ctrader:alpha-capital-pro-6-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:5cf4a0deeeec04cb989e739dcf19745344c8ea62d5ceb5ec114ad646e0114155"
+    ],
+    "alpha-capital-group:alpha-capital-pro-6-2026:alpha-capital-pro-6-2026-10k:dxtrade:alpha-capital-pro-6-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:16fb08bf99429db4670a956d4af11dd9a07d43d4195d232b87722997702e79a9"
+    ],
+    "alpha-capital-group:alpha-capital-pro-6-2026:alpha-capital-pro-6-2026-10k:mt5:alpha-capital-pro-6-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:80778b415486ef0c175d2e832d114fd21b4cce7b043f6b4c7a4258124df09fb9"
+    ],
+    "alpha-capital-group:alpha-capital-pro-6-2026:alpha-capital-pro-6-2026-10k:tradelocker:alpha-capital-pro-6-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:be75cd44245008aa546a7403e9133cfd045bc8359e5d44f48e364c38b5138a0c"
+    ],
+    "alpha-capital-group:alpha-capital-pro-6-2026:alpha-capital-pro-6-2026-200k:ctrader:alpha-capital-pro-6-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:b3988ab23fbd25063b1d6efc5dcabb67b4f023e565043232b55c94ab80cb1745"
+    ],
+    "alpha-capital-group:alpha-capital-pro-6-2026:alpha-capital-pro-6-2026-200k:dxtrade:alpha-capital-pro-6-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:4267fd7dba8e328a22682e6a536e78b2bdbfe146a6a9174346384eba3191928b"
+    ],
+    "alpha-capital-group:alpha-capital-pro-6-2026:alpha-capital-pro-6-2026-200k:mt5:alpha-capital-pro-6-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:836aad45559145c1806d65b34cd074ea469eea50df2abdcde00f3ebe3e321ece"
+    ],
+    "alpha-capital-group:alpha-capital-pro-6-2026:alpha-capital-pro-6-2026-200k:tradelocker:alpha-capital-pro-6-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:3b10c7e1bf4701172923cb7b02661387a96df5dfeb0ce7806e7fe045b6338649"
+    ],
+    "alpha-capital-group:alpha-capital-pro-6-2026:alpha-capital-pro-6-2026-25k:ctrader:alpha-capital-pro-6-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:7d7a4e997a5378f5b35a96c4b68719d9dc0d8e45efecea6808541bc2ead9cfb2"
+    ],
+    "alpha-capital-group:alpha-capital-pro-6-2026:alpha-capital-pro-6-2026-25k:dxtrade:alpha-capital-pro-6-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:eb67a647e9139791ce84f9e4ef4e63855efa64998faa5c0e1014adfb12693f6f"
+    ],
+    "alpha-capital-group:alpha-capital-pro-6-2026:alpha-capital-pro-6-2026-25k:mt5:alpha-capital-pro-6-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:9d896258fe61d6a60443971d95585e7ea401e1dc3ba0e9dfcd51c65e175e704b"
+    ],
+    "alpha-capital-group:alpha-capital-pro-6-2026:alpha-capital-pro-6-2026-25k:tradelocker:alpha-capital-pro-6-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:1670e8a0eda098f892b3611942629679adee79b55d52a173f1a16dafeae6e8fa"
+    ],
+    "alpha-capital-group:alpha-capital-pro-6-2026:alpha-capital-pro-6-2026-300k:ctrader:alpha-capital-pro-6-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:1fb3bb017e5142c23d46237407793cf2ee1628e350a71edcaf0b60483168290d"
+    ],
+    "alpha-capital-group:alpha-capital-pro-6-2026:alpha-capital-pro-6-2026-300k:dxtrade:alpha-capital-pro-6-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:4d1e4b73b5e2ef4d58c3700da19afb31734e3e0c4cf348fbb0185fa74793aa07"
+    ],
+    "alpha-capital-group:alpha-capital-pro-6-2026:alpha-capital-pro-6-2026-300k:mt5:alpha-capital-pro-6-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:a53e1b4b77bb49f1a383b4327834ad1d1c8b77dde70217cd59ce1d902b038fdc"
+    ],
+    "alpha-capital-group:alpha-capital-pro-6-2026:alpha-capital-pro-6-2026-300k:tradelocker:alpha-capital-pro-6-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:c26c2ab3687fa48449d50378e50e73490c369309345960211c2ff7393b808849"
+    ],
+    "alpha-capital-group:alpha-capital-pro-6-2026:alpha-capital-pro-6-2026-50k:ctrader:alpha-capital-pro-6-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:2719b3312803ad5cd1999754fecc1feccf6a15cc3d63e32161f1d8dcd9549477"
+    ],
+    "alpha-capital-group:alpha-capital-pro-6-2026:alpha-capital-pro-6-2026-50k:dxtrade:alpha-capital-pro-6-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:74363d218bc74789de084039120fa2a30474294469b8139e42cad1b67c34b8e9"
+    ],
+    "alpha-capital-group:alpha-capital-pro-6-2026:alpha-capital-pro-6-2026-50k:mt5:alpha-capital-pro-6-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:092b8561f888a4c84c71e7a16bf4adc26b318575a591eaa23b3fb83a7e4c9b99"
+    ],
+    "alpha-capital-group:alpha-capital-pro-6-2026:alpha-capital-pro-6-2026-50k:tradelocker:alpha-capital-pro-6-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:f8295f30eb75c28703508e51b5c91a609215010225f20aeb9f097980fcf2b0e3"
+    ],
+    "alpha-capital-group:alpha-capital-pro-6-2026:alpha-capital-pro-6-2026-5k:ctrader:alpha-capital-pro-6-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:8496129e3d3d78310f778ce1279df61e97758bbe2cfd27151ee9a759c6c78fe8"
+    ],
+    "alpha-capital-group:alpha-capital-pro-6-2026:alpha-capital-pro-6-2026-5k:dxtrade:alpha-capital-pro-6-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:2d5ff91e43add0dc668bee68926e197a7c9c95046d444e50c1b0fb7e624a71a7"
+    ],
+    "alpha-capital-group:alpha-capital-pro-6-2026:alpha-capital-pro-6-2026-5k:mt5:alpha-capital-pro-6-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:264c7070a6ace3d5ef6303bf34ef6319938b51817ea96820ee0e2dfc85dcb3a5"
+    ],
+    "alpha-capital-group:alpha-capital-pro-6-2026:alpha-capital-pro-6-2026-5k:tradelocker:alpha-capital-pro-6-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:0e25d435f3443594c5146b2bee98ab295dd4c9ee7348ea52ec7e458f39edd791"
+    ],
+    "alpha-capital-group:alpha-capital-pro-8-2026:alpha-capital-pro-8-2026-100k:ctrader:alpha-capital-pro-8-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:0e3604c24d296e1a25bc7ea7a06ceb82d6c76f7a3ab93c2c34eca27e1e9046b0"
+    ],
+    "alpha-capital-group:alpha-capital-pro-8-2026:alpha-capital-pro-8-2026-100k:dxtrade:alpha-capital-pro-8-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:0c6d8d33b5993d61e6f654ae5512961971d703a05a94060751f64438f0b24f55"
+    ],
+    "alpha-capital-group:alpha-capital-pro-8-2026:alpha-capital-pro-8-2026-100k:mt5:alpha-capital-pro-8-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:62d8ca53b8452cdbaaf3a29c8ecb9605b4734804ae20cb10a4ee2ccc52c5d994"
+    ],
+    "alpha-capital-group:alpha-capital-pro-8-2026:alpha-capital-pro-8-2026-100k:tradelocker:alpha-capital-pro-8-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:3444831d1fefb394b70106d6842bcb77091d550772e7035a7145d21df29b0d73"
+    ],
+    "alpha-capital-group:alpha-capital-pro-8-2026:alpha-capital-pro-8-2026-10k:ctrader:alpha-capital-pro-8-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:b3d5aec6812b756d0ad4aa731ae6e1258e4b195435c25fb0a10c991d57850117"
+    ],
+    "alpha-capital-group:alpha-capital-pro-8-2026:alpha-capital-pro-8-2026-10k:dxtrade:alpha-capital-pro-8-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:69f27aad96417d06fb5187a4da1a8fde4fb2d51def1da229e48445477d44811f"
+    ],
+    "alpha-capital-group:alpha-capital-pro-8-2026:alpha-capital-pro-8-2026-10k:mt5:alpha-capital-pro-8-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:f293aaa400d2084426bb15999ec383f0347edaeaabf28ef378863ce355447517"
+    ],
+    "alpha-capital-group:alpha-capital-pro-8-2026:alpha-capital-pro-8-2026-10k:tradelocker:alpha-capital-pro-8-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:c9fc916bfbb37704f1a6f907ba6ea7a49bc3d5a2882ca443c83b78c44988ac9d"
+    ],
+    "alpha-capital-group:alpha-capital-pro-8-2026:alpha-capital-pro-8-2026-200k:ctrader:alpha-capital-pro-8-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:33f1886b363cd698275045eafe160ebf07102644551ac2b78935699995b9b819"
+    ],
+    "alpha-capital-group:alpha-capital-pro-8-2026:alpha-capital-pro-8-2026-200k:dxtrade:alpha-capital-pro-8-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:5bdbf13afdd671efe4b6a76573b23d91c030e6383d7d73d3b8fa5021f74231e0"
+    ],
+    "alpha-capital-group:alpha-capital-pro-8-2026:alpha-capital-pro-8-2026-200k:mt5:alpha-capital-pro-8-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:d5824125099543f0ac72adb14d5e6be562d51ecb7d624888bbea09724f893df9"
+    ],
+    "alpha-capital-group:alpha-capital-pro-8-2026:alpha-capital-pro-8-2026-200k:tradelocker:alpha-capital-pro-8-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:867a92eaee07f1e26c3a5eef2dc14bbf4e31e9d0c4061b2cfbcdac21ba793988"
+    ],
+    "alpha-capital-group:alpha-capital-pro-8-2026:alpha-capital-pro-8-2026-25k:ctrader:alpha-capital-pro-8-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:29b453990f71410019aa7578ef28ccca14759c6f46467aac5237e1e8b855171b"
+    ],
+    "alpha-capital-group:alpha-capital-pro-8-2026:alpha-capital-pro-8-2026-25k:dxtrade:alpha-capital-pro-8-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:64909d8aabbe04c819e239286453349c60147869d30f507ef3deff02e6129803"
+    ],
+    "alpha-capital-group:alpha-capital-pro-8-2026:alpha-capital-pro-8-2026-25k:mt5:alpha-capital-pro-8-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:4cf37e08ad8326b2df0f937dac0a97f376d221bf0cb38c9d1f38978b338f0666"
+    ],
+    "alpha-capital-group:alpha-capital-pro-8-2026:alpha-capital-pro-8-2026-25k:tradelocker:alpha-capital-pro-8-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:b93fef1bbe4eed7d7cdc3ef9377674f4cd8c53f7e4182d12792bcfa4cdeb268e"
+    ],
+    "alpha-capital-group:alpha-capital-pro-8-2026:alpha-capital-pro-8-2026-300k:ctrader:alpha-capital-pro-8-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:68a9d7c72c11d7b4df4616dafb3f76f964fdbb97290a9d60e4c0b8e740f677ed"
+    ],
+    "alpha-capital-group:alpha-capital-pro-8-2026:alpha-capital-pro-8-2026-300k:dxtrade:alpha-capital-pro-8-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:f2031a4009a36e1802c804da31269296e294b334d07cbaaef10f8b7e3478b798"
+    ],
+    "alpha-capital-group:alpha-capital-pro-8-2026:alpha-capital-pro-8-2026-300k:mt5:alpha-capital-pro-8-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:8c76f57ce055af121614c40989ff66047004403be91105761bf91aed996600f3"
+    ],
+    "alpha-capital-group:alpha-capital-pro-8-2026:alpha-capital-pro-8-2026-300k:tradelocker:alpha-capital-pro-8-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:8081e3531029e3838d70964747020d207c5c8465cbb1127678808e8c3724145d"
+    ],
+    "alpha-capital-group:alpha-capital-pro-8-2026:alpha-capital-pro-8-2026-50k:ctrader:alpha-capital-pro-8-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:f761c674fc8188a2a4092a01d0408823eb99d159793da1b2ba57cc93b728ed61"
+    ],
+    "alpha-capital-group:alpha-capital-pro-8-2026:alpha-capital-pro-8-2026-50k:dxtrade:alpha-capital-pro-8-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:1063bfa0c4dbc7f85e7be2420467ae90dd9f5b3beb21316f5ab25c588385239b"
+    ],
+    "alpha-capital-group:alpha-capital-pro-8-2026:alpha-capital-pro-8-2026-50k:mt5:alpha-capital-pro-8-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:6e649e6f16b052f07431dc7c340d43bcf4c09694878b3f3431237cdb4a9250ff"
+    ],
+    "alpha-capital-group:alpha-capital-pro-8-2026:alpha-capital-pro-8-2026-50k:tradelocker:alpha-capital-pro-8-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:51ea75c9c10647409addf525e82e93ab90b0543f21c79a8866bf417166953a48"
+    ],
+    "alpha-capital-group:alpha-capital-pro-8-2026:alpha-capital-pro-8-2026-5k:ctrader:alpha-capital-pro-8-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:e893ffc8059e8bbf6cb0dcb159b1381e735b4b9955f1b9df189d2f503e6f7815"
+    ],
+    "alpha-capital-group:alpha-capital-pro-8-2026:alpha-capital-pro-8-2026-5k:dxtrade:alpha-capital-pro-8-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:2956f27d720105e58eb303f9085c583456f3ac4a0d35bbf875bbb1bb02058b3e"
+    ],
+    "alpha-capital-group:alpha-capital-pro-8-2026:alpha-capital-pro-8-2026-5k:mt5:alpha-capital-pro-8-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:04c60decc06d73f0e588490a05f3b23b4aac957718cc5ea00a766a5dc09b3ae0"
+    ],
+    "alpha-capital-group:alpha-capital-pro-8-2026:alpha-capital-pro-8-2026-5k:tradelocker:alpha-capital-pro-8-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:10aef8d3c00283a428b6d8d48cab216e2fb5d949dabd430060160fb17376fd08"
+    ],
+    "alpha-capital-group:alpha-capital-swing-2026:alpha-capital-swing-2026-100k:ctrader:alpha-capital-swing-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:0d895801a8fc7b6a5970ea144b1f31041e32a08527f84f9a87c2ddd693784a59"
+    ],
+    "alpha-capital-group:alpha-capital-swing-2026:alpha-capital-swing-2026-100k:dxtrade:alpha-capital-swing-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:712d173c5039466e7dd90b7a8fc942fe8246f528326fc71282a31724600a7923"
+    ],
+    "alpha-capital-group:alpha-capital-swing-2026:alpha-capital-swing-2026-100k:mt5:alpha-capital-swing-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:14f397820c47560910d3edf3aab9e700509fc0ddbe28569cc2f617e08d143700"
+    ],
+    "alpha-capital-group:alpha-capital-swing-2026:alpha-capital-swing-2026-100k:tradelocker:alpha-capital-swing-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:6bc7e20824b853e4b706827843a59727ad7ef5a00b98691130140d6a3f342365"
+    ],
+    "alpha-capital-group:alpha-capital-swing-2026:alpha-capital-swing-2026-10k:ctrader:alpha-capital-swing-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:35c3192d54ee7165945b7ee70c08dfeefc98fd14cc2018ea187120888f357f0b"
+    ],
+    "alpha-capital-group:alpha-capital-swing-2026:alpha-capital-swing-2026-10k:dxtrade:alpha-capital-swing-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:25e6126faeb65e9da3069cb89e9782af19333b006f848c11c73eaf305142172e"
+    ],
+    "alpha-capital-group:alpha-capital-swing-2026:alpha-capital-swing-2026-10k:mt5:alpha-capital-swing-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:080e7251b40d8d06fa6e072f6aa11e40d1cdcd55d03b33143022e4ce9eb38082"
+    ],
+    "alpha-capital-group:alpha-capital-swing-2026:alpha-capital-swing-2026-10k:tradelocker:alpha-capital-swing-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:64e76053d70ec65be11df98faf3e96b55347f8d3c3b246bc9105735123700b0a"
+    ],
+    "alpha-capital-group:alpha-capital-swing-2026:alpha-capital-swing-2026-200k:ctrader:alpha-capital-swing-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:d7f431d62f4a6ec917a614eef15c8d68c58460a715a243147c475f22c1dd5a14"
+    ],
+    "alpha-capital-group:alpha-capital-swing-2026:alpha-capital-swing-2026-200k:dxtrade:alpha-capital-swing-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:73a455630d8b454fd7af7215ada648a5e44ad25c9921e2aef36cb17358844894"
+    ],
+    "alpha-capital-group:alpha-capital-swing-2026:alpha-capital-swing-2026-200k:mt5:alpha-capital-swing-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:12967a8b3c7b36149e111658b138160cd29cdafcfa2d93a78ff5dd1f1eb99cf6"
+    ],
+    "alpha-capital-group:alpha-capital-swing-2026:alpha-capital-swing-2026-200k:tradelocker:alpha-capital-swing-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:0b4eccca1472cc564c01e3b37a3c1d0f35f9f5a8c6fc74d538c6d13c143ab091"
+    ],
+    "alpha-capital-group:alpha-capital-swing-2026:alpha-capital-swing-2026-25k:ctrader:alpha-capital-swing-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:82d59b818fd8ebbf6b32a9fef0cc7e15194393e585b751769984ab5fcf154b70"
+    ],
+    "alpha-capital-group:alpha-capital-swing-2026:alpha-capital-swing-2026-25k:dxtrade:alpha-capital-swing-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:eb0a5ed7985628991ec3f1ee73e2361c2271a8770343e99201510317da512f38"
+    ],
+    "alpha-capital-group:alpha-capital-swing-2026:alpha-capital-swing-2026-25k:mt5:alpha-capital-swing-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:35a332d9eec8325911ba39b51792b05e4e133eed7e50b61dc9a4118311c54421"
+    ],
+    "alpha-capital-group:alpha-capital-swing-2026:alpha-capital-swing-2026-25k:tradelocker:alpha-capital-swing-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:36bce450f137c703a76d0ae525c9f16ecb72d7b68a6862afa427201bbb013fb8"
+    ],
+    "alpha-capital-group:alpha-capital-swing-2026:alpha-capital-swing-2026-300k:ctrader:alpha-capital-swing-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:122cc57e4abbee3329d4efaafa24212081061a240524641d40bcd451ae5f57ee"
+    ],
+    "alpha-capital-group:alpha-capital-swing-2026:alpha-capital-swing-2026-300k:dxtrade:alpha-capital-swing-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:baae62618637e0bb757a89cbad8ad19451d811ede2623fc1418993de17141297"
+    ],
+    "alpha-capital-group:alpha-capital-swing-2026:alpha-capital-swing-2026-300k:mt5:alpha-capital-swing-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:bedec1693c8e16a7c8cc94ef466296f28da07d187a5723d874af9c561a227b28"
+    ],
+    "alpha-capital-group:alpha-capital-swing-2026:alpha-capital-swing-2026-300k:tradelocker:alpha-capital-swing-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:426da5103e7c0baed01b55a04e9ac615ac44f988dd1b57bd34602f579be5de5d"
+    ],
+    "alpha-capital-group:alpha-capital-swing-2026:alpha-capital-swing-2026-50k:ctrader:alpha-capital-swing-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:76f2961ac1676f28106ffd31bb8fd0412db3ab1b4e756a98c25da0884a67d70d"
+    ],
+    "alpha-capital-group:alpha-capital-swing-2026:alpha-capital-swing-2026-50k:dxtrade:alpha-capital-swing-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:5dd6f4ad9109ef5c0a68cef385f9627c1ec9384b359705e048274b877af96ba9"
+    ],
+    "alpha-capital-group:alpha-capital-swing-2026:alpha-capital-swing-2026-50k:mt5:alpha-capital-swing-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:624f64221df9cc4c2ec7cc663b5d027b1e7f3e81fd28fd50de982bad4cc53161"
+    ],
+    "alpha-capital-group:alpha-capital-swing-2026:alpha-capital-swing-2026-50k:tradelocker:alpha-capital-swing-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:675b6b92002667b9121da8cbe9ebb0ac90b630b7b284d53de59259296b2ce462"
+    ],
+    "alpha-capital-group:alpha-capital-swing-2026:alpha-capital-swing-2026-5k:ctrader:alpha-capital-swing-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:df2e1f63e4c6ecae78727fe89095f4d9a0650cefadf7cf94f4823099041702be"
+    ],
+    "alpha-capital-group:alpha-capital-swing-2026:alpha-capital-swing-2026-5k:dxtrade:alpha-capital-swing-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:1a629db11e21b41e22d8c70a205f7ea4d21ef558ec9527cfb9c27bfe53fb0b03"
+    ],
+    "alpha-capital-group:alpha-capital-swing-2026:alpha-capital-swing-2026-5k:mt5:alpha-capital-swing-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:f8a88a0f59eb3164530d5afc5ab5a7ea5e04df11e11f58f7a5ff7ebaacf47eaf"
+    ],
+    "alpha-capital-group:alpha-capital-swing-2026:alpha-capital-swing-2026-5k:tradelocker:alpha-capital-swing-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:3b88ebf0bc8447556e16d488f9d4ab5238a2e52df5b0c971e50f1e681fb7886e"
+    ],
+    "alpha-capital-group:alpha-capital-three-2026:alpha-capital-three-2026-100k:ctrader:alpha-capital-three-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:b847354c7b5624890854d44268ebb9cd2e85ea2da34d796045e7df793379c894"
+    ],
+    "alpha-capital-group:alpha-capital-three-2026:alpha-capital-three-2026-100k:dxtrade:alpha-capital-three-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:864d6a111722131d3ea4a98aaa055c045256ea99d3bd967dad2bee40f018fd9c"
+    ],
+    "alpha-capital-group:alpha-capital-three-2026:alpha-capital-three-2026-100k:mt5:alpha-capital-three-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:d918f388f5fefc7ca07f7f9dae4e64c0dd23068ef84bc6330ecba7869b3a169a"
+    ],
+    "alpha-capital-group:alpha-capital-three-2026:alpha-capital-three-2026-100k:tradelocker:alpha-capital-three-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:c00f7068dfb0edc34e358fbc5e2430a93606c5dd7a95d30bf409c3e65b0b238f"
+    ],
+    "alpha-capital-group:alpha-capital-three-2026:alpha-capital-three-2026-10k:ctrader:alpha-capital-three-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:5d0b2922fb7149879297e7333169abf3d5cf8a41e3eb9ed07500bf4e4ce0c878"
+    ],
+    "alpha-capital-group:alpha-capital-three-2026:alpha-capital-three-2026-10k:dxtrade:alpha-capital-three-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:ca5114cdc1033b1c300e329710f0c6c1c86097f874c1c026d641576f1072fbe1"
+    ],
+    "alpha-capital-group:alpha-capital-three-2026:alpha-capital-three-2026-10k:mt5:alpha-capital-three-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:f912781443ae79fcf66afbfdc5994736a2d9c6e5fee73ea9e97547e1c0ee462e"
+    ],
+    "alpha-capital-group:alpha-capital-three-2026:alpha-capital-three-2026-10k:tradelocker:alpha-capital-three-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:ea48039d9f701005eb18f9cbb0433161c403f586ed2d51643df0e862d41a8c70"
+    ],
+    "alpha-capital-group:alpha-capital-three-2026:alpha-capital-three-2026-200k:ctrader:alpha-capital-three-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:3615acab7a60ae28ebd4c47478c45b56c459dbcaf3249469481f49905f491d9e"
+    ],
+    "alpha-capital-group:alpha-capital-three-2026:alpha-capital-three-2026-200k:dxtrade:alpha-capital-three-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:ae40297d118dbdad49ce17d0ef36838726ff0ad0231f0e7e2d87125fcdb64098"
+    ],
+    "alpha-capital-group:alpha-capital-three-2026:alpha-capital-three-2026-200k:mt5:alpha-capital-three-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:138e73baaec46d79638fc290f8070ad8b4161ac036cebaf75f48a0c9f5c6478b"
+    ],
+    "alpha-capital-group:alpha-capital-three-2026:alpha-capital-three-2026-200k:tradelocker:alpha-capital-three-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:f82c07cf1657e9882daea190bdb793a3bbb5123d07d32a73e0291a421d11ef33"
+    ],
+    "alpha-capital-group:alpha-capital-three-2026:alpha-capital-three-2026-25k:ctrader:alpha-capital-three-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:d8bde146377e9dd9e463aa1885e3dbfb920ffc695e2c0fe08d18ec08f61fecf7"
+    ],
+    "alpha-capital-group:alpha-capital-three-2026:alpha-capital-three-2026-25k:dxtrade:alpha-capital-three-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:ae23664247e73b524a9ad1c8e5202ea3b431a3fceb7a72203dedfd76a9131225"
+    ],
+    "alpha-capital-group:alpha-capital-three-2026:alpha-capital-three-2026-25k:mt5:alpha-capital-three-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:6eca4e8266b1eaa2dae61452eb41480194f4b0bf8555dcad67876b093600d150"
+    ],
+    "alpha-capital-group:alpha-capital-three-2026:alpha-capital-three-2026-25k:tradelocker:alpha-capital-three-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:e25c18835ae4412c7e96710ab05d87827fc1911c3f05642515cc0c4e42270a33"
+    ],
+    "alpha-capital-group:alpha-capital-three-2026:alpha-capital-three-2026-300k:ctrader:alpha-capital-three-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:66662fb507c9e5769e79eb5f82f787c7afaee1b8515c741bbbef17d95839e693"
+    ],
+    "alpha-capital-group:alpha-capital-three-2026:alpha-capital-three-2026-300k:dxtrade:alpha-capital-three-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:fa75d1ebd515eea1673aabe66a5f71ead229847aa486eb8d99a10060b81f4f30"
+    ],
+    "alpha-capital-group:alpha-capital-three-2026:alpha-capital-three-2026-300k:mt5:alpha-capital-three-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:f895b2d59c3c605d5e70eff69ea3fffcd4987f3e9daadeae063f3536175a3468"
+    ],
+    "alpha-capital-group:alpha-capital-three-2026:alpha-capital-three-2026-300k:tradelocker:alpha-capital-three-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:d241155f2c085a7f46f359015c4d703789eb3f4916eb481b317887c32c42ca7f"
+    ],
+    "alpha-capital-group:alpha-capital-three-2026:alpha-capital-three-2026-50k:ctrader:alpha-capital-three-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:8fba71b3412117c7cf5c7189c641212b7c1c470215040222f8114988defcb818"
+    ],
+    "alpha-capital-group:alpha-capital-three-2026:alpha-capital-three-2026-50k:dxtrade:alpha-capital-three-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:d8f9cd713f1a2952d535e56d22dbbf4eb5b8ee11104fe4893026d19ef0cbd031"
+    ],
+    "alpha-capital-group:alpha-capital-three-2026:alpha-capital-three-2026-50k:mt5:alpha-capital-three-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:b4a22df29898f5b87b2d902f950796a991a5bc9d85a43e864832a9bd4fa1a9f0"
+    ],
+    "alpha-capital-group:alpha-capital-three-2026:alpha-capital-three-2026-50k:tradelocker:alpha-capital-three-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:760f38ad661a03945351c482cc283b0a578ea3d5472464d6f3015ef50850af70"
+    ],
+    "alpha-capital-group:alpha-capital-three-2026:alpha-capital-three-2026-5k:ctrader:alpha-capital-three-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:5aecd321e161b8bcbcd0243eb3bc5c2811c56ee0d69b7aa901de6c5c9275a1a1"
+    ],
+    "alpha-capital-group:alpha-capital-three-2026:alpha-capital-three-2026-5k:dxtrade:alpha-capital-three-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:3ba25e55b503b483768fca92970084f16f0c094bebb6f908ed122869b1672cd8"
+    ],
+    "alpha-capital-group:alpha-capital-three-2026:alpha-capital-three-2026-5k:mt5:alpha-capital-three-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:f37c8d08b80e84aed30ab92b9475e1a57f665f3b215ccc8db8e42d456fae50a1"
+    ],
+    "alpha-capital-group:alpha-capital-three-2026:alpha-capital-three-2026-5k:tradelocker:alpha-capital-three-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:4ddcb98eb59824c2a00e36074e693175af8fa77d4edac9d792f903e3fc451d8d"
+    ],
+    "apex-trader-funding:apex-eod-evaluation-2026:apex-eod-evaluation-2026-100k:rithmic:apex-eod-evaluation-2026-rules-eod-trailing-atual": [
+      "sha256:a4ca5c8b20c16de357b0ac4d05a758e7be21d185960508d597afc58ead370b8f"
+    ],
+    "apex-trader-funding:apex-eod-evaluation-2026:apex-eod-evaluation-2026-100k:tradovate:apex-eod-evaluation-2026-rules-eod-trailing-atual": [
+      "sha256:5b988f77c9019e7c8bb534b2b759a772cabfb2d8c5639261d41dda80e6388600"
+    ],
+    "apex-trader-funding:apex-eod-evaluation-2026:apex-eod-evaluation-2026-100k:wealthcharts:apex-eod-evaluation-2026-rules-eod-trailing-atual": [
+      "sha256:20127a11d053cc8f4f90458e1e346e3519e9f0a92f4177e0919addfdd18253f2"
+    ],
+    "apex-trader-funding:apex-eod-evaluation-2026:apex-eod-evaluation-2026-150k:rithmic:apex-eod-evaluation-2026-rules-eod-trailing-atual": [
+      "sha256:220a2f4d66a47d4f0b4c164eab70aabc7a6c5100ff721b2c3249b4b4c1395a55"
+    ],
+    "apex-trader-funding:apex-eod-evaluation-2026:apex-eod-evaluation-2026-150k:tradovate:apex-eod-evaluation-2026-rules-eod-trailing-atual": [
+      "sha256:ed0b75a0eedfb04773b661020349b6ea4f7cbdb1f8eb468b3a2c1c16c8011e03"
+    ],
+    "apex-trader-funding:apex-eod-evaluation-2026:apex-eod-evaluation-2026-150k:wealthcharts:apex-eod-evaluation-2026-rules-eod-trailing-atual": [
+      "sha256:7d6d850cb9b8b05c3e22fb795f85928a2432d82b081d32b201d8efd4d112f30a"
+    ],
+    "apex-trader-funding:apex-eod-evaluation-2026:apex-eod-evaluation-2026-25k:rithmic:apex-eod-evaluation-2026-rules-eod-trailing-atual": [
+      "sha256:868d998f897e0c4f73920c18814e81f3ee4da529cbf09033a66a473a2a0b7c86"
+    ],
+    "apex-trader-funding:apex-eod-evaluation-2026:apex-eod-evaluation-2026-25k:tradovate:apex-eod-evaluation-2026-rules-eod-trailing-atual": [
+      "sha256:1e050a7693fcba0ceeac85a18bfb75d57c0480931b42d7f76f155f4bd5f78291"
+    ],
+    "apex-trader-funding:apex-eod-evaluation-2026:apex-eod-evaluation-2026-25k:wealthcharts:apex-eod-evaluation-2026-rules-eod-trailing-atual": [
+      "sha256:84940a04a99788cfeaf91e88eeccd3b0f0accced31cf9b677bbef4165df84f7f"
+    ],
+    "apex-trader-funding:apex-eod-evaluation-2026:apex-eod-evaluation-2026-50k:rithmic:apex-eod-evaluation-2026-rules-eod-trailing-atual": [
+      "sha256:86d74d32f6d503e1ea071251efbd7119731727d8a2ea606163971a7f0162be14"
+    ],
+    "apex-trader-funding:apex-eod-evaluation-2026:apex-eod-evaluation-2026-50k:tradovate:apex-eod-evaluation-2026-rules-eod-trailing-atual": [
+      "sha256:ae9ba3e82e6d57b54f9bbb3509252c03b77742fc24a725ce3bad846ee9f2e9b3"
+    ],
+    "apex-trader-funding:apex-eod-evaluation-2026:apex-eod-evaluation-2026-50k:wealthcharts:apex-eod-evaluation-2026-rules-eod-trailing-atual": [
+      "sha256:5e3dec18b8994879ae11266e037e9a73c040fb3526f99498f25f2509ac862425"
+    ],
+    "apex-trader-funding:apex-intraday-evaluation-2026:apex-intraday-evaluation-2026-100k:rithmic:apex-intraday-evaluation-2026-rules-intraday-trailing-atual": [
+      "sha256:297ea2a4773c7010c1a7aa71ad618c0b2e5b56dfe594a8610a0f8231004536cd"
+    ],
+    "apex-trader-funding:apex-intraday-evaluation-2026:apex-intraday-evaluation-2026-100k:tradovate:apex-intraday-evaluation-2026-rules-intraday-trailing-atual": [
+      "sha256:748bc89dbad225137806847c858798ff52ca28267c137f0c6b0d4f9e10b3eb35"
+    ],
+    "apex-trader-funding:apex-intraday-evaluation-2026:apex-intraday-evaluation-2026-100k:wealthcharts:apex-intraday-evaluation-2026-rules-intraday-trailing-atual": [
+      "sha256:8ef877be9edde40081c28d25e8d71b83e6fec53822bd66c723600e2c27ec848b"
+    ],
+    "apex-trader-funding:apex-intraday-evaluation-2026:apex-intraday-evaluation-2026-150k:rithmic:apex-intraday-evaluation-2026-rules-intraday-trailing-atual": [
+      "sha256:b5b677af3a7d255eadbc968e6b4412edff7be0ee51fd03b02aec590fe88c69ce"
+    ],
+    "apex-trader-funding:apex-intraday-evaluation-2026:apex-intraday-evaluation-2026-150k:tradovate:apex-intraday-evaluation-2026-rules-intraday-trailing-atual": [
+      "sha256:70b57c070b09b0d6ad6aeba5493994e33c307fe7458d7b7105fdd1ac4d77159d"
+    ],
+    "apex-trader-funding:apex-intraday-evaluation-2026:apex-intraday-evaluation-2026-150k:wealthcharts:apex-intraday-evaluation-2026-rules-intraday-trailing-atual": [
+      "sha256:488477f795bd8217ab604d74e330bdf88aa2d02897ab27900400ad7cb513a7d9"
+    ],
+    "apex-trader-funding:apex-intraday-evaluation-2026:apex-intraday-evaluation-2026-25k:rithmic:apex-intraday-evaluation-2026-rules-intraday-trailing-atual": [
+      "sha256:475af60299ddc4ace96bbd8be187a56d680610e2f43549bba36a977decea05bc"
+    ],
+    "apex-trader-funding:apex-intraday-evaluation-2026:apex-intraday-evaluation-2026-25k:tradovate:apex-intraday-evaluation-2026-rules-intraday-trailing-atual": [
+      "sha256:b2142053dd88c8833ff8321cb81e6e2c50173c414fbc90777b8e3156ebddeb4a"
+    ],
+    "apex-trader-funding:apex-intraday-evaluation-2026:apex-intraday-evaluation-2026-25k:wealthcharts:apex-intraday-evaluation-2026-rules-intraday-trailing-atual": [
+      "sha256:c5425c36a276a30e91968e67a3ab1f58c5c6eefe32678f387cec1db5c95507f9"
+    ],
+    "apex-trader-funding:apex-intraday-evaluation-2026:apex-intraday-evaluation-2026-50k:rithmic:apex-intraday-evaluation-2026-rules-intraday-trailing-atual": [
+      "sha256:80676dabc2968efdf9e9862ac20c8b8b66bb29d57dc7f8f3342ee900680ce5ed"
+    ],
+    "apex-trader-funding:apex-intraday-evaluation-2026:apex-intraday-evaluation-2026-50k:tradovate:apex-intraday-evaluation-2026-rules-intraday-trailing-atual": [
+      "sha256:d3f4c408d879da87e0c62b0fd2d0352954cd76798731a54e6e58654c6ada4724"
+    ],
+    "apex-trader-funding:apex-intraday-evaluation-2026:apex-intraday-evaluation-2026-50k:wealthcharts:apex-intraday-evaluation-2026-rules-intraday-trailing-atual": [
+      "sha256:6b1e816a38f44e5350f6b8328aef15c985e735acf3c1a076ee142adfbce3ce60"
+    ],
+    "asap-funding-prop:asap-challenge-express:asap-challenge-express-100k:mt5:asap-challenge-express-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:7ae65750c4a813ac50eb9caa50bafd6b4af968c3c107ab6abcc666b7966b059f"
+    ],
+    "asap-funding-prop:asap-challenge-express:asap-challenge-express-10k:mt5:asap-challenge-express-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:ab688514fbaeeaa705539a762435e5883bcabd41626058e6ed0072b33d521d44"
+    ],
+    "asap-funding-prop:asap-challenge-express:asap-challenge-express-200k:mt5:asap-challenge-express-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:91b15289ab38bf42e83971424dad64bb24bc147ab1a7cfe024f4be0b231fc1f6"
+    ],
+    "asap-funding-prop:asap-challenge-express:asap-challenge-express-25k:mt5:asap-challenge-express-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:7d6faa55fa815759ddfcaec10c9f26c85efc4611d0c5ea3a4589b39ec536ac4a"
+    ],
+    "asap-funding-prop:asap-challenge-express:asap-challenge-express-3k:mt5:asap-challenge-express-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:cd58ed933416c230852edd9ca2c1f49aa2aae6b8c497112faf0f4bee4bf5cdd7"
+    ],
+    "asap-funding-prop:asap-challenge-express:asap-challenge-express-50k:mt5:asap-challenge-express-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:08213b3e8a563503c944544acdf2227ad3507cce60c9c8559870d6b26d1949c8"
+    ],
+    "asap-funding-prop:asap-challenge-express:asap-challenge-express-5k:mt5:asap-challenge-express-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:e1054c2e38d25f0313416f9c8c0ae8b64ad8dae831d9fa558dfe9384a0a0d4ce"
+    ],
+    "asap-funding-prop:asap-funded-express:asap-funded-express-100k:mt5:asap-funded-express-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:17b8ed813dd5aab1bf2f5d7b1ff75d7848a4786e5f5009d0f6709e62936dadf9"
+    ],
+    "asap-funding-prop:asap-funded-express:asap-funded-express-10k:mt5:asap-funded-express-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:04fe3d7427bc6abf5700b33f01c454fcd1cb137d70d6668c35e8f5d17d73b462"
+    ],
+    "asap-funding-prop:asap-funded-express:asap-funded-express-200k:mt5:asap-funded-express-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:b70beb7454df46b4489304d293d47c05e2db26237b0b7f20fd3f40d1f4c4b0f7"
+    ],
+    "asap-funding-prop:asap-funded-express:asap-funded-express-25k:mt5:asap-funded-express-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:e957d03d951f7af6e737464704db263f3f1e62000df4f4f8072ade049cce971c"
+    ],
+    "asap-funding-prop:asap-funded-express:asap-funded-express-3k:mt5:asap-funded-express-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:08de3d0e6c1c5af188c927909343942c1bd8ebc5a0f5a7f03dddd364dfed3251"
+    ],
+    "asap-funding-prop:asap-funded-express:asap-funded-express-50k:mt5:asap-funded-express-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:815105e69bfc86b8f79838fd0d00c287e690d97b037dfe4bcb338fd753872257"
+    ],
+    "asap-funding-prop:asap-funded-express:asap-funded-express-5k:mt5:asap-funded-express-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:97eb15579d8fa011f3f28f590627c49e304ac723b8ba399f981f7f64a1acc009"
+    ],
+    "asap-funding-prop:asap-instant-account:asap-instant-account-100k:mt5:asap-instant-account-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:ac5258962f8f3968c5a563c3c47a674677b934d75fb40bd28467751705bdf79d"
+    ],
+    "asap-funding-prop:asap-instant-account:asap-instant-account-10k:mt5:asap-instant-account-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:728d19adb76e9d703287ae0a339cf8061d28892091a5c3848aefbd32a34a5e4f"
+    ],
+    "asap-funding-prop:asap-instant-account:asap-instant-account-25k:mt5:asap-instant-account-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:105906ef9c4af1b5d4121424c9fb104896edb97f3964b9f01f61a1d986e0c4ee"
+    ],
+    "asap-funding-prop:asap-instant-account:asap-instant-account-3k:mt5:asap-instant-account-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:b3487585834ba19e508bf3a36daad925224dae7228e52d4f6f23fbcb1d3ccc36"
+    ],
+    "asap-funding-prop:asap-instant-account:asap-instant-account-50k:mt5:asap-instant-account-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:5e8e6c23e6cc75ab49b212fc8d454ad51c3ad59b4f559fcb5e9be037f8076eae"
+    ],
+    "asap-funding-prop:asap-instant-account:asap-instant-account-5k:mt5:asap-instant-account-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:d902d12a07540405a3fa6f4b53013d79cf5322dc15e9398a5f8d214883ed1ef2"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-100k:ctrader:brightfunded-one-step-2026-rules-brightfunded-2-0": [
+      "sha256:a530305f5eacc65fb4b6370e3b971d9a94109504da2dfca6d8726e960853fa84"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-100k:ctrader:brightfunded-one-step-2026-rules-original-account": [
+      "sha256:eaabc44d86135ea1cfbc19c877c33459ff9c5ac951fa8a235e1e9228aa3558dd"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-100k:dxtrade:brightfunded-one-step-2026-rules-brightfunded-2-0": [
+      "sha256:65abfb4dcc5cbc80ecb185555ed6ed50613133b9fea38cc817956ea287361a6e"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-100k:dxtrade:brightfunded-one-step-2026-rules-original-account": [
+      "sha256:fc41a1e299da32abe53d1b14f9c33b05695c357c6d197a737a1d0e8d627e3dc3"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-100k:mt5:brightfunded-one-step-2026-rules-brightfunded-2-0": [
+      "sha256:f283a9b623a01ef1a9eda84309c6493d5bd7fdb0a46b4fe951c3d4222e349053"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-100k:mt5:brightfunded-one-step-2026-rules-original-account": [
+      "sha256:5c792d2014a94396fc00f70ce14eb77e2b1db900d33b3f571654814d6fa41f48"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-10k:ctrader:brightfunded-one-step-2026-rules-brightfunded-2-0": [
+      "sha256:57305659383c2204c8dddb7bf4f3679a6ead184ae6ba02e018d5422d316d2de6"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-10k:ctrader:brightfunded-one-step-2026-rules-original-account": [
+      "sha256:6a57e8e00f53fe96ab6cefe631d623c05d2f1caa5ee4132be1508710bc1f59aa"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-10k:dxtrade:brightfunded-one-step-2026-rules-brightfunded-2-0": [
+      "sha256:0f647c04316978ab1a431e5a1d073fee0e1b56b6a868a35eef8d85bc95246142"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-10k:dxtrade:brightfunded-one-step-2026-rules-original-account": [
+      "sha256:58a8dc2815ca48395676c9cc0ff22dcd1fa870f65f941b3b50d04cddea0530bb"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-10k:mt5:brightfunded-one-step-2026-rules-brightfunded-2-0": [
+      "sha256:97571b7e5630810a0323ec30c8644fd5bd1e700d1fbaa6c3ade80f27a9763c1c"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-10k:mt5:brightfunded-one-step-2026-rules-original-account": [
+      "sha256:50afe885c324829ab99475d37653f1a2de4ab7647c244d2ec26731dc98366249"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-200k:ctrader:brightfunded-one-step-2026-rules-brightfunded-2-0": [
+      "sha256:e33ca767f12df6b65c67d30979f58040b3df3668a8eb1e932137c21b8bdaabb5"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-200k:ctrader:brightfunded-one-step-2026-rules-original-account": [
+      "sha256:f51e9ea7e93c5aeac74b296d709700b5e773326b6cc52c36a783fa5702b60e97"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-200k:dxtrade:brightfunded-one-step-2026-rules-brightfunded-2-0": [
+      "sha256:21cb02211f3e8b22e2e497632491f464e023ed672746816d200e763303aca085"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-200k:dxtrade:brightfunded-one-step-2026-rules-original-account": [
+      "sha256:0049248d5ee8f0b3b444029ebd3b1c768ef2008b6f34f658e7d461153b810112"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-200k:mt5:brightfunded-one-step-2026-rules-brightfunded-2-0": [
+      "sha256:c328653fcc3bc38d47e83dff4b9fad8540334972bb473db461d4146a70bceb84"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-200k:mt5:brightfunded-one-step-2026-rules-original-account": [
+      "sha256:c455146ed556c60b5c3e0138b34a36a8931226b29c4c4e2aced09c622757decd"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-25k:ctrader:brightfunded-one-step-2026-rules-brightfunded-2-0": [
+      "sha256:da9009fb79367bd6fc023a29ed866daf156cd6a6fc44c604bdf548db3244d1d9"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-25k:ctrader:brightfunded-one-step-2026-rules-original-account": [
+      "sha256:933faafd63650139db95a2178dd61e77e421905997eaae454ede28a0102bfdf4"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-25k:dxtrade:brightfunded-one-step-2026-rules-brightfunded-2-0": [
+      "sha256:d31b99215285082f2268716d2e1259ff3eb76350aef535247b3ca85ec9eb9746"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-25k:dxtrade:brightfunded-one-step-2026-rules-original-account": [
+      "sha256:bf0ec881994f63fbe3dd002725a0e9592e7dfbcfae9146a20b8b5895a8ff22a2"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-25k:mt5:brightfunded-one-step-2026-rules-brightfunded-2-0": [
+      "sha256:73fc210191a64b827d1dc5ceef9a14cb31665cf78ab10f5a05fd23797e92741c"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-25k:mt5:brightfunded-one-step-2026-rules-original-account": [
+      "sha256:9f4714c9dcf97cfb30eefe16e79a665f2bdf110b2fe78c892fc709c802ceae89"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-50k:ctrader:brightfunded-one-step-2026-rules-brightfunded-2-0": [
+      "sha256:625ade0bbf8aa4bfe585547a9b85861c491236c553452410d26f9f8ee65db0ed"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-50k:ctrader:brightfunded-one-step-2026-rules-original-account": [
+      "sha256:751d10064fe071fa14479dac62cbe2ada39a487e9e8b30689abab953e3792618"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-50k:dxtrade:brightfunded-one-step-2026-rules-brightfunded-2-0": [
+      "sha256:411eb78cc49b7ffebab0d7f3654832839bf2d500400624fa2e0bb087d276e4d0"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-50k:dxtrade:brightfunded-one-step-2026-rules-original-account": [
+      "sha256:22963e9e4f16fd1ddc606acbc6d4b54a587fe9203be33ac24b8fb6024d312214"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-50k:mt5:brightfunded-one-step-2026-rules-brightfunded-2-0": [
+      "sha256:f58e852c8e70f7b0a6c708207f5ea63b30be42eb63e0cd714cef2cfb462f509b"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-50k:mt5:brightfunded-one-step-2026-rules-original-account": [
+      "sha256:57b3bf3f98538f523207e569bb89353bd80636f4a7a5324c434fd6716e477c7d"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-5k:ctrader:brightfunded-one-step-2026-rules-brightfunded-2-0": [
+      "sha256:94233f75b9b8bce7e43f4cf9823970642266af50e3399b12337b94e9106f7669"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-5k:ctrader:brightfunded-one-step-2026-rules-original-account": [
+      "sha256:8ccd8b7123671296747e147c17fb07de72f705990d7f932b8ece475f3822d5cc"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-5k:dxtrade:brightfunded-one-step-2026-rules-brightfunded-2-0": [
+      "sha256:70e7bec021b46a13f4f1ff97cc95af60c5c497e9bbea2a9530a4faac5e96c288"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-5k:dxtrade:brightfunded-one-step-2026-rules-original-account": [
+      "sha256:c664a28c893e23ed17a539fd58b2ac03a9b8adae44654bf1f1b3c7a0ee730a25"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-5k:mt5:brightfunded-one-step-2026-rules-brightfunded-2-0": [
+      "sha256:4c8d1a2fe35da5813683319982a7b246a45baac926cfae727b9bb978632a9973"
+    ],
+    "brightfunded:brightfunded-one-step-2026:brightfunded-one-step-2026-5k:mt5:brightfunded-one-step-2026-rules-original-account": [
+      "sha256:54e7993aed0590384612f2fb151d324e4b9cf60a3f1e78c29c43df72b17b3904"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-100k:ctrader:brightfunded-two-step-bright-2026-rules-brightfunded-2-0": [
+      "sha256:2d71808868058c2f9432cee8d8bcf1f99ff70e5c3c55dafb553b6894a0f9efc0"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-100k:ctrader:brightfunded-two-step-bright-2026-rules-original-account": [
+      "sha256:1f57c5008f65dda68d5f1b85928f68ea20bede12e7dc1e56f8a684a435dc689d"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-100k:dxtrade:brightfunded-two-step-bright-2026-rules-brightfunded-2-0": [
+      "sha256:070409a0ba7a4275c8083b8ea967be6c23d223fde08e2ca8b88fe7ba715158c4"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-100k:dxtrade:brightfunded-two-step-bright-2026-rules-original-account": [
+      "sha256:aa65cf114361bf11d429b579417bfa9fe773edcad1468c9ef37a1ccdb503d96f"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-100k:mt5:brightfunded-two-step-bright-2026-rules-brightfunded-2-0": [
+      "sha256:676bac895af45e19a46b537924ba759f5afcb08c706cb20d95926176dcd61523"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-100k:mt5:brightfunded-two-step-bright-2026-rules-original-account": [
+      "sha256:67ef821a40d042b3e60f27fe3a07a09c53e7b3ef33019d163c3006be8a5c44ef"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-10k:ctrader:brightfunded-two-step-bright-2026-rules-brightfunded-2-0": [
+      "sha256:d2b452241975758843116ebf6bf9dd88c0faabc5bbb9754d4ff8334c25360623"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-10k:ctrader:brightfunded-two-step-bright-2026-rules-original-account": [
+      "sha256:90bab798b3ed90040082fe55b8e545bf59e980a209064bb35588aeb0030d390d"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-10k:dxtrade:brightfunded-two-step-bright-2026-rules-brightfunded-2-0": [
+      "sha256:bb40620a69a66cb0e427ae5bca757ca8f53874878e4059ef0a2aee7b9b0707eb"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-10k:dxtrade:brightfunded-two-step-bright-2026-rules-original-account": [
+      "sha256:53de866a34b4a68a29133b62dc91bf8e55ed52c66cb90d4cca64a8dcd9d2d315"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-10k:mt5:brightfunded-two-step-bright-2026-rules-brightfunded-2-0": [
+      "sha256:722487b3f6b2cb48389b779fc40d1fe9ba239d05d5fe56bd23a57718161a2bf1"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-10k:mt5:brightfunded-two-step-bright-2026-rules-original-account": [
+      "sha256:a91249b34dc9fecb718c6c786f9c021e48f433a3849c2570a1804b3e7b5da813"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-200k:ctrader:brightfunded-two-step-bright-2026-rules-brightfunded-2-0": [
+      "sha256:60b1aeb1eaaab05f511e2eb906662cbcb9b052110019b7eb993fb758e1be98df"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-200k:ctrader:brightfunded-two-step-bright-2026-rules-original-account": [
+      "sha256:f98e85d3ea26d896ad3c16faa9e76bdd4f14cf6da6800782bc36929f5ee1a87b"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-200k:dxtrade:brightfunded-two-step-bright-2026-rules-brightfunded-2-0": [
+      "sha256:7e286550e484c4919ffc438a4ab16cd4fb083bee9ea368c543207f68b2519dbc"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-200k:dxtrade:brightfunded-two-step-bright-2026-rules-original-account": [
+      "sha256:3042c3d46f11b55798bb46d85bdc9b1b336fef532e3584c520f17f632b61fb7e"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-200k:mt5:brightfunded-two-step-bright-2026-rules-brightfunded-2-0": [
+      "sha256:1b5979f3a8fccc9766293f0900b08c7019a1bddcd2161c1f285f74ade6a582bb"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-200k:mt5:brightfunded-two-step-bright-2026-rules-original-account": [
+      "sha256:6a8dfd093c976af98eb436b0a1b3d50d47a52e671bf84404f257eab72e6f566a"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-25k:ctrader:brightfunded-two-step-bright-2026-rules-brightfunded-2-0": [
+      "sha256:de6b02137f9094d7cec0c1d194d6235dcdae4f8ddf67104d2fe4e2589becb9b6"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-25k:ctrader:brightfunded-two-step-bright-2026-rules-original-account": [
+      "sha256:e8617bab3696b1d28710abee5787041a05f1deda058cd051d7e900f7c358ff26"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-25k:dxtrade:brightfunded-two-step-bright-2026-rules-brightfunded-2-0": [
+      "sha256:db3b7fe64981bc980b1be69d0de1ef1b664b9d218eb0f28bf90a256ee6dbb4b8"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-25k:dxtrade:brightfunded-two-step-bright-2026-rules-original-account": [
+      "sha256:0ebf4169ae7a8e750d636ef165c41ea9cd369d2f11e9b23bf548a0bd4b3bad43"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-25k:mt5:brightfunded-two-step-bright-2026-rules-brightfunded-2-0": [
+      "sha256:a6402439a158d2a1b679eebb27888b4d5682f7784a12f605d3a92fc5446b2a02"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-25k:mt5:brightfunded-two-step-bright-2026-rules-original-account": [
+      "sha256:c5d50ce99f61664924b6dab4dcb8b9a1bcffe8a34e21c916777850996508084d"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-50k:ctrader:brightfunded-two-step-bright-2026-rules-brightfunded-2-0": [
+      "sha256:2cd7b8032c3ab96dd0b01db8f521dab59fcb2c35f74d157ae2848ecafae1ec0f"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-50k:ctrader:brightfunded-two-step-bright-2026-rules-original-account": [
+      "sha256:a43f8f56d3867de39750a8323310654db272280c4ce0a889601fa560a75fcb52"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-50k:dxtrade:brightfunded-two-step-bright-2026-rules-brightfunded-2-0": [
+      "sha256:76a5599199517277eb0da2aab189e09c645272efa4b47da106fe781fa83fb128"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-50k:dxtrade:brightfunded-two-step-bright-2026-rules-original-account": [
+      "sha256:e7cc2db725e90493dcc1d74cbbf3b5a3f759efc40f095271319a5ea95dec4c52"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-50k:mt5:brightfunded-two-step-bright-2026-rules-brightfunded-2-0": [
+      "sha256:2b9442c0c0a6ef47983535fac1a8348377e8922f4dab5c129206fd0d1f4f13aa"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-50k:mt5:brightfunded-two-step-bright-2026-rules-original-account": [
+      "sha256:a9d51b4f07d698259c22f94f8a13c395fe39316a8a4bf4f0c5a6101ddda2fad8"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-5k:ctrader:brightfunded-two-step-bright-2026-rules-brightfunded-2-0": [
+      "sha256:8251e1ff19981bf1f93dd7bab51a29e28ae6eee7c0997c9ab408ba3d43b45801"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-5k:ctrader:brightfunded-two-step-bright-2026-rules-original-account": [
+      "sha256:772625a3a4565dc677cd216a73360e0ed105248e7002d172f3d3f623e7f32f45"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-5k:dxtrade:brightfunded-two-step-bright-2026-rules-brightfunded-2-0": [
+      "sha256:071aa98bf2e28768894a89ff98b807fcd7c18d0ab2bfaef39ffcc841c8d28d91"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-5k:dxtrade:brightfunded-two-step-bright-2026-rules-original-account": [
+      "sha256:9b9496d9f1a530332d1b3cd9e76d7d4a012556434f12803d248a5fd1e4e77092"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-5k:mt5:brightfunded-two-step-bright-2026-rules-brightfunded-2-0": [
+      "sha256:8e5d6842302357f4bac4ec6d03e6dd4e65b2534cf23f66ff92e716e242c125b1"
+    ],
+    "brightfunded:brightfunded-two-step-bright-2026:brightfunded-two-step-bright-2026-5k:mt5:brightfunded-two-step-bright-2026-rules-original-account": [
+      "sha256:695b983d68ddf1390843953ed192d896ebbff5e9205dd923fe317aec3318db24"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-100k:ctrader:brightfunded-two-step-classic-2026-rules-brightfunded-2-0": [
+      "sha256:7bf82c8b1f14c9e2dab057f0bc0e30c73950ac4bd99c9999a59fd05abb34e518"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-100k:ctrader:brightfunded-two-step-classic-2026-rules-original-account": [
+      "sha256:066f9c4cbcecba28d10e1a6a2319fdb55c95a1a8de5c11fa7a0ffb69d2635038"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-100k:dxtrade:brightfunded-two-step-classic-2026-rules-brightfunded-2-0": [
+      "sha256:e13ba33a045de08784ce50d4d1fc84a90459a1c64bf1c0030b2870eef3e353a0"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-100k:dxtrade:brightfunded-two-step-classic-2026-rules-original-account": [
+      "sha256:2dfd784fa5b26c0487694d6d8708e9c01ecf15800ac776f90678b0c3694cb267"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-100k:mt5:brightfunded-two-step-classic-2026-rules-brightfunded-2-0": [
+      "sha256:8ea69ca64576fcc42a412d705e66ecdf90464d50837a8764b8b8aa38b69ea349"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-100k:mt5:brightfunded-two-step-classic-2026-rules-original-account": [
+      "sha256:13965616b32a8e87bc2bb0e81c1a205ec5874b93720aface1c94715ae12ae174"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-10k:ctrader:brightfunded-two-step-classic-2026-rules-brightfunded-2-0": [
+      "sha256:9f0ee0f15adc64e49c9112233752939b291bd85536bdcedc4de265433cb413ee"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-10k:ctrader:brightfunded-two-step-classic-2026-rules-original-account": [
+      "sha256:947489fc396062d3109b03f6e0084a9ddea7d3151215df207b8493a312189339"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-10k:dxtrade:brightfunded-two-step-classic-2026-rules-brightfunded-2-0": [
+      "sha256:b72f4f1ab59a2d8f909a1e085116cc058fc71ebbc3f32216574c31871647ef79"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-10k:dxtrade:brightfunded-two-step-classic-2026-rules-original-account": [
+      "sha256:21ffa44c43b8463d3ec6bbf6d36c30a6aa5b014171fd2bf41d54cbe75f6f219a"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-10k:mt5:brightfunded-two-step-classic-2026-rules-brightfunded-2-0": [
+      "sha256:03dde350fdb9dc189086c4d39f3778b96c4424c8b13c278239c8aef24ecf199f"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-10k:mt5:brightfunded-two-step-classic-2026-rules-original-account": [
+      "sha256:55efc320f37b574886662a2d07c2986ba7c4979096ed82931bebb44b352f8025"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-200k:ctrader:brightfunded-two-step-classic-2026-rules-brightfunded-2-0": [
+      "sha256:7d67251418e49047d0699b62843cccf6a6b78c2060a0bcf014bdfa64e29b90b9"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-200k:ctrader:brightfunded-two-step-classic-2026-rules-original-account": [
+      "sha256:8fa3c0c4516ecdb5f9b148c4b7cda387d774568ec9aa45b6b550959f4d1cc9cd"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-200k:dxtrade:brightfunded-two-step-classic-2026-rules-brightfunded-2-0": [
+      "sha256:10f3a0f5e335cbb510122d4b89005d2f5fc421c5dffab6796deaf2e7737d2d22"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-200k:dxtrade:brightfunded-two-step-classic-2026-rules-original-account": [
+      "sha256:9f91367858bd47eab592afdefe74317b8676aa8e65f70a8c8142c02d5b2e595f"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-200k:mt5:brightfunded-two-step-classic-2026-rules-brightfunded-2-0": [
+      "sha256:a7cd418ecfa186f431b1cfad5e4637885e5c691aac771b4aa4c519668ea97f5c"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-200k:mt5:brightfunded-two-step-classic-2026-rules-original-account": [
+      "sha256:3cd5eec7bf3de09258878cf67775a4955da976e3f35a647168268699e088911d"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-25k:ctrader:brightfunded-two-step-classic-2026-rules-brightfunded-2-0": [
+      "sha256:4ce8cc8db2e10c838ae422836d542ae0a842db2a072fbbb6db26d81ac36a1883"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-25k:ctrader:brightfunded-two-step-classic-2026-rules-original-account": [
+      "sha256:ce891ad2f6a7381bc4084f45afe27d070d1e88f116544b9b78bc41425c46a49a"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-25k:dxtrade:brightfunded-two-step-classic-2026-rules-brightfunded-2-0": [
+      "sha256:876bc4739ac91b9359c7365264861ec87bf5c85a306e5f01b9752e75d53e8719"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-25k:dxtrade:brightfunded-two-step-classic-2026-rules-original-account": [
+      "sha256:54a81a7e187801c970cd00b404c3e442f9d8401369a62533dc9d161b5d348dc6"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-25k:mt5:brightfunded-two-step-classic-2026-rules-brightfunded-2-0": [
+      "sha256:015938d20af5a3e49a8cb5ff58ae353270c5c1876147b8cd518a25e47b3ec577"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-25k:mt5:brightfunded-two-step-classic-2026-rules-original-account": [
+      "sha256:97089ea0c2872ca1a744c0fa360f4c0dbb2b336949e79a34bb03e7ed955079f7"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-50k:ctrader:brightfunded-two-step-classic-2026-rules-brightfunded-2-0": [
+      "sha256:3395937016a31f5136096cc83c57e38d3ac551d1c21441e42e792850d5cbe5cb"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-50k:ctrader:brightfunded-two-step-classic-2026-rules-original-account": [
+      "sha256:8f60e4c4403b32177cf36496fd2d773feb8101ac96f6098628f6a6ccfa907453"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-50k:dxtrade:brightfunded-two-step-classic-2026-rules-brightfunded-2-0": [
+      "sha256:8dd384f39dcb12dbae5bca726ce0b91746ffa05f64dbdc65aa857740673d2a3f"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-50k:dxtrade:brightfunded-two-step-classic-2026-rules-original-account": [
+      "sha256:14b222129b77ac75b7b4ccec8d81ec738b47c3ccc39891b2cf708ab3fe6ea760"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-50k:mt5:brightfunded-two-step-classic-2026-rules-brightfunded-2-0": [
+      "sha256:57ace030a8b217dfcad88b9c7568cba6b97d88f72cb42a340a362c0af9bf2a9d"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-50k:mt5:brightfunded-two-step-classic-2026-rules-original-account": [
+      "sha256:b6ba6c854d369e65b8e83c4c9ce30d325f5a6104699dde3d3fb5292d45a7b299"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-5k:ctrader:brightfunded-two-step-classic-2026-rules-brightfunded-2-0": [
+      "sha256:3f84f43e2f4af6e5e126794277b94dc59a14a677d9ba8f5741c33f46bb4ce3f7"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-5k:ctrader:brightfunded-two-step-classic-2026-rules-original-account": [
+      "sha256:5b553f9a4540576f8226b328dcccbc314fc17050243f3641304a5458759bca37"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-5k:dxtrade:brightfunded-two-step-classic-2026-rules-brightfunded-2-0": [
+      "sha256:7c9cc987f66f4b4984bbfce6e00289d03657408d490cf6586a105229e7498acb"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-5k:dxtrade:brightfunded-two-step-classic-2026-rules-original-account": [
+      "sha256:4f8df3f971f27dfddbf7731b59b9f5593d8a6913d1386cd3f3fc6adbb083b434"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-5k:mt5:brightfunded-two-step-classic-2026-rules-brightfunded-2-0": [
+      "sha256:e7ab2aa06037ac8dfd8642c9eeccecb9dd8663bb5ccb26797ca2c2c65ff5bd2b"
+    ],
+    "brightfunded:brightfunded-two-step-classic-2026:brightfunded-two-step-classic-2026-5k:mt5:brightfunded-two-step-classic-2026-rules-original-account": [
+      "sha256:f45705eff6bd8e3eaa7f542076c143413a0ce175bc7b1e21387eeac7cd05c939"
+    ],
+    "e8-markets:e8-one-crypto-2026:e8-one-crypto-2026-5k-a-500k-parametros-podem-ser-customizados-no-checkout:ctrader:e8-one-crypto-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:c686e56c51ee1f468704f1879534829fe7d50c5f33fb7cbe8315692c3afb0671"
+    ],
+    "e8-markets:e8-one-crypto-2026:e8-one-crypto-2026-5k-a-500k-parametros-podem-ser-customizados-no-checkout:matchtrader:e8-one-crypto-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:f29fbac94b03052440d567f6623a7bed7e88f1ac5d5a476c25c641b831049d6d"
+    ],
+    "e8-markets:e8-one-crypto-2026:e8-one-crypto-2026-5k-a-500k-parametros-podem-ser-customizados-no-checkout:mt5:e8-one-crypto-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:e7ba49c2ea364c101f0e923f9f9b65b79ac63c6c5d3f95265590193d7c6cf31b"
+    ],
+    "e8-markets:e8-one-crypto-2026:e8-one-crypto-2026-5k-a-500k-parametros-podem-ser-customizados-no-checkout:tradelocker:e8-one-crypto-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:6c38b8e2b717e5851b624b53f647aa645d29cc1926cc0ac78fca39bf96861f17"
+    ],
+    "e8-markets:e8-one-forex-2026:e8-one-forex-2026-5k-a-500k-parametros-podem-ser-customizados-no-checkout:ctrader:e8-one-forex-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:293e275c3a05d1a86e6cb32cf66c613cd5bc9e274295d7851c818861731149ee"
+    ],
+    "e8-markets:e8-one-forex-2026:e8-one-forex-2026-5k-a-500k-parametros-podem-ser-customizados-no-checkout:matchtrader:e8-one-forex-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:37bfb78fd48de20392701981ce57454ee06d387f589d0b073e45404024dc7e6b"
+    ],
+    "e8-markets:e8-one-forex-2026:e8-one-forex-2026-5k-a-500k-parametros-podem-ser-customizados-no-checkout:mt5:e8-one-forex-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:f73f76e5d5d2defa4a424f850c6ebe017b0387b65b860a2f9977cb905866eef9"
+    ],
+    "e8-markets:e8-one-forex-2026:e8-one-forex-2026-5k-a-500k-parametros-podem-ser-customizados-no-checkout:tradelocker:e8-one-forex-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:becdac0810b04f108810e9254ccfafc48de20552f55bbd71e0e7c4a42f4e4538"
+    ],
+    "e8-markets:e8-pro-crypto-2026:e8-pro-crypto-2026-confirmar-tamanhos-no-checkout-oficial:ctrader:e8-pro-crypto-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:fe0f2882baa093e3c1d006a6dd851aeed7f5a05651c0bad215bd7ba9074b7b63"
+    ],
+    "e8-markets:e8-pro-crypto-2026:e8-pro-crypto-2026-confirmar-tamanhos-no-checkout-oficial:matchtrader:e8-pro-crypto-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:a1a45d656f293ead8aec0f74b2128589a358689a3035f3e0f289e64e98aa3ec0"
+    ],
+    "e8-markets:e8-pro-crypto-2026:e8-pro-crypto-2026-confirmar-tamanhos-no-checkout-oficial:mt5:e8-pro-crypto-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:13a7d749d80f2d7524f5049de5e384408d18560737fc7c000fe6d61784ff56ca"
+    ],
+    "e8-markets:e8-pro-crypto-2026:e8-pro-crypto-2026-confirmar-tamanhos-no-checkout-oficial:tradelocker:e8-pro-crypto-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:7a9a20c43a92215e82826f96877c8df621b4dbc2c986014401371aa4fff73e05"
+    ],
+    "e8-markets:e8-pro-forex-2026:e8-pro-forex-2026-confirmar-tamanhos-no-checkout-oficial:ctrader:e8-pro-forex-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:b8f0b24f67504b8ca7a1cf08c0ac83450225cc499cb365eea10c9ba718b2829c"
+    ],
+    "e8-markets:e8-pro-forex-2026:e8-pro-forex-2026-confirmar-tamanhos-no-checkout-oficial:matchtrader:e8-pro-forex-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:8d6370d05157b8dadaed81e01219e52b0c0e6561d9936ce06904787f83cbaed2"
+    ],
+    "e8-markets:e8-pro-forex-2026:e8-pro-forex-2026-confirmar-tamanhos-no-checkout-oficial:mt5:e8-pro-forex-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:80f86dbbd9112d05567c5653ba367c3234843b234a390c3896ccff197570c62a"
+    ],
+    "e8-markets:e8-pro-forex-2026:e8-pro-forex-2026-confirmar-tamanhos-no-checkout-oficial:tradelocker:e8-pro-forex-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:411370d3ccd58f1c0d98d27ba03fb02c1196ab7618feec958265e5e681e970f3"
+    ],
+    "e8-markets:e8-signature-crypto-2026:e8-signature-crypto-2026-100k:ctrader:e8-signature-crypto-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:05e907247e1845092e800adae8c360273c652cea95a1cdd9804c48918cd857b8"
+    ],
+    "e8-markets:e8-signature-crypto-2026:e8-signature-crypto-2026-100k:matchtrader:e8-signature-crypto-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:34893a5638b46f789182599b63c0b6d73870e5c70424652e83ebc9b75b7e887e"
+    ],
+    "e8-markets:e8-signature-crypto-2026:e8-signature-crypto-2026-100k:mt5:e8-signature-crypto-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:1ed5ce6e4312369a995b493ed1e6235dd6fb0b6570e88540b28ff7a6efc6a5ee"
+    ],
+    "e8-markets:e8-signature-crypto-2026:e8-signature-crypto-2026-100k:tradelocker:e8-signature-crypto-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:3d004a41dfbe1c66b71aa8aae09230334cf6f3340bb4914e5fc04fe69c0c338a"
+    ],
+    "e8-markets:e8-signature-crypto-2026:e8-signature-crypto-2026-150k:ctrader:e8-signature-crypto-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:5c976dbffafa5bff96ffb4088c5d9706f79c19b77fe84a601a402209e8efd7ed"
+    ],
+    "e8-markets:e8-signature-crypto-2026:e8-signature-crypto-2026-150k:matchtrader:e8-signature-crypto-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:79c3d320f16bf0baf1cd14bca7026566ec1db5913aa78c59301a03f653dfbc19"
+    ],
+    "e8-markets:e8-signature-crypto-2026:e8-signature-crypto-2026-150k:mt5:e8-signature-crypto-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:d192dcb53cb9d2dbfa28040bf7ebc5203378e4e03b1047b9bdccfb3503fa2e31"
+    ],
+    "e8-markets:e8-signature-crypto-2026:e8-signature-crypto-2026-150k:tradelocker:e8-signature-crypto-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:cedc192f145e79437b59c1c5586f3be09e1a6662096d532bc8bc5038e4c1c01b"
+    ],
+    "e8-markets:e8-signature-crypto-2026:e8-signature-crypto-2026-25k:ctrader:e8-signature-crypto-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:e8dec10e01de4608a85d4071caf5b9f2a966498940461fd05eefd01085489a72"
+    ],
+    "e8-markets:e8-signature-crypto-2026:e8-signature-crypto-2026-25k:matchtrader:e8-signature-crypto-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:494e41da0a687e90c16d65c1bd9d3fa7dab4c54d37f10725cb4e991a2e4fed8b"
+    ],
+    "e8-markets:e8-signature-crypto-2026:e8-signature-crypto-2026-25k:mt5:e8-signature-crypto-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:07af3683979f56348070f4e349a2f5dc0d3a1486e1b1a84be39bd0c6767def5a"
+    ],
+    "e8-markets:e8-signature-crypto-2026:e8-signature-crypto-2026-25k:tradelocker:e8-signature-crypto-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:ff40a7de4388f4f79ea7c77c43703e8dce9324b8332c8a765b7cb0785058030c"
+    ],
+    "e8-markets:e8-signature-crypto-2026:e8-signature-crypto-2026-50k:ctrader:e8-signature-crypto-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:d0e317a13b8b032e0b4353490f978f6592d76cd2339b97b5d21f36d87500c279"
+    ],
+    "e8-markets:e8-signature-crypto-2026:e8-signature-crypto-2026-50k:matchtrader:e8-signature-crypto-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:40a71f68db28537e95d8300b0d445b9257994b9f29d336a23e2cf74fe1ae903e"
+    ],
+    "e8-markets:e8-signature-crypto-2026:e8-signature-crypto-2026-50k:mt5:e8-signature-crypto-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:4960166fdf0c766cbd71e59f5d4581d3573854a906d4d0f4e1886465586af4f7"
+    ],
+    "e8-markets:e8-signature-crypto-2026:e8-signature-crypto-2026-50k:tradelocker:e8-signature-crypto-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:64a9c7461e851d8818cecd318a989a44ba5d0c29ca8426db74ac859fb31b86b4"
+    ],
+    "e8-markets:e8-signature-forex-2026:e8-signature-forex-2026-100k:ctrader:e8-signature-forex-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:86c3d105e3e4e662ccc855a7c4030f552d18b5e5b9635ada385bcd7a58064e51"
+    ],
+    "e8-markets:e8-signature-forex-2026:e8-signature-forex-2026-100k:matchtrader:e8-signature-forex-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:00ee56f113a674d7278c2e7a6369cd33c79f12f1df9da136fc554812fbe08325"
+    ],
+    "e8-markets:e8-signature-forex-2026:e8-signature-forex-2026-100k:mt5:e8-signature-forex-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:b061ed31368c0391bf82b8c74fd156bf03ba4759a4a0091b3b9fb34d2f607430"
+    ],
+    "e8-markets:e8-signature-forex-2026:e8-signature-forex-2026-100k:tradelocker:e8-signature-forex-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:9ce09517b1e0a5f00de4ab5a319d0f7d90ca72e40b09853483a09786d30a6136"
+    ],
+    "e8-markets:e8-signature-forex-2026:e8-signature-forex-2026-150k:ctrader:e8-signature-forex-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:9052c9be6d5673cc795cf8136e19e7d0d8f554b9dd3547ced0285d15e64f8966"
+    ],
+    "e8-markets:e8-signature-forex-2026:e8-signature-forex-2026-150k:matchtrader:e8-signature-forex-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:9c1579c0e50c70af00dc744f54f18c277231f8ab5694ddad9a40f08a7a9ee5ec"
+    ],
+    "e8-markets:e8-signature-forex-2026:e8-signature-forex-2026-150k:mt5:e8-signature-forex-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:fccf3136c2d75954328988a30e9777985fdbd2bee5e9edaafe7d2165152dcf5e"
+    ],
+    "e8-markets:e8-signature-forex-2026:e8-signature-forex-2026-150k:tradelocker:e8-signature-forex-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:a70af153bc887d86d347c5ce2a7b5ab2d4a7f2970c88f31df31de9830c24e5e6"
+    ],
+    "e8-markets:e8-signature-forex-2026:e8-signature-forex-2026-25k:ctrader:e8-signature-forex-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:575831ed3b84e6430cf341d472057f6549237ba035474e923d31babf47be1397"
+    ],
+    "e8-markets:e8-signature-forex-2026:e8-signature-forex-2026-25k:matchtrader:e8-signature-forex-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:0f41be5405fc50ab2406e867df101592da74cd4970851badd8104613eaea1a9c"
+    ],
+    "e8-markets:e8-signature-forex-2026:e8-signature-forex-2026-25k:mt5:e8-signature-forex-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:19fb79ba0a19d7a3ebab94441ab0dabb27a46ad4fd0aacc4299d9e2d928119c1"
+    ],
+    "e8-markets:e8-signature-forex-2026:e8-signature-forex-2026-25k:tradelocker:e8-signature-forex-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:8345a9f067d3e0c92e8a82edc568a52a85109b10de8c0771cce0e71efa3ff641"
+    ],
+    "e8-markets:e8-signature-forex-2026:e8-signature-forex-2026-50k:ctrader:e8-signature-forex-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:25ce03846fcf028564aeb59f56559295913a947f1b03a5dd354a4580de8d9e6a"
+    ],
+    "e8-markets:e8-signature-forex-2026:e8-signature-forex-2026-50k:matchtrader:e8-signature-forex-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:901b854479897c88fd3931a15368fdf36a0008d1c5378e6187a7a44b1dac43bc"
+    ],
+    "e8-markets:e8-signature-forex-2026:e8-signature-forex-2026-50k:mt5:e8-signature-forex-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:fc3f036594ff4b14cd5796fbfac53a8e296b5fa4ccd08c34008f69f0d6c2ff3e"
+    ],
+    "e8-markets:e8-signature-forex-2026:e8-signature-forex-2026-50k:tradelocker:e8-signature-forex-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:11963f8a1e32283598c9ef7a3131c447932540a6baef65d715ce005564d5a4e0"
+    ],
+    "e8-markets:e8-signature-futures-2026:e8-signature-futures-2026-100k:tradovatedisponibilidadeaconfirmar:e8-signature-futures-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:cd3450fb492393120ebfaa574bc52a59f462733b3d0c123998bfe5e902c5ad84"
+    ],
+    "e8-markets:e8-signature-futures-2026:e8-signature-futures-2026-150k:tradovatedisponibilidadeaconfirmar:e8-signature-futures-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:80f5958747a03a6ef3bb7213ad882e4083cefa2a5f041fc2dc5728248ce193cb"
+    ],
+    "e8-markets:e8-signature-futures-2026:e8-signature-futures-2026-25k:tradovatedisponibilidadeaconfirmar:e8-signature-futures-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:4920ab34931fc8130f3cb47c51232371908ec4225e0ede8fe8861e44c6c9a436"
+    ],
+    "e8-markets:e8-signature-futures-2026:e8-signature-futures-2026-50k:tradovatedisponibilidadeaconfirmar:e8-signature-futures-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:5d5df68929c3e7255be023b7d0a5c149a806e35dc0f56ffcaeb305282ede0569"
+    ],
+    "e8-markets:e8-zero-futures-max-2026:e8-zero-futures-max-2026-100k:tradovate:e8-zero-futures-max-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:2d0a83965af0cfa5923c370ede90998b52a71a97fa8a60d759c61749a282dced"
+    ],
+    "e8-markets:e8-zero-futures-max-2026:e8-zero-futures-max-2026-200k:tradovate:e8-zero-futures-max-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:847cf65bb5466669bb353ad310410658703766941afdb6debf66d633554f7404"
+    ],
+    "e8-markets:e8-zero-futures-max-2026:e8-zero-futures-max-2026-50k:tradovate:e8-zero-futures-max-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:46d9b36bb0de1f5f732ac265d5d2efbd4532e732be63e665aeaf55a2f5c89ed3"
+    ],
+    "e8-markets:e8-zero-futures-starter-2026:e8-zero-futures-starter-2026-100k:tradovate:e8-zero-futures-starter-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:fd9352a4932ab02d54c47a6ba764134e57aff07a016fa868cf77585168410c85"
+    ],
+    "e8-markets:e8-zero-futures-starter-2026:e8-zero-futures-starter-2026-200k:tradovate:e8-zero-futures-starter-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:df5c70bb58e58e0e513f54b162a0a35484e8a770b962b2f986e552739b6859a5"
+    ],
+    "e8-markets:e8-zero-futures-starter-2026:e8-zero-futures-starter-2026-50k:tradovate:e8-zero-futures-starter-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:5743a8212ce3a8380e29d51df236875c683d0c04050ef54d16939816bc518370"
+    ],
+    "ftmo:ftmo-challenge-1-step-2026:ftmo-challenge-1-step-2026-100k:ctrader:ftmo-challenge-1-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:3db2448b8ccfea7170b3892be8702b27a05bb1cc7e082d10cfb12a9c7b01472e"
+    ],
+    "ftmo:ftmo-challenge-1-step-2026:ftmo-challenge-1-step-2026-100k:dxtrade:ftmo-challenge-1-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:95c84ef7bea8c69b8bda39b9a528f65d9ab8ff461364ad82fb6dab1ff1bfe795"
+    ],
+    "ftmo:ftmo-challenge-1-step-2026:ftmo-challenge-1-step-2026-100k:mt4:ftmo-challenge-1-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:219dfed3f64740691767927d3928d2d82c77989de1b411eaf18d6dc328bac82f"
+    ],
+    "ftmo:ftmo-challenge-1-step-2026:ftmo-challenge-1-step-2026-100k:mt5:ftmo-challenge-1-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:d299055451547f4b2a30cce1c3d5b04b22c32af10724b03e0b62f49c6dbeb1ba"
+    ],
+    "ftmo:ftmo-challenge-1-step-2026:ftmo-challenge-1-step-2026-10k:ctrader:ftmo-challenge-1-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:bbf8950afa16659e3b93951431c0c347881df8499ec412360380153dd1b1e674"
+    ],
+    "ftmo:ftmo-challenge-1-step-2026:ftmo-challenge-1-step-2026-10k:dxtrade:ftmo-challenge-1-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:3087a5e0712aaef47ed29d846fbd5d356268448b17ca8d2a9814f3f804e0d408"
+    ],
+    "ftmo:ftmo-challenge-1-step-2026:ftmo-challenge-1-step-2026-10k:mt4:ftmo-challenge-1-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:aa9812de5d5f3e7ee505835343d49529353b9883020e253f45f994fba24fbb4f"
+    ],
+    "ftmo:ftmo-challenge-1-step-2026:ftmo-challenge-1-step-2026-10k:mt5:ftmo-challenge-1-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:6187fc80113f3030e3c7539a91b3e6b5bc53192cdb393dca9f969ecb8d40b482"
+    ],
+    "ftmo:ftmo-challenge-1-step-2026:ftmo-challenge-1-step-2026-200k:ctrader:ftmo-challenge-1-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:30fc2bf997a0f2eff114e492e393ba2052242c7deed9a75d3502c72219d4e047"
+    ],
+    "ftmo:ftmo-challenge-1-step-2026:ftmo-challenge-1-step-2026-200k:dxtrade:ftmo-challenge-1-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:342044ba37ad39fd199e11f4ab974725ea97ed49b1c706ac2db8dba789d91f0b"
+    ],
+    "ftmo:ftmo-challenge-1-step-2026:ftmo-challenge-1-step-2026-200k:mt4:ftmo-challenge-1-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:100dd229eaebb9dbd786d2845704d574beae168f4a7b22113a210ba1be8d5bfa"
+    ],
+    "ftmo:ftmo-challenge-1-step-2026:ftmo-challenge-1-step-2026-200k:mt5:ftmo-challenge-1-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:d1de9ea18d553336f0edf3da8ebfa2ffb15e19e528dd19eb363cee090da454c3"
+    ],
+    "ftmo:ftmo-challenge-1-step-2026:ftmo-challenge-1-step-2026-25k:ctrader:ftmo-challenge-1-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:61aef1ed66fdf68da4fb520d7efa72e3df5b70f4d982ff99f3649a74bd403040"
+    ],
+    "ftmo:ftmo-challenge-1-step-2026:ftmo-challenge-1-step-2026-25k:dxtrade:ftmo-challenge-1-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:4985f1ef8ec3022bd1e05d8bcd7f4057750393180f2cc0afab0dc212933f058c"
+    ],
+    "ftmo:ftmo-challenge-1-step-2026:ftmo-challenge-1-step-2026-25k:mt4:ftmo-challenge-1-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:e15cf49316321e2ce0b9e9aee2dc249a10ec49bdd433ed792301025a88532144"
+    ],
+    "ftmo:ftmo-challenge-1-step-2026:ftmo-challenge-1-step-2026-25k:mt5:ftmo-challenge-1-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:56acbd9bc8265708f686a530c4e17e87dc87656fd7fb071cc38b21e8a1dc9ee9"
+    ],
+    "ftmo:ftmo-challenge-1-step-2026:ftmo-challenge-1-step-2026-50k:ctrader:ftmo-challenge-1-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:f29a6b67459a79906c8534bbe9b2afa8275bbff36517fb4bf554a3e18a803299"
+    ],
+    "ftmo:ftmo-challenge-1-step-2026:ftmo-challenge-1-step-2026-50k:dxtrade:ftmo-challenge-1-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:9dec7a25187530e4c1f21402241fd4a7536f522ed033505ff447a49287c7d345"
+    ],
+    "ftmo:ftmo-challenge-1-step-2026:ftmo-challenge-1-step-2026-50k:mt4:ftmo-challenge-1-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:06949cb17017b829c7e7744d898c704a9a4bf6b3d3886814215c21bddcc54702"
+    ],
+    "ftmo:ftmo-challenge-1-step-2026:ftmo-challenge-1-step-2026-50k:mt5:ftmo-challenge-1-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:cdb66c82fae2727d070f8f83cfd798d86dab1231cc9eb55b12ab99789193c8d0"
+    ],
+    "ftmo:ftmo-challenge-2-step-2026:ftmo-challenge-2-step-2026-100k:ctrader:ftmo-challenge-2-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:d6f691fcc848d0ce7d0cff30396bb30ad5c253445ade0bd7dd76035d078c2995"
+    ],
+    "ftmo:ftmo-challenge-2-step-2026:ftmo-challenge-2-step-2026-100k:dxtrade:ftmo-challenge-2-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:118f032273b4dc1f7be7970ea30e3eec70a74113940325dfd6867e1be4e05bc0"
+    ],
+    "ftmo:ftmo-challenge-2-step-2026:ftmo-challenge-2-step-2026-100k:mt4:ftmo-challenge-2-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:e03cde930226f5da2529a031542770a3790d2265e4e699990711c4eccaf8af81"
+    ],
+    "ftmo:ftmo-challenge-2-step-2026:ftmo-challenge-2-step-2026-100k:mt5:ftmo-challenge-2-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:5c9fda012eb9a4f926aa2b9531fe90ab5c4f80d832c41ffcb3412b5733d5f8b5"
+    ],
+    "ftmo:ftmo-challenge-2-step-2026:ftmo-challenge-2-step-2026-10k:ctrader:ftmo-challenge-2-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:729e059a7da6ea66298212b4718f3f33a108423fd0d5f37b2a38217a09761224"
+    ],
+    "ftmo:ftmo-challenge-2-step-2026:ftmo-challenge-2-step-2026-10k:dxtrade:ftmo-challenge-2-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:039037a4dbde17b4a53c684f310cc9032d5c8e560cbe53989babde3b0cd595a4"
+    ],
+    "ftmo:ftmo-challenge-2-step-2026:ftmo-challenge-2-step-2026-10k:mt4:ftmo-challenge-2-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:79c19d998b462f25a86ebcaf12f7d98773abab4ab73a6571409f5af3971a54a0"
+    ],
+    "ftmo:ftmo-challenge-2-step-2026:ftmo-challenge-2-step-2026-10k:mt5:ftmo-challenge-2-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:0ed7a2f5e21d5884ac4edac6cf5c02aaa288837d7ced2a4ebebddd58f1163b36"
+    ],
+    "ftmo:ftmo-challenge-2-step-2026:ftmo-challenge-2-step-2026-200k:ctrader:ftmo-challenge-2-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:34b4c4a1acfcf80e9aafb4e3848eb49fdb01cd71c9a4a6bf750b0e35d2788432"
+    ],
+    "ftmo:ftmo-challenge-2-step-2026:ftmo-challenge-2-step-2026-200k:dxtrade:ftmo-challenge-2-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:7d4f4c81fbbcdf2f36d724f30ea16a109ce28297d9300000287a6b9ce2bf1dc5"
+    ],
+    "ftmo:ftmo-challenge-2-step-2026:ftmo-challenge-2-step-2026-200k:mt4:ftmo-challenge-2-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:055e6335882243efc86271e16c7716063bf6658aa56377946c5bc12f5ac2169f"
+    ],
+    "ftmo:ftmo-challenge-2-step-2026:ftmo-challenge-2-step-2026-200k:mt5:ftmo-challenge-2-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:38f1006bf2f70db8f73ceaab2db4191c53ea87a11b1fd0966ec869032ea18564"
+    ],
+    "ftmo:ftmo-challenge-2-step-2026:ftmo-challenge-2-step-2026-25k:ctrader:ftmo-challenge-2-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:c5eff8cffe0ee06485bb9f2e56f5b1362417558df1a0677ccac070c09834e567"
+    ],
+    "ftmo:ftmo-challenge-2-step-2026:ftmo-challenge-2-step-2026-25k:dxtrade:ftmo-challenge-2-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:8aa8c022ab63534e614758965ab33149936bd887db2759a361a1e854b934e86c"
+    ],
+    "ftmo:ftmo-challenge-2-step-2026:ftmo-challenge-2-step-2026-25k:mt4:ftmo-challenge-2-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:280774a8ab99aa167fc3566057c5033192f229f8259e32e48d7963384517c704"
+    ],
+    "ftmo:ftmo-challenge-2-step-2026:ftmo-challenge-2-step-2026-25k:mt5:ftmo-challenge-2-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:b860481af4aa8769649e0389c37332b5137c57e5125ce4ae760f3d275c311b6b"
+    ],
+    "ftmo:ftmo-challenge-2-step-2026:ftmo-challenge-2-step-2026-50k:ctrader:ftmo-challenge-2-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:54e9bee667941cf1d72642e12526de9d7acfd4895584feb227d6448b2963c696"
+    ],
+    "ftmo:ftmo-challenge-2-step-2026:ftmo-challenge-2-step-2026-50k:dxtrade:ftmo-challenge-2-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:d3e9593e907e965524133e4978b12cce885141ed8ad3d787f8858459c637e579"
+    ],
+    "ftmo:ftmo-challenge-2-step-2026:ftmo-challenge-2-step-2026-50k:mt4:ftmo-challenge-2-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:36663cbfe50e43929a3d3f5abfcd621999e05864ca062c8fc1455d50b6a5eb58"
+    ],
+    "ftmo:ftmo-challenge-2-step-2026:ftmo-challenge-2-step-2026-50k:mt5:ftmo-challenge-2-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:e99ef6d95833b240dcf15cf172e5634693ca8a66023f08f5e7e985b2e23c4f79"
+    ],
+    "fundednext:fundednext-stellar-one-step-2026:fundednext-stellar-one-step-2026-100k:ctrader:fundednext-stellar-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:c60685df6c267b89fd09a498027b5ee3dac1eb055693ffbf71a82b04aa4e62f6"
+    ],
+    "fundednext:fundednext-stellar-one-step-2026:fundednext-stellar-one-step-2026-100k:matchtrader:fundednext-stellar-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:3d6a70011363c123929a48f6be8a9ed6f043109d61d2d9458715042f82ecd3fe"
+    ],
+    "fundednext:fundednext-stellar-one-step-2026:fundednext-stellar-one-step-2026-100k:mt4:fundednext-stellar-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:ac43cfa6e761bc6f0a898097de7db37024adb10b8317d1c00058129ad1bf7da8"
+    ],
+    "fundednext:fundednext-stellar-one-step-2026:fundednext-stellar-one-step-2026-100k:mt5:fundednext-stellar-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:907d6ef6b392a2a48812433d7d8c337bdee36387fb70de49ae849862ab179371"
+    ],
+    "fundednext:fundednext-stellar-one-step-2026:fundednext-stellar-one-step-2026-15k:ctrader:fundednext-stellar-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:afd173183711f63922a953ccfb88e1e27b6455fe91edf5608fa01f043ce3523e"
+    ],
+    "fundednext:fundednext-stellar-one-step-2026:fundednext-stellar-one-step-2026-15k:matchtrader:fundednext-stellar-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:1f167df8048ae0f7d30fc37856f5e33f7176166f7d47ed34622b2586b3746249"
+    ],
+    "fundednext:fundednext-stellar-one-step-2026:fundednext-stellar-one-step-2026-15k:mt4:fundednext-stellar-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:9f6e418d7e651b359f5b5051985bde2cf1f5a24a7cd511aa0adc1cb8cc55db52"
+    ],
+    "fundednext:fundednext-stellar-one-step-2026:fundednext-stellar-one-step-2026-15k:mt5:fundednext-stellar-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:266607f1d6236f6b6dad1e5d4b189cacdad2337fda73e55b0c5d13db3ee04867"
+    ],
+    "fundednext:fundednext-stellar-one-step-2026:fundednext-stellar-one-step-2026-200k:ctrader:fundednext-stellar-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:1564e608dfd428de0dca3895c70ad880082783626d2ff7801be8599cb4b29238"
+    ],
+    "fundednext:fundednext-stellar-one-step-2026:fundednext-stellar-one-step-2026-200k:matchtrader:fundednext-stellar-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:dcfa13920c49ca8562f098840ca5e3005c0d9786cd5cc2663744ba1db2a6daf6"
+    ],
+    "fundednext:fundednext-stellar-one-step-2026:fundednext-stellar-one-step-2026-200k:mt4:fundednext-stellar-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:fa7b0cd0792e9966c6f6d25c8d46259a8d830d22802b279494fdffd46a1871f6"
+    ],
+    "fundednext:fundednext-stellar-one-step-2026:fundednext-stellar-one-step-2026-200k:mt5:fundednext-stellar-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:ae169fc21707bc702c24e6317d751d5b354c3258e46a06fd354bf6ed803f1d90"
+    ],
+    "fundednext:fundednext-stellar-one-step-2026:fundednext-stellar-one-step-2026-25k:ctrader:fundednext-stellar-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:9a845292fab26dd01127231cc20174e59ad1911ac917393f88e840b63c96c2ab"
+    ],
+    "fundednext:fundednext-stellar-one-step-2026:fundednext-stellar-one-step-2026-25k:matchtrader:fundednext-stellar-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:ea626fa64c5cce134bca6a5e9be1d96c06695f7f3e3e228e2b84fb2df86ca0b5"
+    ],
+    "fundednext:fundednext-stellar-one-step-2026:fundednext-stellar-one-step-2026-25k:mt4:fundednext-stellar-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:607602488c891d3f3f2a3f1bce71cda567e84b4721b708f59afc56ac7742a3a5"
+    ],
+    "fundednext:fundednext-stellar-one-step-2026:fundednext-stellar-one-step-2026-25k:mt5:fundednext-stellar-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:5c174a987a4c7d35c04d8affc2a0d75d41f6c37c05e5b872a1e7219d6bcc40f3"
+    ],
+    "fundednext:fundednext-stellar-one-step-2026:fundednext-stellar-one-step-2026-50k:ctrader:fundednext-stellar-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:3731f5ef5c9b313ad52c7f95ea507e0b4bf32de6f087c02ceee3754f2b284b9b"
+    ],
+    "fundednext:fundednext-stellar-one-step-2026:fundednext-stellar-one-step-2026-50k:matchtrader:fundednext-stellar-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:c9240b3699300cf8515bd97e2ddb5acbda6e28f6d431b4066267366a25bff1e0"
+    ],
+    "fundednext:fundednext-stellar-one-step-2026:fundednext-stellar-one-step-2026-50k:mt4:fundednext-stellar-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:e72455219b7dee789deddc74c9998473fdee9dffabd27e58fc7e6a602669f3fd"
+    ],
+    "fundednext:fundednext-stellar-one-step-2026:fundednext-stellar-one-step-2026-50k:mt5:fundednext-stellar-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:1962d1e2b6f9533da652101c5521e135add55b8ab3a73aff6c2724200781e00e"
+    ],
+    "fundednext:fundednext-stellar-one-step-2026:fundednext-stellar-one-step-2026-6k:ctrader:fundednext-stellar-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:1b45180472e66cf2fd1485bd0cc90e1bc946cf6987ba13e5a42756c1cfa23472"
+    ],
+    "fundednext:fundednext-stellar-one-step-2026:fundednext-stellar-one-step-2026-6k:matchtrader:fundednext-stellar-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:b7e78d5d1964f14fe7dfff4e9b465e0f458128c605911d1da51739cb8df15a05"
+    ],
+    "fundednext:fundednext-stellar-one-step-2026:fundednext-stellar-one-step-2026-6k:mt4:fundednext-stellar-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:4e482fb7df64a031fdaae21d41222ff439cb60a65004993f6a638dfccb5d368c"
+    ],
+    "fundednext:fundednext-stellar-one-step-2026:fundednext-stellar-one-step-2026-6k:mt5:fundednext-stellar-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:f8457aa206c6e8d965708e9e1b09aa608d51f910ecf03361231a6ff38a287170"
+    ],
+    "fundednext:fundednext-stellar-two-step-2026:fundednext-stellar-two-step-2026-100k:ctrader:fundednext-stellar-two-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:f3e0c6e9f8131dcd4c6d1db021a24e2dee05a72df31c35f13bcd444d886a632b"
+    ],
+    "fundednext:fundednext-stellar-two-step-2026:fundednext-stellar-two-step-2026-100k:matchtrader:fundednext-stellar-two-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:179d5650002d49e98da78952cde5d5edb432f904be9130adde3b2c965af68722"
+    ],
+    "fundednext:fundednext-stellar-two-step-2026:fundednext-stellar-two-step-2026-100k:mt4:fundednext-stellar-two-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:9ad6b01434c231bcf0d6ceb2d892bb988d1b98b829010698fd4103cafe6750a2"
+    ],
+    "fundednext:fundednext-stellar-two-step-2026:fundednext-stellar-two-step-2026-100k:mt5:fundednext-stellar-two-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:5ec4a9b6e14f13706b49e682df3802890037d48c68f9bd2c6c63cb13c757a8d9"
+    ],
+    "fundednext:fundednext-stellar-two-step-2026:fundednext-stellar-two-step-2026-15k:ctrader:fundednext-stellar-two-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:de37c5cce83d04a3338c02aad9385c1906f93db43d10625cc74c12f2ddd10825"
+    ],
+    "fundednext:fundednext-stellar-two-step-2026:fundednext-stellar-two-step-2026-15k:matchtrader:fundednext-stellar-two-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:bcdbc6a4dbe2d41e633adf891d76028e59c3613e52df0c42f7517adf27431235"
+    ],
+    "fundednext:fundednext-stellar-two-step-2026:fundednext-stellar-two-step-2026-15k:mt4:fundednext-stellar-two-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:3efc495c0a0c6fb8be13b8b2ecaac554080c5f95762ec642abee97e8df0e1ac8"
+    ],
+    "fundednext:fundednext-stellar-two-step-2026:fundednext-stellar-two-step-2026-15k:mt5:fundednext-stellar-two-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:263883054ad4c80e03aa79d1ae0ac79ea619774ca99efa2a4c7cf7722d0d75cb"
+    ],
+    "fundednext:fundednext-stellar-two-step-2026:fundednext-stellar-two-step-2026-200k:ctrader:fundednext-stellar-two-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:f77248faaf3d07884f139eeeee304714367e2cda420922ac7be06866dee8a9e8"
+    ],
+    "fundednext:fundednext-stellar-two-step-2026:fundednext-stellar-two-step-2026-200k:matchtrader:fundednext-stellar-two-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:4336400d82428104718a3eea6d37786c65dd1ddc1abcd5ad37e7201d3007b96e"
+    ],
+    "fundednext:fundednext-stellar-two-step-2026:fundednext-stellar-two-step-2026-200k:mt4:fundednext-stellar-two-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:fcc9e63a9e6a46783312e436fd8cfd79cc76d7e43d27241d6ab598118d1193d9"
+    ],
+    "fundednext:fundednext-stellar-two-step-2026:fundednext-stellar-two-step-2026-200k:mt5:fundednext-stellar-two-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:18ee06b7460f7073c70be1af3e7a343eeeb034d1f2e68fd172218bcdcc24a91f"
+    ],
+    "fundednext:fundednext-stellar-two-step-2026:fundednext-stellar-two-step-2026-25k:ctrader:fundednext-stellar-two-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:261bc41c58acbd9f0039ca5df4db502e696800313fac3d2c27092c35550950e4"
+    ],
+    "fundednext:fundednext-stellar-two-step-2026:fundednext-stellar-two-step-2026-25k:matchtrader:fundednext-stellar-two-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:baf9f5d8427398b9a1e2ce8aca90c87b4b1f5eeabae21511bde79728569c1981"
+    ],
+    "fundednext:fundednext-stellar-two-step-2026:fundednext-stellar-two-step-2026-25k:mt4:fundednext-stellar-two-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:293f3ccf9d2e672c71e3292b84c6beb093c44e1385cea6487ade4c33e86bb0d6"
+    ],
+    "fundednext:fundednext-stellar-two-step-2026:fundednext-stellar-two-step-2026-25k:mt5:fundednext-stellar-two-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:d74536e9cbe27e2e9be90ce7c149c11fc05497031efea7491b799689f4ceb3ef"
+    ],
+    "fundednext:fundednext-stellar-two-step-2026:fundednext-stellar-two-step-2026-50k:ctrader:fundednext-stellar-two-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:df13f7e9117e380c80a872f5604392b27b2caeb319c4b47a5f57af043a91db74"
+    ],
+    "fundednext:fundednext-stellar-two-step-2026:fundednext-stellar-two-step-2026-50k:matchtrader:fundednext-stellar-two-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:cb3f4eb88e7c44c8f8c78d70465ed2467f71042344b0d67138f01317859e1b00"
+    ],
+    "fundednext:fundednext-stellar-two-step-2026:fundednext-stellar-two-step-2026-50k:mt4:fundednext-stellar-two-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:95be7f999b18e8ddd4942541390eba562ab2c1a4f1b04593ecbca176c2591d8c"
+    ],
+    "fundednext:fundednext-stellar-two-step-2026:fundednext-stellar-two-step-2026-50k:mt5:fundednext-stellar-two-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:6386c5cbf85aeaf3b6ec1e70983b803c8da3e914ad351ffece7f5ddd3d10fecc"
+    ],
+    "fundednext:fundednext-stellar-two-step-2026:fundednext-stellar-two-step-2026-6k:ctrader:fundednext-stellar-two-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:166e76d23c395d55e8f1f83f3592b1f1c1b453ec72231a82dd10bfcc0c25f58a"
+    ],
+    "fundednext:fundednext-stellar-two-step-2026:fundednext-stellar-two-step-2026-6k:matchtrader:fundednext-stellar-two-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:a33d135ce0716699cf2abcb19f3d8fbd455928620044220582f47c605aa18142"
+    ],
+    "fundednext:fundednext-stellar-two-step-2026:fundednext-stellar-two-step-2026-6k:mt4:fundednext-stellar-two-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:6298cf650065fe5952fcc1c6af8dad478641c18cd8bf2b080b1a45c08cbe47ba"
+    ],
+    "fundednext:fundednext-stellar-two-step-2026:fundednext-stellar-two-step-2026-6k:mt5:fundednext-stellar-two-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:30df5da66f8cb1efd977c6f729b0b07e55b530842193bbfe3da8c564f333cc50"
+    ],
+    "fundingpips:fundingpips-one-step-2026:fundingpips-one-step-2026-100k:ctrader:fundingpips-one-step-2026-rules-profit-concentration-policy": [
+      "sha256:7d441cb3cab8e24431379c8af32d46ad01f6142879b89cd0365615dcfaddc87f"
+    ],
+    "fundingpips:fundingpips-one-step-2026:fundingpips-one-step-2026-100k:ctrader:fundingpips-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:80f8758820dcaa5f394a280728a5453272648557a6ab86c96af9c076313cdbe1"
+    ],
+    "fundingpips:fundingpips-one-step-2026:fundingpips-one-step-2026-100k:matchtrader:fundingpips-one-step-2026-rules-profit-concentration-policy": [
+      "sha256:fa68d1132a30eba6ef643637c85e2fda97c6e3f2a2f0707a554122d36df9a538"
+    ],
+    "fundingpips:fundingpips-one-step-2026:fundingpips-one-step-2026-100k:matchtrader:fundingpips-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:31d2baedd6d8fd989dcc7dbdadb7f59157fdef9bf6ace3f5d7493e2255331b33"
+    ],
+    "fundingpips:fundingpips-one-step-2026:fundingpips-one-step-2026-100k:mt5:fundingpips-one-step-2026-rules-profit-concentration-policy": [
+      "sha256:77f9e90f80baf95cdef85896f236f5a77531d0e3b7cd5ffc2376785b75b3e0ff"
+    ],
+    "fundingpips:fundingpips-one-step-2026:fundingpips-one-step-2026-100k:mt5:fundingpips-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:6ded24eebeee7af85ec4d7af0ac7b15274d4dd6401513d9760e3aab923ca2392"
+    ],
+    "fundingpips:fundingpips-one-step-2026:fundingpips-one-step-2026-10k:ctrader:fundingpips-one-step-2026-rules-profit-concentration-policy": [
+      "sha256:b4e3fe836072fc3253d8d3691883b8467f3be091b9e3a0a22a14d3db8d28d6eb"
+    ],
+    "fundingpips:fundingpips-one-step-2026:fundingpips-one-step-2026-10k:ctrader:fundingpips-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:1c9b53f975a0dbba044bd1531f175e685707c6e534334a394fe592cd39a285b1"
+    ],
+    "fundingpips:fundingpips-one-step-2026:fundingpips-one-step-2026-10k:matchtrader:fundingpips-one-step-2026-rules-profit-concentration-policy": [
+      "sha256:e607f3912127ecb3abf6462c9aa98be46abccb6ff77b20f3f22f0239e1309a77"
+    ],
+    "fundingpips:fundingpips-one-step-2026:fundingpips-one-step-2026-10k:matchtrader:fundingpips-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:501e8de37b3df8322f83c54cc0401a3ff46ee49c7422e0a1b07855342f35e3d8"
+    ],
+    "fundingpips:fundingpips-one-step-2026:fundingpips-one-step-2026-10k:mt5:fundingpips-one-step-2026-rules-profit-concentration-policy": [
+      "sha256:1aa15675e73609dc0371c373877aacbe423236ceb18b3acf79ba9312735679c8"
+    ],
+    "fundingpips:fundingpips-one-step-2026:fundingpips-one-step-2026-10k:mt5:fundingpips-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:88f06e985ae8a60357a9b94f1e6a379ddb5745b999e9f8576bd2a6d8df184456"
+    ],
+    "fundingpips:fundingpips-one-step-2026:fundingpips-one-step-2026-25k:ctrader:fundingpips-one-step-2026-rules-profit-concentration-policy": [
+      "sha256:d2cbf925943b0c28d53219608e9065e2b71f06067e18c1bc651ec52c01e106b5"
+    ],
+    "fundingpips:fundingpips-one-step-2026:fundingpips-one-step-2026-25k:ctrader:fundingpips-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:19cc7ceee4b89a57935e4de34c1f200d182facbd6ea704c55bfa742c3ac79e0d"
+    ],
+    "fundingpips:fundingpips-one-step-2026:fundingpips-one-step-2026-25k:matchtrader:fundingpips-one-step-2026-rules-profit-concentration-policy": [
+      "sha256:83b5c6e03d72f4ef8b3d6d4ea1e2dd350c11624ab91bd7af3bd1496d98b4f55f"
+    ],
+    "fundingpips:fundingpips-one-step-2026:fundingpips-one-step-2026-25k:matchtrader:fundingpips-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:fb9382ef61acae153be7afddfe138442402e039b42101720c1967b47771930ee"
+    ],
+    "fundingpips:fundingpips-one-step-2026:fundingpips-one-step-2026-25k:mt5:fundingpips-one-step-2026-rules-profit-concentration-policy": [
+      "sha256:dcba11d5103988f21783f487006603e7a484ffcc2b5645da8ce328ad9733da8a"
+    ],
+    "fundingpips:fundingpips-one-step-2026:fundingpips-one-step-2026-25k:mt5:fundingpips-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:ab38472892f2311542fc3a78bc943019439b061da7457239a2277cd4256c54ed"
+    ],
+    "fundingpips:fundingpips-one-step-2026:fundingpips-one-step-2026-50k:ctrader:fundingpips-one-step-2026-rules-profit-concentration-policy": [
+      "sha256:8ac0e5cd6e5ecb6f282dbbd356f5dc193cda7e8600cd32de4d1906dd6845e8cb"
+    ],
+    "fundingpips:fundingpips-one-step-2026:fundingpips-one-step-2026-50k:ctrader:fundingpips-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:2f26ae1a119476b5379180e3e0162d2a1da8f1a776893e650c033a73403cc933"
+    ],
+    "fundingpips:fundingpips-one-step-2026:fundingpips-one-step-2026-50k:matchtrader:fundingpips-one-step-2026-rules-profit-concentration-policy": [
+      "sha256:76e4bf8d75c50344442c9420171540ac27bf2fcb68ccd53b689ebf946a783490"
+    ],
+    "fundingpips:fundingpips-one-step-2026:fundingpips-one-step-2026-50k:matchtrader:fundingpips-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:858e7015302787e963faddabe8ecdebd253b58b2b3a6b0c14bb0d744ad924111"
+    ],
+    "fundingpips:fundingpips-one-step-2026:fundingpips-one-step-2026-50k:mt5:fundingpips-one-step-2026-rules-profit-concentration-policy": [
+      "sha256:0fac290b3d7c710766860d4b1fbddbe97f7c4dc66837380c824385f33a0ab786"
+    ],
+    "fundingpips:fundingpips-one-step-2026:fundingpips-one-step-2026-50k:mt5:fundingpips-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:772914dcbc8aee1b531c8b75082926d397913c2172fff8874524068b30106bea"
+    ],
+    "fundingpips:fundingpips-one-step-2026:fundingpips-one-step-2026-5k:ctrader:fundingpips-one-step-2026-rules-profit-concentration-policy": [
+      "sha256:d89360c853106a2dbf66ca8a1f6b086840b3082ef9d24d8882553bac95566181"
+    ],
+    "fundingpips:fundingpips-one-step-2026:fundingpips-one-step-2026-5k:ctrader:fundingpips-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:857b29cd256254290a5663744333efec36d8ca281661c0fbea9cfab8dc1bd9bc"
+    ],
+    "fundingpips:fundingpips-one-step-2026:fundingpips-one-step-2026-5k:matchtrader:fundingpips-one-step-2026-rules-profit-concentration-policy": [
+      "sha256:bdfb8f4ac7149640a21efc54c08411d5f06bf5fc66da358fde05e14c4b1f4fa8"
+    ],
+    "fundingpips:fundingpips-one-step-2026:fundingpips-one-step-2026-5k:matchtrader:fundingpips-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:e728f5af5ca5da98b136570d9fb30c3c2a829857abbe5a0a9453261e6868dce9"
+    ],
+    "fundingpips:fundingpips-one-step-2026:fundingpips-one-step-2026-5k:mt5:fundingpips-one-step-2026-rules-profit-concentration-policy": [
+      "sha256:13dca0a07dd58e4c310bd7ecd22600f0cd74d0dd9bd51354f0120748e429bb87"
+    ],
+    "fundingpips:fundingpips-one-step-2026:fundingpips-one-step-2026-5k:mt5:fundingpips-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:80620a8cc700850d80e43e7d06f05830394f2eda3c8d0494025c833cc66250d0"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-100k:ctrader:fundingpips-two-step-standard-2026-rules-profit-concentration-policy": [
+      "sha256:e9cd21c83eecf5e90230849a8bfb8311db233082044d08f0ac3e509265738eb8"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-100k:ctrader:fundingpips-two-step-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:9d2efaf993b50ea8d39bc8c08850eadf29bbeed2a3eae33aba25725db0851fc5"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-100k:matchtrader:fundingpips-two-step-standard-2026-rules-profit-concentration-policy": [
+      "sha256:07f0d4f6fdc880b5c3ba16aa18276113fce3f98e72631b5b7450acb3a068eb0e"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-100k:matchtrader:fundingpips-two-step-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:10b2654efd0037c8fd313fce7fc3c9114681aeeb7997f272cdf47d458b00a8aa"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-100k:mt5:fundingpips-two-step-standard-2026-rules-profit-concentration-policy": [
+      "sha256:8d5d1e697bd42f42c23ca813f87d3ab83ad2d05d1b0013b4c95f650658513444"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-100k:mt5:fundingpips-two-step-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:27de963e5ff73cbb0ab1dbf9763b9100f50e80cc032ffd3f0d184fdcdd5cb39b"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-10k:ctrader:fundingpips-two-step-standard-2026-rules-profit-concentration-policy": [
+      "sha256:02cb60569c1e065868196df751e8772c0b5b4e3fcbfddf307c994934d2592153"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-10k:ctrader:fundingpips-two-step-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:dd66ee5ba8c22af40d77e55e57d99b044a3d1a5a2b1d0c74e8fb4069ffa50f40"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-10k:matchtrader:fundingpips-two-step-standard-2026-rules-profit-concentration-policy": [
+      "sha256:48fe4a82f5df00f1097b3b009677aa8ec0d941eac9914de2982c964caa758c5b"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-10k:matchtrader:fundingpips-two-step-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:ed09fa6b216baf79350e9d5937caf2a5b0373a4d234ab1d37b0edc74f5ebc369"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-10k:mt5:fundingpips-two-step-standard-2026-rules-profit-concentration-policy": [
+      "sha256:5e35223fc8684509616683adda0f3edb17e60a8be07ddc6f6edcb21f213ff124"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-10k:mt5:fundingpips-two-step-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:ec1822180725a358e34066562cce04689b0370ada897fa1c838541e890708098"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-2-5k:ctrader:fundingpips-two-step-standard-2026-rules-profit-concentration-policy": [
+      "sha256:1c228a461271ee412b0dc568fac03cd07abe1d6788c385b6ae88834d399408e4"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-2-5k:ctrader:fundingpips-two-step-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:6bb604061774b3799cfd218d11376775f1878236d7cef329faa5f160133f3f68"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-2-5k:matchtrader:fundingpips-two-step-standard-2026-rules-profit-concentration-policy": [
+      "sha256:e812c84050fad3b4a01af9bade5c7a421389cf8e21d210f4c3b46097f8d2bd63"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-2-5k:matchtrader:fundingpips-two-step-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:36d6eac527949f8e51e586e869fa8e93657e09d6c4d97a110babb6a3163be3eb"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-2-5k:mt5:fundingpips-two-step-standard-2026-rules-profit-concentration-policy": [
+      "sha256:48384f9012d997ec6ef0f49523037a0e40e410c2104fd0120299647502c11675"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-2-5k:mt5:fundingpips-two-step-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:563bf61d0a730cf460c6fd0942c1f184edf6cf171b5a10b0a8b142c7c3792f86"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-25k:ctrader:fundingpips-two-step-standard-2026-rules-profit-concentration-policy": [
+      "sha256:9a19a1f00a1046f69aacb58532aeffb6fcbebfaef81c65f12cec49f7a6888cfb"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-25k:ctrader:fundingpips-two-step-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:53f345ffbd587e8a3362a3149eabf9b0b21590133771f4a250e5873d5a3ffea3"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-25k:matchtrader:fundingpips-two-step-standard-2026-rules-profit-concentration-policy": [
+      "sha256:1205bd198ee98ff844b535ffff48edae8fb8b426509c744533ad10705b89840e"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-25k:matchtrader:fundingpips-two-step-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:9d47c10862d3c60269347e5a9b32ec5684f9add2bbb92517767347df3671eef6"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-25k:mt5:fundingpips-two-step-standard-2026-rules-profit-concentration-policy": [
+      "sha256:2457c73c9b850028fd22c60bbffcaca77ab5edd4cf9099f7039aceea245f29ad"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-25k:mt5:fundingpips-two-step-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:0bb60216fd894dd8f3b3b5ba65fbdc7edc883e9f9a8ab6e927e08c054c1faf74"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-50k:ctrader:fundingpips-two-step-standard-2026-rules-profit-concentration-policy": [
+      "sha256:944a57b654ff97d9540fc1c59d1334518bdcade75d69ba28502842be00a56af4"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-50k:ctrader:fundingpips-two-step-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:cb9ab5d198d5eb9ea89483930bc0975aa05a9c0deba5300380c10656c36111a7"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-50k:matchtrader:fundingpips-two-step-standard-2026-rules-profit-concentration-policy": [
+      "sha256:71625cb8c091dd510926602a0abfa0975450cf145006aa0e9b32e33a09c658ba"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-50k:matchtrader:fundingpips-two-step-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:cc16fd864649b8b35fc4a60ee6d405c5a01d485b557acc5b0227eec3e0697fbd"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-50k:mt5:fundingpips-two-step-standard-2026-rules-profit-concentration-policy": [
+      "sha256:cdb10b66c35f7890dba2d47ef521a7b05bbfec1e256c821753361a6a2d38380a"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-50k:mt5:fundingpips-two-step-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:1d825e5b06efcfb99df8299a1fa9db6939a81f9d109e256164199b6ff4a89bc8"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-5k:ctrader:fundingpips-two-step-standard-2026-rules-profit-concentration-policy": [
+      "sha256:b5c9577856fb54ee1190fb42ebd38908825d7fa633acd6033d97ff270b5cfb9d"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-5k:ctrader:fundingpips-two-step-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:94c22e544196514a9993d70d47e280c39626f0e2b497e3b58b6aa45d092fc74a"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-5k:matchtrader:fundingpips-two-step-standard-2026-rules-profit-concentration-policy": [
+      "sha256:f63b08af6ebc78e62d4fbd7600ddcd8857128530c4ab5694acda471cd09335fe"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-5k:matchtrader:fundingpips-two-step-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:4d959c33e7389c90855dbdfedcebb8dd573f55c4c9a787bf397d2afeddb10c1d"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-5k:mt5:fundingpips-two-step-standard-2026-rules-profit-concentration-policy": [
+      "sha256:7f1340c4bdb61f4b921348a041c3c211cff6855a96fc920a295e65c94bde8869"
+    ],
+    "fundingpips:fundingpips-two-step-standard-2026:fundingpips-two-step-standard-2026-5k:mt5:fundingpips-two-step-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:5e87587c9c4cdd1d72fbcfa1b1f0c04924a4046009a4148ae9f7c7d82601345f"
+    ],
+    "fxify:fxify-instant-funding-2026:fxify-instant-funding-2026-1k-a-100k:dxtrade:fxify-instant-funding-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:bcc9fabaf5fb583dd32414b67c3be17e447542ab92751e125ec0afd92ef5542f"
+    ],
+    "fxify:fxify-instant-funding-2026:fxify-instant-funding-2026-1k-a-100k:mt4:fxify-instant-funding-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:3e08938f4f76cd63702c03d78ab82eb45badbaab253c76c722e43576afc7f973"
+    ],
+    "fxify:fxify-instant-funding-2026:fxify-instant-funding-2026-1k-a-100k:mt5:fxify-instant-funding-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:4771fd4fd4d7c0cd162c2e7555797fd0209fe4fbcf2b8985f66f3f2b954ffe47"
+    ],
+    "fxify:fxify-instant-funding-2026:fxify-instant-funding-2026-1k-a-100k:tradingview:fxify-instant-funding-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:5777de139e66f622b4f52ade49232dcfe3cde66ac70df758e533af069fa457ec"
+    ],
+    "fxify:fxify-instant-funding-lite-2026:fxify-instant-funding-lite-2026-100k:dxtrade:fxify-instant-funding-lite-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:480ef61910263eb40ae70b3ba02773af0c55308dc56230c730ab7ad5be30e2e1"
+    ],
+    "fxify:fxify-instant-funding-lite-2026:fxify-instant-funding-lite-2026-100k:mt5:fxify-instant-funding-lite-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:b8bbe5ddab4cf0a57b679a5a7e3273624269a8dc94a616ef6f9edaa97bcf31f1"
+    ],
+    "fxify:fxify-instant-funding-lite-2026:fxify-instant-funding-lite-2026-100k:tradingview:fxify-instant-funding-lite-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:4c6fa288a3c6bb5e9b20b4d3c46817798545df8e1bb2c085ae66345b15837437"
+    ],
+    "fxify:fxify-instant-funding-lite-2026:fxify-instant-funding-lite-2026-10k:dxtrade:fxify-instant-funding-lite-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:fc684cdc27718585f251b19640b54c8e950febd15fb12c263c346495dd44ec95"
+    ],
+    "fxify:fxify-instant-funding-lite-2026:fxify-instant-funding-lite-2026-10k:mt5:fxify-instant-funding-lite-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:7697957eee2730e6d10a94b2747f4ce1b53b42a7422cd6e6949741c62fa65ded"
+    ],
+    "fxify:fxify-instant-funding-lite-2026:fxify-instant-funding-lite-2026-10k:tradingview:fxify-instant-funding-lite-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:5bdd65652f46ed530b17596449ec82d27fd2a26f77a6e932446d4d7eb7450763"
+    ],
+    "fxify:fxify-instant-funding-lite-2026:fxify-instant-funding-lite-2026-2-5k:dxtrade:fxify-instant-funding-lite-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:fd5f301516c138101987e05702ceb9133406f39b3b1bab0f3c4941d7d2897635"
+    ],
+    "fxify:fxify-instant-funding-lite-2026:fxify-instant-funding-lite-2026-2-5k:mt5:fxify-instant-funding-lite-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:2d1d0dc74816cba5b6ff368eef91203271b17aadbd8b23fc474e74be5741d041"
+    ],
+    "fxify:fxify-instant-funding-lite-2026:fxify-instant-funding-lite-2026-2-5k:tradingview:fxify-instant-funding-lite-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:d0c07255be748e9e32d87664d90411492548c58bdb4574754aba89dfbfd0b7b9"
+    ],
+    "fxify:fxify-instant-funding-lite-2026:fxify-instant-funding-lite-2026-25k:dxtrade:fxify-instant-funding-lite-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:801cf987ec2b42952ae8019ea7b4862ab0cc8891bcc83ea73df92efff056f2a8"
+    ],
+    "fxify:fxify-instant-funding-lite-2026:fxify-instant-funding-lite-2026-25k:mt5:fxify-instant-funding-lite-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:0d595b4ab407f0d7e48d7029c98f6a3d5e98ed1f889ffb5f1cc9eac387d4791b"
+    ],
+    "fxify:fxify-instant-funding-lite-2026:fxify-instant-funding-lite-2026-25k:tradingview:fxify-instant-funding-lite-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:ddc24e82cf7bf0ba00ca070a20733412dec6e9a412550f6f816ab3105855a011"
+    ],
+    "fxify:fxify-instant-funding-lite-2026:fxify-instant-funding-lite-2026-50k:dxtrade:fxify-instant-funding-lite-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:f4139a95e5791904cf30673037d763097fb0969353a50ed2a6d8b0c59b1b4007"
+    ],
+    "fxify:fxify-instant-funding-lite-2026:fxify-instant-funding-lite-2026-50k:mt5:fxify-instant-funding-lite-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:54921f47adb39d60b0a755b3fdbf9a3b7de483b28f62366d3bf797f1a9430349"
+    ],
+    "fxify:fxify-instant-funding-lite-2026:fxify-instant-funding-lite-2026-50k:tradingview:fxify-instant-funding-lite-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:04fc194b0f19d4a0b66e43ba82696f75c6e6351eab0bf173a7de59193e48d766"
+    ],
+    "fxify:fxify-instant-funding-lite-2026:fxify-instant-funding-lite-2026-5k:dxtrade:fxify-instant-funding-lite-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:a882a8e6ce2d06e18037ad6dc63e20fbe7a9ed778b6f5d03e2cab2ba063219e6"
+    ],
+    "fxify:fxify-instant-funding-lite-2026:fxify-instant-funding-lite-2026-5k:mt5:fxify-instant-funding-lite-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:343ab000fa541718a7e7e4bbbb589918a5052687a775d398c3809142e9dd399c"
+    ],
+    "fxify:fxify-instant-funding-lite-2026:fxify-instant-funding-lite-2026-5k:tradingview:fxify-instant-funding-lite-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:844a4328f56ac2d007639f7f337654fb6b50df2cd01732e4fc34044b4586ca93"
+    ],
+    "fxify:fxify-lightning-2026:fxify-lightning-2026-confirmar-no-checkout-oficial:dxtrade:fxify-lightning-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:60cbe01831f874b393425bbcf319de948c96e8e3e18ffccf3593838c1526878f"
+    ],
+    "fxify:fxify-lightning-2026:fxify-lightning-2026-confirmar-no-checkout-oficial:mt5:fxify-lightning-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:7214ed9d5ab8823491305e63a19102f3bea5eed1aa982c15ad98785e95e26b2f"
+    ],
+    "fxify:fxify-lightning-2026:fxify-lightning-2026-confirmar-no-checkout-oficial:tradingview:fxify-lightning-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:9445baa974bbe2522e83c9e53ba88ab1d6265d69b613b1fa1eb54edecbcd4614"
+    ],
+    "fxify:fxify-one-phase-2026:fxify-one-phase-2026-100k:dxtrade:fxify-one-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:b0c7f6553fc9423bdf2f8c7ce9d265e5f2b96a3eec9e39e480f1308af1db5f01"
+    ],
+    "fxify:fxify-one-phase-2026:fxify-one-phase-2026-100k:mt4:fxify-one-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:0e0c648bd9ff9f4f0b3349f108d5c7454f5addaa78e16a1de5682e66869646e0"
+    ],
+    "fxify:fxify-one-phase-2026:fxify-one-phase-2026-100k:mt5:fxify-one-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:b5e547137435778399e9052d7dd1b076caec3a5ff2f4818758bf0661866d0785"
+    ],
+    "fxify:fxify-one-phase-2026:fxify-one-phase-2026-100k:tradingview:fxify-one-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:4848cc7dbba4befbd91e0427e7cd3c0feaad674ab16fbfe6ea09ed9adb25d8f3"
+    ],
+    "fxify:fxify-one-phase-2026:fxify-one-phase-2026-10k:dxtrade:fxify-one-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:8ad00d27c7232535050b855149f3f2d73f4306f26406730f3d1f3b905f3ddbbe"
+    ],
+    "fxify:fxify-one-phase-2026:fxify-one-phase-2026-10k:mt4:fxify-one-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:1a9cae452e4b4a600c74b3162a2e77bbbeda50ae51281818edc8bef746abf456"
+    ],
+    "fxify:fxify-one-phase-2026:fxify-one-phase-2026-10k:mt5:fxify-one-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:61d4a8dedabf0d5fa9780e274a6c5210ea92f1caa186caa94119a59667c64132"
+    ],
+    "fxify:fxify-one-phase-2026:fxify-one-phase-2026-10k:tradingview:fxify-one-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:b9ba41f1588e9e24db85841d2e5fe43f1fd9ac0bca410576d5b086d4acf70bdd"
+    ],
+    "fxify:fxify-one-phase-2026:fxify-one-phase-2026-250k:dxtrade:fxify-one-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:e084eb3c13f241eb06cdc056393381bfd455b4e6582aed5d3e9bc17b602cb53e"
+    ],
+    "fxify:fxify-one-phase-2026:fxify-one-phase-2026-250k:mt4:fxify-one-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:423ffbe2f12a4993a845292c693ec9efa88a04a876f00d74116ad1fbc568f56c"
+    ],
+    "fxify:fxify-one-phase-2026:fxify-one-phase-2026-250k:mt5:fxify-one-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:773faaf672aed709d1b16eeac57c691e82b12efef4873e6b8734fcb055157b08"
+    ],
+    "fxify:fxify-one-phase-2026:fxify-one-phase-2026-250k:tradingview:fxify-one-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:9971a1ec4cf8164ec807b54c1b145241f39552834c68539c1fc09ded49ac2f93"
+    ],
+    "fxify:fxify-one-phase-2026:fxify-one-phase-2026-25k:dxtrade:fxify-one-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:64b89dc757b9eb51f9f13fdd6fc2937607d064d77e495e9f1c0dc0e2bab4ab2b"
+    ],
+    "fxify:fxify-one-phase-2026:fxify-one-phase-2026-25k:mt4:fxify-one-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:61595ce0bf801c582df876a438d435640417b06ee529e182add02e1028d393a8"
+    ],
+    "fxify:fxify-one-phase-2026:fxify-one-phase-2026-25k:mt5:fxify-one-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:46eab5b5f2a7a31eb364463710dac20cc4219cb11d70385a65483df73611bfc3"
+    ],
+    "fxify:fxify-one-phase-2026:fxify-one-phase-2026-25k:tradingview:fxify-one-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:c8e4a1acd8e2812ceee325414419d4bc298ff813c28f02403fefcdcbcff771c5"
+    ],
+    "fxify:fxify-one-phase-2026:fxify-one-phase-2026-50k:dxtrade:fxify-one-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:64bfe8f1bc34bdb926ba86a27fd120f8b7565eaa9ce1a8ccc5bdd7b490fef008"
+    ],
+    "fxify:fxify-one-phase-2026:fxify-one-phase-2026-50k:mt4:fxify-one-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:fae09dc8fada83fd369c27bc22c5d129361905a881cd9df6b946d3917695f64f"
+    ],
+    "fxify:fxify-one-phase-2026:fxify-one-phase-2026-50k:mt5:fxify-one-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:3703aa72c0c92593a73819912f90de15f866ca833d6e6fd97d0028c4150ff488"
+    ],
+    "fxify:fxify-one-phase-2026:fxify-one-phase-2026-50k:tradingview:fxify-one-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:75793e2e45bdfe437382cca10d13ad03b4fa0acfafdf1a3605d01d173f940b3f"
+    ],
+    "fxify:fxify-three-phase-2026:fxify-three-phase-2026-100k:dxtrade:fxify-three-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:2f2cc946e1c2de8c7fb93f00e089284e2ccd554736dadd5c40b0b3e3fb43236c"
+    ],
+    "fxify:fxify-three-phase-2026:fxify-three-phase-2026-100k:mt4:fxify-three-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:bbe5e57e03711f3476d8905e725bba41c9e9bc27ee50fd0fee0f3fd914f74480"
+    ],
+    "fxify:fxify-three-phase-2026:fxify-three-phase-2026-100k:mt5:fxify-three-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:a4ee6785979053ea68c6c7f8c897daa70565d01588b0663ccb6d563ae3f02488"
+    ],
+    "fxify:fxify-three-phase-2026:fxify-three-phase-2026-100k:tradingview:fxify-three-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:cd1abfa9aa63e0ab8d3215ebe942ce433fda83190fb7e3ad3c68ae3c4e26515a"
+    ],
+    "fxify:fxify-three-phase-2026:fxify-three-phase-2026-10k:dxtrade:fxify-three-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:6dbb5f1d06da10bb0947e83c7ecd405d8b690ba59982a2cbf1ca48aaa86cdb54"
+    ],
+    "fxify:fxify-three-phase-2026:fxify-three-phase-2026-10k:mt4:fxify-three-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:38358898fae79cd00f30384a76bb6e6a2f18559c09e760d4cfd6f62ef028a9d5"
+    ],
+    "fxify:fxify-three-phase-2026:fxify-three-phase-2026-10k:mt5:fxify-three-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:c4eb78a58b410f0fb0038cb4f0cf19ed58b1d717b8fbbd5ba57f0d6a457e7c54"
+    ],
+    "fxify:fxify-three-phase-2026:fxify-three-phase-2026-10k:tradingview:fxify-three-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:bf39700febff31b32e651e3ec5d0f0a8c1019d1f2d5aaddbe2bd93ddc386860f"
+    ],
+    "fxify:fxify-three-phase-2026:fxify-three-phase-2026-250k:dxtrade:fxify-three-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:7eef3fda04377e1c2f6852d0b097dab8e195578de7beba64802d85730608ff0d"
+    ],
+    "fxify:fxify-three-phase-2026:fxify-three-phase-2026-250k:mt4:fxify-three-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:3e4d8d18d494f169a632b1cf0d5eacec29130c1eea01329a0e390ee0a3896e11"
+    ],
+    "fxify:fxify-three-phase-2026:fxify-three-phase-2026-250k:mt5:fxify-three-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:41c3144453c2d739868b06249c5c7b44a19ca131def711cc08762f4908d4a83f"
+    ],
+    "fxify:fxify-three-phase-2026:fxify-three-phase-2026-250k:tradingview:fxify-three-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:658b092a585114b004b118b0bd28454f6c299b4c77b04a6b070a2662f0821dfc"
+    ],
+    "fxify:fxify-three-phase-2026:fxify-three-phase-2026-25k:dxtrade:fxify-three-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:fc1a7fd3b49718dbcfa107fb874aa5760c6b41d4a4cc68112c3e799cb285c9fd"
+    ],
+    "fxify:fxify-three-phase-2026:fxify-three-phase-2026-25k:mt4:fxify-three-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:95b333ceeab52eba33b80994195fd2a46264ae4acef70ce7c3404b0a7a7ce3c0"
+    ],
+    "fxify:fxify-three-phase-2026:fxify-three-phase-2026-25k:mt5:fxify-three-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:986fffe54388a7a03a524d74bc456503e5629eaa082434ca670c1d677e97a6ae"
+    ],
+    "fxify:fxify-three-phase-2026:fxify-three-phase-2026-25k:tradingview:fxify-three-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:5a807da4e6a6cf31915631f25251b01748621d60cc95a96f75ce706faf2adf90"
+    ],
+    "fxify:fxify-three-phase-2026:fxify-three-phase-2026-50k:dxtrade:fxify-three-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:9bc8386bbde88e969269265c7373a99bf8ea7e669f2360b7d221fc0596cb67e6"
+    ],
+    "fxify:fxify-three-phase-2026:fxify-three-phase-2026-50k:mt4:fxify-three-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:f2b37139d8070318c8d10428aeec750853a7900c465b1318a4179bf04629c545"
+    ],
+    "fxify:fxify-three-phase-2026:fxify-three-phase-2026-50k:mt5:fxify-three-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:09ce369e2b180fdd826a7b28bc326860149be4f3aa6b180210aaa5a944c9b49c"
+    ],
+    "fxify:fxify-three-phase-2026:fxify-three-phase-2026-50k:tradingview:fxify-three-phase-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:5426829f34084fe68d89aa11ffabac257eda145ed854aba063ca194cc31970d2"
+    ],
+    "fxify:fxify-two-phase-classic-2026:fxify-two-phase-classic-2026-5k-a-100k:dxtrade:fxify-two-phase-classic-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:101fb1d28f9b1145671bd3bd108d069427beb7c28d31dfa67e572b595a0f40cb"
+    ],
+    "fxify:fxify-two-phase-classic-2026:fxify-two-phase-classic-2026-5k-a-100k:mt4:fxify-two-phase-classic-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:dd791888e249cfd0459a4c198ea757047c69859535eba1ba608afbe0376da83b"
+    ],
+    "fxify:fxify-two-phase-classic-2026:fxify-two-phase-classic-2026-5k-a-100k:mt5:fxify-two-phase-classic-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:52a216526b68adeb35d8c723e2d29cf40e272530dda923dd800eff02c25c7553"
+    ],
+    "fxify:fxify-two-phase-classic-2026:fxify-two-phase-classic-2026-5k-a-100k:tradingview:fxify-two-phase-classic-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:0b8d46984625b8667467b3649593a66dcae3b545350d3456929538478a2bb2a9"
+    ],
+    "fxify:fxify-two-phase-pro-2026:fxify-two-phase-pro-2026-100k:dxtrade:fxify-two-phase-pro-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:81fdc8cf73082677737e44c7f8d17f35eda8d0b8add29faef23433d0c0a219e9"
+    ],
+    "fxify:fxify-two-phase-pro-2026:fxify-two-phase-pro-2026-100k:mt4:fxify-two-phase-pro-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:ddede8be63f6119c9a9d18163555bc4e82e50a769e53dd5fb48e36b85704e0d9"
+    ],
+    "fxify:fxify-two-phase-pro-2026:fxify-two-phase-pro-2026-100k:mt5:fxify-two-phase-pro-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:178732bcb64151c4769a36cb29899321adcb7ca7e992df915068a565fd77fd1f"
+    ],
+    "fxify:fxify-two-phase-pro-2026:fxify-two-phase-pro-2026-100k:tradingview:fxify-two-phase-pro-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:2675c839b8100f555d6a423dafa40488b52c415575b0ab539e489cf5726d25f8"
+    ],
+    "fxify:fxify-two-phase-pro-2026:fxify-two-phase-pro-2026-10k:dxtrade:fxify-two-phase-pro-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:73e0bdf9a95f067964a6d015a65aa6606f3e9bba7ee3b56c431a41332b786869"
+    ],
+    "fxify:fxify-two-phase-pro-2026:fxify-two-phase-pro-2026-10k:mt4:fxify-two-phase-pro-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:c034fbf1da09b18034e968e46928429838d74b780b9b938c8745615e6f8fcaf3"
+    ],
+    "fxify:fxify-two-phase-pro-2026:fxify-two-phase-pro-2026-10k:mt5:fxify-two-phase-pro-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:189bc80220fa9eadec89c5999ce41d0c9041064fa5eb43daa617d84c84bced96"
+    ],
+    "fxify:fxify-two-phase-pro-2026:fxify-two-phase-pro-2026-10k:tradingview:fxify-two-phase-pro-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:6d2c5f457eb88808e8749bdc4a5eb6f894a1fe3f78fdeb518266e9674b162d96"
+    ],
+    "fxify:fxify-two-phase-pro-2026:fxify-two-phase-pro-2026-150k:dxtrade:fxify-two-phase-pro-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:44e05df582785f90f2a2c0a9ce7a6bbe630da30121e727eba13e457e2f262a83"
+    ],
+    "fxify:fxify-two-phase-pro-2026:fxify-two-phase-pro-2026-150k:mt4:fxify-two-phase-pro-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:4f4a53fb2405ffaa501eb888bb71fa71e4a1130398dd84b29b732ad9043a4430"
+    ],
+    "fxify:fxify-two-phase-pro-2026:fxify-two-phase-pro-2026-150k:mt5:fxify-two-phase-pro-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:18836386f91bb7b455b9033be4046a322ba38eb829c6cb05bb7b660302dd47bc"
+    ],
+    "fxify:fxify-two-phase-pro-2026:fxify-two-phase-pro-2026-150k:tradingview:fxify-two-phase-pro-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:25e81d36ed37038d91cbbd93a16f7402776225d0242e175e2accd39e3bc20f3f"
+    ],
+    "fxify:fxify-two-phase-pro-2026:fxify-two-phase-pro-2026-200k:dxtrade:fxify-two-phase-pro-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:ac51c858868fed3b21616a042e25dc23c14e4d91a3108890299a6e6e9db95279"
+    ],
+    "fxify:fxify-two-phase-pro-2026:fxify-two-phase-pro-2026-200k:mt4:fxify-two-phase-pro-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:0f0c8578eca2605e3a35cd1ed97c1d80bb433a5cd8df5ae80750cb44caba2ecf"
+    ],
+    "fxify:fxify-two-phase-pro-2026:fxify-two-phase-pro-2026-200k:mt5:fxify-two-phase-pro-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:e684e9d575c14ef29574afe8d49abcd007b0f6a40bb6246c7f9474a0d1815c20"
+    ],
+    "fxify:fxify-two-phase-pro-2026:fxify-two-phase-pro-2026-200k:tradingview:fxify-two-phase-pro-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:e936ac2bcd52bf5c3c9a1592096b3705804acc0c8887e2abf8b75195b450c691"
+    ],
+    "fxify:fxify-two-phase-pro-2026:fxify-two-phase-pro-2026-250k:dxtrade:fxify-two-phase-pro-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:4808ce084cd11b9f6892dfe357bdba4e5234ff852ccf70f7b8cd3706e5073765"
+    ],
+    "fxify:fxify-two-phase-pro-2026:fxify-two-phase-pro-2026-250k:mt4:fxify-two-phase-pro-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:a3a9e3017ea1d15965a7f96d5cfcbdddd3d218e0209e07eeabf5d53835b93842"
+    ],
+    "fxify:fxify-two-phase-pro-2026:fxify-two-phase-pro-2026-250k:mt5:fxify-two-phase-pro-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:1992ed772ca730ec563c01a1bc94665be2c8cec870b2d7f7f1412c84e477a780"
+    ],
+    "fxify:fxify-two-phase-pro-2026:fxify-two-phase-pro-2026-250k:tradingview:fxify-two-phase-pro-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:63f0f9e76044a668e38f5913392e7281e00553d81f4dec02693d7206ae2b9d6d"
+    ],
+    "fxify:fxify-two-phase-pro-2026:fxify-two-phase-pro-2026-25k:dxtrade:fxify-two-phase-pro-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:778dc9cf7f2fe0270142d1f3862ce8118d53efd32fa08aa08c7123df280b1452"
+    ],
+    "fxify:fxify-two-phase-pro-2026:fxify-two-phase-pro-2026-25k:mt4:fxify-two-phase-pro-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:8082c1d3cd910f9df31ea3466b27b7ae72cd742c23948c15bd5b4591b705799d"
+    ],
+    "fxify:fxify-two-phase-pro-2026:fxify-two-phase-pro-2026-25k:mt5:fxify-two-phase-pro-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:29a88c1f6efc4663ff2fbf62a21fb82920c87f5b0878e25e39ff9d2c55c393d8"
+    ],
+    "fxify:fxify-two-phase-pro-2026:fxify-two-phase-pro-2026-25k:tradingview:fxify-two-phase-pro-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:f3bb67cd7e4c967876449de697ab9311dfb7cf5b884297c9c2888b0024ab4328"
+    ],
+    "fxify:fxify-two-phase-pro-2026:fxify-two-phase-pro-2026-50k:dxtrade:fxify-two-phase-pro-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:f0f83ac481fc3106a6b7124195c4e41c49b7b6f8bb1988aa6b76254ade9469e1"
+    ],
+    "fxify:fxify-two-phase-pro-2026:fxify-two-phase-pro-2026-50k:mt4:fxify-two-phase-pro-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:f64ecc098b3739fca0369a2dc109c5fcd0f0965dc9874616e5bf0e026735c873"
+    ],
+    "fxify:fxify-two-phase-pro-2026:fxify-two-phase-pro-2026-50k:mt5:fxify-two-phase-pro-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:be31e8e239c6804aa9b776b4024ce2dedfb108f600e8559fdf7030853de3a813"
+    ],
+    "fxify:fxify-two-phase-pro-2026:fxify-two-phase-pro-2026-50k:tradingview:fxify-two-phase-pro-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:063d1b7d7d3eb6184fa2795d7d5df84c82344d2547e3552b1ffc44775182c51d"
+    ],
+    "fxify:fxify-two-phase-standard-2026:fxify-two-phase-standard-2026-100k:dxtrade:fxify-two-phase-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:ceac887b6a5b1388540dba965f8bcfd0ab1232a9466d4f11779d1bcda97b2c72"
+    ],
+    "fxify:fxify-two-phase-standard-2026:fxify-two-phase-standard-2026-100k:mt4:fxify-two-phase-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:59b827dc34c493d07094e0dccd2e44111d3f089db83464ba6c8fc3f1be62a975"
+    ],
+    "fxify:fxify-two-phase-standard-2026:fxify-two-phase-standard-2026-100k:mt5:fxify-two-phase-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:73264db8001a0f9c715499ff41083969c316dd23f65ae9161334f1fc204dbcef"
+    ],
+    "fxify:fxify-two-phase-standard-2026:fxify-two-phase-standard-2026-100k:tradingview:fxify-two-phase-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:912812ed792d048f4bd61094a504ae7673c53ce097010b7160202e2d385201c4"
+    ],
+    "fxify:fxify-two-phase-standard-2026:fxify-two-phase-standard-2026-10k:dxtrade:fxify-two-phase-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:1dc6c6401bdd96edb23b37618223283aa397a707e9c371d0bc81fed561881cc5"
+    ],
+    "fxify:fxify-two-phase-standard-2026:fxify-two-phase-standard-2026-10k:mt4:fxify-two-phase-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:aa148bd0eb2e5b09dba515cbbb9a792060c5bd869a54d0ca80ebfaa8f63d5e09"
+    ],
+    "fxify:fxify-two-phase-standard-2026:fxify-two-phase-standard-2026-10k:mt5:fxify-two-phase-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:a04b5933a6ef4ae30c4995f6a3952d243e44176d5105f4ea57343d2d7ae2e6ad"
+    ],
+    "fxify:fxify-two-phase-standard-2026:fxify-two-phase-standard-2026-10k:tradingview:fxify-two-phase-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:47e6cfd1d6b51256fb195cda35b797a9ec54ac06f557ceaa71ee4f79981fac55"
+    ],
+    "fxify:fxify-two-phase-standard-2026:fxify-two-phase-standard-2026-250k:dxtrade:fxify-two-phase-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:83a54ba72c0f7e6da71825bcc689b2ca4bf539a0664c87409cb48f7c1a478984"
+    ],
+    "fxify:fxify-two-phase-standard-2026:fxify-two-phase-standard-2026-250k:mt4:fxify-two-phase-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:6f47429b34368752335a8d5067864aa86e6f5f5eb05a6d64d7119f5840cb3851"
+    ],
+    "fxify:fxify-two-phase-standard-2026:fxify-two-phase-standard-2026-250k:mt5:fxify-two-phase-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:22e2d9f59a3ec51c44b70aa1f03b84e3aa0c4db846b9360947cc237f37d910e8"
+    ],
+    "fxify:fxify-two-phase-standard-2026:fxify-two-phase-standard-2026-250k:tradingview:fxify-two-phase-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:1b076b1b6a7a4132a89754ffff5a5f7c14edfffe4b8d60f126ce0a1ca4ccd4f3"
+    ],
+    "fxify:fxify-two-phase-standard-2026:fxify-two-phase-standard-2026-25k:dxtrade:fxify-two-phase-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:2fb28b72ed9074cfd3e7cac97d419b456b5516ac774502598107fe00fe3297be"
+    ],
+    "fxify:fxify-two-phase-standard-2026:fxify-two-phase-standard-2026-25k:mt4:fxify-two-phase-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:72eba889b38d465d50ea96da36169f714eb11694261b56b16f4e3ec05ed5ad33"
+    ],
+    "fxify:fxify-two-phase-standard-2026:fxify-two-phase-standard-2026-25k:mt5:fxify-two-phase-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:1bd22c86680c69313384162937c67f5b1b7347993f31033fba490c87baed3c80"
+    ],
+    "fxify:fxify-two-phase-standard-2026:fxify-two-phase-standard-2026-25k:tradingview:fxify-two-phase-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:bec8530942e81649f3e34fe4a983d60d969134a4ec55ecf1049c344ca7843592"
+    ],
+    "fxify:fxify-two-phase-standard-2026:fxify-two-phase-standard-2026-50k:dxtrade:fxify-two-phase-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:acf6bd156a8bb9b4b927b3b8750b1c5e694b0a9b43ca87173ac9ae3604486806"
+    ],
+    "fxify:fxify-two-phase-standard-2026:fxify-two-phase-standard-2026-50k:mt4:fxify-two-phase-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:e10137d1504c680e3b552885968facf062b2e7146372e7d7a1a5035fcf11bf40"
+    ],
+    "fxify:fxify-two-phase-standard-2026:fxify-two-phase-standard-2026-50k:mt5:fxify-two-phase-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:740625272498c0333135e657845632167135b5829c61b209f85a0e2446295361"
+    ],
+    "fxify:fxify-two-phase-standard-2026:fxify-two-phase-standard-2026-50k:tradingview:fxify-two-phase-standard-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:da20395ae6d3effef47263044785b8086c14b0dea77efef7dfca0d936c3a2aeb"
+    ],
+    "hantec-trader:hantec-enhanced-2026:hantec-enhanced-2026-100k:mt5:hantec-enhanced-2026-rules-calculo-diario-legado": [
+      "sha256:6c8d00b761bee35fb84c6b4752a1bf70899d2788040c435d174cc80a7d7370ef"
+    ],
+    "hantec-trader:hantec-enhanced-2026:hantec-enhanced-2026-100k:mt5:hantec-enhanced-2026-rules-calculo-diario-vigente": [
+      "sha256:f8f5f7246dc08e632351d853a85e5a8344b0a7a86e218cd6775cfb2659dc4e31"
+    ],
+    "hantec-trader:hantec-enhanced-2026:hantec-enhanced-2026-10k:mt5:hantec-enhanced-2026-rules-calculo-diario-legado": [
+      "sha256:62b05ae47a9a940738b28ebfedc81199c4fb6cebda76250db7c43120a8cc0bd4"
+    ],
+    "hantec-trader:hantec-enhanced-2026:hantec-enhanced-2026-10k:mt5:hantec-enhanced-2026-rules-calculo-diario-vigente": [
+      "sha256:df218c034f0b02c726d4deeda4cfcd8797e8e3df0dd63a46fb3b4b6f98dd809d"
+    ],
+    "hantec-trader:hantec-enhanced-2026:hantec-enhanced-2026-200k:mt5:hantec-enhanced-2026-rules-calculo-diario-legado": [
+      "sha256:1cde1956a1b8bc64b563679682b469713eb8dbf2c1c233171e0b90e5b7e0e409"
+    ],
+    "hantec-trader:hantec-enhanced-2026:hantec-enhanced-2026-200k:mt5:hantec-enhanced-2026-rules-calculo-diario-vigente": [
+      "sha256:97af65619d6306e1322a52ddb3cfc59f6f1089257a40891c27e2d474b2ea7deb"
+    ],
+    "hantec-trader:hantec-enhanced-2026:hantec-enhanced-2026-25k:mt5:hantec-enhanced-2026-rules-calculo-diario-legado": [
+      "sha256:33edc595283101b12052da540e21c628265aa09bfd5ed141ebc8ccc2e0a2c17b"
+    ],
+    "hantec-trader:hantec-enhanced-2026:hantec-enhanced-2026-25k:mt5:hantec-enhanced-2026-rules-calculo-diario-vigente": [
+      "sha256:2c4912c7befa424cb2a7831e3d1e156c4b34f01d2d1b009565b6f5a3d0268349"
+    ],
+    "hantec-trader:hantec-enhanced-2026:hantec-enhanced-2026-50k:mt5:hantec-enhanced-2026-rules-calculo-diario-legado": [
+      "sha256:d3e9761c05490fa3a8d7e6506632868eed75da848277cefd521e3cb560562efa"
+    ],
+    "hantec-trader:hantec-enhanced-2026:hantec-enhanced-2026-50k:mt5:hantec-enhanced-2026-rules-calculo-diario-vigente": [
+      "sha256:59d24bf92d87918ea6b42242d6e94133ffdb3eb79822693dae477462ea0d1de7"
+    ],
+    "hantec-trader:hantec-enhanced-2026:hantec-enhanced-2026-5k:mt5:hantec-enhanced-2026-rules-calculo-diario-legado": [
+      "sha256:ed70fc4bc83bee4052d254e7bf03ca0e3e59c0fc9092dcc0f8ce5c49dea86a7f"
+    ],
+    "hantec-trader:hantec-enhanced-2026:hantec-enhanced-2026-5k:mt5:hantec-enhanced-2026-rules-calculo-diario-vigente": [
+      "sha256:13c2b3ce1a6df4199659dd61056fcc0406ae3bad02058e18809b2200ac6fe767"
+    ],
+    "hantec-trader:hantec-enhancedx-2026:hantec-enhancedx-2026-100k:mt5:hantec-enhancedx-2026-rules-calculo-diario-legado": [
+      "sha256:22a7cd38b25950034e3db78e755b9c7c7ed3551d5a2cd385ea50d1f2afb517f7"
+    ],
+    "hantec-trader:hantec-enhancedx-2026:hantec-enhancedx-2026-100k:mt5:hantec-enhancedx-2026-rules-calculo-diario-vigente": [
+      "sha256:e6f4f62b55052fe336226a748272b999caec6004f3f491ca57130092c733487f"
+    ],
+    "hantec-trader:hantec-enhancedx-2026:hantec-enhancedx-2026-10k:mt5:hantec-enhancedx-2026-rules-calculo-diario-legado": [
+      "sha256:a88d258c6488350be279de639cf8e755d49c81de3f181e0b6d64c5a446fa542e"
+    ],
+    "hantec-trader:hantec-enhancedx-2026:hantec-enhancedx-2026-10k:mt5:hantec-enhancedx-2026-rules-calculo-diario-vigente": [
+      "sha256:f48e5e16620e55c86fe085b182d980e89695e8ccf20723ff4f8c85d6a993f873"
+    ],
+    "hantec-trader:hantec-enhancedx-2026:hantec-enhancedx-2026-200k:mt5:hantec-enhancedx-2026-rules-calculo-diario-legado": [
+      "sha256:fb79814ccdc0dfe4c4aabf124f15e80456beda37e3bcf8d32378c46d8c567079"
+    ],
+    "hantec-trader:hantec-enhancedx-2026:hantec-enhancedx-2026-200k:mt5:hantec-enhancedx-2026-rules-calculo-diario-vigente": [
+      "sha256:310772320429cecc741a07d1a3899265f252fbc997f1926d480fa03288a6bff7"
+    ],
+    "hantec-trader:hantec-enhancedx-2026:hantec-enhancedx-2026-25k:mt5:hantec-enhancedx-2026-rules-calculo-diario-legado": [
+      "sha256:1b3a31d7f54a45903f784c8cd684104570898813038fbb2600fde0fe0068e0f5"
+    ],
+    "hantec-trader:hantec-enhancedx-2026:hantec-enhancedx-2026-25k:mt5:hantec-enhancedx-2026-rules-calculo-diario-vigente": [
+      "sha256:6b7a7527d41b79ed8880aa610dad3155d6bf2cb7b2edf2346018c5aa7217c642"
+    ],
+    "hantec-trader:hantec-enhancedx-2026:hantec-enhancedx-2026-2k:mt5:hantec-enhancedx-2026-rules-calculo-diario-legado": [
+      "sha256:d29d455c8606506d5f5d951ec273cb311a71be6b5e3546b3f984b04f3672f3f4"
+    ],
+    "hantec-trader:hantec-enhancedx-2026:hantec-enhancedx-2026-2k:mt5:hantec-enhancedx-2026-rules-calculo-diario-vigente": [
+      "sha256:4cb5b5ca2949438b620f3317fe87e70cec5b77f5b3ce76538edbe6345c86534f"
+    ],
+    "hantec-trader:hantec-enhancedx-2026:hantec-enhancedx-2026-50k:mt5:hantec-enhancedx-2026-rules-calculo-diario-legado": [
+      "sha256:261519ea83d955c63b11adebc4a3f3c47f96943f481f32969663f9b7cd4a6041"
+    ],
+    "hantec-trader:hantec-enhancedx-2026:hantec-enhancedx-2026-50k:mt5:hantec-enhancedx-2026-rules-calculo-diario-vigente": [
+      "sha256:2503cd73821feb612e3a90b2ede2d235a1ba2b6c7c3db41d7fc2672088015c63"
+    ],
+    "hantec-trader:hantec-enhancedx-2026:hantec-enhancedx-2026-5k:mt5:hantec-enhancedx-2026-rules-calculo-diario-legado": [
+      "sha256:6754279fcd839ff8584f27b9493c6ee87c32d8aae49a09453581a31d697d6659"
+    ],
+    "hantec-trader:hantec-enhancedx-2026:hantec-enhancedx-2026-5k:mt5:hantec-enhancedx-2026-rules-calculo-diario-vigente": [
+      "sha256:04f1a11e227ecd727accc342a81d8f68f0fb961ad43827a6cf9b096a7925b3c3"
+    ],
+    "hantec-trader:hantec-express-2026:hantec-express-2026-100k:mt5:hantec-express-2026-rules-calculo-diario-legado": [
+      "sha256:0b40e55d18df411868d63b8cffebb53dd36977e2ef5e7888ee4eac1e59096283"
+    ],
+    "hantec-trader:hantec-express-2026:hantec-express-2026-100k:mt5:hantec-express-2026-rules-calculo-diario-vigente": [
+      "sha256:025203bb28e1b27925d503460e6e7ee3950cb79f5fc081dcdf4adc4aebdaae18"
+    ],
+    "hantec-trader:hantec-express-2026:hantec-express-2026-10k:mt5:hantec-express-2026-rules-calculo-diario-legado": [
+      "sha256:77bbb755db22f8e15a3d80ea7d48632aab074453414014e39fb04e6ca8547adc"
+    ],
+    "hantec-trader:hantec-express-2026:hantec-express-2026-10k:mt5:hantec-express-2026-rules-calculo-diario-vigente": [
+      "sha256:1604de94851537d9b95522dd09fe3be7915ff08329e8585dea23a9918d6af14f"
+    ],
+    "hantec-trader:hantec-express-2026:hantec-express-2026-200k:mt5:hantec-express-2026-rules-calculo-diario-legado": [
+      "sha256:6477cbc537cab5478bb9eb7482d874a3bd882d94e0aa46b1cb370e411d85992b"
+    ],
+    "hantec-trader:hantec-express-2026:hantec-express-2026-200k:mt5:hantec-express-2026-rules-calculo-diario-vigente": [
+      "sha256:8299da57dbcd4bd2fb77d2e0f3f82c9c3e2a2f20581196950dbfedfbb49be519"
+    ],
+    "hantec-trader:hantec-express-2026:hantec-express-2026-25k:mt5:hantec-express-2026-rules-calculo-diario-legado": [
+      "sha256:33a56016914a35fc1b6584d95aafe25502e446bc4f1d1d5380cb4801ff31c101"
+    ],
+    "hantec-trader:hantec-express-2026:hantec-express-2026-25k:mt5:hantec-express-2026-rules-calculo-diario-vigente": [
+      "sha256:59efcb6b1882b3bc61efb197518f640b339fc509c8bd6489ddb17280f35047a6"
+    ],
+    "hantec-trader:hantec-express-2026:hantec-express-2026-2k:mt5:hantec-express-2026-rules-calculo-diario-legado": [
+      "sha256:2c0b3d5583d9cda05bc32bf3b344786692d14dd0e761241e2f165e0c11a65213"
+    ],
+    "hantec-trader:hantec-express-2026:hantec-express-2026-2k:mt5:hantec-express-2026-rules-calculo-diario-vigente": [
+      "sha256:769c342e279ed1e210f2eb9e943c41d1ebd1adc0b9e1d627dc5983159a9f490c"
+    ],
+    "hantec-trader:hantec-express-2026:hantec-express-2026-50k:mt5:hantec-express-2026-rules-calculo-diario-legado": [
+      "sha256:109eba535945f62b9caeb18e9b62e8544c0c2ba247845251811f1bcde52882b2"
+    ],
+    "hantec-trader:hantec-express-2026:hantec-express-2026-50k:mt5:hantec-express-2026-rules-calculo-diario-vigente": [
+      "sha256:026d2212e8a9597bef2119bac8d90c3414f536d2f8f47f88627aa252d1d2f848"
+    ],
+    "hantec-trader:hantec-express-2026:hantec-express-2026-5k:mt5:hantec-express-2026-rules-calculo-diario-legado": [
+      "sha256:a06da2f1a4b8d964f62e3632369281dee3715fa964f13f99dc247d84729d11a1"
+    ],
+    "hantec-trader:hantec-express-2026:hantec-express-2026-5k:mt5:hantec-express-2026-rules-calculo-diario-vigente": [
+      "sha256:0de58d7374d98552831a9aa7b25992569556ba540a2fed9c122d9c98480a6e7e"
+    ],
+    "hantec-trader:hantec-instant-funding-2026:hantec-instant-funding-2026-10k:mt5:hantec-instant-funding-2026-rules-calculo-diario-legado": [
+      "sha256:e54aa7cde7247253b1455a2c4b8af103fda09465ae960084adcac39004de1ae7"
+    ],
+    "hantec-trader:hantec-instant-funding-2026:hantec-instant-funding-2026-10k:mt5:hantec-instant-funding-2026-rules-calculo-diario-vigente": [
+      "sha256:8a808bbe03b6b6348b835d94bbf094b5f9102593afb6fc8e0a76ec2c600886ba"
+    ],
+    "hantec-trader:hantec-instant-funding-2026:hantec-instant-funding-2026-1k:mt5:hantec-instant-funding-2026-rules-calculo-diario-legado": [
+      "sha256:8b0ed0ca958a78829543bcf34e4994241988bd8617f2896c90157c34ad3fd4dd"
+    ],
+    "hantec-trader:hantec-instant-funding-2026:hantec-instant-funding-2026-1k:mt5:hantec-instant-funding-2026-rules-calculo-diario-vigente": [
+      "sha256:e41907e2b4eb663d94a78782474c9e88026c6734064a05675abd88e734a4653b"
+    ],
+    "hantec-trader:hantec-instant-funding-2026:hantec-instant-funding-2026-25k:mt5:hantec-instant-funding-2026-rules-calculo-diario-legado": [
+      "sha256:db206ba83ffe8a14adfb740024c011c192b311c07831a175af6dbbcf4cd00005"
+    ],
+    "hantec-trader:hantec-instant-funding-2026:hantec-instant-funding-2026-25k:mt5:hantec-instant-funding-2026-rules-calculo-diario-vigente": [
+      "sha256:d76c80ac66cc984bbd781134d91b49418f5208b1d3c5d2677d1f03a3bbc1dea6"
+    ],
+    "hantec-trader:hantec-instant-funding-2026:hantec-instant-funding-2026-2k:mt5:hantec-instant-funding-2026-rules-calculo-diario-legado": [
+      "sha256:843cc46a7a6f215b11ec1e0f17afe43c71b660d7387a4786a0aae14d6f3b1850"
+    ],
+    "hantec-trader:hantec-instant-funding-2026:hantec-instant-funding-2026-2k:mt5:hantec-instant-funding-2026-rules-calculo-diario-vigente": [
+      "sha256:e466e0e935cdd4692b91e7349e800f83255dfdc4926dd65ffeb0e587ba5ca81e"
+    ],
+    "hantec-trader:hantec-instant-funding-2026:hantec-instant-funding-2026-50k:mt5:hantec-instant-funding-2026-rules-calculo-diario-legado": [
+      "sha256:801fe1a1b896eabc36208f692456cc8e725818b9f2724da99f9272bf004f46e6"
+    ],
+    "hantec-trader:hantec-instant-funding-2026:hantec-instant-funding-2026-50k:mt5:hantec-instant-funding-2026-rules-calculo-diario-vigente": [
+      "sha256:7ab693c823debea74f74a0d8d49c9e2a6fb83a793fd7b52a64ec633fbb1414cf"
+    ],
+    "hantec-trader:hantec-instant-funding-2026:hantec-instant-funding-2026-5k:mt5:hantec-instant-funding-2026-rules-calculo-diario-legado": [
+      "sha256:bbbd0d1d1a901afc773aec3dfe1feedd1c8ac76e08ee03ee5344429c42ac79e9"
+    ],
+    "hantec-trader:hantec-instant-funding-2026:hantec-instant-funding-2026-5k:mt5:hantec-instant-funding-2026-rules-calculo-diario-vigente": [
+      "sha256:bd74c41918e8703e84e8028609ce18501b7130e3fca0e6c70e35cc0a39039576"
+    ],
+    "np-future:npfuture-flash-blackarrow:npfuture-flash-blackarrow-100k:blackarrow:npfuture-flash-blackarrow-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:cb39dd596d97f7841c0c936ed79fb30bc8ef5c171aa9c78b579f06c73178a77d"
+    ],
+    "np-future:npfuture-flash-blackarrow:npfuture-flash-blackarrow-150k:blackarrow:npfuture-flash-blackarrow-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:68088d378fdb2beafeff68ff66ffe931d114cf07cfea16947f6dde11af1d989d"
+    ],
+    "np-future:npfuture-flash-blackarrow:npfuture-flash-blackarrow-200k:blackarrow:npfuture-flash-blackarrow-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:b08554ea50cebbf501661099b6652f502f04ae83c6c9277f095914710890502e"
+    ],
+    "np-future:npfuture-flash-blackarrow:npfuture-flash-blackarrow-25k:blackarrow:npfuture-flash-blackarrow-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:2e121deb34cabfb6d8b4375916a30e30c4e35cb9eda26570f316d1dbca88494c"
+    ],
+    "np-future:npfuture-flash-blackarrow:npfuture-flash-blackarrow-50k:blackarrow:npfuture-flash-blackarrow-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:af55fc46d1408c991d315507f8d98263220271e23210273abbef445c834e291b"
+    ],
+    "np-future:npfuture-flash-mt5:npfuture-flash-mt5-100k:mt5:npfuture-flash-mt5-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:0be570cde6e0007461130b5bf8f88d12c09137b849b1d181f9d440f97e76edca"
+    ],
+    "np-future:npfuture-flash-mt5:npfuture-flash-mt5-150k:mt5:npfuture-flash-mt5-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:a7e45b92e26fbf8e27f20f12b24ad309691570870fa6b61852ef6b3664d4cfad"
+    ],
+    "np-future:npfuture-flash-mt5:npfuture-flash-mt5-200k:mt5:npfuture-flash-mt5-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:a5dab9269a452dfeaf93ef78bea239c8827cecef39b10468b497235fac0e5f87"
+    ],
+    "np-future:npfuture-flash-mt5:npfuture-flash-mt5-25k:mt5:npfuture-flash-mt5-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:d8c8cf1ef5d975fb7a1c7935ca1804d61aa671bb0297fea854a4c88ecfc7a853"
+    ],
+    "np-future:npfuture-flash-mt5:npfuture-flash-mt5-50k:mt5:npfuture-flash-mt5-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:71fd5d6f5936d37c3570745e1bc1096fce6619592abce4e0123de7295c0378ad"
+    ],
+    "np-future:npfuture-funded-blackarrow:npfuture-funded-blackarrow-100k:blackarrow:npfuture-funded-blackarrow-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:bc7057bdcd4239ed2be1e6a26988307c11294edd495315b1648844102f301092"
+    ],
+    "np-future:npfuture-funded-blackarrow:npfuture-funded-blackarrow-150k:blackarrow:npfuture-funded-blackarrow-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:07bcd1b08bfb873a6728099371076ccf888a4685acd225718a2d98bd63d47b06"
+    ],
+    "np-future:npfuture-funded-blackarrow:npfuture-funded-blackarrow-200k:blackarrow:npfuture-funded-blackarrow-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:0a95ae8b933ad8ace59baebf6eceeb332c82fd54a636226f988146315218dfae"
+    ],
+    "np-future:npfuture-funded-blackarrow:npfuture-funded-blackarrow-25k:blackarrow:npfuture-funded-blackarrow-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:7aebab379e6a48105242b37e302cf1afdf5e5a70d849fec568834bc00194db84"
+    ],
+    "np-future:npfuture-funded-blackarrow:npfuture-funded-blackarrow-50k:blackarrow:npfuture-funded-blackarrow-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:3f81af1088f475956e1bf38e682f970fd76803c8ba0da6a36fe4de1291132b21"
+    ],
+    "np-future:npfuture-funded-mt5:npfuture-funded-mt5-100k:mt5:npfuture-funded-mt5-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:ae2e9f5b37582eaba1e581b6bbaf2886a122c3985fc962206e71d050688e2ede"
+    ],
+    "np-future:npfuture-funded-mt5:npfuture-funded-mt5-150k:mt5:npfuture-funded-mt5-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:38e9754d6ca7ca2713ac9378adaaaf4ceffa172026edf6b4d983c2537a125833"
+    ],
+    "np-future:npfuture-funded-mt5:npfuture-funded-mt5-200k:mt5:npfuture-funded-mt5-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:372957bc5b160d24e36a6cc0390c101569ef5687201c1ed1960e9dd1da778bd2"
+    ],
+    "np-future:npfuture-funded-mt5:npfuture-funded-mt5-25k:mt5:npfuture-funded-mt5-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:3ea28523546eab998f04ec79611b88bcbb8765b8aa40b5772c45d385ff4194f6"
+    ],
+    "np-future:npfuture-funded-mt5:npfuture-funded-mt5-50k:mt5:npfuture-funded-mt5-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:f2f8688ac2adbc46bc8a1fe90b2667c030edce03eb7cc8a9d2c8f0acd4f0fafe"
+    ],
+    "np-future:npfuture-standard-blackarrow:npfuture-standard-blackarrow-100k:blackarrow:npfuture-standard-blackarrow-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:738c127e874f3a2d89b82640ce02dde171720ca5edbd9427b6225c3ba1363957"
+    ],
+    "np-future:npfuture-standard-blackarrow:npfuture-standard-blackarrow-150k:blackarrow:npfuture-standard-blackarrow-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:621c962d3a11f9c698c1f2c92b307696c839676d6a7d845abb10bf15c3aa1018"
+    ],
+    "np-future:npfuture-standard-blackarrow:npfuture-standard-blackarrow-200k:blackarrow:npfuture-standard-blackarrow-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:9d6994cc7ba0f9e74293e08ea3929883c10e2d661b73da5367c73fbf0cfbb9e8"
+    ],
+    "np-future:npfuture-standard-blackarrow:npfuture-standard-blackarrow-25k:blackarrow:npfuture-standard-blackarrow-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:c7899e5f23fb4c2865a16b468936b7d37cde755965e9f36861cad9fe56e16e17"
+    ],
+    "np-future:npfuture-standard-blackarrow:npfuture-standard-blackarrow-50k:blackarrow:npfuture-standard-blackarrow-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:a2024f2f4d6cb96b548af4951135b79a83abc31622a4e5afaf8c8b83e9cd77ee"
+    ],
+    "np-future:npfuture-standard-mt5:npfuture-standard-mt5-100k:mt5:npfuture-standard-mt5-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:0b66312d3f7655b0bf370ca3bc26efd53177d8fd99d08c2dd7fc11ff2da3a9a3"
+    ],
+    "np-future:npfuture-standard-mt5:npfuture-standard-mt5-150k:mt5:npfuture-standard-mt5-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:df43745b91039adef05d084a2dd1d488f2a3fae881f9340852a92dd8c522c6cb"
+    ],
+    "np-future:npfuture-standard-mt5:npfuture-standard-mt5-200k:mt5:npfuture-standard-mt5-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:7ca051e7715b14c5c9bb0882eec62e76b4da313b84b246615bbcaaa355b19faa"
+    ],
+    "np-future:npfuture-standard-mt5:npfuture-standard-mt5-25k:mt5:npfuture-standard-mt5-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:a2e0be0f98f5a0184b7d9c3ed5522a95282869d76fe4a478d246ccdade173515"
+    ],
+    "np-future:npfuture-standard-mt5:npfuture-standard-mt5-50k:mt5:npfuture-standard-mt5-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:59853dc000dc0d5eff38d4aede17859027045d6ec4a0e2024756cfb475161a1d"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-100k:ctrader:trading-pit-prime-cfd-one-step-2026-rules-cfd-prime-atual": [
+      "sha256:60794bf783899185f435662240befa3d58ca07bb64956bb313a9d5d107ea9e2e"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-100k:ctrader:trading-pit-prime-cfd-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:99e33bd618a8713a8f0d3758c3124ef1a6cc560e0f0316bc22604d91298ee79f"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-100k:mt4:trading-pit-prime-cfd-one-step-2026-rules-cfd-prime-atual": [
+      "sha256:091e9ae053af4e8bc576d0535c9c5590cd273a2414b46ccade0778bc68af909b"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-100k:mt4:trading-pit-prime-cfd-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:d337f3b05b690df4aaef6d9ed3926ce43014d67d0942c6493fbde8a85a3c6209"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-100k:mt5:trading-pit-prime-cfd-one-step-2026-rules-cfd-prime-atual": [
+      "sha256:29af9621caff4d0cf2d18259c46702f4044330c1d705c6dbf5e7425ff76c90f2"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-100k:mt5:trading-pit-prime-cfd-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:f83ad7ad3af5e68f7e24d070064a8c0391a102ad7b64e6f9aad283aee7e68134"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-10k:ctrader:trading-pit-prime-cfd-one-step-2026-rules-cfd-prime-atual": [
+      "sha256:a5ceeabc2e101e589c1bf87fb8f0daf45d6a4b13b97d14f4200060007c81884b"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-10k:ctrader:trading-pit-prime-cfd-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:b16524dd866628c7aeb31345c78e39eb3d7f47ae08a50dc22c9850a89bb2d686"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-10k:mt4:trading-pit-prime-cfd-one-step-2026-rules-cfd-prime-atual": [
+      "sha256:f8161433fee23958f6096c284e3c457b46ea374095841f1520bb1471c386ea54"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-10k:mt4:trading-pit-prime-cfd-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:a380dd1763c7896e64d554cc9f8646790c37cc284644e905a65211b44518ad0b"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-10k:mt5:trading-pit-prime-cfd-one-step-2026-rules-cfd-prime-atual": [
+      "sha256:582d525ae745c13b7ae55d63c6fc360ff4a4e9f6c0b0c2a3371e5c4132fe914d"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-10k:mt5:trading-pit-prime-cfd-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:e8905af54333faa943cb0b5514a7d6e717922a115f2aeb165c6cdb23a2bec794"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-2-5k:ctrader:trading-pit-prime-cfd-one-step-2026-rules-cfd-prime-atual": [
+      "sha256:42216bc5de41935e45673d2a08f6c28f7c0b624d6de5730a93a590f72e4cdd44"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-2-5k:ctrader:trading-pit-prime-cfd-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:cf91366cc39ce789e8a2a6efc0ac096cfb73de468c5b1aa57dc9176e0ceee15b"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-2-5k:mt4:trading-pit-prime-cfd-one-step-2026-rules-cfd-prime-atual": [
+      "sha256:0a656e55d02d339cf5408846183788ab432c34954a41600950861d138af68c4a"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-2-5k:mt4:trading-pit-prime-cfd-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:6b45fe09a4309c08278846974da06378d424699fed70164494681699df26086b"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-2-5k:mt5:trading-pit-prime-cfd-one-step-2026-rules-cfd-prime-atual": [
+      "sha256:b67ca63207071f8895cae0b914e27a5515ad9a908f97c99ae2f0ef1727fbad24"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-2-5k:mt5:trading-pit-prime-cfd-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:545ccc7258077e418f89068407004583806d583559d68efc815161a827366cca"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-200k:ctrader:trading-pit-prime-cfd-one-step-2026-rules-cfd-prime-atual": [
+      "sha256:b507442712cc09a8d593c0b2105747aa73e0691bd89841656dd797ed6333f193"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-200k:ctrader:trading-pit-prime-cfd-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:ff672a5d770f6a782bc92f1fa0039af3075ed4ee7d5ef43c3cc13404dd864b08"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-200k:mt4:trading-pit-prime-cfd-one-step-2026-rules-cfd-prime-atual": [
+      "sha256:195d3317aafd1f1a63ae9084dfcbf4f05b609b577cca918ab8903c64ba67b95f"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-200k:mt4:trading-pit-prime-cfd-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:f47229217afa253faa3342103cc5986330756ef0edf6461c4ad7c735c83f067a"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-200k:mt5:trading-pit-prime-cfd-one-step-2026-rules-cfd-prime-atual": [
+      "sha256:8d2ad73c20cef0361d491fdda2a5b8659b6ba103e74c287812d7c9b17a162170"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-200k:mt5:trading-pit-prime-cfd-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:4e283a9e2bbabf9e76b84835377467b658fae49591659d85321882d34190d5a3"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-20k:ctrader:trading-pit-prime-cfd-one-step-2026-rules-cfd-prime-atual": [
+      "sha256:e11475259b4819e15c07aa2bf3c76e6bc9df634609fc2811f2d7660e1573a8ac"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-20k:ctrader:trading-pit-prime-cfd-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:e9f9bca5f70ea8840ac3e0b1061200898eb26f8f4c18ceaf23fe220e4107fe87"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-20k:mt4:trading-pit-prime-cfd-one-step-2026-rules-cfd-prime-atual": [
+      "sha256:5c6f696afbd1c0875f47a1ef5140a797e9493753d6e508bafc40b00f38d1858d"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-20k:mt4:trading-pit-prime-cfd-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:bf66fd30b47be3add23886ac3f31144d976ef7c3945104440cbba9e38d030bd9"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-20k:mt5:trading-pit-prime-cfd-one-step-2026-rules-cfd-prime-atual": [
+      "sha256:e2ccb8aeef50ed9644ea913c5aa5fa4239e3285e6265dc2af66b06c3e0e25a1f"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-20k:mt5:trading-pit-prime-cfd-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:6e8cf76ebdb366f2e7409972d280b7499de380924d520cb040551d7b146e8c68"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-50k:ctrader:trading-pit-prime-cfd-one-step-2026-rules-cfd-prime-atual": [
+      "sha256:3dec6dbca998c4ae79b031de8f53231ae3b5db505b241404ff7a3b49439aac83"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-50k:ctrader:trading-pit-prime-cfd-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:6f7c2b753fcfd69909e627680e946766a4ee84871b2234f85e798fcb7a436a8d"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-50k:mt4:trading-pit-prime-cfd-one-step-2026-rules-cfd-prime-atual": [
+      "sha256:bd78faf896b1130c616a6442bc3acb0161f8516fd4877bbf692261c276134ee9"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-50k:mt4:trading-pit-prime-cfd-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:5f40fe9ab62a75a90c2628d4dd54d92aad8a1840cbef5844fe4d871d2bd54114"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-50k:mt5:trading-pit-prime-cfd-one-step-2026-rules-cfd-prime-atual": [
+      "sha256:81387fc7e384a417203ba857431aa6be91d5cea0ae7d4d583151c8e6d366e556"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-50k:mt5:trading-pit-prime-cfd-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:0b03b6c6bef82aae8a5f06491c20d158d91521e994ed6307a6b76f456c8551dc"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-5k:ctrader:trading-pit-prime-cfd-one-step-2026-rules-cfd-prime-atual": [
+      "sha256:006dd6032acd12380352597d32e47d4b9614b67ce1de1cad11647305541a50be"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-5k:ctrader:trading-pit-prime-cfd-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:5abe3d9ebf9963a14f76f2f6141a4d172e35eb303381a1ffa35496b5a3dcb895"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-5k:mt4:trading-pit-prime-cfd-one-step-2026-rules-cfd-prime-atual": [
+      "sha256:0eb1db45f1fe0051409c8723918452920d7d1ddcd9d96d65a54eab8124a1f9c6"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-5k:mt4:trading-pit-prime-cfd-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:d9b8af69a42640e98bc121c235e32f1fe3cc13c24bb1d5c470b4a7824193caa6"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-5k:mt5:trading-pit-prime-cfd-one-step-2026-rules-cfd-prime-atual": [
+      "sha256:2a15236f656a5668de3b674f6949cdacb6574cd39ee805582c03764711cc9468"
+    ],
+    "the-trading-pit:trading-pit-prime-cfd-one-step-2026:trading-pit-prime-cfd-one-step-2026-5k:mt5:trading-pit-prime-cfd-one-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:3c9d0281ccb32b183e863902adf44dc2af415b991380446a9643127540225b82"
+    ],
+    "the-trading-pit:trading-pit-prime-futures-2026:trading-pit-prime-futures-2026-100k:plataformasfuturessuportadaspelathetradingpit:trading-pit-prime-futures-2026-rules-prime-futures-sem-activation-fee": [
+      "sha256:7e7f14b8efa4bf8a7e941e5880956dbd456234be797a6a81322b6f8ba99acb76"
+    ],
+    "the-trading-pit:trading-pit-prime-futures-2026:trading-pit-prime-futures-2026-100k:plataformasfuturessuportadaspelathetradingpit:trading-pit-prime-futures-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:a42680aa4e8447af0daa47e4e0cc06c7b21a396dd40d6c16de46a5182a4931d7"
+    ],
+    "the-trading-pit:trading-pit-prime-futures-2026:trading-pit-prime-futures-2026-150k:plataformasfuturessuportadaspelathetradingpit:trading-pit-prime-futures-2026-rules-prime-futures-sem-activation-fee": [
+      "sha256:076bbe0fc04d173af540f6cc37dceccb49e2781c027f2ec1a16457b1fcc45fa4"
+    ],
+    "the-trading-pit:trading-pit-prime-futures-2026:trading-pit-prime-futures-2026-150k:plataformasfuturessuportadaspelathetradingpit:trading-pit-prime-futures-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:ed49e28eb210c79b1155ae9212eb17c7e949df170b1153945ace9be7fc75e786"
+    ],
+    "the-trading-pit:trading-pit-prime-futures-2026:trading-pit-prime-futures-2026-50k:plataformasfuturessuportadaspelathetradingpit:trading-pit-prime-futures-2026-rules-prime-futures-sem-activation-fee": [
+      "sha256:533246465168a4c4f1b52cd36b1d2845c113b49a39ee796e126a9c5f260d08ce"
+    ],
+    "the-trading-pit:trading-pit-prime-futures-2026:trading-pit-prime-futures-2026-50k:plataformasfuturessuportadaspelathetradingpit:trading-pit-prime-futures-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:69e1244e936e21b368d83ec7c15b6c1244132226dc38b4e0050d10139f11fa0e"
+    ],
+    "the5ers:the5ers-high-stakes-classic-2026:the5ers-high-stakes-classic-2026-100k:mt5hedge:the5ers-high-stakes-classic-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:4c04a9c94d0ee66900d0bfbcf815d5393e08c6f0c31bb3d7d33bd71f0dddd074"
+    ],
+    "the5ers:the5ers-high-stakes-classic-2026:the5ers-high-stakes-classic-2026-10k:mt5hedge:the5ers-high-stakes-classic-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:bbe306de31de2a8348f438f05f2ff15bce620f8da879a6fe563d53ad7968e7ec"
+    ],
+    "the5ers:the5ers-high-stakes-classic-2026:the5ers-high-stakes-classic-2026-2-5k:mt5hedge:the5ers-high-stakes-classic-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:8fce1b4262eabfd96abfc4f80cf991189da56aedaabbcfa1884a0ea0321554d5"
+    ],
+    "the5ers:the5ers-high-stakes-classic-2026:the5ers-high-stakes-classic-2026-25k:mt5hedge:the5ers-high-stakes-classic-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:07c79ddd1f25b89162d5de26ab93afa178f7a7034ef34255d8b55ff1707731f3"
+    ],
+    "the5ers:the5ers-high-stakes-classic-2026:the5ers-high-stakes-classic-2026-50k:mt5hedge:the5ers-high-stakes-classic-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:4d1fe06a9577cda68997413634b2ef1c8a04e271b5ccb6b4c5a3e2a97c0ecac6"
+    ],
+    "the5ers:the5ers-high-stakes-classic-2026:the5ers-high-stakes-classic-2026-5k:mt5hedge:the5ers-high-stakes-classic-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:a4a744a6fc30c677f1a89283e5d2a59026a690a92c71abc9228b6b3ba99c2733"
+    ],
+    "the5ers:the5ers-high-stakes-new-2026:the5ers-high-stakes-new-2026-100k:mt5hedge:the5ers-high-stakes-new-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:0d343810ba91c60fcb430bdbc404b0a4438cf6d69bbc9cdd438380a9fd49a684"
+    ],
+    "the5ers:the5ers-high-stakes-new-2026:the5ers-high-stakes-new-2026-10k:mt5hedge:the5ers-high-stakes-new-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:611b8230c98fdca422d82be55fe7edc62483b92ca165d3e60d82a4decfba5d10"
+    ],
+    "the5ers:the5ers-high-stakes-new-2026:the5ers-high-stakes-new-2026-2-5k:mt5hedge:the5ers-high-stakes-new-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:daf162e373e78e3c921c2680fa83cb466545035ec6d551059273aa516cf60d02"
+    ],
+    "the5ers:the5ers-high-stakes-new-2026:the5ers-high-stakes-new-2026-25k:mt5hedge:the5ers-high-stakes-new-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:0985c86117e2839aa842535877daa02fca6011c09158316ac716b28caddc17f6"
+    ],
+    "the5ers:the5ers-high-stakes-new-2026:the5ers-high-stakes-new-2026-50k:mt5hedge:the5ers-high-stakes-new-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:8fd5a361110c0a521df9c0473b5dcbe79358caae1977f0e24260b8b653ce3a28"
+    ],
+    "the5ers:the5ers-high-stakes-new-2026:the5ers-high-stakes-new-2026-5k:mt5hedge:the5ers-high-stakes-new-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:5de9b012ad17c8845e702467a12b4c7742c9a33ca3488fb34fd629c0ac619041"
+    ],
+    "topstep:topstep-trading-combine-2026:topstep-trading-combine-2026-100k:plataformassuportadaspelatopstep:topstep-trading-combine-2026-rules-dashboard-atual": [
+      "sha256:cbb3b858d8a62e6c6a88c5b388985d74cec26bdff11b7b5c1c7cc6d45691529f"
+    ],
+    "topstep:topstep-trading-combine-2026:topstep-trading-combine-2026-100k:plataformassuportadaspelatopstep:topstep-trading-combine-2026-rules-regra-de-split-legada": [
+      "sha256:b29dbd0d62d8810b2e926c64ca71fec4da77782ab59eee3ed27c669198c69659"
+    ],
+    "topstep:topstep-trading-combine-2026:topstep-trading-combine-2026-100k:topstepx:topstep-trading-combine-2026-rules-dashboard-atual": [
+      "sha256:d690f06ffcef5ca3d4a9600244dbab0497fb4569306642144229abe55f7f177d"
+    ],
+    "topstep:topstep-trading-combine-2026:topstep-trading-combine-2026-100k:topstepx:topstep-trading-combine-2026-rules-regra-de-split-legada": [
+      "sha256:e51cc8351c1b5efcfaa438fbd6ddaadc53db354dfd9e4f09df6f29a2934b5173"
+    ],
+    "topstep:topstep-trading-combine-2026:topstep-trading-combine-2026-150k:plataformassuportadaspelatopstep:topstep-trading-combine-2026-rules-dashboard-atual": [
+      "sha256:166af0e4070571873bd783876829a120b64abc81f4b3b600d7cc0fc653925714"
+    ],
+    "topstep:topstep-trading-combine-2026:topstep-trading-combine-2026-150k:plataformassuportadaspelatopstep:topstep-trading-combine-2026-rules-regra-de-split-legada": [
+      "sha256:1e345dbf856031cc98a898d5a0b5437e32c275cc37e121ca683b69d9a6927260"
+    ],
+    "topstep:topstep-trading-combine-2026:topstep-trading-combine-2026-150k:topstepx:topstep-trading-combine-2026-rules-dashboard-atual": [
+      "sha256:c0bb7f635da8ce2ea63a39f6f1cc5aec04731359dacef30adc251e68ec4da195"
+    ],
+    "topstep:topstep-trading-combine-2026:topstep-trading-combine-2026-150k:topstepx:topstep-trading-combine-2026-rules-regra-de-split-legada": [
+      "sha256:59a3a5d6d1ae2b71d2ef36a6bfee3fc2c02412d65035a65a512b037c54be3433"
+    ],
+    "topstep:topstep-trading-combine-2026:topstep-trading-combine-2026-50k:plataformassuportadaspelatopstep:topstep-trading-combine-2026-rules-dashboard-atual": [
+      "sha256:8b9b7d0db33d42769dc4c875c6e495b2c6618f81439717b2f5df1dbd63408f7e"
+    ],
+    "topstep:topstep-trading-combine-2026:topstep-trading-combine-2026-50k:plataformassuportadaspelatopstep:topstep-trading-combine-2026-rules-regra-de-split-legada": [
+      "sha256:7bd809191bef98bca7660940cb36a5a790149494a64360f76662f2df63d2242d"
+    ],
+    "topstep:topstep-trading-combine-2026:topstep-trading-combine-2026-50k:topstepx:topstep-trading-combine-2026-rules-dashboard-atual": [
+      "sha256:2fed9ff2ed2e083ef72cc2e5ca94b237846bfb8bec3905693a86a7b70c9961d0"
+    ],
+    "topstep:topstep-trading-combine-2026:topstep-trading-combine-2026-50k:topstepx:topstep-trading-combine-2026-rules-regra-de-split-legada": [
+      "sha256:821a046037b96b0307b2d6e6ab53a8c01f261d7063ba408f914832db0c35c5f9"
+    ]
+  }
+}

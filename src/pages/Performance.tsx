@@ -18,6 +18,12 @@ import {
   ArrowUpRight, ArrowDownRight, Minus, Wallet, RefreshCw, Info,
 } from 'lucide-react';
 import { GuidedEmptyState } from '@/components/BetaReadinessChecklist';
+import { assessConnectionHealth, connectionHealthView, type ConnectionHealth } from '@/lib/accountHealth';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/hooks/useAuth';
+import { useLatestCanonicalEvaluations } from '@/hooks/useCanonicalRuleEvaluations';
+import { fetchActiveRuleBindings } from '@/lib/ruleBinding';
+import { currentCanonicalEvaluation, summarizeCanonicalEvaluation } from '@/lib/canonicalEvaluationView';
 
 /* ── helpers ─────────────────────────────────────────────── */
 const fmt = (v: number) =>
@@ -30,7 +36,7 @@ interface DayData {
   date: string;
   balance: number;
   equity: number;
-  drawdownLimit: number;
+  drawdownLimit: number | null;
   drawdown: number;
   dailyPnl: number;
 }
@@ -49,14 +55,19 @@ function formatDateTime(value: string | null): string {
   return new Date(value).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
-function mapSnapshotData(account: TradingAccount, snapshots: MT5Snapshot[], maxLossLimit: number): DayData[] {
-  const drawdownFloor = account.startBalance - maxLossLimit;
+const NO_RULE_LABEL = 'Sem regra vinculada';
+const fmtLimit = (v: number | null) => (v === null ? NO_RULE_LABEL : fmt(v));
+
+function mapSnapshotData(account: TradingAccount, snapshots: MT5Snapshot[], maxLossLimit: number | null): DayData[] {
+  // Sem limite vindo de uma regra real, a linha de piso não é desenhada — não
+  // existe um "limite padrão" que valha para qualquer mesa.
+  const drawdownFloor = maxLossLimit === null ? null : Math.round(account.startBalance - maxLossLimit);
   return snapshots.map(snapshot => ({
     day: formatDayLabel(snapshot.date),
     date: snapshot.date,
     balance: Number(snapshot.balance ?? 0),
     equity: Number(snapshot.equity ?? 0),
-    drawdownLimit: Math.round(drawdownFloor),
+    drawdownLimit: drawdownFloor,
     drawdown: Number(snapshot.drawdown ?? 0),
     dailyPnl: Number(snapshot.daily_pnl ?? 0),
   }));
@@ -369,7 +380,16 @@ const Performance = () => {
   const [snapshots, setSnapshots] = useState<MT5Snapshot[]>([]);
   const [recentTrades, setRecentTrades] = useState<MT5Trade[]>([]);
   const [totalTradesCount, setTotalTradesCount] = useState(0);
+  const [connectionHealth, setConnectionHealth] = useState<ConnectionHealth | null>(null);
   const { data: ruleRows = [] } = useRuleEvaluations(selectedAccount?.id);
+  const { session } = useAuth();
+  const { data: canonicalByAccount = {} } = useLatestCanonicalEvaluations();
+  const { data: activeBindings = [] } = useQuery({
+    queryKey: ['account_rule_bindings', session?.user?.id, 'active'],
+    queryFn: () => fetchActiveRuleBindings(session!.user.id),
+    enabled: !!session?.user?.id,
+    staleTime: 60 * 1000,
+  });
 
   // Resolved once from src/index.css tokens (see useThemeColors) so Recharts' SVG
   // stroke/fill — which can't reliably resolve `var(--token)` on their own — actually
@@ -409,7 +429,7 @@ const Performance = () => {
 
       const { data: connection, error: connectionError } = await supabase
         .from('mt5_connections')
-        .select('id')
+        .select('id, connection_status, sync_status, sync_error, last_sync_at, updated_at')
         .eq('trading_account_id', selectedAccount.id)
         .eq('user_id', selectedAccount.userId)
         .order('updated_at', { ascending: false })
@@ -417,6 +437,10 @@ const Performance = () => {
         .maybeSingle();
 
       if (!isActive) return;
+
+      setConnectionHealth(assessConnectionHealth(connectionError ? null : connection, {
+        fallbackLastSyncAt: selectedAccount.mt5LastSyncAt,
+      }));
 
       if (connectionError || !connection?.id) {
         setSnapshots([]);
@@ -463,8 +487,21 @@ const Performance = () => {
     e.rule.type === 'MAX_TOTAL_LOSS' || e.rule.type === 'TRAILING_MAX_LOSS'
   );
   const dailyLossEval = evals.find(e => e.rule.type === 'MAX_DAILY_LOSS');
-  const maxLossLimit = maxLossEval?.limitValue ?? (account ? account.startBalance * 0.1 : 0);
-  const dailyLossLimit = dailyLossEval?.limitValue ?? (account ? account.startBalance * 0.05 : 0);
+  const positiveLimit = (value: number | null | undefined) =>
+    value !== null && value !== undefined && Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : null;
+  // Conta vinculada: limites da avaliação canônica feita com o vínculo ativo.
+  // Sem vínculo, o catálogo antigo é o fallback explícito.
+  const activeBinding = account ? activeBindings.find((item) => item.trading_account_id === account.id) ?? null : null;
+  const canonical = account
+    ? currentCanonicalEvaluation(canonicalByAccount[account.id], activeBinding?.id)
+    : null;
+  const canonicalSummary = canonical ? summarizeCanonicalEvaluation(canonical) : null;
+  const maxLossLimit = activeBinding
+    ? positiveLimit(canonicalSummary?.maxDrawdown?.limitValue)
+    : positiveLimit(maxLossEval?.limitValue);
+  const dailyLossLimit = activeBinding
+    ? positiveLimit(canonicalSummary?.dailyLoss?.limitValue)
+    : positiveLimit(dailyLossEval?.limitValue);
   const data = useMemo(() => {
     if (!account) return [];
     return mapSnapshotData(account, snapshots, maxLossLimit);
@@ -500,6 +537,8 @@ const Performance = () => {
 
         <AccountSelector accounts={accounts} selected={selectedAccount} onSelect={setSelectedAccount} />
 
+        <ConnectionHealthNotice health={connectionHealth} />
+
         <GuidedEmptyState
           icon={RefreshCw}
           title="Performance ainda sem histórico"
@@ -515,9 +554,9 @@ const Performance = () => {
   const currentDrawdown = data[data.length - 1]?.drawdown ?? 0;
   const tradingDays = data.filter(d => d.dailyPnl !== 0).length;
 
-  const drawdownRemaining = maxLossLimit - currentDrawdown;
-  const ddUsagePct = maxLossLimit > 0 ? (maxDrawdownValue / maxLossLimit) * 100 : 0;
-  const ddTone: Tone = ddUsagePct >= 80 ? 'destructive' : ddUsagePct >= 50 ? 'warning' : 'muted';
+  const drawdownRemaining = maxLossLimit === null ? null : maxLossLimit - currentDrawdown;
+  const ddUsagePct = maxLossLimit === null ? null : (maxDrawdownValue / maxLossLimit) * 100;
+  const ddTone: Tone = ddUsagePct === null ? 'muted' : ddUsagePct >= 80 ? 'destructive' : ddUsagePct >= 50 ? 'warning' : 'muted';
 
   // Recovery
   const isNegative = totalPnl < 0;
@@ -526,10 +565,12 @@ const Performance = () => {
 
   // Profit target
   const profitEval = evals.find(e => e.rule.type === 'PROFIT_TARGET');
-  const profitTarget = profitEval?.limitValue ?? account.startBalance * 0.1;
-  const profitRemaining = Math.max(profitTarget - Math.max(totalPnl, 0), 0);
-  const goalPct = profitTarget > 0 ? Math.min((Math.max(totalPnl, 0) / profitTarget) * 100, 100) : 0;
-  const goalTone: Tone = goalPct >= 75 ? 'success' : 'muted';
+  const profitTarget = activeBinding
+    ? positiveLimit(canonicalSummary?.profitTarget?.limitValue)
+    : positiveLimit(profitEval?.limitValue);
+  const profitRemaining = profitTarget === null ? null : Math.max(profitTarget - Math.max(totalPnl, 0), 0);
+  const goalPct = profitTarget === null ? null : Math.min((Math.max(totalPnl, 0) / profitTarget) * 100, 100);
+  const goalTone: Tone = goalPct !== null && goalPct >= 75 ? 'success' : 'muted';
 
   // Risk usage
   const dailyPnls = data.map(d => d.dailyPnl);
@@ -540,7 +581,7 @@ const Performance = () => {
 
   // Survival
   const avgDailyResult = dailyPnls.reduce((a, b) => a + b, 0) / dailyPnls.length;
-  const daysToTarget = avgDailyResult > 0 ? Math.ceil(profitRemaining / avgDailyResult) : Infinity;
+  const daysToTarget = avgDailyResult > 0 && profitRemaining !== null ? Math.ceil(profitRemaining / avgDailyResult) : Infinity;
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
@@ -550,6 +591,8 @@ const Performance = () => {
       </div>
 
       <AccountSelector accounts={accounts} selected={selectedAccount} onSelect={setSelectedAccount} />
+
+      <ConnectionHealthNotice health={connectionHealth} />
 
       {/* ── RESUMO ──────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -566,7 +609,7 @@ const Performance = () => {
           icon={TrendingDown}
           label="Drawdown Máx."
           value={fmt(maxDrawdownValue)}
-          badge={<PillBadge tone={ddTone}>{ddUsagePct.toFixed(0)}% do limite</PillBadge>}
+          badge={<PillBadge tone={ddTone}>{ddUsagePct === null ? NO_RULE_LABEL : `${ddUsagePct.toFixed(0)}% do limite`}</PillBadge>}
           hint="Maior drawdown já registrado nesta conta, comparado ao limite de perda máxima configurado nas regras."
         />
         <StatCard
@@ -584,8 +627,8 @@ const Performance = () => {
         <StatCard
           icon={Target}
           label="Meta Restante"
-          value={fmt(profitRemaining)}
-          badge={<PillBadge tone={goalTone}>{goalPct.toFixed(0)}% da meta</PillBadge>}
+          value={fmtLimit(profitRemaining)}
+          badge={goalPct === null ? undefined : <PillBadge tone={goalTone}>{goalPct.toFixed(0)}% da meta</PillBadge>}
           hint="Quanto falta, em dólares, para atingir a meta de lucro configurada para esta conta."
         />
       </div>
@@ -680,19 +723,19 @@ const Performance = () => {
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">Drawdown Atual</p>
             <p className="text-2xl font-bold font-mono tabular-nums text-destructive">{fmt(currentDrawdown)}</p>
-            <ProgressBar value={currentDrawdown} max={maxLossLimit} color="hsl(var(--destructive))" />
-            <p className="text-xs text-muted-foreground">de {fmt(maxLossLimit)} permitidos</p>
+            <ProgressBar value={currentDrawdown} max={maxLossLimit ?? 0} color="hsl(var(--destructive))" />
+            <p className="text-xs text-muted-foreground">{maxLossLimit === null ? NO_RULE_LABEL : `de ${fmt(maxLossLimit)} permitidos`}</p>
           </div>
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">Drawdown Máximo Histórico</p>
             <p className="text-2xl font-bold font-mono tabular-nums text-warning">{fmt(maxDrawdownValue)}</p>
-            <ProgressBar value={maxDrawdownValue} max={maxLossLimit} color="hsl(var(--warning))" />
-            <p className="text-xs text-muted-foreground">de {fmt(maxLossLimit)} permitidos</p>
+            <ProgressBar value={maxDrawdownValue} max={maxLossLimit ?? 0} color="hsl(var(--warning))" />
+            <p className="text-xs text-muted-foreground">{maxLossLimit === null ? NO_RULE_LABEL : `de ${fmt(maxLossLimit)} permitidos`}</p>
           </div>
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">Margem Restante</p>
-            <p className="text-2xl font-bold font-mono tabular-nums text-success">{fmt(drawdownRemaining)}</p>
-            <ProgressBar value={drawdownRemaining} max={maxLossLimit} color="hsl(var(--success))" />
+            <p className="text-2xl font-bold font-mono tabular-nums text-success">{fmtLimit(drawdownRemaining)}</p>
+            <ProgressBar value={drawdownRemaining ?? 0} max={maxLossLimit ?? 0} color="hsl(var(--success))" />
             <p className="text-xs text-muted-foreground">disponível antes da violação</p>
           </div>
         </div>
@@ -735,9 +778,9 @@ const Performance = () => {
                 <Target className="h-4 w-4 text-primary" />
                 <span className="text-xs text-muted-foreground uppercase">Faltam para a Meta</span>
               </div>
-              <p className="text-2xl font-bold font-mono tabular-nums text-primary">{fmt(profitRemaining)}</p>
+              <p className="text-2xl font-bold font-mono tabular-nums text-primary">{fmtLimit(profitRemaining)}</p>
               <p className="text-xs text-muted-foreground">
-                Meta total: {fmt(profitTarget)}. Já alcançado: {fmt(Math.max(totalPnl, 0))}
+                Meta total: {fmtLimit(profitTarget)}. Já alcançado: {fmt(Math.max(totalPnl, 0))}
               </p>
             </div>
           </div>
@@ -751,8 +794,8 @@ const Performance = () => {
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground">Maior Perda Diária</p>
             <p className="text-lg font-bold font-mono tabular-nums text-destructive">{fmt(biggestLoss)}</p>
-            <ProgressBar value={Math.abs(biggestLoss)} max={dailyLossLimit} color="hsl(var(--destructive))" />
-            <p className="text-[10px] text-muted-foreground">Limite: {fmt(dailyLossLimit)}</p>
+            <ProgressBar value={Math.abs(biggestLoss)} max={dailyLossLimit ?? 0} color="hsl(var(--destructive))" />
+            <p className="text-[10px] text-muted-foreground">Limite: {fmtLimit(dailyLossLimit)}</p>
           </div>
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground">Maior Lucro Diário</p>
@@ -761,14 +804,14 @@ const Performance = () => {
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground">Uso Médio do Limite</p>
             <p className="text-lg font-bold font-mono tabular-nums text-foreground">{fmt(avgDailyUsage)}</p>
-            <ProgressBar value={avgDailyUsage} max={dailyLossLimit} color="hsl(var(--warning))" />
-            <p className="text-[10px] text-muted-foreground">de {fmt(dailyLossLimit)}/dia</p>
+            <ProgressBar value={avgDailyUsage} max={dailyLossLimit ?? 0} color="hsl(var(--warning))" />
+            <p className="text-[10px] text-muted-foreground">{dailyLossLimit === null ? NO_RULE_LABEL : `de ${fmt(dailyLossLimit)}/dia`}</p>
           </div>
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground">Uso Máximo do Limite</p>
             <p className="text-lg font-bold font-mono tabular-nums text-foreground">{fmt(maxDailyUsage)}</p>
-            <ProgressBar value={maxDailyUsage} max={dailyLossLimit} color="hsl(var(--destructive))" />
-            <p className="text-[10px] text-muted-foreground">de {fmt(dailyLossLimit)}/dia</p>
+            <ProgressBar value={maxDailyUsage} max={dailyLossLimit ?? 0} color="hsl(var(--destructive))" />
+            <p className="text-[10px] text-muted-foreground">{dailyLossLimit === null ? NO_RULE_LABEL : `de ${fmt(dailyLossLimit)}/dia`}</p>
           </div>
         </div>
       </section>
@@ -804,17 +847,23 @@ const Performance = () => {
           <InsightRow
             icon={Activity}
             label="Risco atual da conta"
-            value={currentDrawdown > maxLossLimit * 0.7
-              ? 'Alto'
-              : currentDrawdown > maxLossLimit * 0.4
-                ? 'Moderado'
-                : 'Baixo'}
-            detail={`Usando ${fmt(currentDrawdown)} de ${fmt(maxLossLimit)} do limite de drawdown`}
-            color={currentDrawdown > maxLossLimit * 0.7
-              ? 'text-destructive'
-              : currentDrawdown > maxLossLimit * 0.4
-                ? 'text-warning'
-                : 'text-success'}
+            value={maxLossLimit === null
+              ? NO_RULE_LABEL
+              : currentDrawdown > maxLossLimit * 0.7
+                ? 'Alto'
+                : currentDrawdown > maxLossLimit * 0.4
+                  ? 'Moderado'
+                  : 'Baixo'}
+            detail={maxLossLimit === null
+              ? 'Sem o limite de drawdown da regra vinculada, o risco da conta não é classificado.'
+              : `Usando ${fmt(currentDrawdown)} de ${fmt(maxLossLimit)} do limite de drawdown`}
+            color={maxLossLimit === null
+              ? 'text-muted-foreground'
+              : currentDrawdown > maxLossLimit * 0.7
+                ? 'text-destructive'
+                : currentDrawdown > maxLossLimit * 0.4
+                  ? 'text-warning'
+                  : 'text-success'}
           />
           {/* Avg daily result */}
           <InsightRow
@@ -833,7 +882,9 @@ const Performance = () => {
             icon={TrendingDown}
             label="Uso do limite diário"
             value={fmt(Math.round(avgDailyUsage))}
-            detail={`Média de uso de ${fmt(Math.round(avgDailyUsage))} do limite de ${fmt(dailyLossLimit)} por dia`}
+            detail={dailyLossLimit === null
+              ? `Perda média de ${fmt(Math.round(avgDailyUsage))} por dia. ${NO_RULE_LABEL} para comparar.`
+              : `Média de uso de ${fmt(Math.round(avgDailyUsage))} do limite de ${fmt(dailyLossLimit)} por dia`}
             color="text-foreground"
           />
           {/* Days to target */}
@@ -842,10 +893,12 @@ const Performance = () => {
             label="Projeção para a meta"
             value={daysToTarget === Infinity ? 'Sem projeção' : `${daysToTarget} dias`}
             detail={daysToTarget === Infinity
-              ? avgDailyResult < 0
-                ? 'A média diária está negativa. Não há projeção para a meta neste momento.'
-                : 'Ainda não há resultado diário suficiente para estimar a meta.'
-              : `Mantendo ${fmt(Math.round(avgDailyResult))}/dia, faltam ${daysToTarget} dias para atingir a meta de ${fmt(profitTarget)}`}
+              ? profitTarget === null
+                ? 'Sem meta de lucro vinculada a esta conta.'
+                : avgDailyResult < 0
+                  ? 'A média diária está negativa. Não há projeção para a meta neste momento.'
+                  : 'Ainda não há resultado diário suficiente para estimar a meta.'
+              : `Mantendo ${fmt(Math.round(avgDailyResult))}/dia, faltam ${daysToTarget} dias para atingir a meta de ${fmtLimit(profitTarget)}`}
             color={daysToTarget <= 15 ? 'text-success' : daysToTarget <= 30 ? 'text-warning' : 'text-muted-foreground'}
           />
         </div>
@@ -853,6 +906,24 @@ const Performance = () => {
     </div>
   );
 };
+
+/** Conexão com erro, sync atrasado/travado ou sem dados: avisa antes dos
+ * números, que podem não refletir a conta agora. */
+function ConnectionHealthNotice({ health }: { health: ConnectionHealth | null }) {
+  const view = health ? connectionHealthView(health) : null;
+  if (!view) return null;
+  const toneClass = view.tone === 'danger'
+    ? 'border-destructive/30 bg-destructive/5'
+    : view.tone === 'warning'
+      ? 'border-warning/30 bg-warning/5'
+      : 'border-border bg-muted/30';
+  return (
+    <div role="status" className={`rounded-lg border p-4 ${toneClass}`}>
+      <p className="text-sm font-medium text-foreground">{view.label}</p>
+      <p className="text-xs text-muted-foreground mt-1">{view.detail}</p>
+    </div>
+  );
+}
 
 function InsightRow({ icon: Icon, label, value, detail, color }: {
   icon: React.ElementType; label: string; value: string; detail: string; color: string;

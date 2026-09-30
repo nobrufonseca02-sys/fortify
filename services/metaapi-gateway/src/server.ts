@@ -8,12 +8,27 @@ import { createClient } from '@supabase/supabase-js';
 import cors from '@fastify/cors';
 import Anthropic from '@anthropic-ai/sdk';
 import {
+  CanonicalStoreUnavailableError,
+  createSupabaseCanonicalEvaluationStore,
+  runCanonicalEvaluation,
+  type CanonicalEvaluationOutcome,
+} from './canonicalEvaluation';
+import {
   BoundedFixedWindowRateLimiter,
   parsePositiveInteger,
   parseTrustedProxyAddresses,
   safeErrorMetadata,
   secureSecretEquals,
+  publicErrorMessage,
 } from './security';
+import {
+  classifyFetchError,
+  classifyHttpStatus,
+  fetchWithTimeout,
+  syncFailureState,
+  worstFailureKind,
+  type UpstreamFailureKind,
+} from './upstream';
 
 const gatewayEnvPath = path.resolve(__dirname, '../.env');
 const gatewayEnvResult = dotenv.config({ path: gatewayEnvPath, override: false });
@@ -196,6 +211,7 @@ if (!METAAPI_TOKEN) {
 }
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const canonicalEvaluationStore = createSupabaseCanonicalEvaluationStore(supabase);
 const anthropic = ANTHROPIC_API_KEY ? new Anthropic({ apiKey: ANTHROPIC_API_KEY }) : null;
 
 const provisioningBaseUrl = 'https://mt-provisioning-api-v1.agiliumtrade.agiliumtrade.ai';
@@ -897,7 +913,7 @@ async function stripeRequest(pathname: string, params: Record<string, unknown>) 
   const form = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => appendStripeParam(form, key, value));
 
-  const res = await fetch(`${STRIPE_API_BASE_URL}${pathname}`, {
+  const res = await fetchWithTimeout(`${STRIPE_API_BASE_URL}${pathname}`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
@@ -919,7 +935,7 @@ async function stripeRequest(pathname: string, params: Record<string, unknown>) 
 }
 
 async function stripeGet(pathname: string) {
-  const res = await fetch(`${STRIPE_API_BASE_URL}${pathname}`, {
+  const res = await fetchWithTimeout(`${STRIPE_API_BASE_URL}${pathname}`, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
@@ -2320,7 +2336,7 @@ function getProvisioningAccounts(body: JsonRecord): MetaApiProvisioningAccount[]
 }
 
 async function listProvisioningAccounts(url: string) {
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     method: 'GET',
     headers: {
       'auth-token': METAAPI_TOKEN,
@@ -2343,7 +2359,7 @@ async function listProvisioningAccounts(url: string) {
 
 async function getProvisioningAccount(providerAccountId: string) {
   const url = `${provisioningBaseUrl}/users/current/accounts/${encodeURIComponent(providerAccountId)}`;
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     method: 'GET',
     headers: {
       'auth-token': METAAPI_TOKEN,
@@ -2399,7 +2415,7 @@ async function postProvisioningAccount(url: string, payload: JsonRecord) {
   let lastBody: JsonRecord = {};
 
   for (let attempt = 1; attempt <= METAAPI_PROVISIONING_MAX_ATTEMPTS; attempt++) {
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       method: 'POST',
       headers: {
         'auth-token': METAAPI_TOKEN,
@@ -2460,7 +2476,7 @@ async function postProvisioningAccount(url: string, payload: JsonRecord) {
 // they'd inherit read access to whatever the true owner last synced.
 async function putProvisioningAccountCredentials(providerAccountId: string, payload: JsonRecord) {
   const url = `${provisioningBaseUrl}/users/current/accounts/${encodeURIComponent(providerAccountId)}`;
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     method: 'PUT',
     headers: {
       'auth-token': METAAPI_TOKEN,
@@ -2483,7 +2499,7 @@ async function putProvisioningAccountCredentials(providerAccountId: string, payl
 
 async function undeployMetaApiAccount(providerAccountId: string) {
   const url = `${provisioningBaseUrl}/users/current/accounts/${encodeURIComponent(providerAccountId)}/undeploy`;
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     method: 'POST',
     headers: {
       'auth-token': METAAPI_TOKEN,
@@ -2685,7 +2701,7 @@ async function reactivateUserMetaApiAccess(userId: string) {
 async function validateLoadedMetaApiToken() {
   const url = `${provisioningBaseUrl}/users/current/accounts`;
   try {
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       method: 'GET',
       headers: {
         'auth-token': METAAPI_TOKEN,
@@ -3471,7 +3487,6 @@ fastify.get('/admin/summary', async (request, reply) => {
     return reply.status(500).send({
       error: 'Failed to load admin summary',
       code: 'admin_summary_failed',
-      details: error?.message,
     });
   }
 });
@@ -3501,7 +3516,6 @@ fastify.get('/admin/users', async (request, reply) => {
     return reply.status(500).send({
       error: 'Failed to load admin users',
       code: 'admin_users_failed',
-      details: error?.message,
     });
   }
 });
@@ -3557,7 +3571,6 @@ fastify.get('/admin/users/:userId', async (request, reply) => {
     return reply.status(500).send({
       error: 'Failed to load admin user detail',
       code: 'admin_user_detail_failed',
-      details: error?.message,
     });
   }
 });
@@ -3633,7 +3646,6 @@ fastify.post('/admin/users/:userId/subscription', async (request, reply) => {
     return reply.status(500).send({
       error: 'Failed to update user subscription',
       code: 'admin_subscription_update_failed',
-      details: error?.message,
     });
   }
 });
@@ -3711,7 +3723,6 @@ fastify.post('/admin/users/:userId/block', async (request, reply) => {
     return reply.status(500).send({
       error: 'Failed to update user block status',
       code: 'admin_user_block_failed',
-      details: error?.message,
     });
   }
 });
@@ -3736,7 +3747,6 @@ fastify.get('/admin/plans', async (request, reply) => {
     return reply.status(500).send({
       error: 'Failed to load plans',
       code: 'admin_plans_failed',
-      details: error?.message,
     });
   }
 });
@@ -3830,7 +3840,6 @@ fastify.post('/admin/plans', async (request, reply) => {
     return reply.status(500).send({
       error: 'Failed to save plan',
       code: 'admin_plan_upsert_failed',
-      details: error?.message,
     });
   }
 });
@@ -3862,7 +3871,7 @@ fastify.post('/admin/plans/resolve-stripe-prices', async (request, reply) => {
       stripeCode: error?.body?.error?.code,
     });
     return reply.status(error?.status && error.status < 500 ? 400 : 500).send({
-      error: error?.message || 'Não foi possível resolver os Price IDs da Stripe.',
+      error: publicErrorMessage(error, 'Não foi possível resolver os Price IDs da Stripe.'),
       code: 'admin_stripe_prices_resolve_failed',
       details: error?.body?.error?.code,
     });
@@ -3914,7 +3923,6 @@ fastify.get('/admin/accounts', async (request, reply) => {
     return reply.status(500).send({
       error: 'Failed to load MT5 accounts',
       code: 'admin_accounts_failed',
-      details: error?.message,
     });
   }
 });
@@ -3972,7 +3980,6 @@ fastify.post('/admin/accounts/:accountId/force-sync', async (request, reply) => 
     return reply.status(500).send({
       error: 'Failed to force MT5 sync',
       code: 'admin_force_sync_failed',
-      details: error?.message,
     });
   }
 });
@@ -4041,7 +4048,6 @@ fastify.post('/admin/accounts/:accountId/soft-remove', async (request, reply) =>
     return reply.status(500).send({
       error: 'Failed to soft remove MT5 account',
       code: 'admin_connection_soft_remove_failed',
-      details: error?.message,
     });
   }
 });
@@ -4117,7 +4123,6 @@ fastify.get('/admin/rules', async (request, reply) => {
     return reply.status(500).send({
       error: 'Failed to load rules library',
       code: 'admin_rules_failed',
-      details: error?.message,
     });
   }
 });
@@ -4171,7 +4176,6 @@ fastify.post('/admin/rules/:id/review', async (request, reply) => {
     return reply.status(500).send({
       error: 'Failed to update rule review status',
       code: 'admin_rule_review_failed',
-      details: error?.message,
     });
   }
 });
@@ -4217,7 +4221,6 @@ fastify.get('/admin/system', async (request, reply) => {
     return reply.status(500).send({
       error: 'Failed to load system status',
       code: 'admin_system_failed',
-      details: error?.message,
     });
   }
 });
@@ -4322,7 +4325,6 @@ fastify.post('/internal/billing/reconcile-subscriptions', async (request, reply)
     return reply.status(500).send({
       error: 'Não foi possível reconciliar assinaturas.',
       code: 'billing_reconcile_failed',
-      details: error?.message,
     });
   }
 });
@@ -4347,7 +4349,6 @@ fastify.get('/billing/subscription-status', async (request, reply) => {
     return reply.status(500).send({
       error: 'Não foi possível carregar o status da assinatura.',
       code: 'billing_subscription_status_failed',
-      details: error?.message,
     });
   }
 });
@@ -4869,7 +4870,7 @@ fastify.post('/coach/chat', async (request, reply) => {
   } catch (error: any) {
     fastify.log.error({ event: 'coach_chat_failed', error: error?.message });
     return reply.status(error?.status && error.status < 500 ? error.status : 500).send({
-      error: error?.message || 'Falha ao conversar com o coach de risco.',
+      error: publicErrorMessage(error, 'Falha ao conversar com o coach de risco.'),
       code: 'coach_chat_failed',
     });
   }
@@ -4977,7 +4978,7 @@ fastify.post('/billing/create-checkout-session', async (request, reply) => {
       stripeCode: error?.body?.error?.code,
     });
     return reply.status(error?.status && error.status < 500 ? 400 : 500).send({
-      error: error?.message || 'Failed to create Stripe checkout session',
+      error: publicErrorMessage(error, 'Failed to create Stripe checkout session'),
       code: 'stripe_checkout_failed',
       details: error?.body?.error?.code,
     });
@@ -5099,7 +5100,7 @@ fastify.post('/billing/create-addon-checkout-session', async (request, reply) =>
       stripeCode: error?.body?.error?.code,
     });
     return reply.status(error?.status && error.status < 500 ? 400 : 500).send({
-      error: error?.message || 'Failed to create Stripe add-on checkout session',
+      error: publicErrorMessage(error, 'Failed to create Stripe add-on checkout session'),
       code: 'stripe_addon_checkout_failed',
       details: error?.body?.error?.code,
     });
@@ -5126,7 +5127,6 @@ fastify.post('/billing/create-portal-session', async (request, reply) => {
       return reply.status(500).send({
         error: 'Failed to load user subscription',
         code: 'subscription_lookup_failed',
-        details: error.message,
       });
     }
 
@@ -5163,7 +5163,7 @@ fastify.post('/billing/create-portal-session', async (request, reply) => {
       stripeCode: error?.body?.error?.code,
     });
     return reply.status(error?.status && error.status < 500 ? 400 : 500).send({
-      error: error?.message || 'Failed to create Stripe portal session',
+      error: publicErrorMessage(error, 'Failed to create Stripe portal session'),
       code: 'stripe_portal_failed',
       details: error?.body?.error?.code,
     });
@@ -5192,7 +5192,6 @@ fastify.post('/billing/cancel-subscription', async (request, reply) => {
       return reply.status(500).send({
         error: 'Failed to load user subscription',
         code: 'subscription_lookup_failed',
-        details: error.message,
       });
     }
 
@@ -5242,7 +5241,7 @@ fastify.post('/billing/cancel-subscription', async (request, reply) => {
       stripeCode: error?.body?.error?.code,
     });
     return reply.status(error?.status && error.status < 500 ? 400 : 500).send({
-      error: error?.message || 'Failed to cancel Stripe subscription',
+      error: publicErrorMessage(error, 'Failed to cancel Stripe subscription'),
       code: 'stripe_cancel_failed',
       details: error?.body?.error?.code,
     });
@@ -5271,7 +5270,6 @@ fastify.post('/billing/resume-subscription', async (request, reply) => {
       return reply.status(500).send({
         error: 'Failed to load user subscription',
         code: 'subscription_lookup_failed',
-        details: error.message,
       });
     }
 
@@ -5328,7 +5326,7 @@ fastify.post('/billing/resume-subscription', async (request, reply) => {
       stripeCode: error?.body?.error?.code,
     });
     return reply.status(error?.status && error.status < 500 ? 400 : 500).send({
-      error: error?.message || 'Failed to resume Stripe subscription',
+      error: publicErrorMessage(error, 'Failed to resume Stripe subscription'),
       code: 'stripe_resume_failed',
       details: error?.body?.error?.code,
     });
@@ -5403,7 +5401,6 @@ fastify.post('/billing/change-plan', async (request, reply) => {
       return reply.status(500).send({
         error: 'Failed to load user subscription',
         code: 'subscription_lookup_failed',
-        details: error.message,
       });
     }
 
@@ -5492,7 +5489,7 @@ fastify.post('/billing/change-plan', async (request, reply) => {
       stripeCode: error?.body?.error?.code,
     });
     return reply.status(error?.status && error.status < 500 ? 400 : 500).send({
-      error: error?.message || 'Failed to change Stripe subscription plan',
+      error: publicErrorMessage(error, 'Failed to change Stripe subscription plan'),
       code: 'stripe_plan_change_failed',
       details: error?.body?.error?.code,
     });
@@ -5556,7 +5553,6 @@ fastify.post('/billing/schedule-manual-downgrade', async (request, reply) => {
       return reply.status(500).send({
         error: 'Failed to load user subscription',
         code: 'subscription_lookup_failed',
-        details: error.message,
       });
     }
 
@@ -5643,7 +5639,7 @@ fastify.post('/billing/schedule-manual-downgrade', async (request, reply) => {
       error: error?.message,
     });
     return reply.status(500).send({
-      error: error?.message || 'Failed to schedule manual downgrade',
+      error: publicErrorMessage(error, 'Failed to schedule manual downgrade'),
       code: 'manual_downgrade_schedule_failed',
     });
   }
@@ -5671,7 +5667,6 @@ fastify.post('/billing/cancel-scheduled-downgrade', async (request, reply) => {
       return reply.status(500).send({
         error: 'Failed to load user subscription',
         code: 'subscription_lookup_failed',
-        details: error.message,
       });
     }
 
@@ -5702,7 +5697,7 @@ fastify.post('/billing/cancel-scheduled-downgrade', async (request, reply) => {
       error: error?.message,
     });
     return reply.status(500).send({
-      error: error?.message || 'Failed to cancel scheduled downgrade',
+      error: publicErrorMessage(error, 'Failed to cancel scheduled downgrade'),
       code: 'manual_downgrade_cancel_failed',
     });
   }
@@ -5799,7 +5794,7 @@ fastify.post('/internal/whatsapp/create-checkout-session', async (request, reply
       status: error?.status,
     });
     return reply.status(error?.status && error.status < 500 ? 400 : 500).send({
-      error: error?.message || 'Failed to create WhatsApp pre-auth checkout session',
+      error: publicErrorMessage(error, 'Failed to create WhatsApp pre-auth checkout session'),
       code: 'whatsapp_preauth_checkout_failed',
     });
   }
@@ -5917,7 +5912,7 @@ async function sendMetaCapiPurchaseEvent(params: {
   if (params.email) userData.em = [sha256Hex(params.email)];
   if (params.phone) userData.ph = [sha256Hex(params.phone.replace(/[^\d]/g, ''))];
 
-  const response = await fetch(
+  const response = await fetchWithTimeout(
     `https://graph.facebook.com/v19.0/${encodeURIComponent(META_PIXEL_ID)}/events?access_token=${encodeURIComponent(META_CAPI_ACCESS_TOKEN)}`,
     {
       method: 'POST',
@@ -5972,7 +5967,7 @@ async function sendGa4MeasurementProtocolPurchaseEvent(params: {
 }): Promise<void> {
   if (!GA4_MEASUREMENT_ID || !GA4_API_SECRET) return;
 
-  const response = await fetch(
+  const response = await fetchWithTimeout(
     `https://www.google-analytics.com/mp/collect?measurement_id=${encodeURIComponent(GA4_MEASUREMENT_ID)}&api_secret=${encodeURIComponent(GA4_API_SECRET)}`,
     {
       method: 'POST',
@@ -6217,7 +6212,6 @@ fastify.post('/metaapi/connect', async (request, reply) => {
       return reply.status(500).send({
         error: 'Supabase lookup failed while checking duplicate MT5 ownership',
         code: 'supabase_lookup_failed',
-        details: lookupError?.message,
       });
     }
 
@@ -6433,7 +6427,6 @@ fastify.post('/metaapi/connect', async (request, reply) => {
           return reply.status(500).send({
             error: 'Supabase insert failed while recording MetaApi failure',
             code: 'supabase_insert_failed',
-            details: failureInsertError.message,
           });
         }
       }
@@ -6486,7 +6479,6 @@ fastify.post('/metaapi/connect', async (request, reply) => {
         return reply.status(500).send({
           error: 'Supabase lookup failed while finding trading account',
           code: 'supabase_lookup_failed',
-          details: existingTradingAccountError.message,
         });
       }
 
@@ -6532,7 +6524,6 @@ fastify.post('/metaapi/connect', async (request, reply) => {
           return reply.status(500).send({
             error: 'Supabase insert failed while creating trading account',
             code: 'supabase_insert_failed',
-            details: createTradingAccountError.message,
           });
         }
 
@@ -6557,7 +6548,6 @@ fastify.post('/metaapi/connect', async (request, reply) => {
         return reply.status(500).send({
           error: 'Supabase lookup failed while checking selected trading account',
           code: 'supabase_lookup_failed',
-          details: selectedTradingAccountError.message,
         });
       }
 
@@ -6617,7 +6607,6 @@ fastify.post('/metaapi/connect', async (request, reply) => {
       return reply.status(500).send({
         error: 'Supabase lookup failed while finding existing MT5 connection',
         code: 'supabase_lookup_failed',
-        details: providerConnectionError.message,
       });
     }
 
@@ -6640,7 +6629,6 @@ fastify.post('/metaapi/connect', async (request, reply) => {
         return reply.status(500).send({
           error: 'Supabase lookup failed while finding account MT5 connection',
           code: 'supabase_lookup_failed',
-          details: accountConnectionError.message,
         });
       }
 
@@ -6661,7 +6649,6 @@ fastify.post('/metaapi/connect', async (request, reply) => {
           ? 'Supabase update failed while saving MT5 connection'
           : 'Supabase insert failed while saving MT5 connection',
         code: existingConnection ? 'supabase_update_failed' : 'supabase_insert_failed',
-        details: error.message,
       });
     }
 
@@ -6717,6 +6704,10 @@ fastify.post('/metaapi/connect', async (request, reply) => {
 });
 
 fastify.post('/metaapi/sync', async (request, reply) => {
+  // Preenchido quando a conexão é marcada "running"; zerado ao registrar
+  // sucesso ou falha. Se ainda estiver preenchido no finally, alguma saída
+  // (erro de banco, exceção) não restaurou o estado — o finally restaura.
+  let syncInFlight: { connectionId: string; tradingAccountId: string | null; userId: string } | null = null;
   try {
     const limit = checkRateLimit(request, 'metaapi-sync', 60, 60_000);
     if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
@@ -6814,7 +6805,6 @@ fastify.post('/metaapi/sync', async (request, reply) => {
       return reply.status(500).send({
         error: 'Supabase read failed while loading trading account',
         code: 'supabase_read_failed',
-        details: tradingAccountErr.message,
       });
     }
 
@@ -6842,11 +6832,13 @@ fastify.post('/metaapi/sync', async (request, reply) => {
 
     const { error: markRunningErr } = await supabase
       .from('mt5_connections')
+      // last_sync_at só muda quando a sincronização termina com sucesso: é a
+      // referência de frescor do dado exibido. updated_at (trigger) marca o
+      // início, e é o que revela um sync travado.
       .update({
         connection_status: 'syncing',
         sync_status: 'running',
         sync_error: null,
-        last_sync_at: new Date().toISOString(),
       })
       .eq('id', connectionId);
 
@@ -6859,7 +6851,6 @@ fastify.post('/metaapi/sync', async (request, reply) => {
       return reply.status(500).send({
         error: 'Supabase update failed while marking sync as running',
         code: 'supabase_update_failed',
-        details: markRunningErr.message,
       });
     }
 
@@ -6884,11 +6875,64 @@ fastify.post('/metaapi/sync', async (request, reply) => {
       providerAccountId: maskForLog(conn.provider_account_id),
     });
 
-    const [accountInfoRes, positionsRes, dealsRes] = await Promise.all([
-      fetch(accountInfoUrl, { headers }),
-      fetch(positionsUrl, { headers }),
-      fetch(dealsUrl, { headers }),
-    ]);
+    // A partir daqui a conexão está marcada como "running": qualquer saída sem
+    // sucesso precisa restaurar um estado de falha, nunca deixá-la presa.
+    syncInFlight = { connectionId, tradingAccountId: conn.trading_account_id, userId };
+
+    const recordSyncFailure = async (kind: UpstreamFailureKind) => {
+      const state = syncFailureState(kind);
+      syncInFlight = null;
+      const { error: markErrorErr } = await supabase
+        .from('mt5_connections')
+        .update({
+          connection_status: state.connectionStatus,
+          sync_status: state.syncStatus,
+          sync_error: state.userMessage,
+        })
+        .eq('id', connectionId);
+      if (markErrorErr) {
+        fastify.log.error({
+          event: 'metaapi_sync_error_status_update_failed',
+          connectionId: maskForLog(connectionId),
+          error: markErrorErr.message,
+        });
+      }
+      if (conn.trading_account_id) {
+        await supabase
+          .from('trading_accounts')
+          .update({
+            mt5_connection_status: state.connectionStatus,
+            mt5_sync_error: state.userMessage,
+          })
+          .eq('id', conn.trading_account_id)
+          .eq('user_id', userId);
+      }
+      return reply.status(state.httpStatus).send({
+        error: state.userMessage,
+        code: `metaapi_sync_${kind}`,
+        retryable: state.retryable,
+      });
+    };
+
+    let accountInfoRes: Response;
+    let positionsRes: Response;
+    let dealsRes: Response;
+    try {
+      [accountInfoRes, positionsRes, dealsRes] = await Promise.all([
+        fetchWithTimeout(accountInfoUrl, { headers }),
+        fetchWithTimeout(positionsUrl, { headers }),
+        fetchWithTimeout(dealsUrl, { headers }),
+      ]);
+    } catch (fetchError) {
+      const kind = classifyFetchError(fetchError);
+      fastify.log.error({
+        event: 'metaapi_sync_fetch_error',
+        connectionId: maskForLog(connectionId),
+        kind,
+        ...safeErrorMetadata(fetchError),
+      });
+      return recordSyncFailure(kind);
+    }
 
     const accountInfoText = await accountInfoRes.text();
     const positionsText = await positionsRes.text();
@@ -6910,61 +6954,21 @@ fastify.post('/metaapi/sync', async (request, reply) => {
     const positionsRaw = Array.isArray(positionsJson) ? positionsJson : Array.isArray(positionsJson?.positions) ? positionsJson.positions : [];
     const dealsRaw = Array.isArray(dealsJson) ? dealsJson : Array.isArray(dealsJson?.deals) ? dealsJson.deals : [];
 
-    if (!accountInfoRes.ok || !positionsRes.ok || !dealsRes.ok) {
-      const message = `MetaApi sync failed: account=${accountInfoRes.status}, positions=${positionsRes.status}, deals=${dealsRes.status}`;
-
+    const failureKind = worstFailureKind([
+      classifyHttpStatus(accountInfoRes.status),
+      classifyHttpStatus(positionsRes.status),
+      classifyHttpStatus(dealsRes.status),
+    ]);
+    if (failureKind) {
       fastify.log.error({
         event: 'metaapi_sync_fetch_failed',
-        message,
+        connectionId: maskForLog(connectionId),
+        kind: failureKind,
         accountInfoStatus: accountInfoRes.status,
         positionsStatus: positionsRes.status,
         dealsStatus: dealsRes.status,
       });
-
-      const { error: markErrorErr } = await supabase
-        .from('mt5_connections')
-        .update({
-          connection_status: 'auth_error',
-          sync_status: 'error',
-          sync_error: message,
-          last_sync_at: new Date().toISOString(),
-        })
-        .eq('id', connectionId);
-
-      if (markErrorErr) {
-        fastify.log.error({
-          event: 'metaapi_sync_error_status_update_failed',
-          connectionId,
-          error: markErrorErr.message,
-        });
-        return reply.status(500).send({
-          error: 'Supabase update failed while recording sync failure',
-          code: 'supabase_update_failed',
-          details: markErrorErr.message,
-        });
-      }
-
-      if (conn.trading_account_id) {
-        await supabase
-          .from('trading_accounts')
-          .update({
-            mt5_connection_status: 'auth_error',
-            mt5_sync_error: message,
-            mt5_last_sync_at: new Date().toISOString(),
-          })
-          .eq('id', conn.trading_account_id)
-          .eq('user_id', userId);
-      }
-
-      return reply.status(502).send({
-        error: message,
-        code: 'metaapi_sync_provider_failed',
-        providerStatus: {
-          accountInformation: accountInfoRes.status,
-          positions: positionsRes.status,
-          deals: dealsRes.status,
-        },
-      });
+      return recordSyncFailure(failureKind);
     }
 
     const mappedPositions = mapPositions(positionsRaw);
@@ -6984,7 +6988,6 @@ fastify.post('/metaapi/sync', async (request, reply) => {
       return reply.status(500).send({
         error: 'Supabase read failed while checking existing MT5 snapshots',
         code: 'supabase_read_failed',
-        details: existingSnapshotsErr.message,
       });
     }
 
@@ -7032,7 +7035,6 @@ fastify.post('/metaapi/sync', async (request, reply) => {
       return reply.status(500).send({
         error: 'Supabase upsert failed while writing MT5 snapshot',
         code: 'supabase_upsert_failed',
-        details: snapshotErr.message,
       });
     }
 
@@ -7050,7 +7052,6 @@ fastify.post('/metaapi/sync', async (request, reply) => {
       return reply.status(500).send({
         error: 'Supabase delete failed while clearing MT5 positions',
         code: 'supabase_delete_failed',
-        details: deletePositionsErr.message,
       });
     }
 
@@ -7071,7 +7072,6 @@ fastify.post('/metaapi/sync', async (request, reply) => {
         return reply.status(500).send({
           error: 'Supabase insert failed while writing MT5 positions',
           code: 'supabase_insert_failed',
-          details: posErr.message,
         });
       }
     }
@@ -7090,7 +7090,6 @@ fastify.post('/metaapi/sync', async (request, reply) => {
       return reply.status(500).send({
         error: 'Supabase read failed while checking existing MT5 trades',
         code: 'supabase_read_failed',
-        details: existingTradesErr.message,
       });
     }
 
@@ -7114,7 +7113,6 @@ fastify.post('/metaapi/sync', async (request, reply) => {
         return reply.status(500).send({
           error: 'Supabase insert failed while writing MT5 trades',
           code: 'supabase_insert_failed',
-          details: tradeErr.message,
         });
       }
     }
@@ -7167,7 +7165,6 @@ fastify.post('/metaapi/sync', async (request, reply) => {
         return reply.status(500).send({
           error: 'Supabase upsert failed while writing account daily snapshot',
           code: 'supabase_upsert_failed',
-          details: accountSnapshotErr.message,
         });
       }
 
@@ -7223,7 +7220,6 @@ fastify.post('/metaapi/sync', async (request, reply) => {
         return reply.status(500).send({
           error: 'Supabase update failed while updating trading account',
           code: 'supabase_update_failed',
-          details: accountUpdateErr.message,
         });
       }
     }
@@ -7231,21 +7227,59 @@ fastify.post('/metaapi/sync', async (request, reply) => {
     let evaluation:
       | { evaluated: number; violated: string[]; warning: string[]; skipped: string[]; warningMessage: string | null }
       | null = null;
+    let canonicalEvaluation: CanonicalEvaluationOutcome | null = null;
 
     try {
-      evaluation = await evaluateRulesForConnection(connectionId, conn.trading_account_id, snapshot, mappedPositions);
+      // Fonte canônica: o snapshot ativo de account_rule_bindings avaliado pelo
+      // mesmo motor do frontend. O catálogo antigo (rule_set_id) só roda como
+      // fallback explícito para contas que não têm vínculo versionado.
+      if (conn.trading_account_id) {
+        try {
+          canonicalEvaluation = await runCanonicalEvaluation(canonicalEvaluationStore, {
+            userId,
+            tradingAccountId: conn.trading_account_id,
+            connectionId,
+            account: {
+              startBalance: toNullableNumber((tradingAccount as any)?.start_balance),
+              currentBalance: snapshot.balance,
+              currentEquity: snapshot.equity,
+              highestEquity: toNullableNumber((tradingAccount as any)?.highest_equity),
+              phase: (tradingAccount as any)?.phase ?? null,
+            },
+            positions: mappedPositions.map((position) => ({ floatingPnl: position.floating_pnl })),
+          });
+        } catch (canonicalError) {
+          // Migração account_rule_evaluations ainda não aplicada: mantém o
+          // comportamento anterior (catálogo antigo) em vez de falhar o sync.
+          if (!(canonicalError instanceof CanonicalStoreUnavailableError)) throw canonicalError;
+          fastify.log.warn({ event: 'canonical_evaluation_store_unavailable', connectionId: maskForLog(connectionId) });
+          canonicalEvaluation = null;
+        }
+      }
+      if (!canonicalEvaluation || canonicalEvaluation.kind === 'no_binding') {
+        evaluation = await evaluateRulesForConnection(connectionId, conn.trading_account_id, snapshot, mappedPositions);
+      }
     } catch (evaluationError: any) {
-      const message = evaluationError?.message || 'Rule evaluation failed';
       fastify.log.error({
         event: 'metaapi_sync_rule_evaluation_failed',
         connectionId,
         tradingAccountId: conn.trading_account_id,
-        error: message,
+        ...safeErrorMetadata(evaluationError),
       });
+      // Os dados MT5 foram gravados, mas sem avaliação atual a conta não pode
+      // aparecer como monitorada: marca a sincronização como falha.
+      syncInFlight = null;
+      await supabase
+        .from('mt5_connections')
+        .update({
+          sync_status: 'error',
+          connection_status: 'connected',
+          sync_error: 'Dados sincronizados, mas a avaliação das regras falhou.',
+        })
+        .eq('id', connectionId);
       return reply.status(500).send({
-        error: 'Rule evaluation failed after MT5 sync',
+        error: 'Os dados foram sincronizados, mas a avaliação das regras falhou. Tente sincronizar novamente.',
         code: 'rule_evaluation_failed',
-        details: message,
       });
     }
 
@@ -7268,9 +7302,9 @@ fastify.post('/metaapi/sync', async (request, reply) => {
       return reply.status(500).send({
         error: 'Supabase update failed while marking sync as completed',
         code: 'supabase_update_failed',
-        details: markCompletedErr.message,
       });
     }
+    syncInFlight = null;
 
     fastify.log.info({
       event: 'metaapi_sync_success',
@@ -7278,6 +7312,7 @@ fastify.post('/metaapi/sync', async (request, reply) => {
       positionsCount: mappedPositions.length,
       newTradesCount: newTrades.length,
       evaluatedRules: evaluation?.evaluated ?? 0,
+      canonicalEvaluation: canonicalEvaluation?.kind ?? 'skipped',
     });
 
     return {
@@ -7286,6 +7321,7 @@ fastify.post('/metaapi/sync', async (request, reply) => {
       newTradesCount: newTrades.length,
       snapshot,
       evaluation,
+      canonicalEvaluation,
     };
   } catch (error) {
     fastify.log.error({ event: 'metaapi_sync_unhandled_error', ...safeErrorMetadata(error) });
@@ -7293,6 +7329,28 @@ fastify.post('/metaapi/sync', async (request, reply) => {
       error: 'Não foi possível sincronizar a conta MT5.',
       code: 'metaapi_sync_failed',
     });
+  } finally {
+    if (syncInFlight) {
+      const pending = syncInFlight;
+      syncInFlight = null;
+      try {
+        await supabase
+          .from('mt5_connections')
+          .update({
+            connection_status: 'connected',
+            sync_status: 'error',
+            sync_error: 'A sincronização foi interrompida. Tente novamente.',
+          })
+          .eq('id', pending.connectionId)
+          .eq('user_id', pending.userId);
+      } catch (restoreError) {
+        fastify.log.error({
+          event: 'metaapi_sync_restore_status_failed',
+          connectionId: maskForLog(pending.connectionId),
+          ...safeErrorMetadata(restoreError),
+        });
+      }
+    }
   }
 });
 

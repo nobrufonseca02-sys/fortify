@@ -28,6 +28,11 @@ const statusMeta: Record<
     className: 'border-success/30 bg-success/10 text-success',
     icon: CheckCircle2,
   },
+  partial: {
+    label: 'Verificação parcial',
+    className: 'border-info/30 bg-info/10 text-info',
+    icon: CircleHelp,
+  },
   warning: {
     label: 'Atenção',
     className: 'border-warning/30 bg-warning/10 text-warning',
@@ -149,6 +154,28 @@ export function BoundRuleEvaluationCard({
           );
         })}
       </div>
+
+      {evaluation.notCalculatedRules.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+            <CircleHelp className="h-3.5 w-3.5 text-info" />
+            Ainda não monitorado automaticamente
+          </div>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            A regra é verificável por MT5, mas o Fortify ainda não calcula este item. Confira manualmente.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {evaluation.notCalculatedRules.map((rule) => (
+              <span
+                key={rule.label}
+                className="rounded-full border border-info/20 bg-info/5 px-2 py-1 text-[10px] text-muted-foreground"
+              >
+                {rule.label}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {(evaluation.manualRules.length > 0 ||
         evaluation.unsupportedRules.length > 0) && (

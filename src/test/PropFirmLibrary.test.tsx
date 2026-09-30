@@ -141,4 +141,29 @@ describe('PropFirmLibrary', () => {
       '/accounts?propFirmSlug=ftmo&programSlug=ftmo-challenge-2-step-2026&accountSizeId=ftmo-challenge-2-step-2026-200k&platform=MT5&ruleVersionId=v1',
     );
   });
+
+  it('never offers an MT5 connection for futures or non-MT5 accounts', () => {
+    const versions = [{ id: 'v1', label: 'v1', notes: [] }];
+    const futures = { firmSlug: 'apex', programSlug: 'apex-eval', market: 'Futures', platforms: ['Rithmic', 'Tradovate'] } as unknown as PropFirmRuleProgram;
+    const futuresAccount = { id: 'apex-50k', platforms: ['Rithmic', 'Tradovate'], versions } as unknown as RuleAccountSize;
+    expect(accountConnectionPath(futures, futuresAccount)).toBeNull();
+
+    // Mesmo se o texto citar MT5, futuros não são monitoráveis pelo motor.
+    const futuresClaimingMt5 = { ...futures, platforms: ['MT5'] } as unknown as PropFirmRuleProgram;
+    expect(accountConnectionPath(futuresClaimingMt5, { ...futuresAccount, platforms: ['MT5'] } as RuleAccountSize)).toBeNull();
+
+    const cfdNoMt5 = { firmSlug: 'x', programSlug: 'x-1', market: 'CFD/Forex', platforms: ['cTrader'] } as unknown as PropFirmRuleProgram;
+    expect(accountConnectionPath(cfdNoMt5, { id: 'x-10k', platforms: ['cTrader'], versions } as unknown as RuleAccountSize)).toBeNull();
+  });
+
+  it('shows Topstep rules for consultation without an MT5 connect button', () => {
+    renderLibrary();
+    fireEvent.click(screen.getByTestId('firm-Topstep'));
+    fireEvent.click(screen.getAllByRole('button').find((button) => /Trading Combine|Combine/i.test(button.textContent ?? '')) ?? screen.getAllByRole('button')[0]);
+    const sizeButton = screen.queryAllByRole('button').find((button) => /US\$ \d+ mil/.test(button.textContent ?? ''));
+    if (sizeButton) fireEvent.click(sizeButton);
+
+    expect(screen.queryByRole('button', { name: 'Conectar essa conta' })).not.toBeInTheDocument();
+    expect(screen.getAllByText(/Monitoramento automático via MT5 indisponível|não opera em MT5/).length).toBeGreaterThan(0);
+  });
 });

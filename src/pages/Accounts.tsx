@@ -10,7 +10,17 @@ import {
 import { useAccountsStore } from '@/hooks/useAccountsStore';
 import { useAllRuleEvaluations } from '@/hooks/useRuleEvaluations';
 import { mapRowsForAccount } from '@/lib/ruleEvaluationView';
+import { useLatestCanonicalEvaluations } from '@/hooks/useCanonicalRuleEvaluations';
+import { currentCanonicalEvaluation } from '@/lib/canonicalEvaluationView';
 import { hasServerMonitoringGap, SERVER_MONITORING_GAP_LABEL } from '@/lib/betaReadiness';
+import {
+  assessConnectionHealth,
+  resolveAccountStatus,
+  ruleStatusFromLegacyEvaluations,
+  STATUS_TONE_CLASS,
+  type AccountStatusTone,
+  type AccountStatusView,
+} from '@/lib/accountHealth';
 import { supabase } from '@/integrations/supabase/client';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -37,6 +47,7 @@ import {
 import { RuleBindingSelector } from '@/components/rules/RuleBindingSelector';
 import { parseLibraryRuleSelection, LibraryRuleSelectionNotice } from '@/lib/libraryRuleSelection';
 import { provisionAndConnectTradingAccount } from '@/lib/accountProvisioning';
+import { FixConnectionDialog, type FixConnectionTarget } from '@/components/FixConnectionDialog';
 
 // Re-export for backward compatibility
 export { useAccountsStore } from '@/hooks/useAccountsStore';
@@ -49,26 +60,26 @@ const mt5StatusConfig: Record<Mt5ConnectionStatus, { label: string; icon: typeof
   auth_error: { label: 'Erro de autenticação', icon: AlertTriangle, className: 'bg-destructive/15 text-destructive' },
 };
 
-// NO_DATA is not a cosmetic fourth state. An account with no mt5_connections
-// row, or with zero rule evaluations (which is every fast-connected account
-// until its rule binding is completed), is *not being monitored* — rendering it
-// as SEGURO would assert a safety guarantee Fortify is not actually providing.
-// Same trigger Dashboard.tsx's buildHealthRow already uses for its 'nodata'.
-type AccountHealthStatus = 'SAFE' | 'WARNING' | 'VIOLATED' | 'NO_DATA';
+// O status exibido vem de resolveAccountStatus (src/lib/accountHealth.ts), o
+// mesmo usado pelo Dashboard: erro de conexão, sync atrasado/travado, falta de
+// vínculo ou de dados nunca aparecem como "Seguro".
+const STATUS_ICON: Record<AccountStatusTone, typeof Shield> = {
+  success: Shield,
+  info: HelpCircle,
+  warning: AlertTriangle,
+  danger: XCircle,
+  muted: HelpCircle,
+};
 
-const StatusBadge = ({ status }: { status: AccountHealthStatus }) => {
-  const config: Record<AccountHealthStatus, { label: string; icon: typeof Shield; className: string }> = {
-    SAFE: { label: 'SEGURO', icon: Shield, className: 'bg-success/15 text-success' },
-    WARNING: { label: 'ATENÇÃO', icon: AlertTriangle, className: 'bg-warning/15 text-warning' },
-    VIOLATED: { label: 'VIOLADO', icon: XCircle, className: 'bg-destructive/15 text-destructive' },
-    NO_DATA: { label: 'SEM DADOS', icon: HelpCircle, className: 'bg-muted text-muted-foreground' },
-  };
-  const c = config[status];
-  const Icon = c.icon;
+const StatusBadge = ({ view }: { view: AccountStatusView }) => {
+  const Icon = STATUS_ICON[view.tone];
   return (
-    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full ${c.className}`}>
+    <span
+      title={view.healthNote ? `${view.detail} ${view.healthNote}.` : view.detail}
+      className={`inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full ${STATUS_TONE_CLASS[view.tone]}`}
+    >
       <Icon className="w-3 h-3" />
-      {c.label}
+      {view.label}
     </span>
   );
 };
@@ -79,6 +90,7 @@ const Accounts = () => {
   const queryClient = useQueryClient();
   const { accounts, removeAccount } = useAccountsStore();
   const { data: ruleRows = [] } = useAllRuleEvaluations();
+  const { data: canonicalByAccount = {} } = useLatestCanonicalEvaluations();
   const { user, session } = useAuth();
   const userId = user?.id;
   const plan = useSubscriptionPlan();
@@ -110,6 +122,27 @@ const Accounts = () => {
   );
 
   const canConnectNewAccount = plan.hasActivePlan && plan.remainingAccounts > 0;
+
+  // Conta cujas credenciais estão sendo corrigidas (aberta pelo card ou pelo
+  // CTA "Corrigir conexão" do Dashboard via ?fixConnection=<id>).
+  const [fixTarget, setFixTarget] = useState<FixConnectionTarget | null>(null);
+  const fixConnectionParam = useMemo(
+    () => new URLSearchParams(location.search).get('fixConnection'),
+    [location.search],
+  );
+  const openFixConnection = (accountId: string) => {
+    const account = accounts.find((item) => item.id === accountId);
+    const connection = mt5Connections.find((item) => item.trading_account_id === accountId);
+    if (!account || !connection?.mt5_login || !connection?.mt5_server) return false;
+    setFixTarget({
+      tradingAccountId: account.id,
+      accountName: account.nickname,
+      mt5Login: String(connection.mt5_login),
+      mt5Server: String(connection.mt5_server),
+      brokerName: connection.broker_name ?? null,
+    });
+    return true;
+  };
 
   const openConnectForm = () => {
     if (!canConnectNewAccount) {
@@ -314,28 +347,47 @@ const Accounts = () => {
       // Genuinely bound, but the server evaluator cannot run for it. This is a
       // known cause, so it earns a specific message instead of collapsing into
       // the generic NO_DATA "sync me" reading.
-      const serverMonitoringGap = hasServerMonitoringGap({ account, hasActiveBinding: isRuleBound });
+      const canonical = currentCanonicalEvaluation(canonicalByAccount[account.id], ruleBinding?.id);
+      const serverMonitoringGap = hasServerMonitoringGap({
+        hasActiveBinding: isRuleBound,
+        hasCurrentServerEvaluation: Boolean(canonical),
+      });
 
-      const hasViolation = evals.some(e => e.status === 'VIOLATED');
-      const hasWarning = evals.some(e => e.status === 'WARNING');
-      // No connection row or no evaluations => nothing is being monitored, so
-      // the card must say so instead of collapsing to SAFE.
-      const healthStatus: AccountHealthStatus = (!mt5Connection || evals.length === 0)
-        ? 'NO_DATA'
-        : hasViolation ? 'VIOLATED' : hasWarning ? 'WARNING' : 'SAFE';
+      const health = assessConnectionHealth(mt5Connection, { fallbackLastSyncAt: account.mt5LastSyncAt });
+      // Vinculada: só vale a avaliação canônica do servidor. O catálogo antigo
+      // é fallback explícito apenas para contas sem vínculo versionado.
+      const statusView = resolveAccountStatus({
+        health,
+        hasRuleBinding: isRuleBound || evals.length > 0,
+        ruleStatus: isRuleBound
+          ? canonical?.overall_status ?? null
+          : ruleStatusFromLegacyEvaluations(evals),
+      });
 
       return {
         account, pnl, pnlPct, isPositive, mt5Connection, connectionStatus, mt5Status,
-        ruleBinding, bindingStatus, boundPropFirmName, detectedPropFirmName, isRuleBound, healthStatus,
+        ruleBinding, bindingStatus, boundPropFirmName, detectedPropFirmName, isRuleBound, statusView,
         serverMonitoringGap,
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accounts, ruleRows, mt5Connections, ruleBindings]);
+  }, [accounts, ruleRows, mt5Connections, ruleBindings, canonicalByAccount]);
 
-  const violatedCount = accountsView.filter(v => v.healthStatus === 'VIOLATED').length;
-  const warningCount = accountsView.filter(v => v.healthStatus === 'WARNING').length;
-  const noDataCount = accountsView.filter(v => v.healthStatus === 'NO_DATA').length;
+  useEffect(() => {
+    if (!fixConnectionParam || fixTarget) return;
+    if (openFixConnection(fixConnectionParam)) {
+      navigate(location.pathname, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fixConnectionParam, mt5Connections, accounts]);
+
+  const violatedCount = accountsView.filter(v => ['breached', 'critical'].includes(v.statusView.status)).length;
+  const warningCount = accountsView.filter(v => v.statusView.status === 'warning').length;
+  // Tudo que não é alarme nem "seguro": sem dados, conexão com erro, sync
+  // atrasado/travado, sem vínculo, verificação parcial ou não monitorável.
+  const noDataCount = accountsView.filter(
+    v => !['breached', 'critical', 'warning', 'safe'].includes(v.statusView.status),
+  ).length;
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
@@ -356,7 +408,7 @@ const Accounts = () => {
               {violatedCount > 0 && (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-destructive/30 bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
                   <XCircle className="w-3.5 h-3.5" aria-hidden="true" />
-                  {violatedCount} {violatedCount === 1 ? 'conta violada' : 'contas violadas'}
+                  {violatedCount} {violatedCount === 1 ? 'conta crítica ou violada' : 'contas críticas ou violadas'}
                 </span>
               )}
               {warningCount > 0 && (
@@ -368,7 +420,7 @@ const Accounts = () => {
               {noDataCount > 0 && (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-2.5 py-1 text-xs font-medium text-muted-foreground">
                   <HelpCircle className="w-3.5 h-3.5" aria-hidden="true" />
-                  {noDataCount} {noDataCount === 1 ? 'conta sem monitoramento' : 'contas sem monitoramento'}
+                  {noDataCount} {noDataCount === 1 ? 'conta sem confirmação de segurança' : 'contas sem confirmação de segurança'}
                 </span>
               )}
               {/* Only claim "tudo dentro dos limites" when every account is
@@ -513,7 +565,7 @@ const Accounts = () => {
 
       {/* Account Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {accountsView.map(({ account, pnlPct, isPositive, mt5Connection, connectionStatus, mt5Status, bindingStatus, boundPropFirmName, detectedPropFirmName, isRuleBound, healthStatus, serverMonitoringGap }) => {
+        {accountsView.map(({ account, pnlPct, isPositive, mt5Connection, connectionStatus, mt5Status, bindingStatus, boundPropFirmName, detectedPropFirmName, isRuleBound, statusView, serverMonitoringGap }) => {
           const Mt5StatusIcon = mt5Status.icon;
 
           return (
@@ -598,8 +650,22 @@ const Accounts = () => {
                     </div>
                   )}
                 </div>
-                <StatusBadge status={healthStatus} />
+                <StatusBadge view={statusView} />
               </div>
+
+              {statusView.action === 'fix_connection' && mt5Connection && (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openFixConnection(account.id);
+                  }}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-destructive hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                >
+                  <KeyRound className="w-3 h-3" aria-hidden="true" />
+                  Corrigir conexão
+                </button>
+              )}
 
               {/* Conexão MT5 + frescor do dado (só o essencial) */}
               <div className="rounded-md bg-muted/10 px-2.5 py-2 flex items-center gap-2 flex-wrap text-[11px] min-h-[22px]">
@@ -673,6 +739,15 @@ const Accounts = () => {
           onAction={openConnectForm}
         />
       )}
+
+      <FixConnectionDialog
+        target={fixTarget}
+        onOpenChange={(open) => {
+          if (open) return;
+          setFixTarget(null);
+          refreshConnectionData();
+        }}
+      />
     </div>
   );
 };

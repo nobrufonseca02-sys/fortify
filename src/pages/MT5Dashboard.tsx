@@ -159,7 +159,7 @@ const MT5Dashboard = () => {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
-        <button onClick={() => navigate('/mt5')} className="text-muted-foreground hover:text-foreground transition-colors">
+        <button onClick={() => navigate('/accounts')} className="text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
 
@@ -255,7 +255,7 @@ const MT5Dashboard = () => {
                   Recarregar
                 </button>
                 <button
-                  onClick={() => navigate('/mt5')}
+                  onClick={() => navigate('/accounts')}
                   className="text-xs font-semibold px-3 py-2 rounded-lg border border-border bg-card hover:bg-muted/30 transition-colors"
                 >
                   Voltar para conexões

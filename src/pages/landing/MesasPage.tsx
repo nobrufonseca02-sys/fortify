@@ -221,7 +221,7 @@ export default function MesasPage() {
 
       <FinalCta
         title="Conecte sua conta e comece a monitorar."
-        body="Escolha a mesa, confirme a versão das regras que vale para a sua conta e acompanhe os limites em tempo real."
+        body="Escolha a mesa, confirme a versão das regras que vale para a sua conta e acompanhe os limites a cada sincronização."
         secondary={{ label: 'Ver como usar', to: '/vendas/como-funciona', destination: '/vendas/como-funciona' }}
         tracking={{ primary: 'firms_primary', secondary: 'firms_secondary', location: 'mesas' }}
       />

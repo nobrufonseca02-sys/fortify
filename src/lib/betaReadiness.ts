@@ -138,10 +138,10 @@ export function getSyncStatusMeta(status?: string | null, lastSyncAt?: string | 
 // writes rule_evaluations and therefore drives every real SAFE/WARNING/VIOLATED
 // verdict) only runs when trading_accounts.rule_set_id resolves to a rule set
 // version — see resolveRuleSetVersionId in services/metaapi-gateway/src/server.ts.
-// An account bound purely through account_rule_bindings has an audited,
-// versioned rule snapshot but no usable legacy rule_set_id, so nothing evaluates
-// it on the server. That is a known architectural gap, and it must be stated
-// rather than left looking like "sync just hasn't happened yet".
+// Contas vinculadas por account_rule_bindings são avaliadas no servidor pelo
+// motor canônico a cada sync (services/metaapi-gateway/src/canonicalEvaluation.ts).
+// O que resta como lacuna é o intervalo entre vincular (ou trocar a versão) e a
+// primeira avaliação com esse vínculo.
 const RULE_SET_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function hasServerEvaluableRuleSet(
@@ -151,20 +151,19 @@ export function hasServerEvaluableRuleSet(
 }
 
 /**
- * True when the account has a real active rule binding but the legacy
- * rule_set_id plumbing that server-side evaluation depends on is not wired for
- * it — i.e. "bound, but not monitored on the server".
+ * Vinculada, mas ainda sem avaliação do servidor feita com o vínculo ativo
+ * (recém-vinculada, versão trocada, ou nenhum sync desde então).
  */
 export function hasServerMonitoringGap(input: {
-  account?: { ruleSetId?: string | null; rule_set_id?: string | null } | null;
   hasActiveBinding: boolean;
+  hasCurrentServerEvaluation: boolean;
 }) {
-  return input.hasActiveBinding && !hasServerEvaluableRuleSet(input.account);
+  return input.hasActiveBinding && !input.hasCurrentServerEvaluation;
 }
 
-export const SERVER_MONITORING_GAP_LABEL = 'Sem monitoramento automático no servidor';
+export const SERVER_MONITORING_GAP_LABEL = 'Aguardando avaliação no servidor';
 export const SERVER_MONITORING_GAP_DESCRIPTION =
-  'A regra está vinculada e auditada, mas a avaliação automática no servidor ainda não roda para este vínculo. Confira os limites manualmente antes de operar.';
+  'A regra está vinculada, mas o servidor ainda não avaliou a conta com esta versão. Sincronize a conta para gerar a primeira avaliação.';
 
 export function getRulesStatusMeta(input: {
   account?: Partial<TradingAccount> & Record<string, unknown> | null;
@@ -351,7 +350,7 @@ export function buildBetaChecklist(input: {
         ? 'MetaTrader conectado e pronto para sincronizar.'
         : connectionMeta.description,
       actionLabel: connectionMeta.shortLabel === 'connected' ? undefined : 'Conectar MT5',
-      actionTo: '/mt5',
+      actionTo: '/accounts',
     },
     {
       id: 'broker-detected',
@@ -361,7 +360,7 @@ export function buildBetaChecklist(input: {
         ? 'Corretora e servidor registrados para esta conta.'
         : 'Conecte o MT5 ou informe o nome exato do servidor para o Fortify identificar a conta.',
       actionLabel: hasBrokerServer ? undefined : 'Revisar MT5',
-      actionTo: '/mt5',
+      actionTo: '/accounts',
     },
     {
       id: 'rules-configured',
@@ -377,7 +376,7 @@ export function buildBetaChecklist(input: {
       status: syncMeta.shortLabel === 'success' || syncMeta.shortLabel === 'stale data' ? (syncMeta.shortLabel === 'stale data' ? 'warning' : 'complete') : syncMeta.shortLabel === 'failed' ? 'warning' : 'pending',
       description: hasSnapshot ? syncMeta.description : 'Rode o sync para buscar saldo, equity, posições e trades.',
       actionLabel: hasSnapshot ? undefined : 'Rodar primeiro sync',
-      actionTo: accountId ? `/accounts/${accountId}` : '/mt5',
+      actionTo: accountId ? `/accounts/${accountId}` : '/accounts',
     },
     {
       id: 'risk-plan',
