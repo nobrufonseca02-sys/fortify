@@ -2380,12 +2380,31 @@ async function getProvisioningAccount(providerAccountId: string) {
 // gateway are tagged with the owning Fortify user id at provisioning time
 // (see postProvisioningAccount's `tags`), so we check that tag here instead
 // of trusting the column.
-async function assertProviderAccountBelongsToUser(providerAccountId: string, userId: string): Promise<boolean> {
+type OwnershipCheckOutcome =
+  | { status: 'owned' }
+  | { status: 'denied' }
+  // MetaApi não respondeu de forma conclusiva (timeout, rede, 5xx, rate limit).
+  // Isso nunca prova que a conta é de outro usuário — só que não deu para
+  // confirmar agora. Tratar como "denied" aqui já causou um 403 falso
+  // ("essa conta pertence a outro usuário") a partir de um timeout comum logo
+  // após criar a conta na MetaApi.
+  | { status: 'check_failed'; kind: UpstreamFailureKind };
+
+async function checkProviderAccountOwnership(
+  providerAccountId: string,
+  userId: string,
+): Promise<OwnershipCheckOutcome> {
   try {
     const { res, body } = await getProvisioningAccount(providerAccountId);
-    if (!res.ok) return false;
-    const tags: unknown = (body as JsonRecord)?.tags;
-    return Array.isArray(tags) && tags.includes(`user:${userId}`);
+    if (res.ok) {
+      const tags: unknown = (body as JsonRecord)?.tags;
+      return Array.isArray(tags) && tags.includes(`user:${userId}`) ? { status: 'owned' } : { status: 'denied' };
+    }
+    const kind = classifyHttpStatus(res.status);
+    // 401/403 (token não autoriza) ou 404 (conta não existe mais) são as únicas
+    // respostas que realmente decidem posse; o resto é falha temporária.
+    if (kind === 'auth' || kind === 'not_found') return { status: 'denied' };
+    return { status: 'check_failed', kind: kind ?? 'temporary' };
   } catch (error: any) {
     fastify.log.error({
       event: 'metaapi_provider_account_ownership_check_failed',
@@ -2393,7 +2412,7 @@ async function assertProviderAccountBelongsToUser(providerAccountId: string, use
       userId: maskForLog(userId),
       ...safeErrorMetadata(error),
     });
-    return false;
+    return { status: 'check_failed', kind: classifyFetchError(error) };
   }
 }
 
@@ -2500,6 +2519,23 @@ async function putProvisioningAccountCredentials(providerAccountId: string, payl
   return { res, text, body };
 }
 
+// Idempotente: a MetaApi ignora a chamada se a conta já estiver implantada.
+// Sem isso, uma conta recém-criada fica em estado UNDEPLOYED e todo sync
+// falha com 504 até alguém implantá-la manualmente — foi exatamente o que
+// aconteceu na primeira conta MT5 nova conectada após este deploy.
+async function deployMetaApiAccount(providerAccountId: string) {
+  const url = `${provisioningBaseUrl}/users/current/accounts/${encodeURIComponent(providerAccountId)}/deploy`;
+  const res = await fetchWithTimeout(url, {
+    method: 'POST',
+    headers: {
+      'auth-token': METAAPI_TOKEN,
+    },
+  });
+  const text = await res.text();
+  const body = parseJsonText(text);
+  return { ok: res.ok, status: res.status, body };
+}
+
 async function undeployMetaApiAccount(providerAccountId: string) {
   const url = `${provisioningBaseUrl}/users/current/accounts/${encodeURIComponent(providerAccountId)}/undeploy`;
   const res = await fetchWithTimeout(url, {
@@ -2561,15 +2597,19 @@ async function suspendUserMetaApiAccounts(userId: string, reason: string) {
       continue;
     }
 
-    if (providerAccountId && !(await assertProviderAccountBelongsToUser(providerAccountId, userId))) {
+    const ownership = providerAccountId ? await checkProviderAccountOwnership(providerAccountId, userId) : null;
+    if (ownership && ownership.status !== 'owned') {
       // provider_account_id is a user-writable column; don't let a row spoofed
       // to point at another Fortify user's MetaApi account cause that other
-      // account to be undeployed when *this* user's subscription lapses.
+      // account to be undeployed when *this* user's subscription lapses. A
+      // check that merely failed (timeout/network) is treated the same way,
+      // fail-safe: never undeploy on an inconclusive ownership check.
       fastify.log.warn({
         event: 'metaapi_suspend_provider_account_ownership_mismatch',
         userId: maskForLog(userId),
         connectionId: maskForLog(connection.id),
         providerAccountId: maskForLog(providerAccountId),
+        checkStatus: ownership.status,
       });
       suspended++;
     } else if (providerAccountId) {
@@ -6304,7 +6344,24 @@ fastify.post('/metaapi/connect', async (request, reply) => {
       existingMetaApiAccount = findMatchingProvisioningAccount(listed.accounts, mt5Login, mt5Server);
       providerAccountId = existingMetaApiAccount ? getMetaApiAccountId(existingMetaApiAccount) : null;
 
-      if (providerAccountId && !(await assertProviderAccountBelongsToUser(providerAccountId, userId))) {
+      const existingOwnership = providerAccountId
+        ? await checkProviderAccountOwnership(providerAccountId, userId)
+        : null;
+      if (existingOwnership?.status === 'check_failed') {
+        fastify.log.warn({
+          event: 'metaapi_connect_existing_account_ownership_check_failed',
+          providerAccountId: maskForLog(providerAccountId),
+          userId: maskForLog(userId),
+          kind: existingOwnership.kind,
+        });
+        const state = syncFailureState(existingOwnership.kind);
+        return reply.status(state.httpStatus).send({
+          error: 'Não foi possível confirmar a posse desta conta na MetaApi agora. Tente novamente.',
+          code: 'provider_account_ownership_check_failed',
+          retryable: state.retryable,
+        });
+      }
+      if (providerAccountId && existingOwnership?.status === 'denied') {
         fastify.log.warn({
           event: 'metaapi_connect_existing_account_ownership_mismatch',
           providerAccountId: maskForLog(providerAccountId),
@@ -6454,6 +6511,25 @@ fastify.post('/metaapi/connect', async (request, reply) => {
       return reply.status(502).send({
         error: 'MetaApi provisioning response did not include an account id',
         code: 'metaapi_provisioning_failed',
+      });
+    }
+
+    // Implanta a conta na MetaApi (idempotente — é ignorado se já estiver
+    // implantada). Sem isso o sync sempre bate em 504 numa conta nova.
+    // Não bloqueia a conexão: MetaApi leva minutos para terminar de implantar
+    // de qualquer forma, e o próprio sync volta a tentar depois.
+    try {
+      const deployResult = await deployMetaApiAccount(providerAccountId);
+      fastify.log.info({
+        event: 'metaapi_connect_deploy_result',
+        providerAccountId: maskForLog(providerAccountId),
+        status: deployResult.status,
+      });
+    } catch (deployError: any) {
+      fastify.log.warn({
+        event: 'metaapi_connect_deploy_failed',
+        providerAccountId: maskForLog(providerAccountId),
+        ...safeErrorMetadata(deployError),
       });
     }
 
@@ -6775,8 +6851,35 @@ fastify.post('/metaapi/sync', async (request, reply) => {
       return reply.status(409).send({ error: 'Missing provider_account_id' });
     }
 
-    const ownsProviderAccount = await assertProviderAccountBelongsToUser(conn.provider_account_id, userId);
-    if (!ownsProviderAccount) {
+    const ownership = await checkProviderAccountOwnership(conn.provider_account_id, userId);
+    if (ownership.status === 'check_failed') {
+      // Uma falha temporária aqui (ex.: timeout logo após criar a conta na
+      // MetaApi) não prova que a conta é de outro usuário — tratar como 403
+      // fazia a conexão parecer travada em "sincronizando" para sempre, porque
+      // a linha nunca era atualizada. Registra a falha e deixa a tela clara.
+      fastify.log.warn({
+        event: 'metaapi_sync_provider_account_ownership_check_failed',
+        connectionId: maskForLog(connectionId),
+        providerAccountId: maskForLog(conn.provider_account_id),
+        userId: maskForLog(userId),
+        kind: ownership.kind,
+      });
+      const state = syncFailureState(ownership.kind);
+      await supabase
+        .from('mt5_connections')
+        .update({
+          connection_status: state.connectionStatus,
+          sync_status: state.syncStatus,
+          sync_error: 'Não foi possível confirmar a conexão com a MetaApi agora. Tente sincronizar novamente.',
+        })
+        .eq('id', connectionId);
+      return reply.status(state.httpStatus).send({
+        error: 'Não foi possível confirmar a conexão com a MetaApi agora. Tente sincronizar novamente.',
+        code: 'provider_account_ownership_check_failed',
+        retryable: state.retryable,
+      });
+    }
+    if (ownership.status !== 'owned') {
       fastify.log.warn({
         event: 'metaapi_sync_provider_account_ownership_mismatch',
         connectionId: maskForLog(connectionId),
