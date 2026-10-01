@@ -43,9 +43,9 @@ const howItWorks = [
   {
     step: '3',
     icon: Gauge,
-    title: 'Monitore em tempo real',
+    title: 'Acompanhe a cada sincronização',
     description:
-      'Perda diária, perda total, drawdown, consistência, lote e dias operados aparecem no painel da conta, cada um com o valor atual, o limite e quanto ainda resta antes da violação.',
+      'Perda diária, drawdown máximo e meta de lucro aparecem no painel da conta com o valor atual, o limite e quanto ainda resta. Regras que o Fortify ainda não calcula ficam marcadas para conferência manual.',
   },
   {
     step: '4',
@@ -117,7 +117,7 @@ const faqItems = [
   {
     question: 'Com que frequência os dados da conta são atualizados?',
     answer:
-      'A sincronização roda continuamente pelo gateway. Cada conta mostra no painel o horário da última sincronização, para você saber se está vendo um dado atual ou atrasado antes de decidir algo com base nele.',
+      'Os dados são atualizados quando você sincroniza a conta no painel; ainda não há sincronização automática em segundo plano. Cada conta mostra o horário da última sincronização e avisa quando o dado passa de 6 horas, para você saber se está vendo um dado atual ou atrasado.',
   },
   {
     question: 'Posso cancelar quando quiser?',

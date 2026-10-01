@@ -22,6 +22,7 @@ import {
   resolveAccountSizeForRuleSet,
 } from '@/lib/ruleSetSizeGuard';
 import { RuleBindingSelector } from '@/components/rules/RuleBindingSelector';
+import { currentCanonicalEvaluation, type CanonicalRuleEvaluationRow } from '@/lib/canonicalEvaluationView';
 import { BoundRuleEvaluationCard } from '@/components/rules/BoundRuleEvaluationCard';
 import { evaluateBoundAccountRules } from '@/lib/ruleEngine/evaluateAccountRules';
 import {
@@ -111,6 +112,7 @@ export default function AccountRuleManagement() {
     emptyRuleBindingDraft,
   );
   const [editingBinding, setEditingBinding] = useState(false);
+  const [serverEvaluation, setServerEvaluation] = useState<CanonicalRuleEvaluationRow | null>(null);
   const [savingBinding, setSavingBinding] = useState(false);
   const [selectedRuleSetId, setSelectedRuleSetId] = useState('');
   const [customDefinitionId, setCustomDefinitionId] = useState('');
@@ -130,7 +132,7 @@ export default function AccountRuleManagement() {
     }
     setLoading(true);
 
-    const [accountRes, connRes, ruleSetRes, defRes, evalRes, customRes, bindingRes] = await Promise.all([
+    const [accountRes, connRes, ruleSetRes, defRes, evalRes, customRes, bindingRes, canonicalRes] = await Promise.all([
       (supabase.from('trading_accounts').select('*').eq('id', accountId).eq('user_id', user.id).maybeSingle() as any),
       (supabase.from('mt5_connections').select('*').eq('trading_account_id', accountId).eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle() as any),
       (supabase
@@ -158,7 +160,17 @@ export default function AccountRuleManagement() {
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle() as any),
+      (supabase
+        .from('latest_account_rule_evaluations' as any)
+        .select('*')
+        .eq('trading_account_id', accountId)
+        .maybeSingle() as any),
     ]);
+
+    // Falha ao ler a avaliação do servidor não bloqueia a tela: ela só deixa de
+    // afirmar que o servidor avaliou a conta.
+    const loadedCanonical = canonicalRes.error || Array.isArray(canonicalRes.data) ? null : canonicalRes.data ?? null;
+    setServerEvaluation(loadedCanonical as CanonicalRuleEvaluationRow | null);
 
     if (accountRes.error) toast({ title: 'Erro ao carregar conta', description: accountRes.error.message, variant: 'destructive' });
     if (connRes.error) toast({ title: 'Erro ao carregar conexão MT5', description: connRes.error.message, variant: 'destructive' });
@@ -186,7 +198,9 @@ export default function AccountRuleManagement() {
         accountSizeId: loadedBinding.account_size_id,
         platform: loadedBinding.platform,
         ruleVersionId: loadedBinding.rule_version_id,
-        manualRuleAcknowledgement: loadedBinding.manual_rule_acknowledgement,
+        // Nunca herda o aceite do vínculo salvo: qualquer novo salvamento gera
+        // um novo snapshot e exige uma nova confirmação explícita do trader.
+        manualRuleAcknowledgement: false,
       });
     } else {
       setBindingDraft(emptyRuleBindingDraft());
@@ -519,9 +533,11 @@ export default function AccountRuleManagement() {
           ? 'attention'
           : 'safe';
   const isMissingRuleSet = !ruleBinding && (!account.rule_set_id || account.rule_selection_status === 'unconfigured');
-  // Bound and audited, but the gateway's evaluator has no rule set version to
-  // resolve, so rule_evaluations never gets written for this account.
-  const serverMonitoringGap = hasServerMonitoringGap({ account, hasActiveBinding: Boolean(ruleBinding) });
+  // Vinculada, mas sem avaliação do servidor feita com este vínculo ainda.
+  const serverMonitoringGap = hasServerMonitoringGap({
+    hasActiveBinding: Boolean(ruleBinding),
+    hasCurrentServerEvaluation: Boolean(currentCanonicalEvaluation(serverEvaluation, ruleBinding?.id)),
+  });
   const isAutoGeneric = account.rule_selection_status === 'auto_generic';
   const needsReview = currentRuleSet?.review_status === 'needs_review';
   const betaChecklist = buildBetaChecklist({

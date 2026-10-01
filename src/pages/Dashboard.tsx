@@ -16,6 +16,20 @@ import { MarketTicker } from '@/components/MarketTicker';
 import { SUPPORT_WHATSAPP_URL } from '@/lib/support';
 import { fortifyMotion } from '@/lib/motion';
 import { cn } from '@/lib/utils';
+import { useQuery } from '@tanstack/react-query';
+import { useLatestCanonicalEvaluations } from '@/hooks/useCanonicalRuleEvaluations';
+import { fetchActiveRuleBindings } from '@/lib/ruleBinding';
+import {
+  currentCanonicalEvaluation,
+  summarizeCanonicalEvaluation,
+  type CanonicalRuleEvaluationRow,
+} from '@/lib/canonicalEvaluationView';
+import {
+  assessConnectionHealth,
+  resolveAccountStatus,
+  ruleStatusFromLegacyEvaluations,
+  type AccountStatusView,
+} from '@/lib/accountHealth';
 import type { TradingAccount } from '@/types/fortify';
 
 type HealthStatus = 'safe' | 'warning' | 'critical' | 'nodata';
@@ -133,11 +147,25 @@ function signedMoney(value: number | null | undefined) {
   return formatted;
 }
 
-function isStale(value: string | null | undefined) {
-  if (!value) return true;
-  const parsed = Date.parse(value);
-  if (!Number.isFinite(parsed)) return true;
-  return Date.now() - parsed > 6 * 60 * 60 * 1000;
+/** Destino do CTA "Corrigir conexão": com erro de conexão abre o fluxo de
+ * reenvio de credencial em Contas; sem conexão ou com sync atrasado leva a
+ * Contas, onde a conta pode ser conectada ou sincronizada. */
+function connectionFixPath(row: Pick<HealthRow, 'account' | 'connection' | 'hasSyncError'>) {
+  if (row.connection && row.hasSyncError) {
+    return `/accounts?fixConnection=${encodeURIComponent(row.account.id)}`;
+  }
+  return '/accounts';
+}
+
+/** Agrupa o status detalhado de resolveAccountStatus nas 4 faixas visuais do
+ * painel. "Seguro" só sai de uma conta realmente segura; conexão com erro ou
+ * sync travado contam como crítico; parcial/sem dados/não monitorável ficam
+ * na faixa neutra. */
+function healthBucket(view: AccountStatusView): HealthStatus {
+  if (view.tone === 'success') return 'safe';
+  if (view.tone === 'danger') return 'critical';
+  if (view.tone === 'warning') return 'warning';
+  return 'nodata';
 }
 
 function relativeSync(value: string | null | undefined) {
@@ -233,18 +261,26 @@ function aggregateEquitySeries(snapshots: any[], limit = 30) {
     .map(([date, equity]) => ({ date, label: shortDayLabel(date), equity }));
 }
 
-function buildHealthRow(account: TradingAccount, connection: any | null, evaluations: RuleEvaluationRow[], positions: any[]): HealthRow {
+function buildHealthRow(
+  account: TradingAccount,
+  connection: any | null,
+  evaluations: RuleEvaluationRow[],
+  positions: any[],
+  binding: { hasActiveBinding: boolean; canonical: CanonicalRuleEvaluationRow | null },
+): HealthRow {
+  // Conta vinculada: status e margens vêm só da avaliação canônica do servidor.
+  // Sem vínculo, o catálogo antigo é o fallback explícito.
+  if (binding.hasActiveBinding) evaluations = [];
+  const canonical = binding.canonical ? summarizeCanonicalEvaluation(binding.canonical) : null;
   const summary = getAccountEvaluationSummary(account, evaluations);
   const hasViolation = summary.evals.some((evaluation) => evaluation.status === 'VIOLATED');
   const hasWarning = summary.evals.some((evaluation) => evaluation.status === 'WARNING');
-  const connectionStatus = String(connection?.connection_status || '').toLowerCase();
-  const syncStatus = String(connection?.sync_status || '').toLowerCase();
-  const hasSyncError =
-    Boolean(connection?.sync_error) ||
-    ['auth_error', 'error', 'failed', 'suspension_pending'].includes(connectionStatus) ||
-    ['auth_error', 'error', 'failed', 'suspension_pending'].includes(syncStatus);
-  const bufferPct = summary.closestRule ? Math.max(0, 100 - Number(summary.closestRule.progressPct || 0)) : null;
-  const stale = isStale(connection?.last_sync_at || account.mt5LastSyncAt);
+  const health = assessConnectionHealth(connection, { fallbackLastSyncAt: account.mt5LastSyncAt });
+  const hasSyncError = health.state === 'connection_error' || health.state === 'sync_stuck';
+  const bufferPct = binding.hasActiveBinding
+    ? canonical?.worstLossPercentage != null ? Math.max(0, 100 - canonical.worstLossPercentage) : null
+    : summary.closestRule ? Math.max(0, 100 - Number(summary.closestRule.progressPct || 0)) : null;
+  const stale = health.state === 'stale' || health.state === 'no_data';
   const accountPositions = connection
     ? positions.filter((position) => position.connection_id === connection.id)
     : [];
@@ -253,10 +289,21 @@ function buildHealthRow(account: TradingAccount, connection: any | null, evaluat
     return pnl < 0 ? sum + pnl : sum;
   }, 0);
 
-  let status: HealthStatus = 'safe';
-  if (!connection || summary.evals.length === 0) status = 'nodata';
-  else if (hasSyncError || hasViolation || (bufferPct !== null && bufferPct <= 10)) status = 'critical';
-  else if (hasWarning || stale || (bufferPct !== null && bufferPct <= 30)) status = 'warning';
+  let ruleStatus = binding.hasActiveBinding
+    ? canonical?.overallStatus ?? null
+    : ruleStatusFromLegacyEvaluations(summary.evals);
+  // O motor canônico já classifica pelas faixas 70/85/100%; o reforço por
+  // margem vale só para o catálogo antigo.
+  if (!binding.hasActiveBinding && ruleStatus === 'safe' && bufferPct !== null && bufferPct <= 10) ruleStatus = 'critical';
+  else if (!binding.hasActiveBinding && ruleStatus === 'safe' && bufferPct !== null && bufferPct <= 30) ruleStatus = 'warning';
+  const statusView = resolveAccountStatus({
+    health,
+    hasRuleBinding: binding.hasActiveBinding || summary.evals.length > 0,
+    ruleStatus,
+  });
+  const remainingLabel = (rule: { remainingValue: number | null } | null) =>
+    rule && rule.remainingValue !== null ? money(rule.remainingValue) : 'Sem dados suficientes';
+  const status = healthBucket(statusView);
 
   return {
     account,
@@ -264,10 +311,14 @@ function buildHealthRow(account: TradingAccount, connection: any | null, evaluat
     evaluations,
     evals: summary.evals,
     status,
-    statusLabel: statusStyle[status].label,
+    statusLabel: statusView.label,
     equityLabel: money(account.currentEquity),
-    dailyRemainingLabel: summary.dailyLoss ? money(summary.dailyRemaining) : 'Sem dados suficientes',
-    drawdownRemainingLabel: summary.totalLoss ? money(summary.maxLossRemaining) : 'Sem dados suficientes',
+    dailyRemainingLabel: binding.hasActiveBinding
+      ? remainingLabel(canonical?.dailyLoss ?? null)
+      : summary.dailyLoss ? money(summary.dailyRemaining) : 'Sem dados suficientes',
+    drawdownRemainingLabel: binding.hasActiveBinding
+      ? remainingLabel(canonical?.maxDrawdown ?? null)
+      : summary.totalLoss ? money(summary.maxLossRemaining) : 'Sem dados suficientes',
     openPositions: accountPositions.length,
     negativeFloatingPnl,
     lastSyncLabel: relativeSync(connection?.last_sync_at || account.mt5LastSyncAt),
@@ -283,6 +334,9 @@ function summaryStatus(rows: HealthRow[]) {
   if (rows.length === 0 || rows.every((row) => row.status === 'nodata')) return 'Sem dados';
   if (rows.some((row) => row.status === 'critical')) return 'Crítico';
   if (rows.some((row) => row.status === 'warning')) return 'Atenção';
+  // Uma conta sem confirmação (parcial, sem dados, não monitorável) impede o
+  // resumo geral de afirmar "Seguro".
+  if (rows.some((row) => row.status !== 'safe')) return 'Sem dados';
   return 'Seguro';
 }
 
@@ -379,6 +433,13 @@ function Dashboard() {
   const { accounts } = useAccountsStore();
   const { user, session } = useAuth();
   const { data: ruleRows = [] } = useAllRuleEvaluations();
+  const { data: canonicalByAccount = {} } = useLatestCanonicalEvaluations();
+  const { data: activeBindings = [] } = useQuery({
+    queryKey: ['account_rule_bindings', session?.user?.id, 'active'],
+    queryFn: () => fetchActiveRuleBindings(session!.user.id),
+    enabled: !!session?.user?.id,
+    staleTime: 60 * 1000,
+  });
   const { accountLimit, hasActivePlan, plans } = useSubscriptionPlan();
   const shouldReduceMotion = useReducedMotion();
   const [mt5Connections, setMt5Connections] = useState<any[]>([]);
@@ -510,9 +571,13 @@ function Dashboard() {
     return accounts.map((account) => {
       const connection = accountConnection(account, mt5Connections);
       const evaluations = ruleRows.filter((row) => row.trading_account_id === account.id);
-      return buildHealthRow(account, connection, evaluations, positions);
+      const activeBinding = activeBindings.find((item) => item.trading_account_id === account.id) ?? null;
+      return buildHealthRow(account, connection, evaluations, positions, {
+        hasActiveBinding: Boolean(activeBinding),
+        canonical: currentCanonicalEvaluation(canonicalByAccount[account.id], activeBinding?.id),
+      });
     });
-  }, [accounts, mt5Connections, positions, ruleRows]);
+  }, [accounts, mt5Connections, positions, ruleRows, activeBindings, canonicalByAccount]);
 
   const riskyAccount = rows.find((row) => row.status === 'critical') || rows.find((row) => row.status === 'warning') || null;
   const openPositions = rows.reduce((sum, row) => sum + row.openPositions, 0);
@@ -603,7 +668,7 @@ function Dashboard() {
         title: needsConnectionFix ? `Corrigir conexão de ${riskyAccount.account.nickname}` : `Revisar ${riskyAccount.account.nickname}`,
         description,
         cta: needsConnectionFix ? 'Corrigir conexão' : 'Ver regras',
-        onClick: () => navigate(needsConnectionFix ? '/mt5' : `/accounts/${riskyAccount.account.id}/rules`),
+        onClick: () => navigate(needsConnectionFix ? connectionFixPath(riskyAccount) : `/accounts/${riskyAccount.account.id}/rules`),
       };
     }
 
@@ -623,7 +688,7 @@ function Dashboard() {
         title: 'Conecte sua primeira conta MT5',
         description: 'Depois da primeira sincronização, o Fortify mostra os limites e alertas da conta aqui.',
         cta: 'Conectar conta',
-        onClick: () => navigate('/mt5'),
+        onClick: () => navigate('/accounts'),
       };
     }
 
@@ -818,7 +883,7 @@ function Dashboard() {
           {rows.length === 0 ? (
             <div className="p-5">
               <p className="text-sm text-muted-foreground">Conecte uma conta MT5 para acompanhar a saúde dela aqui.</p>
-              <button type="button" onClick={() => navigate('/mt5')} className="pill-btn pill-btn-primary mt-4">
+              <button type="button" onClick={() => navigate('/accounts')} className="pill-btn pill-btn-primary mt-4">
                 Conectar conta MT5
               </button>
             </div>
@@ -831,7 +896,7 @@ function Dashboard() {
                   key={row.account.id}
                   row={row}
                   points={sparklinePoints(row.connection?.id, snapshots)}
-                  onAction={() => navigate(row.hasSyncError || row.stale || !row.connection ? '/mt5' : `/accounts/${row.account.id}/rules`)}
+                  onAction={() => navigate(row.hasSyncError || row.stale || !row.connection ? connectionFixPath(row) : `/accounts/${row.account.id}/rules`)}
                 />
               ))}
             </ul>
@@ -846,7 +911,7 @@ function Dashboard() {
               accountsCount={accounts.length}
               accountLimit={accountLimit || 0}
               onPricing={() => navigate('/pricing')}
-              onConnect={() => navigate('/mt5')}
+              onConnect={() => navigate('/accounts')}
             />
           </motion.div>
 

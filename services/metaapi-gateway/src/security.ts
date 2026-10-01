@@ -115,3 +115,17 @@ export function safeErrorMetadata(error: unknown) {
           : undefined,
   };
 }
+
+/**
+ * Mensagem de erro para a resposta HTTP. Erros 4xx lançados de propósito
+ * (validação, regra de negócio) mantêm a mensagem; qualquer outro erro vira a
+ * mensagem genérica, sem expor texto interno do banco, Stripe ou MetaApi.
+ */
+export function publicErrorMessage(error: unknown, fallback: string) {
+  const candidate = (error ?? {}) as { status?: unknown; message?: unknown };
+  const status = typeof candidate.status === 'number' ? candidate.status : null;
+  if (status !== null && status >= 400 && status < 500 && typeof candidate.message === 'string' && candidate.message) {
+    return candidate.message.slice(0, 300);
+  }
+  return fallback;
+}

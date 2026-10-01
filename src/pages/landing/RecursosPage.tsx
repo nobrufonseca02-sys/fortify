@@ -10,7 +10,7 @@ export default function RecursosPage() {
   useDocumentMeta({
     title: 'Recursos: o que o Fortify monitora — FORTIFY',
     description:
-      'Perda diária, perda total, drawdown, consistência, lote e dias operados — cada regra com valor atual, limite e a folga que ainda resta.',
+      'Perda diária, drawdown máximo e meta de lucro com valor atual, limite e folga a cada sincronização; demais regras da mesa para conferência manual.',
     path: '/vendas/recursos',
   });
 

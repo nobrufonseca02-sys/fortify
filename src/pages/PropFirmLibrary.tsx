@@ -26,6 +26,13 @@ import {
 } from '@/data/propFirmRules';
 import { firmLogos } from '@/data/firmLogos';
 import {
+  classifyAccountMonitoring,
+  MONITORING_LEVEL_LABEL,
+  supportsMt5Monitoring,
+  type MonitoringItem,
+  type MonitoringLevel,
+} from '@/lib/monitoringCapability';
+import {
   accountRules,
   cleanValue,
   countLabel,
@@ -114,6 +121,9 @@ function preferredPlatform(account: RuleAccountSize, program: PropFirmRuleProgra
 }
 
 export function accountConnectionPath(program: PropFirmRuleProgram, account: RuleAccountSize) {
+  // O único monitoramento que existe é via MT5: futuros (Apex, Topstep...) e
+  // plataformas sem MT5 não recebem um atalho de conexão.
+  if (!supportsMt5Monitoring(program, account)) return null;
   const platform = preferredPlatform(account, program);
   const ruleVersionId = account.versions.find((version) => !version.effectiveTo)?.id ?? account.versions[0]?.id;
   if (!program.firmSlug || !program.programSlug || !platform || !ruleVersionId) return null;
@@ -228,18 +238,29 @@ function RuleCard({ label, value, warning = false }: { label: string; value: str
   );
 }
 
-function MonitoringList({ title, items, tone }: { title: string; items: string[]; tone: 'success' | 'warning' | 'muted' }) {
-  const color = tone === 'success' ? 'text-success' : tone === 'warning' ? 'text-warning' : 'text-muted-foreground';
-  const safeItems = items.length ? items : ['Não público'];
+const MONITORING_LEVEL_COLOR: Record<MonitoringLevel, string> = {
+  automatic: 'text-success',
+  partial: 'text-info',
+  manual: 'text-warning',
+  unavailable: 'text-muted-foreground',
+};
+
+function MonitoringList({ level, items }: { level: MonitoringLevel; items: MonitoringItem[] }) {
+  const color = MONITORING_LEVEL_COLOR[level];
 
   return (
     <div className="rounded-lg border border-border bg-card/40 p-4">
-      <h4 className={`text-xs font-semibold ${color}`}>{title}</h4>
+      <h4 className={`text-xs font-semibold ${color}`}>{MONITORING_LEVEL_LABEL[level]}</h4>
       <ul className="mt-3 space-y-2">
-        {safeItems.map((item) => (
-          <li key={item} className="flex items-start gap-2 text-xs leading-5 text-muted-foreground">
+        {items.length === 0 ? (
+          <li className="text-xs leading-5 text-muted-foreground">Nenhuma regra nesta categoria.</li>
+        ) : items.map((item) => (
+          <li key={item.label} className="flex items-start gap-2 text-xs leading-5 text-muted-foreground">
             <CheckCircle2 className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${color}`} />
-            <span>{cleanValue(item)}</span>
+            <span>
+              {cleanValue(item.label)}
+              <span className="block text-[11px] text-muted-foreground/80">{item.reason}</span>
+            </span>
           </li>
         ))}
       </ul>
@@ -254,6 +275,8 @@ function RulesView({ firm, program, account, onConnect, connectionUnavailable }:
   onConnect?: () => void;
   connectionUnavailable?: boolean;
 }) {
+  const mt5Monitorable = supportsMt5Monitoring(program, account);
+  const monitoringItems = classifyAccountMonitoring(program, account);
   const sourceLinks = program.officialSources?.length
     ? program.officialSources.map((source) => ({ label: source.label, url: source.url }))
     : [{ label: program.sourceLabel, url: program.officialSourceUrl }];
@@ -298,10 +321,22 @@ function RulesView({ firm, program, account, onConnect, connectionUnavailable }:
           <ShieldCheck className="h-4 w-4 text-primary" />
           <h3 className="text-sm font-semibold text-foreground">Fortify monitora</h3>
         </div>
-        <div className="grid gap-3 md:grid-cols-3">
-          <MonitoringList title="Automático" items={account.monitorability.automatic_mt5} tone="success" />
-          <MonitoringList title="Manual" items={account.monitorability.manual_check} tone="warning" />
-          <MonitoringList title="Ainda não suportado" items={account.monitorability.not_supported_yet} tone="muted" />
+        {!mt5Monitorable && (
+          <p className="mb-3 flex items-start gap-2 rounded-lg border border-warning/25 bg-warning/5 px-3 py-2.5 text-xs text-warning">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>
+              Monitoramento automático via MT5 indisponível para esta conta ({program.market}). As regras ficam disponíveis para consulta.
+            </span>
+          </p>
+        )}
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {(['automatic', 'partial', 'manual', 'unavailable'] as MonitoringLevel[]).map((level) => (
+            <MonitoringList
+              key={level}
+              level={level}
+              items={monitoringItems.filter((item) => item.level === level)}
+            />
+          ))}
         </div>
       </section>
 
@@ -367,7 +402,11 @@ function RulesView({ firm, program, account, onConnect, connectionUnavailable }:
         ) : connectionUnavailable ? (
           <div className="flex items-start gap-2 rounded-lg border border-warning/25 bg-warning/5 px-3 py-2.5 text-xs text-warning sm:max-w-xs">
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
-            <span>Conexão indisponível para este modelo. Os dados de plataforma ou da versão de regra estão incompletos na Biblioteca.</span>
+            <span>
+              {mt5Monitorable
+                ? 'Conexão indisponível para este modelo. Os dados de plataforma ou da versão de regra estão incompletos na Biblioteca.'
+                : 'Esta conta não opera em MT5, então o Fortify ainda não consegue monitorá-la automaticamente. Use as regras acima como consulta.'}
+            </span>
           </div>
         ) : null}
       </footer>

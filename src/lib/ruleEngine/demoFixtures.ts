@@ -345,9 +345,9 @@ const blackArrowBalance =
 export const ruleEngineDemoScenarios: RuleEngineDemoScenario[] = [
   createScenario({
     id: 'safe',
-    label: 'Conta segura',
-    description: 'Limites automáticos com ampla margem operacional.',
-    expectedStatus: 'safe',
+    label: 'Dentro dos limites',
+    description: 'Limites com ampla margem. Sem o horário oficial de reset diário, a conclusão é verificação parcial.',
+    expectedStatus: 'partial',
     binding: demoBinding(ftmoSnapshot, 'safe'),
     account: {
       currentBalance: 102_000,
@@ -365,7 +365,7 @@ export const ruleEngineDemoScenarios: RuleEngineDemoScenario[] = [
     binding: demoBinding(ftmoSnapshot, 'warning'),
     account: {
       currentBalance: 100_500,
-      currentEquity: 100_000,
+      currentEquity: 100_500,
       highestEquity: 101_000,
       phase: 'Fase 1',
     },
@@ -379,7 +379,7 @@ export const ruleEngineDemoScenarios: RuleEngineDemoScenario[] = [
     binding: demoBinding(ftmoSnapshot, 'critical'),
     account: {
       currentBalance: 100_200,
-      currentEquity: 99_000,
+      currentEquity: 100_200,
       highestEquity: 101_000,
       phase: 'Fase 1',
     },
@@ -403,7 +403,7 @@ export const ruleEngineDemoScenarios: RuleEngineDemoScenario[] = [
     id: 'profit_target_near',
     label: 'Meta quase atingida',
     description: 'Progresso controlado próximo da meta da Fase 1.',
-    expectedStatus: 'safe',
+    expectedStatus: 'partial',
     binding: demoBinding(ftmoSnapshot, 'target-near'),
     account: {
       currentBalance: 109_500,
@@ -417,7 +417,7 @@ export const ruleEngineDemoScenarios: RuleEngineDemoScenario[] = [
     id: 'profit_target_reached',
     label: 'Meta atingida',
     description: 'Saldo simulado supera a meta oficial da Fase 1.',
-    expectedStatus: 'safe',
+    expectedStatus: 'partial',
     binding: demoBinding(ftmoSnapshot, 'target-reached'),
     account: {
       currentBalance: 110_500,

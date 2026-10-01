@@ -7,6 +7,18 @@ import {
   resolveRuleBinding,
   type RuleBindingDraft,
 } from '@/lib/ruleBinding';
+import {
+  classifyAccountMonitoring,
+  MONITORING_LEVEL_LABEL,
+  type MonitoringLevel,
+} from '@/lib/monitoringCapability';
+
+const MONITORING_LEVEL_TEXT: Record<MonitoringLevel, string> = {
+  automatic: 'text-success',
+  partial: 'text-info',
+  manual: 'text-warning',
+  unavailable: 'text-muted-foreground',
+};
 
 export type RuleBindingInitialSelection = Omit<RuleBindingDraft, 'manualRuleAcknowledgement'>;
 
@@ -71,6 +83,13 @@ export function RuleBindingSelector({
   const resolved = resolveRuleBinding(value);
   const complete = isRuleBindingDraftComplete(value);
   const primarySourceUrl = resolved?.accountSize.sourceRefs[0];
+  // Avalia a plataforma escolhida, não todas as que a conta aceita.
+  const monitoringItems = resolved
+    ? classifyAccountMonitoring(
+        { market: resolved.program.market, platforms: [] },
+        { ...resolved.accountSize, platforms: [value.platform] },
+      )
+    : [];
 
   useEffect(() => {
     if (!initialSelection) return;
@@ -255,23 +274,18 @@ export function RuleBindingSelector({
             </div>
           </div>
 
+          {/* Níveis reais: cruza o dataset com o que o motor calcula. */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-            <div className="rounded-lg bg-background p-3">
-              <p className="font-medium text-success">Automático via MT5</p>
-              <p className="text-muted-foreground mt-1">
-                {resolved.accountSize.monitorability.automatic_mt5.length > 0
-                  ? resolved.accountSize.monitorability.automatic_mt5.join(' · ')
-                  : 'Nenhuma regra automática compatível com esta plataforma.'}
-              </p>
-            </div>
-            <div className="rounded-lg bg-background p-3">
-              <p className="font-medium text-warning">Conferência manual</p>
-              <p className="text-muted-foreground mt-1">
-                {resolved.accountSize.monitorability.manual_check.length > 0
-                  ? resolved.accountSize.monitorability.manual_check.join(' · ')
-                  : 'Sem itens manuais classificados no dataset.'}
-              </p>
-            </div>
+            {(['automatic', 'partial', 'manual', 'unavailable'] as MonitoringLevel[]).map((level) => {
+              const items = monitoringItems.filter((item) => item.level === level);
+              if (items.length === 0) return null;
+              return (
+                <div key={level} className="rounded-lg bg-background p-3">
+                  <p className={`font-medium ${MONITORING_LEVEL_TEXT[level]}`}>{MONITORING_LEVEL_LABEL[level]}</p>
+                  <p className="text-muted-foreground mt-1">{items.map((item) => item.label).join(' · ')}</p>
+                </div>
+              );
+            })}
           </div>
 
           <div>

@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import AccountRuleManagement from '../pages/AccountRuleManagement';
+import { buildRuleSnapshot, getOperationalRulePrograms } from '../lib/ruleBinding';
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
@@ -26,6 +27,7 @@ function query(result: any) {
 
 let accountRow: any = null;
 let ruleSetRows: any[] = [];
+let bindingRow: any = null;
 const tradingAccountsUpdate = vi.fn();
 
 vi.mock('@/integrations/supabase/client', () => ({
@@ -40,9 +42,8 @@ vi.mock('@/integrations/supabase/client', () => ({
         return stub;
       }
       if (table === 'rule_set_versions') return query({ data: ruleSetRows, error: null });
-      if (table === 'mt5_connections' || table === 'account_rule_bindings') {
-        return query({ data: null, error: null });
-      }
+      if (table === 'account_rule_bindings') return query({ data: bindingRow, error: null });
+      if (table === 'mt5_connections') return query({ data: null, error: null });
       return query({ data: [], error: null });
     },
   },
@@ -105,11 +106,62 @@ function legacyRuleSetSelect() {
   return select;
 }
 
+describe('AccountRuleManagement binding edit', () => {
+  beforeEach(() => {
+    tradingAccountsUpdate.mockClear();
+    accountRow = account({ start_balance: 100000, current_balance: 100000 });
+    ruleSetRows = [];
+  });
+
+  it('starts the manual acknowledgement unchecked when editing a saved binding', async () => {
+    const program = getOperationalRulePrograms('MT5').find(
+      (item) => item.firmSlug === 'ftmo' && item.programType === '2-Step',
+    )!;
+    const accountSize = program.accountLevelRules.find((size) => size.label === '$100K')!;
+    bindingRow = {
+      id: 'binding-1',
+      trading_account_id: 'account-1',
+      binding_status: 'active',
+      prop_firm_slug: program.firmSlug,
+      program_slug: program.programSlug,
+      account_size_id: accountSize.id,
+      platform: 'MT5',
+      rule_version_id: accountSize.versions[0].id,
+      // O vínculo salvo foi confirmado — a edição não pode herdar isso.
+      manual_rule_acknowledgement: true,
+      rule_snapshot_hash: 'sha256:abc',
+      rules_last_reviewed_at: '2026-09-01',
+      automatic_monitoring_enabled: true,
+      rule_snapshot: buildRuleSnapshot({
+        propFirmSlug: program.firmSlug,
+        programSlug: program.programSlug,
+        accountSizeId: accountSize.id,
+        platform: 'MT5',
+        ruleVersionId: accountSize.versions[0].id,
+        manualRuleAcknowledgement: true,
+      }),
+    };
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: /Atualizar vínculo/ }));
+    const checkbox = await screen.findByRole('checkbox', { name: 'Aceitar regras manuais' });
+    await waitFor(() => expect(checkbox).not.toBeDisabled());
+    expect(checkbox).not.toBeChecked();
+    expect(screen.getByRole('button', { name: 'Salvar vínculo versionado' })).toBeDisabled();
+
+    fireEvent.click(checkbox);
+    expect(checkbox).toBeChecked();
+    expect(screen.getByRole('button', { name: 'Salvar vínculo versionado' })).not.toBeDisabled();
+  });
+});
+
 describe('AccountRuleManagement legacy rule-set size guard', () => {
   beforeEach(() => {
     tradingAccountsUpdate.mockClear();
     accountRow = account();
     ruleSetRows = [GENERIC_10K, FTMO_NO_SIZE];
+    bindingRow = null;
   });
 
   it('disables a template built for another account size', async () => {

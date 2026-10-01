@@ -7,8 +7,20 @@ import type {
   RuleAccountVersion,
 } from '@/data/propFirmRules';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  RULE_BINDING_SCHEMA_VERSION,
+  type AccountRuleBindingRow,
+  type RuleBindingSnapshot,
+} from '../../services/metaapi-gateway/src/ruleEngine/bindingTypes';
+import {
+  canonicalizeSnapshot,
+  fnv1a64Signature,
+} from '../../services/metaapi-gateway/src/ruleEngine/snapshotCanonical';
 
-export const RULE_BINDING_SCHEMA_VERSION = 'fortify.rule-binding.v1';
+// O contrato do snapshot vive junto do motor canônico (no gateway), para o
+// servidor e o app lerem exatamente o mesmo formato.
+export { RULE_BINDING_SCHEMA_VERSION };
+export type { AccountRuleBindingRow, RuleBindingSnapshot };
 
 export interface RuleBindingDraft {
   propFirmSlug: string;
@@ -25,94 +37,12 @@ export interface ResolvedRuleBinding {
   version: RuleAccountVersion;
 }
 
-export interface RuleBindingSnapshot {
-  schemaVersion: typeof RULE_BINDING_SCHEMA_VERSION;
-  propFirm: {
-    slug: string;
-    name: string;
-  };
-  program: {
-    id: string;
-    slug: string;
-    name: string;
-    type: string;
-    market: string;
-  };
-  accountSize: {
-    id: string;
-    label: string;
-    initialBalance: string;
-    currency: string;
-  };
-  platform: string;
-  version: {
-    id: string;
-    label: string;
-    effectiveFrom: string | null;
-    effectiveTo: string | null;
-    condition: string | null;
-    notes: string[];
-  };
-  criticalRules: {
-    phases: RuleAccountSize['phases'];
-    dailyLoss: string;
-    maxLoss: string;
-    drawdownType: string;
-    drawdownCalculation: string;
-    minTradingDays: string;
-    consistencyRule: string;
-    newsRule: string;
-    weekendRule: string;
-    overnightRule: string;
-    payoutSplit: string;
-    firstPayoutTiming: string;
-    maxContracts: string;
-    maxLots: string;
-    leverage: string;
-    breachConditions: string[];
-  };
-  monitorability: {
-    automaticMt5: string[];
-    manualCheck: string[];
-    notSupportedYet: string[];
-  };
-  evidence: {
-    officialSourceUrls: string[];
-    confidence: string;
-    dataCompleteness: string;
-    lastReviewedAt: string;
-    conflicts: string[];
-  };
-}
-
 export interface PreparedRuleBinding {
   resolved: ResolvedRuleBinding;
   snapshot: RuleBindingSnapshot;
   snapshotHash: string;
   ruleProfileId: string;
   automaticMonitoringEnabled: boolean;
-}
-
-export interface AccountRuleBindingRow {
-  id: string;
-  user_id: string;
-  trading_account_id: string | null;
-  mt5_connection_id: string | null;
-  prop_firm_slug: string;
-  program_slug: string;
-  account_size_id: string;
-  platform: string;
-  rule_version_id: string;
-  rule_profile_id: string;
-  rules_last_reviewed_at: string;
-  rule_snapshot: RuleBindingSnapshot;
-  rule_snapshot_hash: string;
-  automatic_monitoring_enabled: boolean;
-  manual_rule_acknowledgement: boolean;
-  manual_rules_status: 'pending_acknowledgement' | 'acknowledged';
-  binding_status: 'active' | 'superseded' | 'revoked';
-  created_at: string;
-  updated_at: string;
 }
 
 export function getAccountRuleBindingStatus(
@@ -298,36 +228,11 @@ export function buildRuleSnapshot(draft: RuleBindingDraft): RuleBindingSnapshot 
   };
 }
 
-function canonicalize(value: unknown): string {
-  if (value === null || typeof value !== 'object') {
-    return JSON.stringify(value);
-  }
-  if (Array.isArray(value)) {
-    return `[${value.map(canonicalize).join(',')}]`;
-  }
-
-  const record = value as Record<string, unknown>;
-  return `{${Object.keys(record)
-    .sort()
-    .filter((key) => record[key] !== undefined)
-    .map((key) => `${JSON.stringify(key)}:${canonicalize(record[key])}`)
-    .join(',')}}`;
-}
-
-function fallbackSnapshotSignature(input: string) {
-  let hash = 0xcbf29ce484222325n;
-  const prime = 0x100000001b3n;
-  for (const byte of new TextEncoder().encode(input)) {
-    hash ^= BigInt(byte);
-    hash = BigInt.asUintN(64, hash * prime);
-  }
-  return `fnv1a64:${hash.toString(16).padStart(16, '0')}`;
-}
-
+// Mesma serialização que o gateway usa para conferir o hash antes de avaliar.
 export async function hashRuleSnapshot(snapshot: RuleBindingSnapshot) {
-  const canonicalSnapshot = canonicalize(snapshot);
+  const canonicalSnapshot = canonicalizeSnapshot(snapshot);
   if (!globalThis.crypto?.subtle) {
-    return fallbackSnapshotSignature(canonicalSnapshot);
+    return fnv1a64Signature(canonicalSnapshot);
   }
 
   const digest = await globalThis.crypto.subtle.digest(

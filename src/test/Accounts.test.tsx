@@ -38,6 +38,11 @@ vi.mock('@/hooks/useRuleEvaluations', () => ({
   useAllRuleEvaluations: () => ({ data: mockRuleRows }),
 }));
 
+let mockCanonicalByAccount: Record<string, any> = {};
+vi.mock('@/hooks/useCanonicalRuleEvaluations', () => ({
+  useLatestCanonicalEvaluations: () => ({ data: mockCanonicalByAccount }),
+}));
+
 const mt5ConnectionsSelect = {
   eq: vi.fn().mockReturnThis(),
   order: vi.fn().mockResolvedValue({ data: [], error: null }),
@@ -150,6 +155,41 @@ function activeBindingRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function canonicalRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'canonical-1',
+    user_id: 'user-1',
+    trading_account_id: 'account-1',
+    binding_id: 'binding-1',
+    rule_snapshot_hash: 'sha256:abc',
+    rule_version_id: 'version-1',
+    engine_version: 'fortify.rule-engine.v1',
+    overall_status: 'safe',
+    overall_message: '',
+    automatic_rules: [],
+    manual_rules: [],
+    unsupported_rules: [],
+    not_calculated_rules: [],
+    alerts: [],
+    input_summary: {},
+    evaluated_at: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
+function connectionRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'connection-1',
+    trading_account_id: 'account-1',
+    connection_status: 'connected',
+    sync_status: 'success',
+    sync_error: null,
+    last_sync_at: new Date(Date.now() - 5 * 60_000).toISOString(),
+    updated_at: new Date(Date.now() - 5 * 60_000).toISOString(),
+    ...overrides,
+  };
+}
+
 function safeEvaluationRow(overrides: Record<string, unknown> = {}) {
   return {
     id: 'eval-1',
@@ -169,6 +209,7 @@ describe('Accounts', () => {
     vi.clearAllMocks();
     mockAccounts = [];
     mockRuleRows = [];
+    mockCanonicalByAccount = {};
     tradingAccountsInsertFn.mockReturnValue(tradingAccountsInsert);
     ruleBindingsInsertFn.mockReturnValue(ruleBindingsInsert);
     mt5ConnectionsSelect.eq.mockReturnThis();
@@ -304,12 +345,11 @@ describe('Accounts', () => {
 
     await waitFor(() => expect(mt5ConnectionsSelect.order).toHaveBeenCalled());
 
-    expect(await screen.findByText('SEM DADOS')).toBeInTheDocument();
-    expect(screen.queryByText('SEGURO')).not.toBeInTheDocument();
-    // The card can no longer show equity 0 with no connection indicator at all.
-    expect(screen.getByText('Sem conexão MT5')).toBeInTheDocument();
+    // Badge and connection strip both name the missing connection.
+    expect((await screen.findAllByText('Sem conexão MT5')).length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByText('Seguro')).not.toBeInTheDocument();
     // ...and the header must not claim compliance over an unmonitored account.
-    expect(screen.getByText(/1 conta sem monitoramento/)).toBeInTheDocument();
+    expect(screen.getByText(/1 conta sem confirmação de segurança/)).toBeInTheDocument();
     expect(screen.queryByText('Tudo dentro dos limites')).not.toBeInTheDocument();
   });
 
@@ -324,18 +364,45 @@ describe('Accounts', () => {
 
     await waitFor(() => expect(screen.getByText('FTMO')).toBeInTheDocument());
     // The specific, known cause is named instead of only the generic no-data badge.
-    expect(screen.getByText('Sem monitoramento automático no servidor')).toBeInTheDocument();
-    expect(screen.queryByText('SEGURO')).not.toBeInTheDocument();
+    expect(screen.getByText('Aguardando avaliação no servidor')).toBeInTheDocument();
+    expect(screen.queryByText('Seguro')).not.toBeInTheDocument();
   });
 
-  it('does not claim a monitoring gap when the account has a usable legacy rule set', async () => {
-    mockAccounts = [fastConnectedAccount({ ruleSetId: '11111111-2222-4333-8444-555555555555' })];
+  it('uses the canonical server evaluation for a bound account', async () => {
+    mockAccounts = [fastConnectedAccount()];
     ruleBindingsSelect.order.mockResolvedValue({ data: [activeBindingRow()], error: null });
+    mt5ConnectionsSelect.order.mockResolvedValue({ data: [connectionRow()], error: null });
+    mockCanonicalByAccount = { 'account-1': canonicalRow({ overall_status: 'warning' }) };
 
     renderAt('/accounts');
 
-    await waitFor(() => expect(screen.getByText('FTMO')).toBeInTheDocument());
-    expect(screen.queryByText('Sem monitoramento automático no servidor')).not.toBeInTheDocument();
+    expect(await screen.findByText('Atenção')).toBeInTheDocument();
+    expect(screen.queryByText('Aguardando avaliação no servidor')).not.toBeInTheDocument();
+  });
+
+  it('ignores legacy evaluations for a bound account without a canonical evaluation', async () => {
+    mockAccounts = [fastConnectedAccount()];
+    ruleBindingsSelect.order.mockResolvedValue({ data: [activeBindingRow()], error: null });
+    mt5ConnectionsSelect.order.mockResolvedValue({ data: [connectionRow()], error: null });
+    mockRuleRows = [safeEvaluationRow()];
+
+    renderAt('/accounts');
+
+    expect(await screen.findByText('Sem dados')).toBeInTheDocument();
+    expect(screen.queryByText('Seguro')).not.toBeInTheDocument();
+  });
+
+  it('does not reuse an evaluation computed with a superseded binding', async () => {
+    mockAccounts = [fastConnectedAccount()];
+    ruleBindingsSelect.order.mockResolvedValue({ data: [activeBindingRow({ id: 'binding-2' })], error: null });
+    mt5ConnectionsSelect.order.mockResolvedValue({ data: [connectionRow()], error: null });
+    mockCanonicalByAccount = { 'account-1': canonicalRow({ binding_id: 'binding-1', overall_status: 'safe' }) };
+
+    renderAt('/accounts');
+
+    expect(await screen.findByText('Sem dados')).toBeInTheDocument();
+    expect(screen.getByText('Aguardando avaliação no servidor')).toBeInTheDocument();
+    expect(screen.queryByText('Seguro')).not.toBeInTheDocument();
   });
 
   it('does not claim a monitoring gap for an account with no binding at all', async () => {
@@ -350,19 +417,73 @@ describe('Accounts', () => {
     expect(screen.queryByText('Sem monitoramento automático no servidor')).not.toBeInTheDocument();
   });
 
-  it('still reports SEGURO for a connected account with passing evaluations', async () => {
+  it('still reports Seguro for a recently synced account with passing evaluations', async () => {
+    mockAccounts = [fastConnectedAccount()];
+    mockRuleRows = [safeEvaluationRow()];
+    mt5ConnectionsSelect.order.mockResolvedValue({ data: [connectionRow()], error: null });
+
+    renderAt('/accounts');
+
+    expect(await screen.findByText('Seguro')).toBeInTheDocument();
+    expect(screen.queryByText('Sem dados')).not.toBeInTheDocument();
+    expect(screen.getByText('Tudo dentro dos limites')).toBeInTheDocument();
+  });
+
+  it('never shows Seguro when the MT5 connection has an auth error', async () => {
     mockAccounts = [fastConnectedAccount()];
     mockRuleRows = [safeEvaluationRow()];
     mt5ConnectionsSelect.order.mockResolvedValue({
-      data: [{ id: 'connection-1', trading_account_id: 'account-1', connection_status: 'connected', sync_status: 'ok' }],
+      data: [connectionRow({ connection_status: 'auth_error', sync_status: 'error' })],
       error: null,
     });
 
     renderAt('/accounts');
 
-    expect(await screen.findByText('SEGURO')).toBeInTheDocument();
-    expect(screen.queryByText('SEM DADOS')).not.toBeInTheDocument();
-    expect(screen.getByText('Tudo dentro dos limites')).toBeInTheDocument();
+    expect(await screen.findByText('Conexão com erro')).toBeInTheDocument();
+    expect(screen.queryByText('Seguro')).not.toBeInTheDocument();
+    expect(screen.queryByText('Tudo dentro dos limites')).not.toBeInTheDocument();
+  });
+
+  it('opens the credential fix dialog from ?fixConnection without prefilling a password', async () => {
+    mockAccounts = [fastConnectedAccount()];
+    mt5ConnectionsSelect.order.mockResolvedValue({
+      data: [connectionRow({ connection_status: 'auth_error', sync_status: 'error', mt5_login: '12345678', mt5_server: 'Broker-Server01' })],
+      error: null,
+    });
+
+    renderAt('/accounts?fixConnection=account-1');
+
+    expect(await screen.findByRole('heading', { name: 'Corrigir conexão MT5' })).toBeInTheDocument();
+    expect(screen.getByText('Broker-Server01')).toBeInTheDocument();
+    const password = screen.getByLabelText('Senha MT5') as HTMLInputElement;
+    expect(password.type).toBe('password');
+    expect(password.value).toBe('');
+    expect(screen.getByRole('button', { name: /Reconectar/ })).toBeDisabled();
+  });
+
+  it('shows Sync atrasado instead of Seguro when the last sync is older than 6 hours', async () => {
+    mockAccounts = [fastConnectedAccount()];
+    mockRuleRows = [safeEvaluationRow()];
+    mt5ConnectionsSelect.order.mockResolvedValue({
+      data: [connectionRow({ last_sync_at: new Date(Date.now() - 7 * 60 * 60_000).toISOString() })],
+      error: null,
+    });
+
+    renderAt('/accounts');
+
+    expect(await screen.findByText('Sync atrasado')).toBeInTheDocument();
+    expect(screen.queryByText('Seguro')).not.toBeInTheDocument();
+  });
+
+  it('shows Sem dados for a connection that never finished a sync', async () => {
+    mockAccounts = [fastConnectedAccount({ mt5LastSyncAt: null })];
+    mockRuleRows = [safeEvaluationRow()];
+    mt5ConnectionsSelect.order.mockResolvedValue({ data: [connectionRow({ last_sync_at: null })], error: null });
+
+    renderAt('/accounts');
+
+    expect(await screen.findByText('Sem dados')).toBeInTheDocument();
+    expect(screen.queryByText('Seguro')).not.toBeInTheDocument();
   });
 
   it('writes the edited selector choice — not the stale library link — to both tables', async () => {

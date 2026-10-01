@@ -105,6 +105,11 @@ export function getRuleStatusConfig(status: string): RuleStatusConfig {
   return configs[status] || configs.NOT_MET;
 }
 
+// Consultas limitadas: o histórico cresce uma linha por regra por dia. Só a
+// avaliação mais recente de cada regra é usada (dedupe abaixo), então as
+// linhas mais novas bastam.
+const RULE_EVALUATION_QUERY_LIMIT = 500;
+
 export function useRuleEvaluations(tradingAccountId: string | undefined) {
   return useQuery({
     queryKey: ['rule_evaluations', tradingAccountId],
@@ -113,7 +118,8 @@ export function useRuleEvaluations(tradingAccountId: string | undefined) {
         .from('rule_evaluations' as any)
         .select('*')
         .eq('trading_account_id', tradingAccountId!)
-        .order('computed_at', { ascending: false }) as any);
+        .order('computed_at', { ascending: false })
+        .limit(RULE_EVALUATION_QUERY_LIMIT) as any);
 
       if (error) throw error;
       const rows = await hydrateRuleEvaluationRows(data as RuleEvaluationRow[]);
@@ -121,7 +127,7 @@ export function useRuleEvaluations(tradingAccountId: string | undefined) {
       // Deduplicate: keep only the most recent entry per (rule_instance_id + reference_date)
       const deduplicated = new Map<string, RuleEvaluationRow>();
       rows.forEach((row) => {
-        const key = `${row.rule_instance_id}-${row.reference_date || 'null'}`;
+        const key = row.rule_instance_id;
         if (!deduplicated.has(key)) {
           deduplicated.set(key, row);
         }
@@ -143,14 +149,15 @@ export function useAllRuleEvaluations() {
       const { data, error } = await (supabase
         .from('rule_evaluations' as any)
         .select('*')
-        .order('computed_at', { ascending: false }) as any);
+        .order('computed_at', { ascending: false })
+        .limit(RULE_EVALUATION_QUERY_LIMIT) as any);
 
       if (error) throw error;
       const rows = await hydrateRuleEvaluationRows(data as RuleEvaluationRow[]);
 
       const deduplicated = new Map<string, RuleEvaluationRow>();
       rows.forEach((row) => {
-        const key = `${row.trading_account_id}-${row.rule_instance_id}-${row.reference_date || 'null'}`;
+        const key = `${row.trading_account_id}-${row.rule_instance_id}`;
         if (!deduplicated.has(key)) {
           deduplicated.set(key, row);
         }
