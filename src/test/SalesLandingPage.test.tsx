@@ -58,9 +58,8 @@ describe('landing de vendas', () => {
     expect(external).toEqual([SUPPORT_WHATSAPP_URL]);
   });
 
-  it('rotula os feedbacks como demonstração e não simula avaliações', () => {
+  it('não simula avaliações', () => {
     const { container } = renderLanding();
-    expect(screen.getByText('Feedbacks de demonstração')).toBeInTheDocument();
     const text = container.textContent ?? '';
     expect(text).not.toMatch(/trustpilot|★|estrelas|\d(,\d)?\s*\/\s*5/i);
   });

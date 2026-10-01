@@ -4,7 +4,6 @@ import { pushDataLayerEvent } from '@/lib/analytics';
 import { CinematicPage } from '@/components/landing/cinematic/CinematicPage';
 import { CinematicHero } from '@/components/landing/cinematic/CinematicHero';
 import { ProductSections } from '@/components/landing/cinematic/ProductSections';
-import { FeedbackCarousel } from '@/components/landing/cinematic/FeedbackCarousel';
 import { FinalCta } from '@/components/landing/cinematic/FinalCta';
 
 /**
@@ -27,7 +26,8 @@ export default function SalesLandingPage() {
     <CinematicPage checkoutLinkInFooter>
       <CinematicHero />
       <ProductSections />
-      <FeedbackCarousel />
+      {/* FeedbackCarousel removida por enquanto — só depoimentos de demonstração,
+          volta quando houver relatos reais para mostrar. */}
       <FinalCta />
     </CinematicPage>
   );
