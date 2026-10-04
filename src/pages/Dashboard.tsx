@@ -1020,45 +1020,81 @@ function equityDeltaPct(points: number[]): number | null {
   return ((last - prev) / Math.abs(prev)) * 100;
 }
 
+/** Compact "folga restante" line — shows the money still available before the
+ * limit, never just a bare percentage (padrão #2/#3). "sem dados" is spelled
+ * out instead of being left blank or silently reading as safe (padrão #6). */
+function RemainingStat({ label, value }: { label: string; value: string }) {
+  const hasData = value !== 'Sem dados suficientes';
+  return (
+    <span className="inline-flex items-center gap-1">
+      <span className="text-muted-foreground">{label}:</span>
+      <span className={cn('font-mono font-semibold tabular-nums', hasData ? 'text-foreground' : 'text-muted-foreground/70')}>
+        {hasData ? `restam ${value}` : 'sem dados'}
+      </span>
+    </span>
+  );
+}
+
 function AccountHealthRow({ row, points, onAction }: { row: HealthRow; points: number[]; onAction: () => void }) {
   const StatusIcon = statusIcon[row.status];
   const needsConnectionFix = row.hasSyncError || row.stale || !row.connection;
   const hasNegativePnl = row.negativeFloatingPnl < 0;
   const deltaPct = equityDeltaPct(points);
+  // Cor do selo de sync é independente do selo de regra — a conta pode estar
+  // "Seguro" na regra e ainda assim ter dado desatualizado, e isso precisa
+  // saltar aos olhos sem depender da cor do ícone principal.
+  const syncTone: 'critical' | 'warning' | 'neutral' = row.hasSyncError ? 'critical' : row.stale ? 'warning' : 'neutral';
+  const syncTextClass =
+    syncTone === 'critical' ? 'text-destructive' : syncTone === 'warning' ? 'text-warning' : 'text-muted-foreground';
 
   return (
-    <li className="flex items-center gap-3 p-4">
-      <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-full', healthBarColor[row.status])}>
-        <StatusIcon className="h-5 w-5 text-white" aria-hidden="true" />
-      </span>
+    <li className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+      <div className="flex min-w-0 items-start gap-3 sm:flex-1 sm:items-center">
+        <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-full', healthBarColor[row.status])}>
+          <StatusIcon className="h-5 w-5 text-white" aria-hidden="true" />
+        </span>
 
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="truncate text-sm font-semibold text-foreground">{row.account.nickname}</p>
-          <span className={cn('shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider', statusPill[row.status])}>
-            {row.statusLabel}
-          </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="truncate text-sm font-semibold text-foreground">{row.account.nickname}</p>
+            <span className={cn('shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider', statusPill[row.status])}>
+              {row.statusLabel}
+            </span>
+          </div>
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
+            <span className="truncate">{row.account.broker || row.connection?.mt5_server || 'Mesa não informada'}</span>
+            <span aria-hidden="true">·</span>
+            <span className={cn('inline-flex items-center gap-1 font-medium', syncTextClass)}>
+              <RefreshCw className="h-3 w-3" aria-hidden="true" />
+              {row.lastSyncLabel}
+            </span>
+          </div>
+          {/* O número que decide a próxima ordem: quanto ainda resta até
+              quebrar o limite diário e o drawdown desta conta específica. */}
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[11px]">
+            <RemainingStat label="Perda diária" value={row.dailyRemainingLabel} />
+            <RemainingStat label="Drawdown" value={row.drawdownRemainingLabel} />
+          </div>
         </div>
-        <p className="mt-0.5 truncate text-xs text-muted-foreground">
-          {row.account.broker || row.connection?.mt5_server || 'Mesa não informada'} · {row.lastSyncLabel}
-        </p>
       </div>
 
-      <div className="shrink-0 text-right">
-        <p className="font-mono text-sm font-semibold tabular-nums text-foreground">{row.equityLabel}</p>
-        <p className={cn('font-mono text-[11px] tabular-nums', hasNegativePnl ? 'text-destructive' : 'text-muted-foreground')}>
-          {deltaPct !== null ? `${deltaPct >= 0 ? '+' : ''}${deltaPct.toFixed(2)}%` : formatPositionCount(row.openPositions)}
-        </p>
-      </div>
+      <div className="flex shrink-0 items-center justify-between gap-3 pl-[52px] sm:justify-end sm:pl-0">
+        <div className="text-right">
+          <p className="font-mono text-sm font-semibold tabular-nums text-foreground">{row.equityLabel}</p>
+          <p className={cn('font-mono text-[11px] tabular-nums', hasNegativePnl ? 'text-destructive' : 'text-muted-foreground')}>
+            {deltaPct !== null ? `${deltaPct >= 0 ? '+' : ''}${deltaPct.toFixed(2)}%` : formatPositionCount(row.openPositions)}
+          </p>
+        </div>
 
-      <button
-        type="button"
-        onClick={onAction}
-        aria-label={needsConnectionFix ? `Corrigir conexão de ${row.account.nickname}` : `Ver regras de ${row.account.nickname}`}
-        className="shrink-0 rounded-full border border-border p-1.5 text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
-      >
-        <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
-      </button>
+        <button
+          type="button"
+          onClick={onAction}
+          aria-label={needsConnectionFix ? `Corrigir conexão de ${row.account.nickname}` : `Ver regras de ${row.account.nickname}`}
+          className="shrink-0 rounded-full border border-border p-1.5 text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+        >
+          <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
+      </div>
     </li>
   );
 }

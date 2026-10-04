@@ -669,6 +669,11 @@ const Accounts = () => {
 
               {/* Conexão MT5 + frescor do dado (só o essencial) */}
               <div className="rounded-md bg-muted/10 px-2.5 py-2 flex items-center gap-2 flex-wrap text-[11px] min-h-[22px]">
+                {/* Plataforma: hoje só MT5, mas o dado deve estar explícito no
+                    card em vez de só implícito no texto do status. */}
+                <span className="inline-flex items-center gap-1 font-semibold uppercase tracking-wider px-2 py-1 rounded-full bg-muted text-muted-foreground">
+                  MT5
+                </span>
                 {loadingConnections && !mt5Connection ? (
                   <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-muted text-muted-foreground">
                     <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
