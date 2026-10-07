@@ -32,6 +32,13 @@ import {
   type AccountRuleBindingRow,
   type RuleBindingDraft,
 } from '@/lib/ruleBinding';
+import {
+  clearPendingLibraryProgram,
+  detectAccountSizeFromBalance,
+  findMt5ProgramBySlug,
+  readPendingLibraryProgram,
+  type DetectedAccountSize,
+} from '@/lib/accountSizeDetection';
 
 type RuleStatus = 'APPROVING' | 'WARNING' | 'VIOLATED' | 'NOT_MET';
 
@@ -112,6 +119,8 @@ export default function AccountRuleManagement() {
     emptyRuleBindingDraft,
   );
   const [editingBinding, setEditingBinding] = useState(false);
+  const [autoDetectedSize, setAutoDetectedSize] = useState<DetectedAccountSize | null>(null);
+  const [pendingAutoDetect, setPendingAutoDetect] = useState(false);
   const [serverEvaluation, setServerEvaluation] = useState<CanonicalRuleEvaluationRow | null>(null);
   const [savingBinding, setSavingBinding] = useState(false);
   const [selectedRuleSetId, setSelectedRuleSetId] = useState('');
@@ -202,8 +211,38 @@ export default function AccountRuleManagement() {
         // um novo snapshot e exige uma nova confirmação explícita do trader.
         manualRuleAcknowledgement: false,
       });
+      setAutoDetectedSize(null);
+      setPendingAutoDetect(false);
     } else {
-      setBindingDraft(emptyRuleBindingDraft());
+      // Veio do fluxo "Conectar e detectar automaticamente" da Biblioteca
+      // (ver src/lib/accountSizeDetection.ts)? Com saldo já sincronizado,
+      // pré-preenche mesa/programa/tamanho/versão — o aceite manual continua
+      // obrigatório, nada é salvo sozinho aqui.
+      const pendingHint = accountId ? readPendingLibraryProgram(accountId) : null;
+      const syncedBalance = Number(loadedAccount?.start_balance) || Number(loadedAccount?.current_balance) || 0;
+      const program = pendingHint ? findMt5ProgramBySlug(pendingHint.firmSlug, pendingHint.programSlug) : null;
+      const detected = program && syncedBalance > 0 ? detectAccountSizeFromBalance(program, syncedBalance) : null;
+
+      if (detected) {
+        setBindingDraft({
+          propFirmSlug: detected.program.firmSlug!,
+          programSlug: detected.program.programSlug!,
+          accountSizeId: detected.accountSize.id,
+          platform: detected.platform,
+          ruleVersionId: detected.ruleVersionId,
+          manualRuleAcknowledgement: false,
+        });
+        setAutoDetectedSize(detected);
+        setPendingAutoDetect(false);
+        if (accountId) clearPendingLibraryProgram(accountId);
+      } else {
+        setBindingDraft(emptyRuleBindingDraft());
+        setAutoDetectedSize(null);
+        // Hint ainda vale (sem saldo sincronizado ainda, ou tamanho fora da
+        // margem de confiança) — mantém no localStorage para tentar de novo
+        // depois do próximo sync, e avisa o trader enquanto isso.
+        setPendingAutoDetect(Boolean(pendingHint));
+      }
     }
 
     if (loadedConnection?.id) {
@@ -684,7 +723,31 @@ export default function AccountRuleManagement() {
         </section>
       ) : (
         <div className="space-y-3">
-          {!ruleBinding && (
+          {!ruleBinding && autoDetectedSize && (
+            <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 flex items-start gap-3">
+              <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-foreground">Tamanho detectado automaticamente</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {autoDetectedSize.program.firm} · {autoDetectedSize.program.programName} · {autoDetectedSize.accountSize.label}
+                  {autoDetectedSize.confidence === 'nearest' ? ' (pelo saldo sincronizado, aproximado)' : ' (saldo sincronizado bateu exatamente)'}.
+                  Confira abaixo e confirme o aceite para ativar o monitoramento.
+                </p>
+              </div>
+            </div>
+          )}
+          {!ruleBinding && !autoDetectedSize && pendingAutoDetect && (
+            <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 flex items-start gap-3">
+              <RefreshCw className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-foreground">Aguardando sincronização para detectar o tamanho</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Mesa e programa já vieram da Biblioteca. Sincronize esta conta para o Fortify detectar o tamanho pelo saldo real, ou selecione manualmente abaixo.
+                </p>
+              </div>
+            </div>
+          )}
+          {!ruleBinding && !autoDetectedSize && !pendingAutoDetect && (
             <div className="rounded-xl border border-warning/30 bg-warning/5 p-4 flex items-start gap-3">
               <AlertTriangle className="w-4 h-4 text-warning mt-0.5" />
               <div>

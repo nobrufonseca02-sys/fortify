@@ -156,6 +156,65 @@ describe('AccountRuleManagement binding edit', () => {
   });
 });
 
+describe('AccountRuleManagement auto-detected account size', () => {
+  const program = getOperationalRulePrograms('MT5').find(
+    (item) => item.firmSlug === 'ftmo' && item.programType === '2-Step',
+  )!;
+  const accountSize100k = program.accountLevelRules.find((size) => size.label === '$100K')!;
+
+  beforeEach(() => {
+    tradingAccountsUpdate.mockClear();
+    bindingRow = null;
+    ruleSetRows = [];
+    window.localStorage.clear();
+  });
+
+  it('pré-preenche mesa/programa/tamanho a partir do saldo sincronizado, sem marcar o aceite sozinho', async () => {
+    window.localStorage.setItem(
+      'fortify:pendingLibraryProgram:account-1',
+      JSON.stringify({ firmSlug: program.firmSlug, programSlug: program.programSlug }),
+    );
+    accountRow = account({ start_balance: 100000, current_balance: 100000 });
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByText('Tamanho detectado automaticamente')).toBeInTheDocument());
+    expect(screen.getByLabelText('Mesa proprietária')).toHaveValue(program.firmSlug);
+    expect(screen.getByLabelText('Tamanho ou variante')).toHaveValue(accountSize100k.id);
+    expect(screen.getByLabelText('Aceitar regras manuais')).not.toBeChecked();
+    expect(screen.getByRole('button', { name: 'Salvar vínculo versionado' })).toBeDisabled();
+
+    // O hint é consumido (one-shot): não sobrevive a um reload da tela.
+    expect(window.localStorage.getItem('fortify:pendingLibraryProgram:account-1')).toBeNull();
+  });
+
+  it('mostra aviso de espera, sem adivinhar, quando ainda não há saldo sincronizado', async () => {
+    window.localStorage.setItem(
+      'fortify:pendingLibraryProgram:account-1',
+      JSON.stringify({ firmSlug: program.firmSlug, programSlug: program.programSlug }),
+    );
+    accountRow = account({ start_balance: 0, current_balance: 0 });
+
+    renderPage();
+
+    await waitFor(() =>
+      expect(screen.getByText('Aguardando sincronização para detectar o tamanho')).toBeInTheDocument(),
+    );
+    expect(screen.queryByText('Tamanho detectado automaticamente')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Tamanho ou variante')).toHaveValue('');
+    // Sem saldo ainda, o hint continua salvo para a próxima vez que a tela abrir.
+    expect(window.localStorage.getItem('fortify:pendingLibraryProgram:account-1')).not.toBeNull();
+  });
+
+  it('sem hint pendente, continua mostrando o aviso genérico de regra pendente', async () => {
+    accountRow = account({ start_balance: 100000, current_balance: 100000 });
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByText('Regra pendente de vínculo')).toBeInTheDocument());
+  });
+});
+
 describe('AccountRuleManagement legacy rule-set size guard', () => {
   beforeEach(() => {
     tradingAccountsUpdate.mockClear();

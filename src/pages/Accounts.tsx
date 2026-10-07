@@ -46,6 +46,7 @@ import {
 } from '@/lib/ruleBinding';
 import { RuleBindingSelector } from '@/components/rules/RuleBindingSelector';
 import { parseLibraryRuleSelection, LibraryRuleSelectionNotice } from '@/lib/libraryRuleSelection';
+import { savePendingLibraryProgram } from '@/lib/accountSizeDetection';
 import { provisionAndConnectTradingAccount } from '@/lib/accountProvisioning';
 import { FixConnectionDialog, type FixConnectionTarget } from '@/components/FixConnectionDialog';
 
@@ -100,6 +101,7 @@ const Accounts = () => {
     [location.search],
   );
   const libraryResolved = librarySelection.status === 'valid' ? librarySelection.resolved : undefined;
+  const libraryAutoDetectProgram = librarySelection.status === 'auto_detect' ? librarySelection.program : undefined;
 
   // MT5 connections state
   const [mt5Connections, setMt5Connections] = useState<any[]>([]);
@@ -109,9 +111,11 @@ const Accounts = () => {
   // Connect form state
   const [showConnectForm, setShowConnectForm] = useState(() => librarySelection.status !== 'none');
   const [saving, setSaving] = useState(false);
-  const [accountName, setAccountName] = useState(() => libraryResolved
-    ? `${libraryResolved.program.firm} ${libraryResolved.accountSize.label}`
-    : '');
+  const [accountName, setAccountName] = useState(() => {
+    if (libraryResolved) return `${libraryResolved.program.firm} ${libraryResolved.accountSize.label}`;
+    if (libraryAutoDetectProgram) return `${libraryAutoDetectProgram.firm} ${libraryAutoDetectProgram.programName}`;
+    return '';
+  });
   const [mt5Login, setMt5Login] = useState('');
   const [mt5Server, setMt5Server] = useState('');
   const [mt5Password, setMt5Password] = useState('');
@@ -279,11 +283,22 @@ const Accounts = () => {
       return;
     }
 
+    // Lembrete só de UX entre "conectei no fluxo de auto-detecção" e abrir
+    // /accounts/:id/rules desta conta — nunca é a fonte de verdade do vínculo.
+    if (libraryAutoDetectProgram?.firmSlug && libraryAutoDetectProgram?.programSlug) {
+      savePendingLibraryProgram(result.tradingAccountId, {
+        firmSlug: libraryAutoDetectProgram.firmSlug,
+        programSlug: libraryAutoDetectProgram.programSlug,
+      });
+    }
+
     if (result.connectOk) {
       toast({
         title: 'Conta conectada',
         description: result.bindingDeferred
-          ? 'Conta ativa. Vincule a regra da mesa quando puder para acompanhar os limites corretos.'
+          ? libraryAutoDetectProgram
+            ? 'Conta ativa. Sincronize e abra "Vincular regra agora" — o Fortify detecta o tamanho da conta automaticamente.'
+            : 'Conta ativa. Vincule a regra da mesa quando puder para acompanhar os limites corretos.'
           : 'Conexão e vínculo versionado de regras salvos com sucesso.',
       });
     } else {
@@ -553,9 +568,9 @@ const Accounts = () => {
             </Button>
             <Button type="button" variant="outline" onClick={resetConnectForm}>Cancelar</Button>
           </div>
-          {/* The invalid-link notice above already says the binding comes
-              later, so don't repeat it in that case. */}
-          {!libraryResolved && librarySelection.status !== 'invalid' && (
+          {/* The invalid-link notice and the auto-detect notice above already
+              say how the binding comes later, so don't repeat it here. */}
+          {!libraryResolved && !libraryAutoDetectProgram && librarySelection.status !== 'invalid' && (
             <p className="text-[11px] text-muted-foreground">
               Depois da conexão, você pode vincular a regra oficial da mesa nesta conta.
             </p>

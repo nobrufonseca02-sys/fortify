@@ -540,4 +540,34 @@ describe('Accounts', () => {
     expect(accountRow.account_type).toBe(program.programType);
     expect(accountRow.base_currency).toBe(bindingRow.rule_snapshot.accountSize.currency);
   });
+
+  it('auto-detect handoff: connects without an account-size step and saves the pending hint for the rules page', async () => {
+    const program = getOperationalRulePrograms('MT5').find((item) => item.firmSlug === 'ftmo')!;
+    window.localStorage.clear();
+
+    renderAt(`/accounts?propFirmSlug=${program.firmSlug}&programSlug=${program.programSlug}&autoDetectSize=1`);
+
+    await waitFor(() => expect(screen.getByText(/Mesa e programa escolhidos na Biblioteca/)).toBeInTheDocument());
+    // No account-size/platform/version selector at all — nothing to pick manually.
+    expect(screen.queryByLabelText('Tamanho ou variante')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Aceitar regras manuais')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText('Ex.: 12345678'), { target: { value: '12345' } });
+    fireEvent.change(screen.getByPlaceholderText('Ex.: ICMarketsSC-Live'), { target: { value: 'Server-1' } });
+    fireEvent.change(screen.getByPlaceholderText('Digite a senha MT5'), { target: { value: 'pass-1' } });
+
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({ connection: { id: 'connection-1' } }),
+    } as Response);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Conectar' }));
+
+    await waitFor(() => expect(tradingAccountsInsertFn).toHaveBeenCalled());
+    // No binding is written at connect time — size is still unknown.
+    expect(ruleBindingsInsertFn).not.toHaveBeenCalled();
+
+    const hint = window.localStorage.getItem('fortify:pendingLibraryProgram:account-1');
+    expect(hint && JSON.parse(hint)).toEqual({ firmSlug: program.firmSlug, programSlug: program.programSlug });
+  });
 });

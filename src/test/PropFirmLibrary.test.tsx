@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
-import PropFirmLibrary, { accountConnectionPath } from '../pages/PropFirmLibrary';
+import PropFirmLibrary, { accountConnectionPath, accountConnectionPathAutoDetect } from '../pages/PropFirmLibrary';
 import type { PropFirmRuleProgram, RuleAccountSize } from '../data/propFirmRules';
 
 function LocationProbe() {
@@ -140,6 +140,28 @@ describe('PropFirmLibrary', () => {
     expect(accountConnectionPath({ ...baseProgram, platforms: ['MT5'] } as PropFirmRuleProgram, completeAccount)).toBe(
       '/accounts?propFirmSlug=ftmo&programSlug=ftmo-challenge-2-step-2026&accountSizeId=ftmo-challenge-2-step-2026-200k&platform=MT5&ruleVersionId=v1',
     );
+  });
+
+  it('offers a one-click "connect and auto-detect size" CTA right after picking the program', () => {
+    renderLibrary();
+    selectFtmoTwoStep();
+
+    fireEvent.click(screen.getByRole('button', { name: /Conectar e detectar automaticamente/ }));
+
+    const target = screen.getByTestId('location').textContent ?? '';
+    const url = new URL(target, 'http://localhost');
+    expect(url.pathname).toBe('/accounts');
+    expect(url.searchParams.get('propFirmSlug')).toBe('ftmo');
+    expect(url.searchParams.get('programSlug')).toBe('ftmo-challenge-2-step-2026');
+    expect(url.searchParams.get('autoDetectSize')).toBe('1');
+    // Nunca manda tamanho/plataforma/versão — isso é detectado depois do sync.
+    expect(url.searchParams.has('accountSizeId')).toBe(false);
+    expect(url.searchParams.has('ruleVersionId')).toBe(false);
+  });
+
+  it('does not offer the auto-detect CTA for a futures (non-MT5) program', () => {
+    const futures = { firmSlug: 'apex', programSlug: 'apex-eval', market: 'Futures', platforms: ['Rithmic'] } as unknown as PropFirmRuleProgram;
+    expect(accountConnectionPathAutoDetect(futures)).toBeNull();
   });
 
   it('never offers an MT5 connection for futures or non-MT5 accounts', () => {

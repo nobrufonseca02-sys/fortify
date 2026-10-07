@@ -120,6 +120,20 @@ function preferredPlatform(account: RuleAccountSize, program: PropFirmRuleProgra
   return platforms.find((platform) => platform.toUpperCase() === 'MT5') ?? platforms[0];
 }
 
+// Pula a etapa de "escolher o tamanho da conta": o trader conecta com mesa e
+// programa já definidos, e o Fortify detecta o tamanho sozinho a partir do
+// saldo sincronizado (ver src/lib/accountSizeDetection.ts). Só existe quando o
+// programa é monitorável por MT5 — sem isso não há saldo real pra detectar.
+export function accountConnectionPathAutoDetect(program: PropFirmRuleProgram) {
+  if (!supportsMt5Monitoring(program) || !program.firmSlug || !program.programSlug) return null;
+  const params = new URLSearchParams({
+    propFirmSlug: program.firmSlug,
+    programSlug: program.programSlug,
+    autoDetectSize: '1',
+  });
+  return `/accounts?${params.toString()}`;
+}
+
 export function accountConnectionPath(program: PropFirmRuleProgram, account: RuleAccountSize) {
   // O único monitoramento que existe é via MT5: futuros (Apex, Topstep...) e
   // plataformas sem MT5 não recebem um atalho de conexão.
@@ -465,6 +479,7 @@ export default function PropFirmLibrary() {
   const connectionPath = selectedProgram && selectedAccount
     ? accountConnectionPath(selectedProgram, selectedAccount)
     : null;
+  const autoDetectConnectionPath = selectedProgram ? accountConnectionPathAutoDetect(selectedProgram) : null;
 
   const chooseFirm = (firm: PropFirmName) => {
     setTransitionDirection(1);
@@ -628,6 +643,27 @@ export default function PropFirmLibrary() {
             <h2 className="mt-1 text-lg font-semibold text-foreground">Escolha a conta</h2>
             <p className="mt-1 text-sm text-muted-foreground">Selecione o tamanho da conta para ver as regras.</p>
           </div>
+          {autoDetectConnectionPath && (
+            <div
+              data-library-reveal
+              className="flex flex-col gap-3 rounded-lg border border-primary/25 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div>
+                <p className="text-sm font-semibold text-foreground">Já sabe o login da sua conta?</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Conecte agora — o Fortify detecta o tamanho da conta automaticamente a partir do saldo sincronizado, sem precisar escolher aqui.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate(autoDetectConnectionPath)}
+                className="pill-btn pill-btn-primary w-full shrink-0 sm:w-auto"
+              >
+                Conectar e detectar automaticamente
+                <ChevronRight className="ml-2 h-4 w-4" />
+              </button>
+            </div>
+          )}
           <div className="flex flex-wrap gap-2" data-testid="account-options">
             {accounts.map((account) => (
               <motion.button

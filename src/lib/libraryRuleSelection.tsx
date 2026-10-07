@@ -1,11 +1,17 @@
 import { AlertTriangle, Check } from 'lucide-react';
 import { type RuleBindingInitialSelection } from '@/components/rules/RuleBindingSelector';
 import { resolveRuleBinding, type ResolvedRuleBinding } from '@/lib/ruleBinding';
+import { findMt5ProgramBySlug } from '@/lib/accountSizeDetection';
+import type { AccountLevelPropFirmRuleProgram } from '@/data/prop-firms/accountLevelRules';
 
 export type LibraryRuleSelectionResult =
   | { status: 'none'; initialSelection?: undefined; resolved?: undefined }
   | { status: 'invalid'; initialSelection?: undefined; resolved?: undefined }
-  | { status: 'valid'; initialSelection: RuleBindingInitialSelection; resolved: ResolvedRuleBinding };
+  | { status: 'valid'; initialSelection: RuleBindingInitialSelection; resolved: ResolvedRuleBinding }
+  // Mesa + programa escolhidos na Biblioteca, mas sem tamanho de conta ainda —
+  // o trader clicou "Conectar e detectar automaticamente". O tamanho é
+  // preenchido depois, em /accounts/:id/rules, a partir do saldo sincronizado.
+  | { status: 'auto_detect'; program: AccountLevelPropFirmRuleProgram; initialSelection?: undefined; resolved?: undefined };
 
 export const LIBRARY_RULE_PARAMS = [
   'propFirmSlug',
@@ -17,11 +23,22 @@ export const LIBRARY_RULE_PARAMS = [
 
 export function parseLibraryRuleSelection(search: string): LibraryRuleSelectionResult {
   const params = new URLSearchParams(search);
-  if (!LIBRARY_RULE_PARAMS.some((key) => params.has(key))) return { status: 'none' };
+  if (!LIBRARY_RULE_PARAMS.some((key) => params.has(key)) && !params.has('autoDetectSize')) {
+    return { status: 'none' };
+  }
+
+  const propFirmSlug = params.get('propFirmSlug')?.trim() ?? '';
+  const programSlug = params.get('programSlug')?.trim() ?? '';
+
+  if (params.get('autoDetectSize') === '1') {
+    const program = findMt5ProgramBySlug(propFirmSlug, programSlug);
+    if (!program) return { status: 'invalid' };
+    return { status: 'auto_detect', program };
+  }
 
   const initialSelection = {
-    propFirmSlug: params.get('propFirmSlug')?.trim() ?? '',
-    programSlug: params.get('programSlug')?.trim() ?? '',
+    propFirmSlug,
+    programSlug,
     accountSizeId: params.get('accountSizeId')?.trim() ?? '',
     platform: params.get('platform')?.trim() ?? '',
     ruleVersionId: params.get('ruleVersionId')?.trim() ?? '',
@@ -49,17 +66,18 @@ export function LibraryRuleSelectionNotice({
 }) {
   if (status === 'none') return null;
   const valid = status === 'valid';
+  const autoDetect = status === 'auto_detect';
 
   return (
     <div
-      role={valid ? 'status' : 'alert'}
+      role={valid || autoDetect ? 'status' : 'alert'}
       className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 text-xs ${
-        valid
+        valid || autoDetect
           ? 'border-primary/25 bg-primary/5 text-foreground'
           : 'border-warning/30 bg-warning/5 text-muted-foreground'
       }`}
     >
-      {valid ? (
+      {valid || autoDetect ? (
         <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
       ) : (
         <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
@@ -69,6 +87,11 @@ export function LibraryRuleSelectionNotice({
           <>
             <strong>Regra pré-selecionada a partir da Biblioteca.</strong>{' '}
             Revise os dados antes de conectar sua conta.
+          </>
+        ) : autoDetect ? (
+          <>
+            <strong>Mesa e programa escolhidos na Biblioteca.</strong>{' '}
+            Conecte sua conta — o tamanho é detectado automaticamente a partir do saldo sincronizado, e você confirma antes de ativar o monitoramento.
           </>
         ) : (
           `Não foi possível carregar a regra enviada pela Biblioteca. ${invalidHint}`
