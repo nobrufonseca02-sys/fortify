@@ -214,7 +214,7 @@ export default function AccountRuleManagement() {
       setAutoDetectedSize(null);
       setPendingAutoDetect(false);
     } else {
-      // Veio do fluxo "Conectar e detectar automaticamente" da Biblioteca
+      // Veio do fluxo "Conectar conta" (auto-detecção) da Biblioteca
       // (ver src/lib/accountSizeDetection.ts)? Com saldo já sincronizado,
       // pré-preenche mesa/programa/tamanho/versão — o aceite manual continua
       // obrigatório, nada é salvo sozinho aqui.

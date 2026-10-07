@@ -9,7 +9,7 @@ export type LibraryRuleSelectionResult =
   | { status: 'invalid'; initialSelection?: undefined; resolved?: undefined }
   | { status: 'valid'; initialSelection: RuleBindingInitialSelection; resolved: ResolvedRuleBinding }
   // Mesa + programa escolhidos na Biblioteca, mas sem tamanho de conta ainda —
-  // o trader clicou "Conectar e detectar automaticamente". O tamanho é
+  // o trader clicou "Conectar conta" no fluxo de auto-detecção. O tamanho é
   // preenchido depois, em /accounts/:id/rules, a partir do saldo sincronizado.
   | { status: 'auto_detect'; program: AccountLevelPropFirmRuleProgram; initialSelection?: undefined; resolved?: undefined };
 

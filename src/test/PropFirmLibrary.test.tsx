@@ -56,7 +56,10 @@ describe('PropFirmLibrary', () => {
     selectFtmoTwoStep();
 
     expect(screen.getByTestId('account-step')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Escolha a conta' })).toBeInTheDocument();
+    // FTMO is MT5-monitorable: the account-size step is now the direct
+    // "Conectar conta" CTA, with per-size browsing tucked behind an opt-in.
+    expect(screen.getByRole('heading', { name: 'Conecte sua conta' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Conectar conta/ })).toBeInTheDocument();
     expect(screen.getByText('US$ 10 mil')).toBeInTheDocument();
     expect(screen.getByText('US$ 200 mil')).toBeInTheDocument();
     expect(screen.queryByTestId('account-rules')).not.toBeInTheDocument();
@@ -146,7 +149,7 @@ describe('PropFirmLibrary', () => {
     renderLibrary();
     selectFtmoTwoStep();
 
-    fireEvent.click(screen.getByRole('button', { name: /Conectar e detectar automaticamente/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Conectar conta/ }));
 
     const target = screen.getByTestId('location').textContent ?? '';
     const url = new URL(target, 'http://localhost');

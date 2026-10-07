@@ -640,18 +640,24 @@ export default function PropFirmLibrary() {
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">
               Etapa 3 de 4 · {selectedFirm} · {selectedProgram.programName}
             </p>
-            <h2 className="mt-1 text-lg font-semibold text-foreground">Escolha a conta</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Selecione o tamanho da conta para ver as regras.</p>
+            <h2 className="mt-1 text-lg font-semibold text-foreground">
+              {autoDetectConnectionPath ? 'Conecte sua conta' : 'Escolha a conta'}
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {autoDetectConnectionPath
+                ? 'O Fortify detecta o tamanho da conta e vincula as regras certas automaticamente, a partir do saldo sincronizado.'
+                : 'Selecione o tamanho da conta para ver as regras.'}
+            </p>
           </div>
           {autoDetectConnectionPath && (
             <div
               data-library-reveal
-              className="flex flex-col gap-3 rounded-lg border border-primary/25 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between"
+              className="flex flex-col gap-4 rounded-lg border border-primary/25 bg-primary/5 p-5 sm:flex-row sm:items-center sm:justify-between"
             >
               <div>
-                <p className="text-sm font-semibold text-foreground">Já sabe o login da sua conta?</p>
+                <p className="text-sm font-semibold text-foreground">{selectedProgram.programName}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Conecte agora — o Fortify detecta o tamanho da conta automaticamente a partir do saldo sincronizado, sem precisar escolher aqui.
+                  Conecte o login MT5 da sua conta — tamanho e regras são detectados e vinculados sozinhos assim que ela sincronizar.
                 </p>
               </div>
               <button
@@ -659,28 +665,56 @@ export default function PropFirmLibrary() {
                 onClick={() => navigate(autoDetectConnectionPath)}
                 className="pill-btn pill-btn-primary w-full shrink-0 sm:w-auto"
               >
-                Conectar e detectar automaticamente
+                Conectar conta
                 <ChevronRight className="ml-2 h-4 w-4" />
               </button>
             </div>
           )}
-          <div className="flex flex-wrap gap-2" data-testid="account-options">
-            {accounts.map((account) => (
-              <motion.button
-                key={account.id}
-                type="button"
-                data-testid={`account-${account.id}`}
-                data-library-reveal
-                onClick={() => chooseAccount(account.id)}
-                whileHover={fortifyMotion.hover}
-                whileTap={fortifyMotion.press}
-                transition={fortifyMotion.responsive}
-                className="rounded-full border border-border bg-card/60 px-4 py-2.5 text-sm font-semibold text-foreground transition-[color,background-color,border-color] duration-150 hover:border-primary/60 hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              >
-                {formatAccountLabel(account.label)}
-              </motion.button>
-            ))}
-          </div>
+          {autoDetectConnectionPath ? (
+            // Browsing rules by size before connecting is still available, just
+            // tucked behind an explicit opt-in — the default and only prominent
+            // action here is the direct connect CTA above.
+            <details data-library-reveal className="group border-t border-border pt-4">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-semibold text-foreground">
+                <span>Ver regras por tamanho de conta antes de conectar</span>
+                <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="mt-4 flex flex-wrap gap-2" data-testid="account-options">
+                {accounts.map((account) => (
+                  <motion.button
+                    key={account.id}
+                    type="button"
+                    data-testid={`account-${account.id}`}
+                    onClick={() => chooseAccount(account.id)}
+                    whileHover={fortifyMotion.hover}
+                    whileTap={fortifyMotion.press}
+                    transition={fortifyMotion.responsive}
+                    className="rounded-full border border-border bg-card/60 px-4 py-2.5 text-sm font-semibold text-foreground transition-[color,background-color,border-color] duration-150 hover:border-primary/60 hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  >
+                    {formatAccountLabel(account.label)}
+                  </motion.button>
+                ))}
+              </div>
+            </details>
+          ) : (
+            <div className="flex flex-wrap gap-2" data-testid="account-options">
+              {accounts.map((account) => (
+                <motion.button
+                  key={account.id}
+                  type="button"
+                  data-testid={`account-${account.id}`}
+                  data-library-reveal
+                  onClick={() => chooseAccount(account.id)}
+                  whileHover={fortifyMotion.hover}
+                  whileTap={fortifyMotion.press}
+                  transition={fortifyMotion.responsive}
+                  className="rounded-full border border-border bg-card/60 px-4 py-2.5 text-sm font-semibold text-foreground transition-[color,background-color,border-color] duration-150 hover:border-primary/60 hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  {formatAccountLabel(account.label)}
+                </motion.button>
+              ))}
+            </div>
+          )}
           </section>
         )}
 

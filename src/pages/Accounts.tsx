@@ -438,8 +438,8 @@ const Accounts = () => {
       });
 
       // Só tenta detectar automaticamente para contas ainda sem vínculo que
-      // chegaram pelo fluxo "Conectar e detectar automaticamente" da
-      // Biblioteca (hint salvo em localStorage) e já têm saldo sincronizado.
+      // chegaram pelo fluxo "Conectar conta" (auto-detecção) da Biblioteca
+      // (hint salvo em localStorage) e já têm saldo sincronizado.
       // Só é oferecido o botão de confirmação de 1 clique quando o saldo bate
       // EXATO com um tamanho conhecido — aproximações continuam exigindo a
       // tela completa de vínculo.
