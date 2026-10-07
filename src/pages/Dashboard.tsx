@@ -728,7 +728,7 @@ function Dashboard() {
           variants={revealItem}
           initial="hidden"
           animate="visible"
-          className="rounded-xl border border-border bg-card/60 p-5 lg:order-2 lg:col-span-5"
+          className="rounded-xl border border-border bg-card/60 p-5 lg:order-1 lg:col-span-12"
         >
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -787,7 +787,7 @@ function Dashboard() {
           variants={revealItem}
           initial="hidden"
           animate="visible"
-          className="overflow-hidden rounded-xl border border-border bg-card/60 lg:order-1 lg:col-span-7"
+          className="overflow-hidden rounded-xl border border-border bg-card/60 lg:order-2 lg:col-span-12"
         >
           {rows.length > 1 && (
             <div className="flex h-1 w-full">
@@ -796,16 +796,11 @@ function Dashboard() {
               ))}
             </div>
           )}
-          <div className="flex items-center justify-between gap-2 border-b border-border/60 p-5">
-            <div>
-              <h2 className="text-sm font-bold text-foreground">Saúde por conta</h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {rows.length === 0 ? 'Nenhuma conta conectada' : `${visibleRows.length} de ${rows.length} exibidas`}
-              </p>
-            </div>
-            <span className={cn('shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider', statusPill[overallStatus])}>
-              {overall}
-            </span>
+          <div className="border-b border-border/60 p-5">
+            <h2 className="text-sm font-bold text-foreground">Saúde por conta</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {rows.length === 0 ? 'Nenhuma conta conectada' : `${visibleRows.length} de ${rows.length} exibidas`}
+            </p>
           </div>
 
           {rows.length === 0 ? (
