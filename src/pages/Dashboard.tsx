@@ -48,6 +48,7 @@ type HealthRow = {
   equityLabel: string;
   dailyRemainingLabel: string;
   drawdownRemainingLabel: string;
+  profitTargetLabel: string;
   openPositions: number;
   negativeFloatingPnl: number;
   lastSyncLabel: string;
@@ -274,6 +275,17 @@ function buildHealthRow(
   });
   const remainingLabel = (rule: { remainingValue: number | null } | null) =>
     rule && rule.remainingValue !== null ? money(rule.remainingValue) : 'Sem dados suficientes';
+  // Progresso em direção à meta (não é uma "folga" como as demais — por isso
+  // mostra o que já foi alcançado sobre o alvo, em vez de uma distância até a
+  // violação). limitValue <= 0 é tratado como "sem meta numérica confiável",
+  // o mesmo critério que o motor canônico usa pra marcar a regra como
+  // not_monitorable.
+  const formatProfitTarget = (rule: { currentValue: number | null; limitValue: number | null } | null) => {
+    const limit = Number(rule?.limitValue);
+    if (!rule || !Number.isFinite(limit) || limit <= 0) return 'Sem dados suficientes';
+    const current = Math.max(0, Number(rule.currentValue) || 0);
+    return `${money(current)} de ${money(limit)}`;
+  };
   const status = healthBucket(statusView);
 
   return {
@@ -290,6 +302,9 @@ function buildHealthRow(
     drawdownRemainingLabel: binding.hasActiveBinding
       ? remainingLabel(canonical?.maxDrawdown ?? null)
       : summary.totalLoss ? money(summary.maxLossRemaining) : 'Sem dados suficientes',
+    profitTargetLabel: binding.hasActiveBinding
+      ? formatProfitTarget(canonical?.profitTarget ?? null)
+      : formatProfitTarget(summary.profitTarget ?? null),
     openPositions: accountPositions.length,
     negativeFloatingPnl,
     lastSyncLabel: relativeSync(connection?.last_sync_at || account.mt5LastSyncAt),
@@ -688,6 +703,62 @@ function Dashboard() {
                   <Area type="monotone" dataKey="equity" stroke={chartColors.primary} strokeWidth={2} fill="url(#dashEquityFill)" />
                 </AreaChart>
               </ResponsiveContainer>
+            </div>
+          )}
+        </motion.section>
+
+        {/* Métricas por conta: números crus, sem selo/bolha de status. */}
+        <motion.section
+          variants={revealItem}
+          initial="hidden"
+          animate="visible"
+          className="overflow-hidden rounded-xl border border-border bg-card/60 lg:order-2 lg:col-span-12"
+        >
+          <div className="border-b border-border/60 p-5">
+            <h2 className="text-sm font-bold text-foreground">Métricas por conta</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Equity, folga de drawdown, perda flutuante e meta de lucro de cada conta conectada.
+            </p>
+          </div>
+
+          {rows.length === 0 ? (
+            <div className="p-5">
+              <p className="text-sm text-muted-foreground">Conecte uma conta MT5 para ver as métricas dela aqui.</p>
+              <button type="button" onClick={() => navigate('/accounts')} className="pill-btn pill-btn-primary mt-4">
+                Conectar conta MT5
+              </button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] text-left text-sm">
+                <thead>
+                  <tr className="border-b border-border/60 text-[11px] uppercase tracking-wide text-muted-foreground">
+                    <th className="px-5 py-3 font-medium">Conta</th>
+                    <th className="px-5 py-3 font-medium">Equity</th>
+                    <th className="px-5 py-3 font-medium">Drawdown diário restante</th>
+                    <th className="px-5 py-3 font-medium">Drawdown máximo restante</th>
+                    <th className="px-5 py-3 font-medium">Perda flutuante</th>
+                    <th className="px-5 py-3 font-medium">Profit Target</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {rows.map((row) => (
+                    <tr key={row.account.id}>
+                      <td className="px-5 py-3">
+                        <p className="truncate font-semibold text-foreground">{row.account.nickname}</p>
+                        <p className="truncate text-xs text-muted-foreground">{row.account.broker || row.connection?.mt5_server || 'Mesa não informada'}</p>
+                      </td>
+                      <td className="px-5 py-3 font-mono tabular-nums text-foreground">{row.equityLabel}</td>
+                      <td className="px-5 py-3 font-mono tabular-nums text-foreground">{row.dailyRemainingLabel}</td>
+                      <td className="px-5 py-3 font-mono tabular-nums text-foreground">{row.drawdownRemainingLabel}</td>
+                      <td className={cn('px-5 py-3 font-mono tabular-nums', row.negativeFloatingPnl < 0 ? 'text-destructive' : 'text-foreground')}>
+                        {signedMoney(row.negativeFloatingPnl)}
+                      </td>
+                      <td className="px-5 py-3 font-mono tabular-nums text-foreground">{row.profitTargetLabel}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </motion.section>
