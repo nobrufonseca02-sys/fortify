@@ -477,8 +477,14 @@ const Accounts = () => {
     v => !['breached', 'critical', 'warning', 'safe'].includes(v.statusView.status),
   ).length;
 
+  // Chegou direto da Biblioteca pelo botão "Conectar conta" (auto-detecção)?
+  // Essa página existe só para essa tarefa única — cabeçalho, contadores,
+  // navegação e a lista de contas já conectadas são ruído aqui.
+  const isFocusedConnect = Boolean(libraryAutoDetectProgram);
+
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
+      {!isFocusedConnect && (
       <header className="flex flex-col gap-6 border-b border-border pb-6 md:flex-row md:items-end md:justify-between">
         <div className="max-w-2xl">
           <span className="eyebrow">Monitoramento MT5</span>
@@ -543,6 +549,7 @@ const Accounts = () => {
           </div>
         </div>
       </header>
+      )}
 
       {showConnectForm && (
         <motion.form
@@ -555,10 +562,12 @@ const Accounts = () => {
             <span className="eyebrow">Nova conexão</span>
             <h2 className="text-base font-semibold text-foreground">Conectar conta MT5</h2>
           </div>
-          <LibraryRuleSelectionNotice
-            status={librarySelection.status}
-            invalidHint="Conecte a conta agora e vincule a regra da mesa logo em seguida."
-          />
+          {!isFocusedConnect && (
+            <LibraryRuleSelectionNotice
+              status={librarySelection.status}
+              invalidHint="Conecte a conta agora e vincule a regra da mesa logo em seguida."
+            />
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="space-y-1.5 md:col-span-2">
@@ -639,7 +648,13 @@ const Accounts = () => {
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               Conectar
             </Button>
-            <Button type="button" variant="outline" onClick={resetConnectForm}>Cancelar</Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => (isFocusedConnect ? navigate('/library') : resetConnectForm())}
+            >
+              Cancelar
+            </Button>
           </div>
           {/* The invalid-link notice and the auto-detect notice above already
               say how the binding comes later, so don't repeat it here. */}
@@ -652,6 +667,7 @@ const Accounts = () => {
       )}
 
       {/* Account Cards Grid */}
+      {!isFocusedConnect && (
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {accountsView.map(({ account, pnlPct, isPositive, mt5Connection, connectionStatus, mt5Status, bindingStatus, boundPropFirmName, detectedPropFirmName, isRuleBound, statusView, serverMonitoringGap, autoDetected }) => {
           const Mt5StatusIcon = mt5Status.icon;
@@ -841,8 +857,9 @@ const Accounts = () => {
           );
         })}
       </div>
+      )}
 
-      {accounts.length === 0 && (
+      {!isFocusedConnect && accounts.length === 0 && (
         <GuidedEmptyState
           icon={Wallet}
           title="Nenhuma conta cadastrada"

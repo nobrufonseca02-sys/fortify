@@ -547,7 +547,13 @@ describe('Accounts', () => {
 
     renderAt(`/accounts?propFirmSlug=${program.firmSlug}&programSlug=${program.programSlug}&autoDetectSize=1`);
 
-    await waitFor(() => expect(screen.getByText(/Mesa e programa escolhidos na Biblioteca/)).toBeInTheDocument());
+    // Focused connect handoff: just the form, no page chrome, no explanatory
+    // notice, no list of already-connected accounts, no duplicate CTA.
+    await waitFor(() => expect(screen.getByPlaceholderText('Ex.: 12345678')).toBeInTheDocument());
+    expect(screen.queryByText(/Mesa e programa escolhidos na Biblioteca/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Contas' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Biblioteca de mesas')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Conectar conta' })).not.toBeInTheDocument();
     // No account-size/platform/version selector at all — nothing to pick manually.
     expect(screen.queryByLabelText('Tamanho ou variante')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Aceitar regras manuais')).not.toBeInTheDocument();
