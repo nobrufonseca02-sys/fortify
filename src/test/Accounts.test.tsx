@@ -570,4 +570,58 @@ describe('Accounts', () => {
     const hint = window.localStorage.getItem('fortify:pendingLibraryProgram:account-1');
     expect(hint && JSON.parse(hint)).toEqual({ firmSlug: program.firmSlug, programSlug: program.programSlug });
   });
+
+  it('offers a one-click confirm for an exact auto-detected size, with no navigation to the rules page', async () => {
+    const program = getOperationalRulePrograms('MT5').find(
+      (item) => item.firmSlug === 'ftmo' && item.programType === '2-Step',
+    )!;
+    const accountSize100k = program.accountLevelRules.find((size) => size.label === '$100K')!;
+
+    window.localStorage.clear();
+    window.localStorage.setItem(
+      'fortify:pendingLibraryProgram:account-1',
+      JSON.stringify({ firmSlug: program.firmSlug, programSlug: program.programSlug }),
+    );
+    mockAccounts = [fastConnectedAccount({ startBalance: 100000, currentBalance: 100000 })];
+    mt5ConnectionsSelect.order.mockResolvedValue({ data: [connectionRow()], error: null });
+
+    renderAt('/accounts');
+
+    const confirmButton = await screen.findByRole('button', { name: /Confirmar e ativar monitoramento/ });
+    fireEvent.click(confirmButton);
+
+    await waitFor(() => expect(ruleBindingsInsertFn).toHaveBeenCalled());
+    const bindingRow: any = ruleBindingsInsertFn.mock.calls[0][0];
+    expect(bindingRow.prop_firm_slug).toBe(program.firmSlug);
+    expect(bindingRow.account_size_id).toBe(accountSize100k.id);
+    expect(bindingRow.platform).toBe('MT5');
+    expect(bindingRow.manual_rule_acknowledgement).toBe(true);
+    expect(bindingRow.binding_status).toBe('active');
+
+    // One-shot hint is consumed once the binding is confirmed this way too.
+    await waitFor(() =>
+      expect(window.localStorage.getItem('fortify:pendingLibraryProgram:account-1')).toBeNull(),
+    );
+  });
+
+  it('does not offer the one-click confirm when the detected size is only an approximate match', async () => {
+    const program = getOperationalRulePrograms('MT5').find(
+      (item) => item.firmSlug === 'ftmo' && item.programType === '2-Step',
+    )!;
+    const accountSize100k = program.accountLevelRules.find((size) => size.label === '$100K')!;
+    const approxBalance = Number(initialBalanceValue(accountSize100k.initialBalance)) * 1.08;
+
+    window.localStorage.clear();
+    window.localStorage.setItem(
+      'fortify:pendingLibraryProgram:account-1',
+      JSON.stringify({ firmSlug: program.firmSlug, programSlug: program.programSlug }),
+    );
+    mockAccounts = [fastConnectedAccount({ startBalance: approxBalance, currentBalance: approxBalance })];
+    mt5ConnectionsSelect.order.mockResolvedValue({ data: [connectionRow()], error: null });
+
+    renderAt('/accounts');
+
+    expect(await screen.findByRole('button', { name: /Vincular regra agora/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Confirmar e ativar monitoramento/ })).not.toBeInTheDocument();
+  });
 });

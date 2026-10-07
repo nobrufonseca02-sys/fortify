@@ -39,6 +39,7 @@ import {
   isRuleBindingDraftComplete,
   getAccountRuleBindingStatus,
   resolveRuleBinding,
+  saveAccountRuleBinding,
   initialBalanceValue,
   accountCurrencyValue,
   type AccountRuleBindingRow,
@@ -46,7 +47,14 @@ import {
 } from '@/lib/ruleBinding';
 import { RuleBindingSelector } from '@/components/rules/RuleBindingSelector';
 import { parseLibraryRuleSelection, LibraryRuleSelectionNotice } from '@/lib/libraryRuleSelection';
-import { savePendingLibraryProgram } from '@/lib/accountSizeDetection';
+import {
+  savePendingLibraryProgram,
+  readPendingLibraryProgram,
+  clearPendingLibraryProgram,
+  findMt5ProgramBySlug,
+  detectAccountSizeFromBalance,
+  type DetectedAccountSize,
+} from '@/lib/accountSizeDetection';
 import { provisionAndConnectTradingAccount } from '@/lib/accountProvisioning';
 import { FixConnectionDialog, type FixConnectionTarget } from '@/components/FixConnectionDialog';
 
@@ -204,6 +212,56 @@ const Accounts = () => {
   // Helper to get MT5 connection for an account
   const getMt5Connection = (accountId: string) => {
     return mt5Connections.find(conn => conn.trading_account_id === accountId);
+  };
+
+  // Conta com confirmação de vínculo detectado em andamento (card inline,
+  // sem navegar para /accounts/:id/rules).
+  const [confirmingAccountId, setConfirmingAccountId] = useState<string | null>(null);
+
+  // Único clique que substitui "Vincular regra agora" quando a detecção
+  // automática já encontrou uma correspondência EXATA de saldo. Isto não é
+  // um auto-save silencioso: o trader vê a mesa/programa/tamanho detectado
+  // nomeados no próprio card e precisa clicar para confirmar — equivalente
+  // funcional ao checkbox + salvar da tela de regras, só sem a navegação
+  // extra. Correspondências aproximadas (confidence 'nearest') continuam
+  // exigindo a tela completa, por segurança.
+  const handleConfirmDetectedBinding = async (
+    accountId: string,
+    mt5ConnectionId: string | null | undefined,
+    detected: DetectedAccountSize,
+  ) => {
+    if (!userId || !detected.program.firmSlug || !detected.program.programSlug) return;
+    setConfirmingAccountId(accountId);
+    try {
+      await saveAccountRuleBinding({
+        userId,
+        tradingAccountId: accountId,
+        mt5ConnectionId: mt5ConnectionId ?? null,
+        draft: {
+          propFirmSlug: detected.program.firmSlug,
+          programSlug: detected.program.programSlug,
+          accountSizeId: detected.accountSize.id,
+          platform: detected.platform,
+          ruleVersionId: detected.ruleVersionId,
+          manualRuleAcknowledgement: true,
+        },
+      });
+      clearPendingLibraryProgram(accountId);
+      toast({
+        title: 'Regra vinculada',
+        description: `${detected.program.firm} · ${detected.accountSize.label} confirmado e ativo para monitoramento.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['trading_accounts'] });
+      await refreshConnectionData();
+    } catch (error) {
+      toast({
+        title: 'Não foi possível vincular a regra',
+        description: error instanceof Error ? error.message : 'Tente novamente em instantes.',
+        variant: 'destructive',
+      });
+    } finally {
+      setConfirmingAccountId(null);
+    }
   };
 
   const resetConnectForm = () => {
@@ -379,10 +437,25 @@ const Accounts = () => {
           : ruleStatusFromLegacyEvaluations(evals),
       });
 
+      // Só tenta detectar automaticamente para contas ainda sem vínculo que
+      // chegaram pelo fluxo "Conectar e detectar automaticamente" da
+      // Biblioteca (hint salvo em localStorage) e já têm saldo sincronizado.
+      // Só é oferecido o botão de confirmação de 1 clique quando o saldo bate
+      // EXATO com um tamanho conhecido — aproximações continuam exigindo a
+      // tela completa de vínculo.
+      let autoDetected: DetectedAccountSize | null = null;
+      if (!isRuleBound) {
+        const pendingHint = readPendingLibraryProgram(account.id);
+        const program = pendingHint ? findMt5ProgramBySlug(pendingHint.firmSlug, pendingHint.programSlug) : null;
+        const syncedBalance = account.startBalance || account.currentBalance || 0;
+        const detected = program && syncedBalance > 0 ? detectAccountSizeFromBalance(program, syncedBalance) : null;
+        autoDetected = detected && detected.confidence === 'exact' ? detected : null;
+      }
+
       return {
         account, pnl, pnlPct, isPositive, mt5Connection, connectionStatus, mt5Status,
         ruleBinding, bindingStatus, boundPropFirmName, detectedPropFirmName, isRuleBound, statusView,
-        serverMonitoringGap,
+        serverMonitoringGap, autoDetected,
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -580,7 +653,7 @@ const Accounts = () => {
 
       {/* Account Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {accountsView.map(({ account, pnlPct, isPositive, mt5Connection, connectionStatus, mt5Status, bindingStatus, boundPropFirmName, detectedPropFirmName, isRuleBound, statusView, serverMonitoringGap }) => {
+        {accountsView.map(({ account, pnlPct, isPositive, mt5Connection, connectionStatus, mt5Status, bindingStatus, boundPropFirmName, detectedPropFirmName, isRuleBound, statusView, serverMonitoringGap, autoDetected }) => {
           const Mt5StatusIcon = mt5Status.icon;
 
           return (
@@ -641,6 +714,25 @@ const Accounts = () => {
                           <span>{SERVER_MONITORING_GAP_LABEL}</span>
                         </p>
                       )}
+                    </div>
+                  ) : autoDetected ? (
+                    <div className="mt-1 space-y-1.5" onClick={(e) => e.stopPropagation()}>
+                      <p className="text-xs text-muted-foreground">
+                        Detectado: <span className="font-medium text-foreground">{autoDetected.program.firm} · {autoDetected.program.programName} · {autoDetected.accountSize.label}</span>
+                      </p>
+                      <button
+                        type="button"
+                        disabled={confirmingAccountId === account.id}
+                        onClick={() => handleConfirmDetectedBinding(account.id, mt5Connection?.id, autoDetected)}
+                        className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        {confirmingAccountId === account.id ? (
+                          <Loader2 className="w-3 h-3 shrink-0 animate-spin" aria-hidden="true" />
+                        ) : (
+                          <Shield className="w-3 h-3 shrink-0" aria-hidden="true" />
+                        )}
+                        Confirmar e ativar monitoramento
+                      </button>
                     </div>
                   ) : (
                     <div className="mt-1 space-y-0.5">
