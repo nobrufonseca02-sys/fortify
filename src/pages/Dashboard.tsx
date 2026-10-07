@@ -49,6 +49,13 @@ type HealthRow = {
   dailyRemainingLabel: string;
   drawdownRemainingLabel: string;
   profitTargetLabel: string;
+  /** Raw numbers behind the *Label strings above, so the hero KPIs can sum
+   * them across every connected account instead of re-deriving the same
+   * canonical/legacy lookups a second time. null means "no data", never 0. */
+  dailyRemainingValue: number | null;
+  drawdownRemainingValue: number | null;
+  profitTargetCurrentValue: number | null;
+  profitTargetLimitValue: number | null;
   openPositions: number;
   negativeFloatingPnl: number;
   lastSyncLabel: string;
@@ -65,29 +72,6 @@ type AssetRiskSummary = {
   floatingPnl: number;
 };
 
-const statusStyle: Record<HealthStatus, { label: string; className: string; textClass: string }> = {
-  safe: {
-    label: 'Seguro',
-    className: 'border-success/20 bg-success/5',
-    textClass: 'text-success',
-  },
-  warning: {
-    label: 'Atenção',
-    className: 'border-warning/25 bg-warning/5',
-    textClass: 'text-warning',
-  },
-  critical: {
-    label: 'Crítico',
-    className: 'border-destructive/25 bg-destructive/5',
-    textClass: 'text-destructive',
-  },
-  nodata: {
-    label: 'Sem dados',
-    className: 'border-border bg-card',
-    textClass: 'text-muted-foreground',
-  },
-};
-
 /** Fully-round translucent status pill (the reference dashboards' badge
  * language) expressed with the project's own status tokens instead of raw
  * Tailwind palette colors, so both themes stay correct. */
@@ -98,26 +82,14 @@ const statusPill: Record<HealthStatus, string> = {
   nodata: 'border-border bg-muted/40 text-muted-foreground',
 };
 
-/** Literal Tailwind class per status, kept as its own map (rather than
- * deriving from statusStyle.textClass at runtime) so the JIT scanner can
- * actually see and keep these background-color utilities. */
+/** Literal Tailwind class per status, kept as its own map so the JIT scanner
+ * can actually see and keep these background-color utilities. */
 const healthBarColor: Record<HealthStatus, string> = {
   safe: 'bg-success',
   warning: 'bg-warning',
   critical: 'bg-destructive',
   nodata: 'bg-muted-foreground/30',
 };
-
-/** Presentation-only helper: maps the translated label returned by
- * `summaryStatus()` back to its `statusStyle` entry, so the hero badge can
- * reuse the exact same status vocabulary/colors as the per-account rows
- * without touching `summaryStatus()` itself. */
-function statusStyleFromLabel(label: string): HealthStatus {
-  const entry = (Object.entries(statusStyle) as [HealthStatus, (typeof statusStyle)[HealthStatus]][]).find(
-    ([, style]) => style.label === label,
-  );
-  return entry ? entry[0] : 'nodata';
-}
 
 function money(value: number | null | undefined) {
   if (!Number.isFinite(Number(value))) return 'Sem dados';
@@ -176,17 +148,8 @@ function formatAccountCount(count: number, limit: number) {
   return `${count}/${limit || 0}`;
 }
 
-function formatSyncedCount(count: number) {
-  return count === 1 ? '1 sincronizada' : `${count} sincronizadas`;
-}
-
 function formatPositionCount(count: number) {
   return count === 1 ? '1 posição' : `${count} posições`;
-}
-
-function formatPercent(value: number | null | undefined, maximumFractionDigits = 2) {
-  if (!Number.isFinite(Number(value))) return 'Sem dados';
-  return `${Number(value).toLocaleString('pt-BR', { maximumFractionDigits })}%`;
 }
 
 function getPositionSymbol(position: any) {
@@ -273,20 +236,28 @@ function buildHealthRow(
     hasRuleBinding: binding.hasActiveBinding || summary.evals.length > 0,
     ruleStatus,
   });
-  const remainingLabel = (rule: { remainingValue: number | null } | null) =>
-    rule && rule.remainingValue !== null ? money(rule.remainingValue) : 'Sem dados suficientes';
+  const status = healthBucket(statusView);
+
+  const dailyRemainingValue = binding.hasActiveBinding
+    ? canonical?.dailyLoss?.remainingValue ?? null
+    : summary.dailyLoss ? summary.dailyRemaining : null;
+  const drawdownRemainingValue = binding.hasActiveBinding
+    ? canonical?.maxDrawdown?.remainingValue ?? null
+    : summary.totalLoss ? summary.maxLossRemaining : null;
+
   // Progresso em direção à meta (não é uma "folga" como as demais — por isso
-  // mostra o que já foi alcançado sobre o alvo, em vez de uma distância até a
+  // guarda o que já foi alcançado sobre o alvo, em vez de uma distância até a
   // violação). limitValue <= 0 é tratado como "sem meta numérica confiável",
   // o mesmo critério que o motor canônico usa pra marcar a regra como
   // not_monitorable.
-  const formatProfitTarget = (rule: { currentValue: number | null; limitValue: number | null } | null) => {
-    const limit = Number(rule?.limitValue);
-    if (!rule || !Number.isFinite(limit) || limit <= 0) return 'Sem dados suficientes';
-    const current = Math.max(0, Number(rule.currentValue) || 0);
-    return `${money(current)} de ${money(limit)}`;
-  };
-  const status = healthBucket(statusView);
+  const profitTargetRule = binding.hasActiveBinding ? canonical?.profitTarget ?? null : summary.profitTarget ?? null;
+  const profitTargetLimitRaw = Number(profitTargetRule?.limitValue);
+  const profitTargetLimitValue = profitTargetRule && Number.isFinite(profitTargetLimitRaw) && profitTargetLimitRaw > 0
+    ? profitTargetLimitRaw
+    : null;
+  const profitTargetCurrentValue = profitTargetLimitValue !== null
+    ? Math.max(0, Number(profitTargetRule?.currentValue) || 0)
+    : null;
 
   return {
     account,
@@ -296,15 +267,15 @@ function buildHealthRow(
     status,
     statusLabel: statusView.label,
     equityLabel: money(account.currentEquity),
-    dailyRemainingLabel: binding.hasActiveBinding
-      ? remainingLabel(canonical?.dailyLoss ?? null)
-      : summary.dailyLoss ? money(summary.dailyRemaining) : 'Sem dados suficientes',
-    drawdownRemainingLabel: binding.hasActiveBinding
-      ? remainingLabel(canonical?.maxDrawdown ?? null)
-      : summary.totalLoss ? money(summary.maxLossRemaining) : 'Sem dados suficientes',
-    profitTargetLabel: binding.hasActiveBinding
-      ? formatProfitTarget(canonical?.profitTarget ?? null)
-      : formatProfitTarget(summary.profitTarget ?? null),
+    dailyRemainingLabel: dailyRemainingValue !== null ? money(dailyRemainingValue) : 'Sem dados suficientes',
+    drawdownRemainingLabel: drawdownRemainingValue !== null ? money(drawdownRemainingValue) : 'Sem dados suficientes',
+    profitTargetLabel: profitTargetLimitValue !== null
+      ? `${money(profitTargetCurrentValue)} de ${money(profitTargetLimitValue)}`
+      : 'Sem dados suficientes',
+    dailyRemainingValue,
+    drawdownRemainingValue,
+    profitTargetCurrentValue,
+    profitTargetLimitValue,
     openPositions: accountPositions.length,
     negativeFloatingPnl,
     lastSyncLabel: relativeSync(connection?.last_sync_at || account.mt5LastSyncAt),
@@ -314,27 +285,6 @@ function buildHealthRow(
     hasSyncError,
     bufferPct,
   };
-}
-
-function summaryStatus(rows: HealthRow[]) {
-  if (rows.length === 0 || rows.every((row) => row.status === 'nodata')) return 'Sem dados';
-  if (rows.some((row) => row.status === 'critical')) return 'Crítico';
-  if (rows.some((row) => row.status === 'warning')) return 'Atenção';
-  // Uma conta sem confirmação (parcial, sem dados, não monitorável) impede o
-  // resumo geral de afirmar "Seguro".
-  if (rows.some((row) => row.status !== 'safe')) return 'Sem dados';
-  return 'Seguro';
-}
-
-function fortifyScore(rows: HealthRow[]) {
-  if (rows.length === 0) return 'Sem dados';
-  const score = rows.reduce((sum, row) => {
-    if (row.status === 'safe') return sum + 100;
-    if (row.status === 'warning') return sum + 68;
-    if (row.status === 'critical') return sum + 28;
-    return sum + 45;
-  }, 0) / rows.length;
-  return `${Math.round(score)}/100`;
 }
 
 function latestSyncInfo(rows: HealthRow[], hasStaleSync: boolean) {
@@ -350,16 +300,6 @@ function latestSyncInfo(rows: HealthRow[], hasStaleSync: boolean) {
     value: date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
     detail: hasStaleSync ? `Sync atrasado - ${relativeDelay(latest)}` : `Atualizado ${relativeDelay(latest)}`,
   };
-}
-
-/** The account whose closest rule has the least buffer left (bufferPct is
- * already computed per row in buildHealthRow — this just finds the minimum
- * across accounts that have a rule to measure against). */
-function riskBudgetUsage(rows: HealthRow[]) {
-  const withBuffer = rows.filter((row): row is HealthRow & { bufferPct: number } => row.bufferPct !== null);
-  if (withBuffer.length === 0) return null;
-  const worst = withBuffer.reduce((min, row) => (row.bufferPct < min.bufferPct ? row : min), withBuffer[0]);
-  return { usedPct: Math.max(0, Math.min(100, 100 - worst.bufferPct)), account: worst.account, bufferPct: worst.bufferPct };
 }
 
 type ActivityEvent = {
@@ -536,18 +476,9 @@ function Dashboard() {
   }, [accounts, mt5Connections, positions, ruleRows, activeBindings, canonicalByAccount]);
 
   const openPositions = rows.reduce((sum, row) => sum + row.openPositions, 0);
-  const syncedAccountsCount = rows.filter((row) => row.connection?.last_sync_at && !row.hasSyncError).length;
   const staleRow = rows.find((row) => row.stale && row.connection);
-  const overall = summaryStatus(rows);
-  const overallStatus = statusStyleFromLabel(overall);
-  const score = fortifyScore(rows);
   const latestSync = latestSyncInfo(rows, Boolean(staleRow));
   const assetSummaries = useMemo(() => buildAssetRiskSummary(positions), [positions]);
-  const totalOpenPnl = useMemo(
-    () => positions.reduce((sum, position) => sum + (Number(position?.floating_pnl ?? position?.profit ?? 0) || 0), 0),
-    [positions],
-  );
-  const hasOpenPnlData = accounts.length > 0;
   const biggestAssetLoss = assetSummaries.filter((asset) => asset.floatingPnl < 0).sort((a, b) => a.floatingPnl - b.floatingPnl)[0] || null;
   const biggestAssetProfit = assetSummaries.filter((asset) => asset.floatingPnl > 0).sort((a, b) => b.floatingPnl - a.floatingPnl)[0] || null;
   const mostExposedAsset = [...assetSummaries].sort((a, b) => b.openPositions - a.openPositions)[0] || null;
@@ -561,7 +492,6 @@ function Dashboard() {
     return messages;
   }, [assetSummaries.length, biggestAssetLoss, mostExposedAsset]);
 
-  const riskUsage = useMemo(() => riskBudgetUsage(rows), [rows]);
   const recentActivity = useMemo(() => buildRecentActivity(rows), [rows]);
   const equitySeries = useMemo(() => aggregateEquitySeries(snapshots), [snapshots]);
   const equityDelta = useMemo(() => {
@@ -572,30 +502,55 @@ function Dashboard() {
     return { pct: ((last - previous) / Math.abs(previous)) * 100, abs: last - previous };
   }, [equitySeries]);
 
+  // Somas reais sobre `rows` — nunca inventa um total quando nenhuma conta tem
+  // o dado: null em vez de 0, pra "Sem dados" não virar um falso "$0".
+  const sumAvailable = (values: (number | null)[]) => {
+    const present = values.filter((value): value is number => value !== null);
+    return present.length > 0 ? { total: present.reduce((sum, value) => sum + value, 0), count: present.length } : null;
+  };
+  const totalEquity = rows.length > 0 ? rows.reduce((sum, row) => sum + (Number(row.account.currentEquity) || 0), 0) : null;
+  const totalDailyRemaining = sumAvailable(rows.map((row) => row.dailyRemainingValue));
+  const totalDrawdownRemaining = sumAvailable(rows.map((row) => row.drawdownRemainingValue));
+  const totalFloatingLoss = rows.length > 0 ? rows.reduce((sum, row) => sum + row.negativeFloatingPnl, 0) : null;
+  const profitTargetRowsWithData = rows.filter((row) => row.profitTargetLimitValue !== null);
+  const totalProfitTarget = profitTargetRowsWithData.length > 0
+    ? {
+        current: profitTargetRowsWithData.reduce((sum, row) => sum + (row.profitTargetCurrentValue || 0), 0),
+        limit: profitTargetRowsWithData.reduce((sum, row) => sum + (row.profitTargetLimitValue || 0), 0),
+        count: profitTargetRowsWithData.length,
+      }
+    : null;
+
   const kpis = [
     {
-      label: 'Fortify Score',
-      value: score,
-      status: overallStatus,
-      badge: overall,
+      label: 'Equity',
+      value: totalEquity !== null ? money(totalEquity) : 'Sem dados',
+      status: (totalEquity !== null ? 'safe' : 'nodata') as HealthStatus,
+      badge: rows.length > 0 ? formatAccountCount(rows.length, accountLimit || 0) + ' contas' : 'Nenhuma conta',
     },
     {
-      label: 'Risco utilizado',
-      value: riskUsage ? formatPercent(riskUsage.usedPct) : 'Sem dados',
-      status: (!riskUsage ? 'nodata' : riskUsage.usedPct >= 90 ? 'critical' : riskUsage.usedPct >= 70 ? 'warning' : 'safe') as HealthStatus,
-      badge: riskUsage?.account.nickname || 'Sem regra ativa',
+      label: 'Drawdown diário restante',
+      value: totalDailyRemaining ? money(totalDailyRemaining.total) : 'Sem dados',
+      status: (totalDailyRemaining ? 'safe' : 'nodata') as HealthStatus,
+      badge: totalDailyRemaining ? `${totalDailyRemaining.count} de ${rows.length} contas` : 'Sem regra ativa',
     },
     {
-      label: 'P&L aberto',
-      value: hasOpenPnlData ? signedMoney(totalOpenPnl) : 'Sem dados',
-      status: (!hasOpenPnlData ? 'nodata' : totalOpenPnl >= 0 ? 'safe' : 'critical') as HealthStatus,
-      badge: hasOpenPnlData ? formatPositionCount(openPositions) : 'Sem posição',
+      label: 'Drawdown máximo restante',
+      value: totalDrawdownRemaining ? money(totalDrawdownRemaining.total) : 'Sem dados',
+      status: (totalDrawdownRemaining ? 'safe' : 'nodata') as HealthStatus,
+      badge: totalDrawdownRemaining ? `${totalDrawdownRemaining.count} de ${rows.length} contas` : 'Sem regra ativa',
     },
     {
-      label: 'Contas',
-      value: formatAccountCount(rows.length, accountLimit || 0),
-      status: (rows.length > 0 ? 'safe' : 'nodata') as HealthStatus,
-      badge: formatSyncedCount(syncedAccountsCount),
+      label: 'Perda flutuante',
+      value: totalFloatingLoss !== null ? signedMoney(totalFloatingLoss) : 'Sem dados',
+      status: (totalFloatingLoss === null ? 'nodata' : totalFloatingLoss < 0 ? 'critical' : 'safe') as HealthStatus,
+      badge: formatPositionCount(openPositions),
+    },
+    {
+      label: 'Profit Target',
+      value: totalProfitTarget ? `${money(totalProfitTarget.current)} de ${money(totalProfitTarget.limit)}` : 'Sem dados',
+      status: (totalProfitTarget ? 'safe' : 'nodata') as HealthStatus,
+      badge: totalProfitTarget ? `${totalProfitTarget.count} de ${rows.length} contas` : 'Sem meta definida',
     },
   ];
 
@@ -631,7 +586,7 @@ function Dashboard() {
         {/* Indicadores essenciais. */}
         <motion.div
           variants={revealItem}
-          className="grid grid-cols-2 divide-x divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-card/60 lg:grid-cols-4 lg:divide-y-0"
+          className="grid grid-cols-2 divide-x divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-card/60 sm:grid-cols-3 lg:grid-cols-5 lg:divide-y-0"
         >
           {kpis.map((kpi) => (
             <div key={kpi.label} className="p-4">
@@ -707,61 +662,57 @@ function Dashboard() {
           )}
         </motion.section>
 
-        {/* Métricas por conta: números crus, sem selo/bolha de status. */}
-        <motion.section
-          variants={revealItem}
-          initial="hidden"
-          animate="visible"
-          className="overflow-hidden rounded-xl border border-border bg-card/60 lg:order-2 lg:col-span-12"
-        >
-          <div className="border-b border-border/60 p-5">
-            <h2 className="text-sm font-bold text-foreground">Métricas por conta</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Equity, folga de drawdown, perda flutuante e meta de lucro de cada conta conectada.
-            </p>
-          </div>
-
+        {/* Uma bolha por conta: mesmos números do total acima, nível conta. */}
+        <div className="lg:order-2 lg:col-span-12">
+          <h2 className="text-sm font-bold text-foreground">Contas conectadas</h2>
           {rows.length === 0 ? (
-            <div className="p-5">
+            <div className="mt-3 rounded-xl border border-border bg-card/60 p-5">
               <p className="text-sm text-muted-foreground">Conecte uma conta MT5 para ver as métricas dela aqui.</p>
               <button type="button" onClick={() => navigate('/accounts')} className="pill-btn pill-btn-primary mt-4">
                 Conectar conta MT5
               </button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-left text-sm">
-                <thead>
-                  <tr className="border-b border-border/60 text-[11px] uppercase tracking-wide text-muted-foreground">
-                    <th className="px-5 py-3 font-medium">Conta</th>
-                    <th className="px-5 py-3 font-medium">Equity</th>
-                    <th className="px-5 py-3 font-medium">Drawdown diário restante</th>
-                    <th className="px-5 py-3 font-medium">Drawdown máximo restante</th>
-                    <th className="px-5 py-3 font-medium">Perda flutuante</th>
-                    <th className="px-5 py-3 font-medium">Profit Target</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/60">
-                  {rows.map((row) => (
-                    <tr key={row.account.id}>
-                      <td className="px-5 py-3">
-                        <p className="truncate font-semibold text-foreground">{row.account.nickname}</p>
-                        <p className="truncate text-xs text-muted-foreground">{row.account.broker || row.connection?.mt5_server || 'Mesa não informada'}</p>
-                      </td>
-                      <td className="px-5 py-3 font-mono tabular-nums text-foreground">{row.equityLabel}</td>
-                      <td className="px-5 py-3 font-mono tabular-nums text-foreground">{row.dailyRemainingLabel}</td>
-                      <td className="px-5 py-3 font-mono tabular-nums text-foreground">{row.drawdownRemainingLabel}</td>
-                      <td className={cn('px-5 py-3 font-mono tabular-nums', row.negativeFloatingPnl < 0 ? 'text-destructive' : 'text-foreground')}>
+            <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {rows.map((row) => (
+                <motion.div
+                  key={row.account.id}
+                  variants={revealItem}
+                  initial="hidden"
+                  animate="visible"
+                  className="rounded-xl border border-border bg-card/60 p-4"
+                >
+                  <p className="truncate text-sm font-semibold text-foreground">{row.account.nickname}</p>
+                  <p className="truncate text-xs text-muted-foreground">{row.account.broker || row.connection?.mt5_server || 'Mesa não informada'}</p>
+                  <dl className="mt-3 space-y-1.5 text-xs">
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-muted-foreground">Equity</dt>
+                      <dd className="font-mono font-semibold tabular-nums text-foreground">{row.equityLabel}</dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-muted-foreground">Drawdown diário restante</dt>
+                      <dd className="font-mono font-semibold tabular-nums text-foreground">{row.dailyRemainingLabel}</dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-muted-foreground">Drawdown máximo restante</dt>
+                      <dd className="font-mono font-semibold tabular-nums text-foreground">{row.drawdownRemainingLabel}</dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-muted-foreground">Perda flutuante</dt>
+                      <dd className={cn('font-mono font-semibold tabular-nums', row.negativeFloatingPnl < 0 ? 'text-destructive' : 'text-foreground')}>
                         {signedMoney(row.negativeFloatingPnl)}
-                      </td>
-                      <td className="px-5 py-3 font-mono tabular-nums text-foreground">{row.profitTargetLabel}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-muted-foreground">Profit Target</dt>
+                      <dd className="font-mono font-semibold tabular-nums text-foreground">{row.profitTargetLabel}</dd>
+                    </div>
+                  </dl>
+                </motion.div>
+              ))}
             </div>
           )}
-        </motion.section>
+        </div>
 
         {/* Capacidade e atividade permanecem disponíveis, sem disputar o foco principal. */}
         <div className="grid gap-4 md:grid-cols-3 lg:order-3 lg:col-span-12">
