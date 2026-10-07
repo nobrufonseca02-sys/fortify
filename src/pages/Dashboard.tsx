@@ -579,7 +579,6 @@ function Dashboard() {
     });
   }, [accounts, mt5Connections, positions, ruleRows, activeBindings, canonicalByAccount]);
 
-  const riskyAccount = rows.find((row) => row.status === 'critical') || rows.find((row) => row.status === 'warning') || null;
   const openPositions = rows.reduce((sum, row) => sum + row.openPositions, 0);
   const syncedAccountsCount = rows.filter((row) => row.connection?.last_sync_at && !row.hasSyncError).length;
   const staleRow = rows.find((row) => row.stale && row.connection);
@@ -654,53 +653,6 @@ function Dashboard() {
     },
   ];
 
-  const priorityAction = useMemo(() => {
-    if (riskyAccount) {
-      const needsConnectionFix = riskyAccount.hasSyncError || riskyAccount.stale || !riskyAccount.connection;
-      const description = riskyAccount.hasSyncError
-        ? 'A conexão MT5 apresentou um erro e precisa ser revisada antes de operar.'
-        : riskyAccount.stale
-          ? 'A sincronização está atrasada. Atualize a conexão antes de tomar decisões com esses dados.'
-          : 'Há uma regra crítica que precisa ser revisada antes da próxima operação.';
-
-      return {
-        status: riskyAccount.status,
-        title: needsConnectionFix ? `Corrigir conexão de ${riskyAccount.account.nickname}` : `Revisar ${riskyAccount.account.nickname}`,
-        description,
-        cta: needsConnectionFix ? 'Corrigir conexão' : 'Ver regras',
-        onClick: () => navigate(needsConnectionFix ? connectionFixPath(riskyAccount) : `/accounts/${riskyAccount.account.id}/rules`),
-      };
-    }
-
-    if (!hasActivePlan) {
-      return {
-        status: 'nodata' as HealthStatus,
-        title: 'Escolha um plano para monitorar suas contas',
-        description: 'Um plano ativo libera o monitoramento de risco, drawdown e regras das contas MT5.',
-        cta: 'Ver planos',
-        onClick: () => navigate('/pricing'),
-      };
-    }
-
-    if (rows.length === 0) {
-      return {
-        status: 'nodata' as HealthStatus,
-        title: 'Conecte sua primeira conta MT5',
-        description: 'Depois da primeira sincronização, o Fortify mostra os limites e alertas da conta aqui.',
-        cta: 'Conectar conta',
-        onClick: () => navigate('/accounts'),
-      };
-    }
-
-    return {
-      status: 'safe' as HealthStatus,
-      title: 'Nenhum alerta crítico no momento',
-      description: 'As contas monitoradas estão dentro dos limites acompanhados pelo Fortify.',
-      cta: 'Ver contas',
-      onClick: () => navigate('/accounts'),
-    };
-  }, [hasActivePlan, navigate, riskyAccount, rows.length]);
-
   const revealGroup: Variants = {
     hidden: {},
     visible: { transition: { staggerChildren: shouldReduceMotion ? 0 : 0.05, delayChildren: shouldReduceMotion ? 0 : 0.04 } },
@@ -709,8 +661,6 @@ function Dashboard() {
     hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 8 },
     visible: { opacity: 1, y: 0, transition: fortifyMotion.reveal },
   };
-  const PriorityIcon = statusIcon[priorityAction.status];
-
   return (
     <div className="mx-auto max-w-[1600px] space-y-5 p-4 md:p-6">
       {/* Uma única moldura para a esteira evita competir com o conteúdo operacional. */}
@@ -731,9 +681,6 @@ function Dashboard() {
         <motion.div variants={revealItem} className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0">
             <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">Painel</h1>
-            <p className="mt-1.5 max-w-xl text-sm text-muted-foreground">
-              Estado das contas, limites e sincronização para a próxima decisão.
-            </p>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -755,25 +702,6 @@ function Dashboard() {
 
           </div>
         </motion.div>
-
-        <motion.section
-          variants={revealItem}
-          className={cn('grid gap-4 rounded-xl border p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center', statusStyle[priorityAction.status].className)}
-        >
-          <div className="flex min-w-0 items-start gap-3">
-            <span className={cn('mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full', healthBarColor[priorityAction.status])}>
-              <PriorityIcon className="h-4 w-4 text-white" aria-hidden="true" />
-            </span>
-            <div className="min-w-0">
-              <p className={cn('text-[10px] font-bold uppercase tracking-wide', statusStyle[priorityAction.status].textClass)}>Ação prioritária</p>
-              <h2 className="mt-1 text-sm font-bold text-foreground">{priorityAction.title}</h2>
-              <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">{priorityAction.description}</p>
-            </div>
-          </div>
-          <button type="button" onClick={priorityAction.onClick} className="pill-btn pill-btn-primary shrink-0 justify-center sm:min-w-40">
-            {priorityAction.cta}
-          </button>
-        </motion.section>
 
         {/* Indicadores essenciais, sem repetir os dados da saúde por conta. */}
         <motion.div
