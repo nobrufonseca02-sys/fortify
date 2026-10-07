@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { AlertTriangle, ArrowUpRight, Command, RefreshCw, Search, Shield, ShieldAlert, ShieldX } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Shield } from 'lucide-react';
 import { motion, useReducedMotion, type Variants } from 'motion/react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useAccountsStore } from '@/hooks/useAccountsStore';
@@ -97,13 +97,6 @@ const statusPill: Record<HealthStatus, string> = {
   nodata: 'border-border bg-muted/40 text-muted-foreground',
 };
 
-const statusIcon: Record<HealthStatus, typeof Shield> = {
-  safe: Shield,
-  warning: ShieldAlert,
-  critical: ShieldX,
-  nodata: AlertTriangle,
-};
-
 /** Literal Tailwind class per status, kept as its own map (rather than
  * deriving from statusStyle.textClass at runtime) so the JIT scanner can
  * actually see and keep these background-color utilities. */
@@ -145,16 +138,6 @@ function signedMoney(value: number | null | undefined) {
   if (amount > 0) return `+${formatted}`;
   if (amount < 0) return `-${formatted}`;
   return formatted;
-}
-
-/** Destino do CTA "Corrigir conexão": com erro de conexão abre o fluxo de
- * reenvio de credencial em Contas; sem conexão ou com sync atrasado leva a
- * Contas, onde a conta pode ser conectada ou sincronizada. */
-function connectionFixPath(row: Pick<HealthRow, 'account' | 'connection' | 'hasSyncError'>) {
-  if (row.connection && row.hasSyncError) {
-    return `/accounts?fixConnection=${encodeURIComponent(row.account.id)}`;
-  }
-  return '/accounts';
 }
 
 /** Agrupa o status detalhado de resolveAccountStatus nas 4 faixas visuais do
@@ -225,18 +208,6 @@ function buildAssetRiskSummary(positions: any[]): AssetRiskSummary[] {
 
 function accountConnection(account: TradingAccount, connections: any[]) {
   return connections.find((connection) => connection.trading_account_id === account.id) || null;
-}
-
-/** Last `limit` real equity readings for one connection, oldest first — the
- * exact same mt5_account_snapshots table Performance.tsx charts, just
- * trimmed down to bare numbers for an inline sparkline instead of a full
- * chart. Returns [] (never fabricated points) when there's no history yet. */
-function sparklinePoints(connectionId: string | null | undefined, snapshots: any[], limit = 14): number[] {
-  if (!connectionId) return [];
-  return snapshots
-    .filter((snapshot) => snapshot.connection_id === connectionId)
-    .slice(-limit)
-    .map((snapshot) => Number(snapshot.equity) || 0);
 }
 
 function shortDayLabel(value: string) {
@@ -366,21 +337,6 @@ function latestSyncInfo(rows: HealthRow[], hasStaleSync: boolean) {
   };
 }
 
-/** Counts + percentages per HealthStatus across all rows — the real
- * distribution behind the single "overall" badge already shown in the hero. */
-function healthBreakdown(rows: HealthRow[]) {
-  const counts: Record<HealthStatus, number> = { safe: 0, warning: 0, critical: 0, nodata: 0 };
-  rows.forEach((row) => {
-    counts[row.status] += 1;
-  });
-  const total = rows.length;
-  return (['safe', 'warning', 'critical', 'nodata'] as HealthStatus[]).map((status) => ({
-    status,
-    count: counts[status],
-    pct: total > 0 ? Math.round((counts[status] / total) * 100) : 0,
-  }));
-}
-
 /** The account whose closest rule has the least buffer left (bufferPct is
  * already computed per row in buildHealthRow — this just finds the minimum
  * across accounts that have a rule to measure against). */
@@ -447,8 +403,6 @@ function Dashboard() {
   const [snapshots, setSnapshots] = useState<any[]>([]);
   const [checkoutMessage, setCheckoutMessage] = useState<string | null>(null);
   const [checkoutConfirming, setCheckoutConfirming] = useState(false);
-  const [search, setSearch] = useState('');
-  const searchRef = useRef<HTMLInputElement | null>(null);
   const searchParams = new URLSearchParams(location.search);
   const checkoutSuccess = searchParams.get('checkout') === 'success';
   const checkoutSessionId = searchParams.get('session_id');
@@ -554,19 +508,6 @@ function Dashboard() {
     };
   }, [checkoutSessionId, checkoutSuccess, session?.access_token, plans, navigate, location.pathname]);
 
-  // ⌘K / Ctrl+K focuses the account search — the shortcut the badge advertises
-  // actually works instead of being decorative.
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        searchRef.current?.focus();
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
-
   const rows = useMemo(() => {
     return accounts.map((account) => {
       const connection = accountConnection(account, mt5Connections);
@@ -605,7 +546,6 @@ function Dashboard() {
     return messages;
   }, [assetSummaries.length, biggestAssetLoss, mostExposedAsset]);
 
-  const breakdown = useMemo(() => healthBreakdown(rows), [rows]);
   const riskUsage = useMemo(() => riskBudgetUsage(rows), [rows]);
   const recentActivity = useMemo(() => buildRecentActivity(rows), [rows]);
   const equitySeries = useMemo(() => aggregateEquitySeries(snapshots), [snapshots]);
@@ -616,15 +556,6 @@ function Dashboard() {
     if (!previous) return null;
     return { pct: ((last - previous) / Math.abs(previous)) * 100, abs: last - previous };
   }, [equitySeries]);
-
-  const query = search.trim().toLowerCase();
-  const visibleRows = query
-    ? rows.filter((row) =>
-        [row.account.nickname, row.account.broker, row.connection?.mt5_server, row.statusLabel]
-          .filter(Boolean)
-          .some((value) => String(value).toLowerCase().includes(query)),
-      )
-    : rows;
 
   const kpis = [
     {
@@ -678,32 +609,11 @@ function Dashboard() {
 
       {/* Visão operacional */}
       <motion.header variants={revealGroup} initial="hidden" animate="visible" className="space-y-5">
-        <motion.div variants={revealItem} className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">Painel</h1>
-          </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative w-full sm:w-64">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-              <input
-                ref={searchRef}
-                type="search"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Buscar conta..."
-                aria-label="Buscar conta monitorada"
-                className="h-10 w-full rounded-full border border-border bg-card/60 pl-9 pr-16 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-ring/30"
-              />
-              <span className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 items-center gap-0.5 rounded-md border border-border bg-muted/60 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:flex">
-                <Command className="h-3 w-3" aria-hidden="true" />K
-              </span>
-            </div>
-
-          </div>
+        <motion.div variants={revealItem} className="min-w-0">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">Painel</h1>
         </motion.div>
 
-        {/* Indicadores essenciais, sem repetir os dados da saúde por conta. */}
+        {/* Indicadores essenciais. */}
         <motion.div
           variants={revealItem}
           className="grid grid-cols-2 divide-x divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-card/60 lg:grid-cols-4 lg:divide-y-0"
@@ -779,50 +689,6 @@ function Dashboard() {
                 </AreaChart>
               </ResponsiveContainer>
             </div>
-          )}
-        </motion.section>
-
-        {/* Saúde por conta */}
-        <motion.section
-          variants={revealItem}
-          initial="hidden"
-          animate="visible"
-          className="overflow-hidden rounded-xl border border-border bg-card/60 lg:order-2 lg:col-span-12"
-        >
-          {rows.length > 1 && (
-            <div className="flex h-1 w-full">
-              {breakdown.filter((entry) => entry.count > 0).map((entry) => (
-                <span key={entry.status} className={cn('h-full', healthBarColor[entry.status])} style={{ width: `${entry.pct}%` }} />
-              ))}
-            </div>
-          )}
-          <div className="border-b border-border/60 p-5">
-            <h2 className="text-sm font-bold text-foreground">Saúde por conta</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {rows.length === 0 ? 'Nenhuma conta conectada' : `${visibleRows.length} de ${rows.length} exibidas`}
-            </p>
-          </div>
-
-          {rows.length === 0 ? (
-            <div className="p-5">
-              <p className="text-sm text-muted-foreground">Conecte uma conta MT5 para acompanhar a saúde dela aqui.</p>
-              <button type="button" onClick={() => navigate('/accounts')} className="pill-btn pill-btn-primary mt-4">
-                Conectar conta MT5
-              </button>
-            </div>
-          ) : visibleRows.length === 0 ? (
-            <p className="p-5 text-sm text-muted-foreground">Nenhuma conta corresponde a "{search}".</p>
-          ) : (
-            <ul className="divide-y divide-border/60">
-              {visibleRows.map((row) => (
-                <AccountHealthRow
-                  key={row.account.id}
-                  row={row}
-                  points={sparklinePoints(row.connection?.id, snapshots)}
-                  onAction={() => navigate(row.hasSyncError || row.stale || !row.connection ? connectionFixPath(row) : `/accounts/${row.account.id}/rules`)}
-                />
-              ))}
-            </ul>
           )}
         </motion.section>
 
@@ -930,95 +796,6 @@ function Dashboard() {
         </p>
       </footer>
     </div>
-  );
-}
-
-/** Signed % change between the last two real equity readings — null (never
- * fabricated) when there isn't at least a two-point history yet. */
-function equityDeltaPct(points: number[]): number | null {
-  if (points.length < 2) return null;
-  const prev = points[points.length - 2];
-  const last = points[points.length - 1];
-  if (!prev) return null;
-  return ((last - prev) / Math.abs(prev)) * 100;
-}
-
-/** Compact "folga restante" line — shows the money still available before the
- * limit, never just a bare percentage (padrão #2/#3). "sem dados" is spelled
- * out instead of being left blank or silently reading as safe (padrão #6). */
-function RemainingStat({ label, value }: { label: string; value: string }) {
-  const hasData = value !== 'Sem dados suficientes';
-  return (
-    <span className="inline-flex items-center gap-1">
-      <span className="text-muted-foreground">{label}:</span>
-      <span className={cn('font-mono font-semibold tabular-nums', hasData ? 'text-foreground' : 'text-muted-foreground/70')}>
-        {hasData ? `restam ${value}` : 'sem dados'}
-      </span>
-    </span>
-  );
-}
-
-function AccountHealthRow({ row, points, onAction }: { row: HealthRow; points: number[]; onAction: () => void }) {
-  const StatusIcon = statusIcon[row.status];
-  const needsConnectionFix = row.hasSyncError || row.stale || !row.connection;
-  const hasNegativePnl = row.negativeFloatingPnl < 0;
-  const deltaPct = equityDeltaPct(points);
-  // Cor do selo de sync é independente do selo de regra — a conta pode estar
-  // "Seguro" na regra e ainda assim ter dado desatualizado, e isso precisa
-  // saltar aos olhos sem depender da cor do ícone principal.
-  const syncTone: 'critical' | 'warning' | 'neutral' = row.hasSyncError ? 'critical' : row.stale ? 'warning' : 'neutral';
-  const syncTextClass =
-    syncTone === 'critical' ? 'text-destructive' : syncTone === 'warning' ? 'text-warning' : 'text-muted-foreground';
-
-  return (
-    <li className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
-      <div className="flex min-w-0 items-start gap-3 sm:flex-1 sm:items-center">
-        <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-full', healthBarColor[row.status])}>
-          <StatusIcon className="h-5 w-5 text-white" aria-hidden="true" />
-        </span>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="truncate text-sm font-semibold text-foreground">{row.account.nickname}</p>
-            <span className={cn('shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider', statusPill[row.status])}>
-              {row.statusLabel}
-            </span>
-          </div>
-          <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
-            <span className="truncate">{row.account.broker || row.connection?.mt5_server || 'Mesa não informada'}</span>
-            <span aria-hidden="true">·</span>
-            <span className={cn('inline-flex items-center gap-1 font-medium', syncTextClass)}>
-              <RefreshCw className="h-3 w-3" aria-hidden="true" />
-              {row.lastSyncLabel}
-            </span>
-          </div>
-          {/* O número que decide a próxima ordem: quanto ainda resta até
-              quebrar o limite diário e o drawdown desta conta específica. */}
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[11px]">
-            <RemainingStat label="Perda diária" value={row.dailyRemainingLabel} />
-            <RemainingStat label="Drawdown" value={row.drawdownRemainingLabel} />
-          </div>
-        </div>
-      </div>
-
-      <div className="flex shrink-0 items-center justify-between gap-3 pl-[52px] sm:justify-end sm:pl-0">
-        <div className="text-right">
-          <p className="font-mono text-sm font-semibold tabular-nums text-foreground">{row.equityLabel}</p>
-          <p className={cn('font-mono text-[11px] tabular-nums', hasNegativePnl ? 'text-destructive' : 'text-muted-foreground')}>
-            {deltaPct !== null ? `${deltaPct >= 0 ? '+' : ''}${deltaPct.toFixed(2)}%` : formatPositionCount(row.openPositions)}
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={onAction}
-          aria-label={needsConnectionFix ? `Corrigir conexão de ${row.account.nickname}` : `Ver regras de ${row.account.nickname}`}
-          className="shrink-0 rounded-full border border-border p-1.5 text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
-        >
-          <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
-        </button>
-      </div>
-    </li>
   );
 }
 
