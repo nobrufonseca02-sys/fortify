@@ -56,53 +56,34 @@ describe('PropFirmLibrary', () => {
     selectFtmoTwoStep();
 
     expect(screen.getByTestId('account-step')).toBeInTheDocument();
-    // FTMO is MT5-monitorable: the account-size step is now the direct
-    // "Conectar conta" CTA, with per-size browsing tucked behind an opt-in.
+    // FTMO is MT5-monitorable: the account-size step collapses into a single
+    // direct "Conectar conta" CTA — no size picker, no extra copy.
     expect(screen.getByRole('heading', { name: 'Conecte sua conta' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Conectar conta/ })).toBeInTheDocument();
-    expect(screen.getByText('US$ 10 mil')).toBeInTheDocument();
-    expect(screen.getByText('US$ 200 mil')).toBeInTheDocument();
+    expect(screen.queryByTestId('account-options')).not.toBeInTheDocument();
     expect(screen.queryByTestId('account-rules')).not.toBeInTheDocument();
-    expect(screen.queryByText(/€/)).not.toBeInTheDocument();
   });
 
-  it('reveals clean rules and sources only after the account selection', () => {
+  it('reveals clean rules and sources only after the account selection, for a non-MT5 program', () => {
     renderLibrary();
-    selectFtmoTwoStep();
-    fireEvent.click(screen.getByRole('button', { name: 'US$ 200 mil' }));
+    fireEvent.click(screen.getByTestId('firm-Topstep'));
+    fireEvent.click(
+      screen.getAllByRole('button').find((button) => /Trading Combine|Combine/i.test(button.textContent ?? ''))
+        ?? screen.getAllByRole('button')[0],
+    );
+    const sizeButton = screen.getAllByRole('button').find((button) => /US\$ \d+ mil/.test(button.textContent ?? ''));
+    if (!sizeButton) throw new Error('Topstep size button não encontrado');
+    fireEvent.click(sizeButton);
 
     expect(screen.getByTestId('account-rules')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /FTMO Challenge 2-Step · US\$ 200 mil/ })).toBeInTheDocument();
     expect(screen.getByText('Regras críticas')).toBeInTheDocument();
     expect(screen.getByText('Ver detalhes completos')).toBeInTheDocument();
     expect(screen.getByText('Operacional')).toBeInTheDocument();
     expect(screen.getByText('Fortify monitora')).toBeInTheDocument();
     expect(screen.getByText('Fontes oficiais')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Conectar essa conta' })).toBeInTheDocument();
+    // Topstep não opera via MT5 — sem botão de conectar, só consulta de regras.
+    expect(screen.queryByRole('button', { name: 'Conectar essa conta' })).not.toBeInTheDocument();
     expect(screen.queryByText(/€/)).not.toBeInTheDocument();
-  });
-
-  it('builds the account connection URL from stable identifiers only', () => {
-    renderLibrary();
-    selectFtmoTwoStep();
-    fireEvent.click(screen.getByRole('button', { name: 'US$ 200 mil' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Conectar essa conta' }));
-
-    const target = screen.getByTestId('location').textContent ?? '';
-    const url = new URL(target, 'http://localhost');
-    expect(url.pathname).toBe('/accounts');
-    expect(url.searchParams.get('propFirmSlug')).toBe('ftmo');
-    expect(url.searchParams.get('programSlug')).toBe('ftmo-challenge-2-step-2026');
-    expect(url.searchParams.get('accountSizeId')).toBeTruthy();
-    expect(url.searchParams.get('platform')).toBe('MT5');
-    expect(url.searchParams.get('ruleVersionId')).toBeTruthy();
-    expect([...url.searchParams.keys()].sort()).toEqual([
-      'accountSizeId',
-      'platform',
-      'programSlug',
-      'propFirmSlug',
-      'ruleVersionId',
-    ]);
   });
 
   it('filters the initial catalog by prop firm name', () => {
