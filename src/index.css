@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -25,6 +25,8 @@
   - Numeric data in a dedicated mono face (JetBrains Mono): the mark's precision is
     geometric; on financial figures, precision is legibility — tabular figures prevent
     digit misreads on balances/limits, the one place FORTIFY can least afford ambiguity.
+    Inter (body/display) keeps that same tabular-figures guarantee for UI text that sits
+    next to those numbers.
   - Status colors (success/warning/destructive/info) stay hue-distinct from the accent and
     from each other on purpose — this is a risk product, state must never be color-blind.
 
@@ -94,8 +96,8 @@
     --sidebar-border: 0 0% 14%;
     --sidebar-ring: 217 91% 60%;
 
-    --font-display: 'Manrope', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    --font-body: 'Manrope', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-display: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-body: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
     /* Fixed-color chip for embedding third-party brand marks (prop-firm logos, etc.)
@@ -308,8 +310,8 @@
      trabalhos diferentes.
 
      .numeral-hero — o numero que decide a ordem (lote a abrir, folga ate o
-     limite). Manrope com figuras tabulares: largura de digito fixa, entao o
-     valor nao "danca" enquanto o trader digita. Em corpo grande a Manrope le
+     limite). Inter com figuras tabulares: largura de digito fixa, entao o
+     valor nao "danca" enquanto o trader digita. Em corpo grande a Inter le
        como instrumento; mono em 64px le como terminal.
 
      .numeral-ledger — numero de apoio (razao, distancia, percentual, linha de

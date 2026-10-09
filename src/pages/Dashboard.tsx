@@ -195,6 +195,28 @@ function aggregateEquitySeries(snapshots: any[], limit = 30) {
     .map(([date, equity]) => ({ date, label: shortDayLabel(date), equity }));
 }
 
+/** Last `limit` real equity readings for one connection, oldest first — the
+ * exact same mt5_account_snapshots table Performance.tsx charts, just
+ * trimmed down to bare numbers for an inline sparkline. Returns [] (never
+ * fabricated points) when there's no history yet. */
+function sparklinePoints(connectionId: string | null | undefined, snapshots: any[], limit = 14): number[] {
+  if (!connectionId) return [];
+  return snapshots
+    .filter((snapshot) => snapshot.connection_id === connectionId)
+    .slice(-limit)
+    .map((snapshot) => Number(snapshot.equity) || 0);
+}
+
+/** Signed % change between the last two real equity readings — null (never
+ * fabricated) when there isn't at least a two-point history yet. */
+function equityDeltaPct(points: number[]): number | null {
+  if (points.length < 2) return null;
+  const prev = points[points.length - 2];
+  const last = points[points.length - 1];
+  if (!prev) return null;
+  return ((last - prev) / Math.abs(prev)) * 100;
+}
+
 function buildHealthRow(
   account: TradingAccount,
   connection: any | null,
@@ -673,42 +695,56 @@ function Dashboard() {
             </div>
           ) : (
             <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {rows.map((row) => (
-                <motion.div
-                  key={row.account.id}
-                  variants={revealItem}
-                  initial="hidden"
-                  animate="visible"
-                  className="rounded-xl border border-border bg-card/60 p-4"
-                >
-                  <p className="truncate text-sm font-semibold text-foreground">{row.account.nickname}</p>
-                  <p className="truncate text-xs text-muted-foreground">{row.account.broker || row.connection?.mt5_server || 'Mesa não informada'}</p>
-                  <dl className="mt-3 space-y-1.5 text-xs">
-                    <div className="flex items-center justify-between gap-3">
-                      <dt className="text-muted-foreground">Saldo</dt>
-                      <dd className="font-mono font-semibold tabular-nums text-foreground">{row.equityLabel}</dd>
+              {rows.map((row) => {
+                const points = sparklinePoints(row.connection?.id, snapshots);
+                const deltaPct = equityDeltaPct(points);
+                const isPositive = deltaPct === null || deltaPct >= 0;
+                return (
+                  <motion.div
+                    key={row.account.id}
+                    variants={revealItem}
+                    initial="hidden"
+                    animate="visible"
+                    className="rounded-xl border border-border bg-card/60 p-4"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-foreground">{row.account.nickname}</p>
+                        <p className="truncate text-xs text-muted-foreground">{row.account.broker || row.connection?.mt5_server || 'Mesa não informada'}</p>
+                      </div>
+                      {deltaPct !== null && (
+                        <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums', isPositive ? 'bg-success/15 text-success' : 'bg-destructive/15 text-destructive')}>
+                          {isPositive ? '+' : ''}{deltaPct.toFixed(2)}%
+                        </span>
+                      )}
                     </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <dt className="text-muted-foreground">Drawdown diário restante</dt>
-                      <dd className="font-mono font-semibold tabular-nums text-foreground">{row.dailyRemainingLabel}</dd>
+                    <p className="mt-3 font-mono text-2xl font-bold tabular-nums text-foreground">{row.equityLabel}</p>
+                    <div className={cn('mt-2', isPositive ? 'text-success' : 'text-destructive')}>
+                      <Sparkline points={points} />
                     </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <dt className="text-muted-foreground">Drawdown máximo restante</dt>
-                      <dd className="font-mono font-semibold tabular-nums text-foreground">{row.drawdownRemainingLabel}</dd>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <dt className="text-muted-foreground">Perda flutuante</dt>
-                      <dd className={cn('font-mono font-semibold tabular-nums', row.negativeFloatingPnl < 0 ? 'text-destructive' : 'text-foreground')}>
-                        {signedMoney(row.negativeFloatingPnl)}
-                      </dd>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <dt className="text-muted-foreground">Profit Target</dt>
-                      <dd className="font-mono font-semibold tabular-nums text-foreground">{row.profitTargetLabel}</dd>
-                    </div>
-                  </dl>
-                </motion.div>
-              ))}
+                    <dl className="mt-3 space-y-1.5 border-t border-border/60 pt-3 text-xs">
+                      <div className="flex items-center justify-between gap-3">
+                        <dt className="text-muted-foreground">Drawdown diário restante</dt>
+                        <dd className="font-mono font-semibold tabular-nums text-foreground">{row.dailyRemainingLabel}</dd>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <dt className="text-muted-foreground">Drawdown máximo restante</dt>
+                        <dd className="font-mono font-semibold tabular-nums text-foreground">{row.drawdownRemainingLabel}</dd>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <dt className="text-muted-foreground">Perda flutuante</dt>
+                        <dd className={cn('font-mono font-semibold tabular-nums', row.negativeFloatingPnl < 0 ? 'text-destructive' : 'text-foreground')}>
+                          {signedMoney(row.negativeFloatingPnl)}
+                        </dd>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <dt className="text-muted-foreground">Profit Target</dt>
+                        <dd className="font-mono font-semibold tabular-nums text-foreground">{row.profitTargetLabel}</dd>
+                      </div>
+                    </dl>
+                  </motion.div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -807,6 +843,25 @@ function Dashboard() {
         </p>
       </footer>
     </div>
+  );
+}
+
+/** Inline mini-chart for a card header — raw SVG instead of a Recharts
+ * instance per card (cheap to render a grid of these). Renders nothing
+ * (never a flat fabricated line) when there's no real two-point history. */
+function Sparkline({ points }: { points: number[] }) {
+  if (points.length < 2) return null;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const range = max - min || 1;
+  const width = 100;
+  const height = 28;
+  const stepX = width / (points.length - 1);
+  const coords = points.map((value, index) => `${index * stepX},${height - ((value - min) / range) * height}`).join(' ');
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="h-7 w-full" preserveAspectRatio="none" aria-hidden="true">
+      <polyline points={coords} fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
