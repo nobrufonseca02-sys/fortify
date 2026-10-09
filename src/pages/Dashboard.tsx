@@ -607,7 +607,7 @@ function Dashboard() {
           variants={revealItem}
           initial="hidden"
           animate="visible"
-          className="rounded-xl border border-border bg-card/60 p-5 lg:order-1 lg:col-span-12"
+          className="rounded-xl border border-border bg-card/60 p-5 lg:order-2 lg:col-span-12"
         >
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -662,7 +662,7 @@ function Dashboard() {
         </motion.section>
 
         {/* Uma bolha por conta: mesmos números do total acima, nível conta. */}
-        <div className="lg:order-2 lg:col-span-12">
+        <div className="lg:order-1 lg:col-span-12">
           <h2 className="text-sm font-bold text-foreground">Contas conectadas</h2>
           {rows.length === 0 ? (
             <div className="mt-3 rounded-xl border border-border bg-card/60 p-5">
