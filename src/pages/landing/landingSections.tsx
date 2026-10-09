@@ -73,7 +73,7 @@ const features = [
     icon: Gauge,
     title: 'Painel de contas MT5',
     description:
-      'Status de conexão, saldo, equity e P&L flutuante de cada conta, com aviso claro quando os dados estão atrasados ou a conta caiu.',
+      'Status de conexão, saldo, saldo + flutuação e P&L flutuante de cada conta, com aviso claro quando os dados estão atrasados ou a conta caiu.',
   },
   {
     icon: Calculator,

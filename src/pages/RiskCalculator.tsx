@@ -633,7 +633,7 @@ const RiskCalculator = () => {
                     </SelectContent>
                   </Select>
                 </Field>
-                <Field label="Saldo/equity">
+                <Field label="Saldo">
                   <Input className={inputClass()} type="number" value={equity} onChange={(event) => setEquity(event.target.value)} min="0" />
                 </Field>
               </div>

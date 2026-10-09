@@ -28,7 +28,7 @@ export function AccountStats({ account }: AccountStatsProps) {
       color: isPositive ? 'text-success' : 'text-destructive',
     },
     {
-      label: 'Equity',
+      label: 'Saldo + flutuação',
       value: `$${account.currentEquity.toLocaleString()}`,
       icon: BarChart3,
       color: 'text-info',

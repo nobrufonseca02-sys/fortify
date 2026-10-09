@@ -374,7 +374,7 @@ export function buildBetaChecklist(input: {
       id: 'first-sync',
       label: 'Primeiro sync concluído',
       status: syncMeta.shortLabel === 'success' || syncMeta.shortLabel === 'stale data' ? (syncMeta.shortLabel === 'stale data' ? 'warning' : 'complete') : syncMeta.shortLabel === 'failed' ? 'warning' : 'pending',
-      description: hasSnapshot ? syncMeta.description : 'Rode o sync para buscar saldo, equity, posições e trades.',
+      description: hasSnapshot ? syncMeta.description : 'Rode o sync para buscar saldo, saldo com flutuação, posições e trades.',
       actionLabel: hasSnapshot ? undefined : 'Rodar primeiro sync',
       actionTo: accountId ? `/accounts/${accountId}` : '/accounts',
     },

@@ -336,7 +336,7 @@ const AccountDashboard = () => {
                 <GuidedEmptyState
                   icon={Link2}
                   title="Nenhuma conexão MT5 encontrada"
-                  description="Conecte o MT5 para o Fortify buscar saldo, equity, posições e trades reais desta conta."
+                  description="Conecte o MT5 para o Fortify buscar saldo, saldo com flutuação, posições e trades reais desta conta."
                   actionLabel="Conectar MT5"
                   onAction={() => navigate('/accounts')}
                 />
@@ -358,7 +358,7 @@ const AccountDashboard = () => {
                       <p className="font-semibold">${snapshot.balance?.toLocaleString() || '0'}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Equity</p>
+                      <p className="text-sm text-muted-foreground">Saldo + flutuação</p>
                       <p className="font-semibold">${snapshot.equity?.toLocaleString() || '0'}</p>
                     </div>
                     <div>
@@ -413,7 +413,7 @@ const AccountDashboard = () => {
                 ) : (
                   <div className="rounded-lg border border-border bg-muted/20 p-4">
                     <p className="text-sm font-medium text-foreground">Nenhuma posição aberta</p>
-                    <p className="text-xs text-muted-foreground mt-1">Isso é normal após o sync quando a conta MT5 não tem trades ativos. O risco ainda usa saldo, equity e histórico fechado.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Isso é normal após o sync quando a conta MT5 não tem trades ativos. O risco ainda usa saldo, saldo com flutuação e histórico fechado.</p>
                   </div>
                 )}
               </CardContent>

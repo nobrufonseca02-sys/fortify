@@ -150,7 +150,7 @@ function HeroStatCard({ className, totalPnl, returnPct, startBalance, sparklineD
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-muted-foreground">Lucro total</span>
         <div className="flex items-center gap-1.5">
-          <MetricHint label="Lucro Total" hint="Equity atual menos o saldo inicial da conta. O gráfico mostra a curva de equity dos últimos pontos sincronizados." />
+          <MetricHint label="Lucro Total" hint="Saldo atual menos o saldo inicial da conta. O gráfico mostra a curva de saldo dos últimos pontos sincronizados." />
           <TrendIcon className="h-3.5 w-3.5 text-muted-foreground/60" />
         </div>
       </div>
@@ -524,7 +524,7 @@ const Performance = () => {
         <GuidedEmptyState
           icon={Wallet}
           title="Nenhuma conta para analisar"
-          description="Crie ou conecte uma conta MT5 primeiro. A página de performance precisa de snapshots reais para mostrar equity, drawdown e histórico."
+          description="Crie ou conecte uma conta MT5 primeiro. A página de performance precisa de snapshots reais para mostrar saldo, drawdown e histórico."
         />
       </div>
     );
@@ -542,7 +542,7 @@ const Performance = () => {
         <GuidedEmptyState
           icon={RefreshCw}
           title="Performance ainda sem histórico"
-          description="Nenhum snapshot real foi encontrado para esta conta. Execute o primeiro sync MT5 para criar histórico de balance/equity e liberar a análise."
+          description="Nenhum snapshot real foi encontrado para esta conta. Execute o primeiro sync MT5 para criar histórico de saldo e saldo com flutuação e liberar a análise."
         />
       </div>
     );
@@ -637,15 +637,15 @@ const Performance = () => {
         <div className="rounded-lg border border-warning/30 bg-warning/5 p-4">
           <p className="text-sm font-medium text-foreground">Conta sincronizada, mas sem trades fechados</p>
           <p className="text-xs text-muted-foreground mt-1">
-            A curva de equity já pode ser acompanhada, mas métricas de consistência e histórico de performance ficam limitadas até existirem trades.
+            A curva de saldo já pode ser acompanhada, mas métricas de consistência e histórico de performance ficam limitadas até existirem trades.
           </p>
         </div>
       )}
 
-      {/* ── EQUITY CURVE + RESULTADO POR DIA ─────────────── */}
+      {/* ── CURVA DE SALDO + RESULTADO POR DIA ─────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-4">
         <section className="rounded-lg border border-border bg-card p-5">
-          <h2 className="mb-4 text-sm font-semibold text-foreground">Curva de equity</h2>
+          <h2 className="mb-4 text-sm font-semibold text-foreground">Curva de saldo</h2>
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={data}>
               <defs>
@@ -692,13 +692,13 @@ const Performance = () => {
                 stroke={chartColors.info}
                 fill="url(#eqGrad)"
                 strokeWidth={2}
-                name="Equity"
+                name="Saldo"
               />
             </AreaChart>
           </ResponsiveContainer>
           <div className="flex gap-6 mt-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-info" /> Equity
+              <span className="h-2 w-2 rounded-full bg-info" /> Saldo
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-0.5 w-4 rounded bg-destructive" /> Limite de Drawdown
@@ -760,7 +760,7 @@ const Performance = () => {
               </div>
               <p className="text-2xl font-bold font-mono tabular-nums text-warning">{fmt(recoveryNeeded)}</p>
               <p className="text-xs text-muted-foreground">
-                ({fmtPct(recoveryPct)} sobre o equity atual de {fmt(account.currentEquity)})
+                ({fmtPct(recoveryPct)} sobre o saldo atual de {fmt(account.currentEquity)})
               </p>
             </div>
           </div>

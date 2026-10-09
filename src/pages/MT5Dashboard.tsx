@@ -375,7 +375,7 @@ const MT5Dashboard = () => {
               {/* Latest account metrics */}
               <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-3">
                 <KPICard icon={DollarSign} label="Saldo Atual" value={fmt(balance)} />
-                <KPICard icon={Activity} label="Equity Atual" value={fmt(equity)} />
+                <KPICard icon={Activity} label="Saldo + flutuação" value={fmt(equity)} />
                 <KPICard icon={TrendingUp} label="Lucro Diário" value={fmt(dailyPnl)} valueClass={dailyPnl >= 0 ? 'text-success' : 'text-destructive'} />
                 <KPICard icon={TrendingDown} label="P&L Acumulado" value={fmt(totalPnl)} valueClass={totalPnl >= 0 ? 'text-success' : 'text-destructive'} />
                 <KPICard icon={Activity} label="Floating P&L" value={fmt(floatingPnl)} valueClass={floatingPnl >= 0 ? 'text-success' : 'text-destructive'} />
@@ -393,7 +393,7 @@ const MT5Dashboard = () => {
               {/* Charts */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="card-premium rounded-xl border border-border bg-card p-5">
-                  <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider mb-4">Curva de Equity</h3>
+                  <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider mb-4">Curva de saldo + flutuação</h3>
                   {equityCurve.length > 1 ? (
                     <ResponsiveContainer width="100%" height={220}>
                       <AreaChart data={equityCurve}>
@@ -406,8 +406,8 @@ const MT5Dashboard = () => {
                         <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'hsl(220,15%,45%)' }} axisLine={false} tickLine={false} />
                         <YAxis tick={{ fontSize: 10, fill: 'hsl(220,15%,45%)' }} axisLine={false} tickLine={false} width={60} />
                         <Tooltip contentStyle={{ background: 'hsl(225,25%,7%)', border: '1px solid hsl(225,15%,13%)', borderRadius: 8, fontSize: 12 }} />
-                        <Area type="monotone" dataKey="equity" stroke="hsl(200,100%,50%)" fill="url(#eqGrad)" strokeWidth={2} dot={false} />
-                        <Line type="monotone" dataKey="balance" stroke="hsl(220,15%,45%)" strokeWidth={1} dot={false} strokeDasharray="4 4" />
+                        <Area type="monotone" dataKey="equity" name="Saldo + flutuação" stroke="hsl(200,100%,50%)" fill="url(#eqGrad)" strokeWidth={2} dot={false} />
+                        <Line type="monotone" dataKey="balance" name="Saldo" stroke="hsl(220,15%,45%)" strokeWidth={1} dot={false} strokeDasharray="4 4" />
                       </AreaChart>
                     </ResponsiveContainer>
                   ) : (

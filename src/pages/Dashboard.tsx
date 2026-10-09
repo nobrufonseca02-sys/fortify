@@ -522,7 +522,7 @@ function Dashboard() {
 
   const kpis = [
     {
-      label: 'Equity',
+      label: 'Saldo',
       value: totalEquity !== null ? money(totalEquity) : 'Sem dados',
       status: (totalEquity !== null ? 'safe' : 'nodata') as HealthStatus,
       badge: rows.length > 0 ? formatAccountCount(rows.length, accountLimit || 0) + ' contas' : 'Nenhuma conta',
@@ -602,7 +602,7 @@ function Dashboard() {
 
       {/* Grid central */}
       <div className="grid gap-4 lg:grid-cols-12">
-        {/* Curva de equity consolidada */}
+        {/* Curva de saldo consolidado */}
         <motion.section
           variants={revealItem}
           initial="hidden"
@@ -611,7 +611,7 @@ function Dashboard() {
         >
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-sm font-bold text-foreground">Equity consolidada</h2>
+              <h2 className="text-sm font-bold text-foreground">Saldo consolidado</h2>
               <p className="mt-1 text-xs text-muted-foreground">Soma diária de todas as contas sincronizadas.</p>
             </div>
             {equityDelta && (
@@ -652,7 +652,7 @@ function Dashboard() {
                       color: chartColors.popoverForeground,
                       fontSize: 12,
                     }}
-                    formatter={(value: number) => [money(value), 'Equity']}
+                    formatter={(value: number) => [money(value), 'Saldo']}
                   />
                   <Area type="monotone" dataKey="equity" stroke={chartColors.primary} strokeWidth={2} fill="url(#dashEquityFill)" />
                 </AreaChart>
@@ -685,7 +685,7 @@ function Dashboard() {
                   <p className="truncate text-xs text-muted-foreground">{row.account.broker || row.connection?.mt5_server || 'Mesa não informada'}</p>
                   <dl className="mt-3 space-y-1.5 text-xs">
                     <div className="flex items-center justify-between gap-3">
-                      <dt className="text-muted-foreground">Equity</dt>
+                      <dt className="text-muted-foreground">Saldo</dt>
                       <dd className="font-mono font-semibold tabular-nums text-foreground">{row.equityLabel}</dd>
                     </div>
                     <div className="flex items-center justify-between gap-3">

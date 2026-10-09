@@ -828,9 +828,9 @@ const Accounts = () => {
                 )}
               </div>
 
-              {/* Equity + P&L — the "holding" block, given real visual weight */}
+              {/* Saldo + P&L — the "holding" block, given real visual weight */}
               <div className="pt-3 border-t border-border">
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Equity</span>
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Saldo</span>
                 <div className="mt-1 flex items-end justify-between gap-2">
                   <span className="font-mono font-bold text-foreground tabular-nums text-xl md:text-2xl">
                     {fmt(account.currentEquity, account.baseCurrency)}

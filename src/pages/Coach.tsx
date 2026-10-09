@@ -66,7 +66,7 @@ export default function Coach() {
             <div className="min-w-0">
               <p className="font-medium text-sm text-foreground truncate">{account.nickname || 'Conta sem nome'}</p>
               <p className="text-xs text-muted-foreground mt-1">
-                {account.broker || 'Broker não definido'} · equity {fmtMoney(account.currentEquity)}
+                {account.broker || 'Broker não definido'} · saldo {fmtMoney(account.currentEquity)}
               </p>
             </div>
             <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />

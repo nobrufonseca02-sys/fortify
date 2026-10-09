@@ -37,7 +37,7 @@ const riskSignals = [
   },
   {
     title: 'Drawdown',
-    description: 'Saldo e equity são lidos no contexto do programa.',
+    description: 'Saldo fechado e saldo com flutuação são lidos no contexto do programa.',
     state: 'Regra do programa',
     Icon: ShieldCheck,
   },

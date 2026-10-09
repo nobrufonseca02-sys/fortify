@@ -630,7 +630,7 @@ export default function AccountRuleManagement() {
               <p className="font-mono text-sm text-foreground">{fmtMoney(snapshot?.balance ?? account.current_balance)}</p>
             </div>
             <div className="rounded-lg bg-muted/30 p-3">
-              <p className="text-[10px] uppercase text-muted-foreground">Equity</p>
+              <p className="text-[10px] uppercase text-muted-foreground">Saldo + flutuação</p>
               <p className="font-mono text-sm text-foreground">{fmtMoney(snapshot?.equity ?? account.current_equity)}</p>
             </div>
             <div className="rounded-lg bg-muted/30 p-3">

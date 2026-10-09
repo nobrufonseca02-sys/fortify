@@ -52,7 +52,7 @@ const STEPS = [
   {
     icon: Activity,
     title: 'O Fortify acompanha as operações',
-    body: 'Posições, saldo, equity e resultado do dia são sincronizados e avaliados contra as regras que você vinculou.',
+    body: 'Posições, saldo, saldo com flutuação e resultado do dia são sincronizados e avaliados contra as regras que você vinculou.',
   },
   {
     icon: Gauge,
