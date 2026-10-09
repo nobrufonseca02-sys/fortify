@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { AlertTriangle, RefreshCw, Shield } from 'lucide-react';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { motion, useReducedMotion, type Variants } from 'motion/react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useAccountsStore } from '@/hooks/useAccountsStore';
@@ -13,7 +13,6 @@ import { confirmCheckoutSession } from '@/lib/billing';
 import { trackPurchase } from '@/lib/analytics';
 import { supabase } from '@/integrations/supabase/client';
 import { MarketTicker } from '@/components/MarketTicker';
-import { SUPPORT_WHATSAPP_URL } from '@/lib/support';
 import { fortifyMotion } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
@@ -351,7 +350,7 @@ function Dashboard() {
     enabled: !!session?.user?.id,
     staleTime: 60 * 1000,
   });
-  const { accountLimit, hasActivePlan, plans } = useSubscriptionPlan();
+  const { accountLimit, plans } = useSubscriptionPlan();
   const shouldReduceMotion = useReducedMotion();
   const [mt5Connections, setMt5Connections] = useState<any[]>([]);
   const [positions, setPositions] = useState<any[]>([]);
@@ -714,23 +713,13 @@ function Dashboard() {
           )}
         </div>
 
-        {/* Capacidade e atividade permanecem disponíveis, sem disputar o foco principal. */}
-        <div className="grid gap-4 md:grid-cols-3 lg:order-3 lg:col-span-12">
-          <motion.div variants={revealItem} initial="hidden" animate="visible" className="md:col-span-1">
-            <DashboardPromoPanel
-              hasActivePlan={hasActivePlan}
-              accountsCount={accounts.length}
-              accountLimit={accountLimit || 0}
-              onPricing={() => navigate('/pricing')}
-              onConnect={() => navigate('/accounts')}
-            />
-          </motion.div>
-
+        {/* Atividade recente. */}
+        <div className="lg:order-3 lg:col-span-12">
           <motion.section
             variants={revealItem}
             initial="hidden"
             animate="visible"
-            className="overflow-hidden rounded-xl border border-border bg-card/60 md:col-span-2"
+            className="overflow-hidden rounded-xl border border-border bg-card/60"
           >
             <div className="flex items-center justify-between gap-2 border-b border-border/60 p-4">
               <h2 className="text-sm font-bold text-foreground">Atividade recente</h2>
@@ -817,78 +806,6 @@ function Dashboard() {
           Última sincronização: {latestSync.value} · Atualizado em {new Date().toLocaleString('pt-BR')}
         </p>
       </footer>
-    </div>
-  );
-}
-
-/** Plan capacity is a quiet secondary control. It keeps the real plan-limit
- * logic available without visually competing with account risk. */
-function DashboardPromoPanel({
-  hasActivePlan,
-  accountsCount,
-  accountLimit,
-  onPricing,
-  onConnect,
-}: {
-  hasActivePlan: boolean;
-  accountsCount: number;
-  accountLimit: number;
-  onPricing: () => void;
-  onConnect: () => void;
-}) {
-  let title = '';
-  let description = '';
-  let ctaLabel = '';
-  let onClick = onConnect;
-
-  if (!hasActivePlan) {
-    title = 'Escolha um plano para monitorar contas MT5';
-    description = 'O plano define quantas contas você pode conectar e acompanhar por risco, drawdown e regras.';
-    ctaLabel = 'Ver planos';
-    onClick = onPricing;
-  } else if (accountsCount === 0) {
-    title = 'Conecte sua primeira conta';
-    description = 'Conecte uma conta MT5 para começar a monitorar risco, drawdown e regras da sua prop firm em tempo real.';
-    ctaLabel = 'Conectar conta MT5';
-    onClick = onConnect;
-  } else {
-    const remaining = Math.max(0, accountLimit - accountsCount);
-    title = remaining > 0 ? `Conecte mais ${remaining} ${remaining === 1 ? 'conta' : 'contas'}` : 'Limite de contas atingido';
-    description = remaining > 0
-      ? 'Acompanhe as contas conectadas e os limites de cada uma.'
-      : 'Faça upgrade do plano para conectar mais contas.';
-    ctaLabel = remaining > 0 ? 'Conectar outra conta' : 'Fazer upgrade';
-    onClick = remaining > 0 ? onConnect : onPricing;
-  }
-
-  return (
-    <div className="rounded-xl border border-border bg-card/60 p-4">
-      <div className="flex items-start gap-3">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-          <Shield className="h-4 w-4" aria-hidden="true" />
-        </span>
-        <div className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Capacidade do plano</p>
-          <p className="mt-1 font-mono text-lg font-bold tabular-nums text-foreground">
-            {formatAccountCount(accountsCount, accountLimit)} <span className="font-sans text-xs font-normal text-muted-foreground">contas conectadas</span>
-          </p>
-        </div>
-      </div>
-      <h3 className="mt-4 text-sm font-bold leading-snug text-foreground">{title}</h3>
-      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p>
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <button type="button" onClick={onClick} className="pill-btn pill-btn-primary justify-center">
-          {ctaLabel}
-        </button>
-        <a
-          href={SUPPORT_WHATSAPP_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
-        >
-          Falar com suporte
-        </a>
-      </div>
     </div>
   );
 }
