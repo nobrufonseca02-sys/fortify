@@ -96,8 +96,10 @@ export function getAccountEvaluationSummary(account: TradingAccount, rows: RuleE
   const dailyLoss = evals.find(e => e.rule.type === 'MAX_DAILY_LOSS');
   const totalLoss = evals.find(e => e.rule.type === 'MAX_TOTAL_LOSS') || evals.find(e => e.rule.type === 'TRAILING_MAX_LOSS');
   const profitTarget = evals.find(e => e.rule.type === 'PROFIT_TARGET');
+  const consistency = evals.find(e => e.rule.type === 'CONSISTENCY_BEST_DAY_CAP');
   const dailyRemaining = dailyLoss ? Math.max(0, dailyLoss.limitValue - dailyLoss.currentValue) : 0;
   const maxLossRemaining = totalLoss ? Math.max(0, totalLoss.limitValue - totalLoss.currentValue) : 0;
+  const consistencyRemaining = consistency ? Math.max(0, consistency.limitValue - consistency.currentValue) : 0;
   // Only recognised risk categories feed the risk aggregates. An 'UNKNOWN' row
   // has no trustworthy category, so it must not move healthScore/avgRisk.
   const riskEvals = evals.filter(e => ['MAX_DAILY_LOSS', 'MAX_TOTAL_LOSS', 'TRAILING_MAX_LOSS'].includes(e.rule.type));
@@ -116,9 +118,11 @@ export function getAccountEvaluationSummary(account: TradingAccount, rows: RuleE
     dailyLoss,
     totalLoss,
     profitTarget,
+    consistency,
     unrecognizedEvals,
     dailyRemaining,
     maxLossRemaining,
+    consistencyRemaining,
     closestRule,
     status,
     healthScore,

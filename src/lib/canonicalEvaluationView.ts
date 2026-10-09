@@ -43,6 +43,7 @@ export interface CanonicalEvaluationSummary {
   dailyLoss: BoundRuleEvaluation | null;
   maxDrawdown: BoundRuleEvaluation | null;
   profitTarget: BoundRuleEvaluation | null;
+  consistency: BoundRuleEvaluation | null;
   /** Maior consumo entre os limites de perda calculados (0-100+), ou null. */
   worstLossPercentage: number | null;
   evaluatedAt: string;
@@ -61,6 +62,7 @@ export function summarizeCanonicalEvaluation(row: CanonicalRuleEvaluationRow): C
     dailyLoss,
     maxDrawdown,
     profitTarget: byKey('profit_target'),
+    consistency: byKey('consistency'),
     worstLossPercentage: lossPercentages.length > 0 ? Math.max(...lossPercentages) : null,
     evaluatedAt: row.evaluated_at,
   };

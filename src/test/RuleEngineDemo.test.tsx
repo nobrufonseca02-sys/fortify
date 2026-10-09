@@ -29,7 +29,14 @@ describe('safe rule engine demo mode', () => {
   it('demonstrates automatic, conservative and BlackArrow behavior', () => {
     expect(
       scenario('safe').evaluation.automaticRules.map((rule) => rule.label),
-    ).toEqual(['Perda diária', 'Drawdown máximo', 'Meta de lucro']);
+    ).toEqual(['Perda diária', 'Drawdown máximo', 'Meta de lucro', 'Consistência']);
+    // FTMO 2-Step não publica um teto de consistência parseável ("Sem regra de
+    // consistência para aprovação do 2-Step") — not_monitorable é o resultado
+    // honesto, e não deve derrubar o overallStatus da conta (ver assert acima
+    // nesta mesma describe, que confirma overallStatus ainda 'safe').
+    expect(
+      scenario('safe').evaluation.automaticRules.find((rule) => rule.key === 'consistency'),
+    ).toMatchObject({ status: 'not_monitorable' });
     expect(
       scenario('warning').evaluation.automaticRules.find(
         (rule) => rule.key === 'daily_loss',

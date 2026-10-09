@@ -1,6 +1,7 @@
 import { evaluateDailyLoss } from './dailyLossCalculations';
 import { evaluateMaxDrawdown } from './drawdownCalculations';
 import { evaluateProfitTarget } from './profitTargetCalculations';
+import { evaluateConsistency } from './consistencyCalculations';
 import {
   finiteNumber,
   normalizeRuleText,
@@ -25,6 +26,7 @@ const ruleLabels: Record<BoundRuleKey, string> = {
   daily_loss: 'Perda diária',
   max_drawdown: 'Drawdown máximo',
   profit_target: 'Meta de lucro',
+  consistency: 'Consistência',
 };
 
 export const ruleStatusSeverity: Record<RuleEvaluationStatus, number> = {
@@ -50,6 +52,7 @@ const ruleAliases: Record<BoundRuleKey, string[]> = {
     'drawdown',
   ],
   profit_target: ['meta', 'profit target', 'meta de lucro'],
+  consistency: ['best day', 'melhor dia', 'maior dia', 'consistencia diaria', 'consistencia'],
 };
 
 function containsAny(value: string, aliases: string[]) {
@@ -64,6 +67,10 @@ function labelMatchesRule(key: BoundRuleKey, label: string) {
       ruleAliases.max_drawdown.filter((alias) => !alias.includes('daily') && alias !== 'drawdown'),
     );
   }
+  // "Consistência de lote" (NP Future) é limite de tamanho de posição, uma
+  // regra totalmente diferente — não pode casar com a chave de consistência
+  // de melhor-dia só por conter a palavra "consistência".
+  if (key === 'consistency' && containsAny(label, ['lote', 'lot'])) return false;
   return containsAny(label, ruleAliases[key]);
 }
 
@@ -73,7 +80,7 @@ function labelMatchesRule(key: BoundRuleKey, label: string) {
  * o classifique como automático via MT5.
  */
 export function engineRuleKeyForLabel(label: string): BoundRuleKey | null {
-  const keys: BoundRuleKey[] = ['daily_loss', 'max_drawdown', 'profit_target'];
+  const keys: BoundRuleKey[] = ['daily_loss', 'max_drawdown', 'profit_target', 'consistency'];
   return keys.find((key) => labelMatchesRule(key, label)) ?? null;
 }
 
@@ -191,6 +198,7 @@ export function evaluateBoundAccountRules(
   const dailyMonitorability = monitorabilityForRule('daily_loss', automatic, manual, unsupported);
   const drawdownMonitorability = monitorabilityForRule('max_drawdown', automatic, manual, unsupported);
   const targetMonitorability = monitorabilityForRule('profit_target', automatic, manual, unsupported);
+  const consistencyMonitorability = monitorabilityForRule('consistency', automatic, manual, unsupported);
   const unsupportedReason = globallyUnsupported
     ? 'Futures, BlackArrow ou plataforma sem conector MT5 não recebem cálculo automático.'
     : undefined;
@@ -255,9 +263,38 @@ export function evaluateBoundAccountRules(
           currency,
         });
 
-  const automaticRules = [daily, drawdown, target];
-  const overallStatus = worstStatus(automaticRules);
-  const alerts = automaticRules
+  const consistency =
+    globallyUnsupported || consistencyMonitorability !== 'automatic_mt5'
+      ? blockedRule(
+          'consistency',
+          snapshot.criticalRules.consistencyRule,
+          currency,
+          globallyUnsupported ? 'not_supported_yet' : consistencyMonitorability,
+          unsupportedReason,
+        )
+      : evaluateConsistency({
+          ruleText: snapshot.criticalRules.consistencyRule,
+          initialBalance,
+          currentBalance,
+          currency,
+          snapshots,
+        });
+
+  // Consistência fica fora do status geral e do ruído padrão de alerta: o
+  // texto livre da regra não é parseável pra maioria das mesas (ver
+  // consistencyCalculations.ts), então "not_monitorable" nela é o caso comum,
+  // não um sinal real — não deve derrubar o selo de saúde da conta nem gerar
+  // alerta repetido quando a conta real (perda diária/drawdown/meta) está OK.
+  // Quando o cálculo É confiável e aponta warning/critical/breached, isso sim
+  // é sinal real e entra tanto no status quanto no alerta.
+  const riskRules = [daily, drawdown, target];
+  const overallStatus = worstStatus(riskRules);
+  const automaticRules = [...riskRules, consistency];
+  const alertableRules =
+    consistency.status === 'not_monitorable' || consistency.status === 'partial'
+      ? riskRules
+      : automaticRules;
+  const alerts = alertableRules
     .filter((evaluation) =>
       ['warning', 'critical', 'breached', 'not_monitorable', 'partial'].includes(evaluation.status),
     )

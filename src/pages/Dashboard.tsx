@@ -48,6 +48,7 @@ type HealthRow = {
   dailyRemainingLabel: string;
   drawdownRemainingLabel: string;
   profitTargetLabel: string;
+  consistencyLabel: string;
   /** Raw numbers behind the *Label strings above, so the hero KPIs can sum
    * them across every connected account instead of re-deriving the same
    * canonical/legacy lookups a second time. null means "no data", never 0. */
@@ -55,6 +56,7 @@ type HealthRow = {
   drawdownRemainingValue: number | null;
   profitTargetCurrentValue: number | null;
   profitTargetLimitValue: number | null;
+  consistencyRemainingValue: number | null;
   openPositions: number;
   negativeFloatingPnl: number;
   lastSyncLabel: string;
@@ -265,6 +267,9 @@ function buildHealthRow(
   const drawdownRemainingValue = binding.hasActiveBinding
     ? canonical?.maxDrawdown?.remainingValue ?? null
     : summary.totalLoss ? summary.maxLossRemaining : null;
+  const consistencyRemainingValue = binding.hasActiveBinding
+    ? canonical?.consistency?.remainingValue ?? null
+    : summary.consistency ? summary.consistencyRemaining : null;
 
   // Progresso em direção à meta (não é uma "folga" como as demais — por isso
   // guarda o que já foi alcançado sobre o alvo, em vez de uma distância até a
@@ -293,10 +298,12 @@ function buildHealthRow(
     profitTargetLabel: profitTargetLimitValue !== null
       ? `${money(profitTargetCurrentValue)} de ${money(profitTargetLimitValue)}`
       : 'Sem dados suficientes',
+    consistencyLabel: consistencyRemainingValue !== null ? money(consistencyRemainingValue) : 'Sem dados suficientes',
     dailyRemainingValue,
     drawdownRemainingValue,
     profitTargetCurrentValue,
     profitTargetLimitValue,
+    consistencyRemainingValue,
     openPositions: accountPositions.length,
     negativeFloatingPnl,
     lastSyncLabel: relativeSync(connection?.last_sync_at || account.mt5LastSyncAt),
@@ -740,6 +747,10 @@ function Dashboard() {
                       <div className="flex items-center justify-between gap-3">
                         <dt className="text-muted-foreground">Profit Target</dt>
                         <dd className="font-mono font-semibold tabular-nums text-foreground">{row.profitTargetLabel}</dd>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <dt className="text-muted-foreground">Consistência</dt>
+                        <dd className="font-mono font-semibold tabular-nums text-foreground">{row.consistencyLabel}</dd>
                       </div>
                     </dl>
                   </motion.div>
