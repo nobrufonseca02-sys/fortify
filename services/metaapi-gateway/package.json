@@ -9,15 +9,15 @@
     "test": "tsx --test src/**/*.test.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.115.0",
-    "@fastify/cors": "^11.3.0",
-    "@supabase/supabase-js": "^2.49.8",
-    "dotenv": "^16.4.5",
+    "@anthropic-ai/sdk": "^0.132.1",
+    "@fastify/cors": "^11.3.1",
+    "@supabase/supabase-js": "^2.117.3",
+    "dotenv": "^18.0.6",
     "fastify": "^5.12.5"
   },
   "devDependencies": {
-    "@types/node": "^22.10.1",
-    "tsx": "^4.23.13",
-    "typescript": "^5.7.2"
+    "@types/node": "^26.6.4",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
   }
 }
