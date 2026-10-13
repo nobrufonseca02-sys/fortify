@@ -215,6 +215,51 @@ function accountConnection(account: TradingAccount, connections: any[]) {
   return connections.find((connection) => connection.trading_account_id === account.id) || null;
 }
 
+// Detector de mesa por texto, só pra agrupamento visual (nunca referenciado
+// pelo motor de regras). Existe porque o detector automático do gateway
+// (detectAccountSource em server.ts) só reconhece um punhado de mesas por
+// substring e o backend fica nulo pra contas conectadas pelo fluxo rápido
+// sem vínculo de regra ainda — sem isso, a maioria das contas reais cairia
+// em "mesa não identificada" mesmo quando o nome está ali, visível, no
+// apelido ou na corretora digitada pelo trader. Mantido aqui (frontend) de
+// propósito: dá pra ampliar a lista sem depender de deploy do gateway.
+const KNOWN_FIRM_PATTERNS: { pattern: string; name: string }[] = [
+  { pattern: 'ftmo', name: 'FTMO' },
+  { pattern: 'hantec', name: 'Hantec Trader' },
+  { pattern: 'hmarkets', name: 'Hantec Trader' },
+  { pattern: 'fundscap', name: 'Fundscap' },
+  { pattern: 'topstep', name: 'Topstep' },
+  { pattern: 'alpha capital', name: 'Alpha Capital Group' },
+  { pattern: 'alphacapital', name: 'Alpha Capital Group' },
+  { pattern: 'apex trader', name: 'Apex Trader Funding' },
+  { pattern: 'apextrader', name: 'Apex Trader Funding' },
+  { pattern: 'asap funding', name: 'ASAP Funding Prop' },
+  { pattern: 'brightfunded', name: 'BrightFunded' },
+  { pattern: 'bright funded', name: 'BrightFunded' },
+  { pattern: 'e8 markets', name: 'E8 Markets' },
+  { pattern: 'e8markets', name: 'E8 Markets' },
+  { pattern: 'fundednext', name: 'FundedNext' },
+  { pattern: 'funded next', name: 'FundedNext' },
+  { pattern: 'fundingpips', name: 'FundingPips' },
+  { pattern: 'funding pips', name: 'FundingPips' },
+  { pattern: 'fxify', name: 'FXIFY' },
+  { pattern: 'np future', name: 'NP Future' },
+  { pattern: 'npfuture', name: 'NP Future' },
+  { pattern: 'the5ers', name: 'The5ers' },
+  { pattern: 'the 5ers', name: 'The5ers' },
+  { pattern: 'tradingpit', name: 'The Trading Pit' },
+  { pattern: 'trading pit', name: 'The Trading Pit' },
+  { pattern: 'easymarkets', name: 'EasyMarkets' },
+  { pattern: 'easy markets', name: 'EasyMarkets' },
+];
+
+function detectFirmNameFromText(...texts: (string | null | undefined)[]): string | null {
+  const normalized = texts.filter(Boolean).join(' ').toLowerCase();
+  if (!normalized) return null;
+  const match = KNOWN_FIRM_PATTERNS.find(({ pattern }) => normalized.includes(pattern));
+  return match ? match.name : null;
+}
+
 function shortDayLabel(value: string) {
   const [year, month, day] = String(value).split('-').map(Number);
   if (!year || !month || !day) return String(value);
@@ -584,7 +629,11 @@ function Dashboard() {
       return buildHealthRow(account, connection, evaluations, positions, {
         hasActiveBinding: Boolean(activeBinding),
         canonical: currentCanonicalEvaluation(canonicalByAccount[account.id], activeBinding?.id),
-        firmName: activeBinding?.rule_snapshot?.propFirm?.name || account.detectedPropFirm || account.broker || null,
+        firmName: activeBinding?.rule_snapshot?.propFirm?.name
+          || account.detectedPropFirm
+          || detectFirmNameFromText(account.nickname, account.broker, account.mt5Server, account.detectedBroker)
+          || account.broker
+          || null,
       });
     });
   }, [accounts, mt5Connections, positions, ruleRows, activeBindings, canonicalByAccount]);

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import Dashboard from '../pages/Dashboard';
 import type { TradingAccount } from '../types/fortify';
 
@@ -26,7 +26,7 @@ vi.mock('@/hooks/useSubscriptionPlan', () => ({
   }),
 }));
 
-const mockAccounts: TradingAccount[] = [
+const defaultMockAccounts: TradingAccount[] = [
   {
     id: 'acc-safe',
     userId: 'user-1',
@@ -56,6 +56,8 @@ const mockAccounts: TradingAccount[] = [
     createdAt: '2026-07-01T00:00:00.000Z',
   },
 ] as TradingAccount[];
+
+let mockAccounts: TradingAccount[] = defaultMockAccounts;
 
 vi.mock('@/hooks/useAccountsStore', () => ({
   useAccountsStore: () => ({ accounts: mockAccounts, removeAccount: vi.fn() }),
@@ -138,13 +140,21 @@ vi.mock('@/hooks/useCanonicalRuleEvaluations', () => ({
   useLatestCanonicalEvaluations: () => ({ data: mockCanonicalByAccount }),
 }));
 
+const defaultMockActiveBindings = [
+  { id: 'binding-safe', trading_account_id: 'acc-safe', rule_snapshot: { propFirm: { name: 'FTMO' } } },
+  { id: 'binding-risky', trading_account_id: 'acc-risky', rule_snapshot: { propFirm: { name: 'Hantec Trader' } } },
+];
+
+let mockActiveBindings: any[] = defaultMockActiveBindings;
+
 vi.mock('@/lib/ruleBinding', () => ({
-  fetchActiveRuleBindings: () =>
-    Promise.resolve([
-      { id: 'binding-safe', trading_account_id: 'acc-safe', rule_snapshot: { propFirm: { name: 'FTMO' } } },
-      { id: 'binding-risky', trading_account_id: 'acc-risky', rule_snapshot: { propFirm: { name: 'Hantec Trader' } } },
-    ]),
+  fetchActiveRuleBindings: () => Promise.resolve(mockActiveBindings),
 }));
+
+afterEach(() => {
+  mockAccounts = defaultMockAccounts;
+  mockActiveBindings = defaultMockActiveBindings;
+});
 
 // `order()` precisa ser awaitable diretamente (mt5_connections/positions/
 // snapshots) E aceitar um `.limit()` encadeado depois (account_rule_
@@ -252,6 +262,50 @@ describe('Dashboard per-firm aggregation', () => {
 
     expect(screen.getByText('Conta Segura')).toBeInTheDocument();
     expect(screen.queryByText('Conta Arriscada')).not.toBeInTheDocument();
+  });
+
+  it('detects the firm from account text when there is no rule binding yet (regression: fast-connect accounts)', async () => {
+    // Reproduz o bug real: conta conectada pelo fluxo rápido, sem vínculo de
+    // regra ainda — nem rule_snapshot.propFirm, nem detectedPropFirm (o
+    // detector do gateway só cobre 4 mesas por substring). O único sinal
+    // disponível é o texto que o trader já digitou (apelido/corretora).
+    mockActiveBindings = [];
+    mockAccounts = [
+      {
+        id: 'acc-ftmo-fast',
+        userId: 'user-1',
+        nickname: 'FTMO Challenge 100K',
+        broker: '',
+        baseCurrency: 'USD',
+        startBalance: 100_000,
+        currentBalance: 101_000,
+        currentEquity: 101_000,
+        highestEquityAllTime: 101_000,
+        status: 'active',
+        ruleSetId: '',
+        createdAt: '2026-07-01T00:00:00.000Z',
+      },
+      {
+        id: 'acc-hantec-fast',
+        userId: 'user-1',
+        nickname: 'Hantec Express Financiada',
+        broker: '',
+        baseCurrency: 'USD',
+        startBalance: 50_000,
+        currentBalance: 50_500,
+        currentEquity: 50_500,
+        highestEquityAllTime: 50_500,
+        status: 'active',
+        ruleSetId: '',
+        createdAt: '2026-07-01T00:00:00.000Z',
+      },
+    ] as TradingAccount[];
+
+    renderDashboard();
+    await screen.findByText('FTMO Challenge 100K');
+
+    expect(screen.getByRole('button', { name: 'FTMO' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Hantec Trader' })).toBeInTheDocument();
   });
 });
 
