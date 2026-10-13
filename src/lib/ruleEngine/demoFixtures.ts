@@ -14,6 +14,7 @@ import {
   parseInitialBalance,
   type BoundAccountRuleEvaluation,
   type EvaluateBoundAccountRulesInput,
+  type RuleEngineTradeInput,
   type RuleEvaluationStatus,
 } from './ruleEngineTypes';
 
@@ -27,7 +28,8 @@ export type RuleEngineDemoScenarioId =
   | 'insufficient_daily_history'
   | 'manual_rule'
   | 'unsupported_rule'
-  | 'futures_blackarrow';
+  | 'futures_blackarrow'
+  | 'min_days_met';
 
 export interface RuleEngineDemoScenario {
   id: RuleEngineDemoScenarioId;
@@ -249,6 +251,7 @@ function createScenario(input: {
   account: NonNullable<EvaluateBoundAccountRulesInput['account']>;
   dailyPnl?: number;
   includeDailyHistory?: boolean;
+  trades?: RuleEngineTradeInput[];
 }) {
   const startBalance =
     parseInitialBalance(input.binding.rule_snapshot.accountSize.initialBalance) ??
@@ -276,7 +279,7 @@ function createScenario(input: {
           },
         ]
       : [],
-    trades: [],
+    trades: input.trades ?? [],
     positions:
       currentEquity < currentBalance
         ? [{ floatingPnl: currentEquity - currentBalance }]
@@ -468,6 +471,26 @@ export const ruleEngineDemoScenarios: RuleEngineDemoScenario[] = [
       phase: 'Fase 1',
     },
     dailyPnl: -500,
+  }),
+  createScenario({
+    id: 'min_days_met',
+    label: 'Dias mínimos cumpridos',
+    description: 'Histórico de trades cobre o mínimo de dias operados exigido pela mesa.',
+    expectedStatus: 'partial',
+    binding: demoBinding(ftmoSnapshot, 'min-days-met'),
+    account: {
+      currentBalance: 102_000,
+      currentEquity: 101_500,
+      highestEquity: 102_000,
+      phase: 'Fase 1',
+    },
+    dailyPnl: -1_000,
+    trades: [
+      { profit: 200, closeTime: '2026-07-14T14:00:00.000Z' },
+      { profit: 150, closeTime: '2026-07-15T14:00:00.000Z' },
+      { profit: -100, closeTime: '2026-07-16T14:00:00.000Z' },
+      { profit: 300, closeTime: '2026-07-17T14:00:00.000Z' },
+    ],
   }),
   createScenario({
     id: 'futures_blackarrow',

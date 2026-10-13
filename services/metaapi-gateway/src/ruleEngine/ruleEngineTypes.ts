@@ -12,7 +12,12 @@ export type RuleEvaluationStatus =
   | 'not_monitorable'
   | 'pending_binding';
 
-export type BoundRuleKey = 'daily_loss' | 'max_drawdown' | 'profit_target' | 'consistency';
+export type BoundRuleKey =
+  | 'daily_loss'
+  | 'max_drawdown'
+  | 'profit_target'
+  | 'consistency'
+  | 'min_trading_days';
 
 export type RuleMonitorability =
   | 'automatic_mt5'

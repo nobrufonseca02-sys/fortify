@@ -22,6 +22,7 @@ import {
   currentCanonicalEvaluation,
   summarizeCanonicalEvaluation,
   type CanonicalRuleEvaluationRow,
+  type PayoutEligibilitySummary,
 } from '@/lib/canonicalEvaluationView';
 import {
   assessConnectionHealth,
@@ -29,6 +30,7 @@ import {
   ruleStatusFromLegacyEvaluations,
   type AccountStatusView,
 } from '@/lib/accountHealth';
+import { classifyLimitConsumption, type RuleEvaluationStatus } from '@/lib/ruleEngine/ruleEngineTypes';
 import type { TradingAccount } from '@/types/fortify';
 
 type HealthStatus = 'safe' | 'warning' | 'critical' | 'nodata';
@@ -57,6 +59,32 @@ type HealthRow = {
   profitTargetCurrentValue: number | null;
   profitTargetLimitValue: number | null;
   consistencyRemainingValue: number | null;
+  /** Consumo 0-100+ de cada regra, pra render de urgência/gauge na bolha — não
+   * confundir com os *RemainingValue acima (valor em dinheiro). null = sem
+   * dado, nunca um percentual inventado. */
+  dailyLossPercentage: number | null;
+  drawdownPercentage: number | null;
+  consistencyPercentage: number | null;
+  /** Só existe para contas com vínculo canônico ativo — o catálogo legado não
+   * tem os dados equivalentes (ver canonicalEvaluationView.ts). */
+  payoutEligibility: PayoutEligibilitySummary | null;
+  /** true só quando há um account_rule_bindings ativo — independe de a
+   * avaliação canônica já ter rodado (payoutEligibility pode ser null mesmo
+   * assim). Usado pra decidir se dá pra consultar account_rule_evaluations. */
+  hasActiveBinding: boolean;
+  /** Nome da mesa pra agregação por mesa — vem do snapshot vinculado quando
+   * existe (fonte confiável), senão da detecção automática/corretora como
+   * melhor esforço. null só quando nada está disponível. */
+  firmName: string | null;
+  /** Frase pronta traduzindo os números acima: qual regra de perda é a mais
+   * apertada agora e quanto ainda cabe nela. Sempre a MENOR folga entre
+   * perda diária e drawdown máximo — é essa que realmente limita o próximo
+   * trade. null só quando nenhuma das duas tem dado. */
+  riskBudgetHeadline: string;
+  /** Quanto o próximo trade pode lucrar sem comprometer a consistência — eixo
+   * de lucro, não de perda, por isso é uma frase separada. null quando a
+   * regra de consistência não é monitorável para esta conta. */
+  riskBudgetConsistencyNote: string | null;
   openPositions: number;
   negativeFloatingPnl: number;
   lastSyncLabel: string;
@@ -92,6 +120,9 @@ const healthBarColor: Record<HealthStatus, string> = {
   nodata: 'bg-muted-foreground/30',
 };
 
+/** Ordem de severidade pra desempate na ordenação por risco das bolhas. */
+const statusSeverity: Record<HealthStatus, number> = { critical: 0, warning: 1, safe: 2, nodata: 3 };
+
 function money(value: number | null | undefined) {
   if (!Number.isFinite(Number(value))) return 'Sem dados';
   return Number(value).toLocaleString('pt-BR', {
@@ -123,6 +154,15 @@ function healthBucket(view: AccountStatusView): HealthStatus {
   if (view.tone === 'danger') return 'critical';
   if (view.tone === 'warning') return 'warning';
   return 'nodata';
+}
+
+/** Colapsa o consumo 0-100+ do motor de regras (mesmas faixas 70/85/100% do
+ * `classifyLimitConsumption` do backend) nas 4 faixas visuais do painel.
+ * null (sem dado) nunca vira um "seguro" fabricado. */
+function riskBucket(percentage: number | null): HealthStatus {
+  if (percentage === null || !Number.isFinite(percentage)) return 'nodata';
+  const consumed = classifyLimitConsumption(percentage, 100);
+  return consumed === 'breached' ? 'critical' : consumed;
 }
 
 function relativeSync(value: string | null | undefined) {
@@ -224,7 +264,7 @@ function buildHealthRow(
   connection: any | null,
   evaluations: RuleEvaluationRow[],
   positions: any[],
-  binding: { hasActiveBinding: boolean; canonical: CanonicalRuleEvaluationRow | null },
+  binding: { hasActiveBinding: boolean; canonical: CanonicalRuleEvaluationRow | null; firmName: string | null },
 ): HealthRow {
   // Conta vinculada: status e margens vêm só da avaliação canônica do servidor.
   // Sem vínculo, o catálogo antigo é o fallback explícito.
@@ -271,6 +311,16 @@ function buildHealthRow(
     ? canonical?.consistency?.remainingValue ?? null
     : summary.consistency ? summary.consistencyRemaining : null;
 
+  const dailyLossPercentage = binding.hasActiveBinding
+    ? canonical?.dailyLoss?.percentage ?? null
+    : summary.dailyLoss?.progressPct ?? null;
+  const drawdownPercentage = binding.hasActiveBinding
+    ? canonical?.maxDrawdown?.percentage ?? null
+    : summary.totalLoss?.progressPct ?? null;
+  const consistencyPercentage = binding.hasActiveBinding
+    ? canonical?.consistency?.percentage ?? null
+    : summary.consistency?.progressPct ?? null;
+
   // Progresso em direção à meta (não é uma "folga" como as demais — por isso
   // guarda o que já foi alcançado sobre o alvo, em vez de uma distância até a
   // violação). limitValue <= 0 é tratado como "sem meta numérica confiável",
@@ -283,6 +333,29 @@ function buildHealthRow(
     : null;
   const profitTargetCurrentValue = profitTargetLimitValue !== null
     ? Math.max(0, Number(profitTargetRule?.currentValue) || 0)
+    : null;
+
+  // "Orçamento de risco do dia": traduz as duas folgas de perda num número só
+  // — a MENOR das duas é a regra que realmente vai pegar primeiro. Nunca
+  // soma as duas (isso inflaria a folga real) nem inventa um número quando
+  // nenhuma das duas está disponível.
+  const dailyLossLabel = 'Perda diária';
+  const maxDrawdownLabel = 'Drawdown máximo';
+  let riskBudgetHeadline: string;
+  if (dailyRemainingValue !== null && drawdownRemainingValue !== null) {
+    const tightest = dailyRemainingValue <= drawdownRemainingValue
+      ? { value: dailyRemainingValue, label: dailyLossLabel }
+      : { value: drawdownRemainingValue, label: maxDrawdownLabel };
+    riskBudgetHeadline = `Resta ${money(tightest.value)} de perda antes de estourar a regra mais apertada (${tightest.label}).`;
+  } else if (dailyRemainingValue !== null) {
+    riskBudgetHeadline = `Resta ${money(dailyRemainingValue)} de perda antes de estourar o limite de ${dailyLossLabel.toLowerCase()}.`;
+  } else if (drawdownRemainingValue !== null) {
+    riskBudgetHeadline = `Resta ${money(drawdownRemainingValue)} de perda antes de estourar o limite de ${maxDrawdownLabel.toLowerCase()}.`;
+  } else {
+    riskBudgetHeadline = 'Sem dados suficientes para montar o orçamento de risco de hoje.';
+  }
+  const riskBudgetConsistencyNote = consistencyRemainingValue !== null
+    ? `Seu próximo trade não pode lucrar mais que ${money(consistencyRemainingValue)} sem comprometer a consistência.`
     : null;
 
   return {
@@ -304,6 +377,14 @@ function buildHealthRow(
     profitTargetCurrentValue,
     profitTargetLimitValue,
     consistencyRemainingValue,
+    dailyLossPercentage,
+    drawdownPercentage,
+    consistencyPercentage,
+    payoutEligibility: binding.hasActiveBinding ? canonical?.payoutEligibility ?? null : null,
+    hasActiveBinding: binding.hasActiveBinding,
+    firmName: binding.firmName,
+    riskBudgetHeadline,
+    riskBudgetConsistencyNote,
     openPositions: accountPositions.length,
     negativeFloatingPnl,
     lastSyncLabel: relativeSync(connection?.last_sync_at || account.mt5LastSyncAt),
@@ -384,6 +465,10 @@ function Dashboard() {
   const [mt5Connections, setMt5Connections] = useState<any[]>([]);
   const [positions, setPositions] = useState<any[]>([]);
   const [snapshots, setSnapshots] = useState<any[]>([]);
+  // 'all' ou um firmName real — filtra tanto o KPI strip quanto a grade de
+  // bolhas abaixo. Reaproveitado de buildHealthRow.firmName, nunca inventado
+  // aqui.
+  const [selectedFirm, setSelectedFirm] = useState<string>('all');
   const [checkoutMessage, setCheckoutMessage] = useState<string | null>(null);
   const [checkoutConfirming, setCheckoutConfirming] = useState(false);
   const searchParams = new URLSearchParams(location.search);
@@ -499,11 +584,50 @@ function Dashboard() {
       return buildHealthRow(account, connection, evaluations, positions, {
         hasActiveBinding: Boolean(activeBinding),
         canonical: currentCanonicalEvaluation(canonicalByAccount[account.id], activeBinding?.id),
+        firmName: activeBinding?.rule_snapshot?.propFirm?.name || account.detectedPropFirm || account.broker || null,
       });
     });
   }, [accounts, mt5Connections, positions, ruleRows, activeBindings, canonicalByAccount]);
 
-  const openPositions = rows.reduce((sum, row) => sum + row.openPositions, 0);
+  // Agregação por mesa: só mostra abas quando há mais de uma mesa distinta —
+  // com uma conta só ou todas na mesma mesa, a aba seria ruído.
+  const firmTabs = useMemo(() => {
+    const names = Array.from(
+      new Set(rows.map((row) => row.firmName).filter((name): name is string => Boolean(name))),
+    );
+    names.sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    return names;
+  }, [rows]);
+
+  // Reseta o filtro se a mesa selecionada deixar de existir (conta
+  // desconectada, binding revogado) — nunca mostra uma aba "fantasma" ativa.
+  useEffect(() => {
+    if (selectedFirm !== 'all' && !firmTabs.includes(selectedFirm)) setSelectedFirm('all');
+  }, [firmTabs, selectedFirm]);
+
+  const visibleRows = useMemo(() => {
+    if (selectedFirm === 'all') return rows;
+    return rows.filter((row) => row.firmName === selectedFirm);
+  }, [rows, selectedFirm]);
+
+  // Bolhas mais arriscadas primeiro — bufferPct é o único número que já
+  // representa "quanto falta pra violar" de forma uniforme entre conta
+  // canônica e conta no catálogo legado (ver buildHealthRow). Não muta
+  // `visibleRows`: os somatórios do KPI strip abaixo reduzem sobre ele sem
+  // depender de ordem, mas copiamos mesmo assim pra não acoplar os dois usos.
+  const sortedRows = useMemo(() => {
+    return [...visibleRows].sort((a, b) => {
+      if (a.bufferPct === null && b.bufferPct === null) {
+        return statusSeverity[a.status] - statusSeverity[b.status] || a.account.nickname.localeCompare(b.account.nickname, 'pt-BR');
+      }
+      if (a.bufferPct === null) return 1;
+      if (b.bufferPct === null) return -1;
+      if (a.bufferPct !== b.bufferPct) return a.bufferPct - b.bufferPct;
+      return statusSeverity[a.status] - statusSeverity[b.status] || a.account.nickname.localeCompare(b.account.nickname, 'pt-BR');
+    });
+  }, [visibleRows]);
+
+  const openPositions = visibleRows.reduce((sum, row) => sum + row.openPositions, 0);
   const staleRow = rows.find((row) => row.stale && row.connection);
   const latestSync = latestSyncInfo(rows, Boolean(staleRow));
   const assetSummaries = useMemo(() => buildAssetRiskSummary(positions), [positions]);
@@ -530,17 +654,18 @@ function Dashboard() {
     return { pct: ((last - previous) / Math.abs(previous)) * 100, abs: last - previous };
   }, [equitySeries]);
 
-  // Somas reais sobre `rows` — nunca inventa um total quando nenhuma conta tem
-  // o dado: null em vez de 0, pra "Sem dados" não virar um falso "$0".
+  // Somas reais sobre `visibleRows` (todas as contas, ou só as da mesa
+  // selecionada) — nunca inventa um total quando nenhuma conta tem o dado:
+  // null em vez de 0, pra "Sem dados" não virar um falso "$0".
   const sumAvailable = (values: (number | null)[]) => {
     const present = values.filter((value): value is number => value !== null);
     return present.length > 0 ? { total: present.reduce((sum, value) => sum + value, 0), count: present.length } : null;
   };
-  const totalEquity = rows.length > 0 ? rows.reduce((sum, row) => sum + (Number(row.account.currentEquity) || 0), 0) : null;
-  const totalDailyRemaining = sumAvailable(rows.map((row) => row.dailyRemainingValue));
-  const totalDrawdownRemaining = sumAvailable(rows.map((row) => row.drawdownRemainingValue));
-  const totalFloatingLoss = rows.length > 0 ? rows.reduce((sum, row) => sum + row.negativeFloatingPnl, 0) : null;
-  const profitTargetRowsWithData = rows.filter((row) => row.profitTargetLimitValue !== null);
+  const totalEquity = visibleRows.length > 0 ? visibleRows.reduce((sum, row) => sum + (Number(row.account.currentEquity) || 0), 0) : null;
+  const totalDailyRemaining = sumAvailable(visibleRows.map((row) => row.dailyRemainingValue));
+  const totalDrawdownRemaining = sumAvailable(visibleRows.map((row) => row.drawdownRemainingValue));
+  const totalFloatingLoss = visibleRows.length > 0 ? visibleRows.reduce((sum, row) => sum + row.negativeFloatingPnl, 0) : null;
+  const profitTargetRowsWithData = visibleRows.filter((row) => row.profitTargetLimitValue !== null);
   const totalProfitTarget = profitTargetRowsWithData.length > 0
     ? {
         current: profitTargetRowsWithData.reduce((sum, row) => sum + (row.profitTargetCurrentValue || 0), 0),
@@ -554,19 +679,19 @@ function Dashboard() {
       label: 'Saldo',
       value: totalEquity !== null ? money(totalEquity) : 'Sem dados',
       status: (totalEquity !== null ? 'safe' : 'nodata') as HealthStatus,
-      badge: rows.length > 0 ? formatAccountCount(rows.length, accountLimit || 0) + ' contas' : 'Nenhuma conta',
+      badge: visibleRows.length > 0 ? formatAccountCount(visibleRows.length, accountLimit || 0) + ' contas' : 'Nenhuma conta',
     },
     {
       label: 'Drawdown diário restante',
       value: totalDailyRemaining ? money(totalDailyRemaining.total) : 'Sem dados',
       status: (totalDailyRemaining ? 'safe' : 'nodata') as HealthStatus,
-      badge: totalDailyRemaining ? `${totalDailyRemaining.count} de ${rows.length} contas` : 'Sem regra ativa',
+      badge: totalDailyRemaining ? `${totalDailyRemaining.count} de ${visibleRows.length} contas` : 'Sem regra ativa',
     },
     {
       label: 'Drawdown máximo restante',
       value: totalDrawdownRemaining ? money(totalDrawdownRemaining.total) : 'Sem dados',
       status: (totalDrawdownRemaining ? 'safe' : 'nodata') as HealthStatus,
-      badge: totalDrawdownRemaining ? `${totalDrawdownRemaining.count} de ${rows.length} contas` : 'Sem regra ativa',
+      badge: totalDrawdownRemaining ? `${totalDrawdownRemaining.count} de ${visibleRows.length} contas` : 'Sem regra ativa',
     },
     {
       label: 'Perda flutuante',
@@ -578,7 +703,7 @@ function Dashboard() {
       label: 'Profit Target',
       value: totalProfitTarget ? `${money(totalProfitTarget.current)} de ${money(totalProfitTarget.limit)}` : 'Sem dados',
       status: (totalProfitTarget ? 'safe' : 'nodata') as HealthStatus,
-      badge: totalProfitTarget ? `${totalProfitTarget.count} de ${rows.length} contas` : 'Sem meta definida',
+      badge: totalProfitTarget ? `${totalProfitTarget.count} de ${visibleRows.length} contas` : 'Sem meta definida',
     },
   ];
 
@@ -610,6 +735,36 @@ function Dashboard() {
         <motion.div variants={revealItem} className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">Painel</h1>
         </motion.div>
+
+        {/* Agregação por mesa: só aparece quando há mais de uma mesa distinta
+            entre as contas conectadas — com uma só, a aba seria ruído. */}
+        {firmTabs.length > 1 && (
+          <motion.div variants={revealItem} className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedFirm('all')}
+              className={cn(
+                'rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors',
+                selectedFirm === 'all' ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:text-foreground',
+              )}
+            >
+              Todas as mesas
+            </button>
+            {firmTabs.map((firm) => (
+              <button
+                key={firm}
+                type="button"
+                onClick={() => setSelectedFirm(firm)}
+                className={cn(
+                  'rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors',
+                  selectedFirm === firm ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {firm}
+              </button>
+            ))}
+          </motion.div>
+        )}
 
         {/* Indicadores essenciais. */}
         <motion.div
@@ -692,7 +847,10 @@ function Dashboard() {
 
         {/* Uma bolha por conta: mesmos números do total acima, nível conta. */}
         <div className="lg:order-1 lg:col-span-12">
-          <h2 className="text-sm font-bold text-foreground">Contas conectadas</h2>
+          <h2 className="text-sm font-bold text-foreground">
+            Contas conectadas
+            {selectedFirm !== 'all' && <span className="font-normal text-muted-foreground"> — {selectedFirm}</span>}
+          </h2>
           {rows.length === 0 ? (
             <div className="mt-3 rounded-xl border border-border bg-card/60 p-5">
               <p className="text-sm text-muted-foreground">Conecte uma conta MT5 para ver as métricas dela aqui.</p>
@@ -702,10 +860,16 @@ function Dashboard() {
             </div>
           ) : (
             <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {rows.map((row) => {
+              {sortedRows.map((row) => {
                 const points = sparklinePoints(row.connection?.id, snapshots);
                 const deltaPct = equityDeltaPct(points);
                 const isPositive = deltaPct === null || deltaPct >= 0;
+                const profitTargetPercentage = row.profitTargetLimitValue !== null
+                  ? ((row.profitTargetCurrentValue ?? 0) / row.profitTargetLimitValue) * 100
+                  : null;
+                const payout = row.payoutEligibility
+                  ? payoutEligibilityCopy[row.payoutEligibility.status]
+                  : { label: 'Não disponível (catálogo legado)', status: 'nodata' as HealthStatus };
                 return (
                   <motion.div
                     key={row.account.id}
@@ -729,30 +893,63 @@ function Dashboard() {
                     <div className={cn('mt-2', isPositive ? 'text-success' : 'text-destructive')}>
                       <Sparkline points={points} />
                     </div>
-                    <dl className="mt-3 space-y-1.5 border-t border-border/60 pt-3 text-xs">
-                      <div className="flex items-center justify-between gap-3">
-                        <dt className="text-muted-foreground">Drawdown diário restante</dt>
-                        <dd className="font-mono font-semibold tabular-nums text-foreground">{row.dailyRemainingLabel}</dd>
-                      </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <dt className="text-muted-foreground">Drawdown máximo restante</dt>
-                        <dd className="font-mono font-semibold tabular-nums text-foreground">{row.drawdownRemainingLabel}</dd>
-                      </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <dt className="text-muted-foreground">Perda flutuante</dt>
-                        <dd className={cn('font-mono font-semibold tabular-nums', row.negativeFloatingPnl < 0 ? 'text-destructive' : 'text-foreground')}>
-                          {signedMoney(row.negativeFloatingPnl)}
-                        </dd>
-                      </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <dt className="text-muted-foreground">Profit Target</dt>
-                        <dd className="font-mono font-semibold tabular-nums text-foreground">{row.profitTargetLabel}</dd>
-                      </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <dt className="text-muted-foreground">Consistência</dt>
-                        <dd className="font-mono font-semibold tabular-nums text-foreground">{row.consistencyLabel}</dd>
-                      </div>
+
+                    {/* Orçamento de risco do dia: traduz os números abaixo numa
+                        frase acionável, em vez de deixar o trader somar os
+                        limites na cabeça. */}
+                    <div className="mt-3 rounded-lg border border-primary/25 bg-primary/5 p-3">
+                      <p className="text-xs leading-relaxed text-foreground">{row.riskBudgetHeadline}</p>
+                      {row.riskBudgetConsistencyNote && (
+                        <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{row.riskBudgetConsistencyNote}</p>
+                      )}
+                    </div>
+
+                    <dl className="mt-3 space-y-2 border-t border-border/60 pt-3 text-xs">
+                      <RuleProgressRow
+                        label="Drawdown diário restante"
+                        value={row.dailyRemainingLabel}
+                        percentage={row.dailyLossPercentage}
+                        status={riskBucket(row.dailyLossPercentage)}
+                      />
+                      <RuleProgressRow
+                        label="Drawdown máximo restante"
+                        value={row.drawdownRemainingLabel}
+                        percentage={row.drawdownPercentage}
+                        status={riskBucket(row.drawdownPercentage)}
+                      />
+                      <RuleProgressRow
+                        label="Perda flutuante"
+                        value={signedMoney(row.negativeFloatingPnl)}
+                        percentage={null}
+                        valueClassName={row.negativeFloatingPnl < 0 ? 'text-destructive' : 'text-foreground'}
+                      />
+                      <RuleProgressRow
+                        label="Profit Target"
+                        value={row.profitTargetLabel}
+                        percentage={profitTargetPercentage}
+                        status={row.profitTargetLimitValue !== null ? 'safe' : 'nodata'}
+                      />
+                      <RuleProgressRow
+                        label="Consistência"
+                        value={row.consistencyLabel}
+                        percentage={row.consistencyPercentage}
+                        status={riskBucket(row.consistencyPercentage)}
+                      />
+                      <RuleProgressRow
+                        label="Elegibilidade de saque"
+                        value={payout.label}
+                        percentage={null}
+                        status={payout.status}
+                      />
                     </dl>
+
+                    <AccountDetailDisclosure
+                      tradingAccountId={row.account.id}
+                      connectionId={row.connection?.id ?? null}
+                      hasActiveBinding={row.hasActiveBinding}
+                      profitTargetCurrentValue={row.profitTargetCurrentValue}
+                      profitTargetLimitValue={row.profitTargetLimitValue}
+                    />
                   </motion.div>
                 );
               })}
@@ -876,6 +1073,51 @@ function Sparkline({ points }: { points: number[] }) {
   );
 }
 
+/** Linha de regra dentro da bolha de conta: valor + barra fina de urgência
+ * (reaproveita healthBarColor — nenhuma cor nova). `percentage`/`status`
+ * omitidos = sem barra (caso da Perda flutuante, que não tem limite próprio:
+ * nunca inventa uma urgência onde não há limite real). */
+function RuleProgressRow({
+  label,
+  value,
+  percentage,
+  status,
+  valueClassName,
+}: {
+  label: string;
+  value: string;
+  percentage: number | null;
+  status?: HealthStatus;
+  valueClassName?: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between gap-3">
+        <dt className="flex items-center gap-1.5 text-muted-foreground">
+          {status && <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', healthBarColor[status])} aria-hidden="true" />}
+          {label}
+        </dt>
+        <dd className={cn('font-mono font-semibold tabular-nums text-foreground', valueClassName)}>{value}</dd>
+      </div>
+      {percentage !== null && status && (
+        <div className="h-1 w-full overflow-hidden rounded-full bg-muted/30">
+          <div
+            className={cn('h-full rounded-full transition-all', healthBarColor[status])}
+            style={{ width: `${Math.min(100, Math.max(0, percentage))}%` }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Texto curto do selo de elegibilidade de saque, por estado. */
+const payoutEligibilityCopy: Record<PayoutEligibilitySummary['status'], { label: string; status: HealthStatus }> = {
+  eligible: { label: 'Elegível para saque', status: 'safe' },
+  not_eligible: { label: 'Ainda não elegível', status: 'warning' },
+  not_determinable: { label: 'Não verificável', status: 'nodata' },
+};
+
 function AssetMetric({
   label,
   value,
@@ -899,6 +1141,227 @@ function AssetMetric({
       >
         {detail}
       </p>
+    </div>
+  );
+}
+
+type HeatmapDay = { date: string; pnl: number | null };
+
+/** Agrupa trades fechados por dia (UTC) nas últimas `weeks` semanas. `pnl`
+ * null significa "sem trade fechado naquele dia" — nunca um 0 fabricado, pra
+ * não confundir "não operou" com "operou e empatou". */
+function buildTradeHeatmap(
+  trades: { close_time: string | null; profit: number | null; commission: number | null; swap: number | null }[],
+  weeks = 12,
+): HeatmapDay[][] {
+  const byDate = new Map<string, number>();
+  trades.forEach((trade) => {
+    if (!trade.close_time) return;
+    const key = trade.close_time.slice(0, 10);
+    const net = (Number(trade.profit) || 0) + (Number(trade.commission) || 0) + (Number(trade.swap) || 0);
+    byDate.set(key, (byDate.get(key) || 0) + net);
+  });
+  const totalDays = weeks * 7;
+  const today = new Date();
+  const days: HeatmapDay[] = [];
+  for (let i = totalDays - 1; i >= 0; i--) {
+    const d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - i));
+    const key = d.toISOString().slice(0, 10);
+    days.push({ date: key, pnl: byDate.has(key) ? (byDate.get(key) as number) : null });
+  }
+  const weeksArr: HeatmapDay[][] = [];
+  for (let i = 0; i < days.length; i += 7) weeksArr.push(days.slice(i, i + 7));
+  return weeksArr;
+}
+
+/** Classes literais (nunca construídas por interpolação, pro scanner JIT do
+ * Tailwind conseguir enxergá-las — mesmo cuidado de healthBarColor acima). */
+function heatmapCellClass(pnl: number | null): string {
+  if (pnl === null) return 'bg-muted-foreground/10';
+  if (pnl > 0) return 'bg-success';
+  if (pnl < 0) return 'bg-destructive';
+  return 'bg-muted-foreground/30';
+}
+
+/** Projeção de dias operados até bater a meta, pela média dos dias com trade
+ * fechado no heatmap. Exige pelo menos 5 dias operados na amostra — menos
+ * que isso, a média não é confiável o bastante pra virar número, e o
+ * honesto é dizer "sem histórico suficiente" em vez de extrapolar. Também
+ * recusa quando a média é zero ou negativa (não dá pra prometer uma meta que
+ * o ritmo atual não está batendo). */
+function estimateDaysToTarget(
+  weeks: HeatmapDay[][],
+  remainingAmount: number | null,
+): { days: number; avgPerDay: number } | null {
+  if (remainingAmount === null || remainingAmount <= 0) return null;
+  const tradedDays = weeks.flat().filter((day) => day.pnl !== null);
+  if (tradedDays.length < 5) return null;
+  const avgPerDay = tradedDays.reduce((sum, day) => sum + (day.pnl || 0), 0) / tradedDays.length;
+  if (avgPerDay <= 0) return null;
+  return { days: Math.ceil(remainingAmount / avgPerDay), avgPerDay };
+}
+
+/** account_rule_evaluations.overall_status (7 valores do motor) → as 4 faixas
+ * visuais do painel. partial/not_monitorable/pending_binding ficam na faixa
+ * neutra — nenhuma delas é "seguro" nem "risco", são premissa não confirmada
+ * ou regra ainda não calculável. */
+function evaluationStatusBucket(status: RuleEvaluationStatus): HealthStatus {
+  if (status === 'breached' || status === 'critical') return 'critical';
+  if (status === 'warning') return 'warning';
+  if (status === 'safe') return 'safe';
+  return 'nodata';
+}
+
+/** Heatmap de dias operados + previsão de meta + histórico auditável, por
+ * conta — carregados sob demanda (só no primeiro clique em "Ver detalhes"),
+ * pra não somar uma consulta de trades e de avaliações por conta ao
+ * carregamento inicial do Painel quando ninguém vai olhar pra elas. */
+function AccountDetailDisclosure({
+  tradingAccountId,
+  connectionId,
+  hasActiveBinding,
+  profitTargetCurrentValue,
+  profitTargetLimitValue,
+}: {
+  tradingAccountId: string;
+  connectionId: string | null;
+  hasActiveBinding: boolean;
+  profitTargetCurrentValue: number | null;
+  profitTargetLimitValue: number | null;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [trades, setTrades] = useState<{ close_time: string | null; profit: number | null; commission: number | null; swap: number | null }[]>([]);
+  const [history, setHistory] = useState<{ id: string; overall_status: RuleEvaluationStatus; overall_message: string; evaluated_at: string }[]>([]);
+
+  useEffect(() => {
+    if (!expanded || loaded) return;
+    let active = true;
+    async function load() {
+      setLoading(true);
+      const cutoff = new Date();
+      cutoff.setUTCDate(cutoff.getUTCDate() - 90);
+      const [tradesResult, historyResult] = await Promise.all([
+        connectionId
+          ? supabase
+              .from('mt5_trades')
+              .select('close_time, profit, commission, swap')
+              .eq('connection_id', connectionId)
+              .gte('close_time', cutoff.toISOString())
+              .order('close_time', { ascending: true })
+          : Promise.resolve({ data: [] as any[], error: null }),
+        hasActiveBinding
+          ? (supabase
+              .from('account_rule_evaluations' as any)
+              .select('id, overall_status, overall_message, evaluated_at')
+              .eq('trading_account_id', tradingAccountId)
+              .order('evaluated_at', { ascending: false })
+              .limit(15) as any)
+          : Promise.resolve({ data: [] as any[], error: null }),
+      ]);
+      if (!active) return;
+      setTrades((tradesResult.data as any[]) || []);
+      setHistory((historyResult.data as any[]) || []);
+      setLoading(false);
+      setLoaded(true);
+    }
+    load();
+    return () => {
+      active = false;
+    };
+  }, [expanded, loaded, connectionId, hasActiveBinding, tradingAccountId]);
+
+  const heatmapWeeks = useMemo(() => buildTradeHeatmap(trades), [trades]);
+  const remainingToTarget = profitTargetCurrentValue !== null && profitTargetLimitValue !== null
+    ? Math.max(0, profitTargetLimitValue - profitTargetCurrentValue)
+    : null;
+  const eta = useMemo(
+    () => estimateDaysToTarget(heatmapWeeks, remainingToTarget),
+    [heatmapWeeks, remainingToTarget],
+  );
+
+  return (
+    <div className="mt-3 border-t border-border/60 pt-3">
+      <button
+        type="button"
+        onClick={() => setExpanded((value) => !value)}
+        className="flex w-full items-center justify-between text-xs font-semibold text-muted-foreground hover:text-foreground"
+      >
+        <span>Ver detalhes — dias operados, previsão de meta e histórico</span>
+        <span aria-hidden="true">{expanded ? '−' : '+'}</span>
+      </button>
+      {expanded && (
+        <div className="mt-3 space-y-4">
+          {loading && !loaded ? (
+            <p className="text-xs text-muted-foreground">Carregando…</p>
+          ) : (
+            <>
+              <div>
+                <p className="mb-2 text-[11px] uppercase tracking-wide text-muted-foreground">Dias operados (12 semanas)</p>
+                {connectionId ? (
+                  <div className="flex gap-[3px] overflow-x-auto pb-1">
+                    {heatmapWeeks.map((week, weekIndex) => (
+                      <div key={weekIndex} className="flex flex-col gap-[3px]">
+                        {week.map((day) => (
+                          <div
+                            key={day.date}
+                            title={`${day.date} — ${day.pnl !== null ? signedMoney(day.pnl) : 'sem trade fechado'}`}
+                            className={cn('h-[10px] w-[10px] rounded-sm', heatmapCellClass(day.pnl))}
+                          />
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Sem conexão MT5 ativa para calcular dias operados.</p>
+                )}
+              </div>
+
+              {profitTargetLimitValue !== null && (
+                <div>
+                  <p className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">Previsão de meta</p>
+                  {remainingToTarget === 0 ? (
+                    <p className="text-xs text-success">Meta já atingida — nada a estimar.</p>
+                  ) : eta ? (
+                    <p className="text-xs leading-relaxed text-foreground">
+                      No ritmo atual (~{money(eta.avgPerDay)}/dia operado), faltam{' '}
+                      <span className="font-semibold">~{eta.days} {eta.days === 1 ? 'dia' : 'dias'} operados</span> para bater a meta.{' '}
+                      <span className="text-muted-foreground">Estimativa com base nos últimos 90 dias — não é garantia.</span>
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Histórico recente insuficiente para estimar — precisa de ao menos 5 dias operados nos últimos 90 dias.</p>
+                  )}
+                </div>
+              )}
+
+              <div>
+                <p className="mb-2 text-[11px] uppercase tracking-wide text-muted-foreground">Histórico de avaliações</p>
+                {!hasActiveBinding ? (
+                  <p className="text-xs text-muted-foreground">Disponível apenas para contas vinculadas ao catálogo oficial.</p>
+                ) : history.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Nenhuma avaliação registrada ainda.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {history.map((item) => {
+                      const bucket = evaluationStatusBucket(item.overall_status);
+                      return (
+                        <li key={item.id} className="flex gap-2 text-xs">
+                          <span className={cn('mt-1 h-1.5 w-1.5 shrink-0 rounded-full', healthBarColor[bucket])} aria-hidden="true" />
+                          <div className="min-w-0">
+                            <p className="text-muted-foreground">{relativeSync(item.evaluated_at)}</p>
+                            <p className="text-foreground">{item.overall_message}</p>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -97,6 +97,7 @@ export function getAccountEvaluationSummary(account: TradingAccount, rows: RuleE
   const totalLoss = evals.find(e => e.rule.type === 'MAX_TOTAL_LOSS') || evals.find(e => e.rule.type === 'TRAILING_MAX_LOSS');
   const profitTarget = evals.find(e => e.rule.type === 'PROFIT_TARGET');
   const consistency = evals.find(e => e.rule.type === 'CONSISTENCY_BEST_DAY_CAP');
+  const minTradingDays = evals.find(e => e.rule.type === 'MIN_TRADING_DAYS');
   const dailyRemaining = dailyLoss ? Math.max(0, dailyLoss.limitValue - dailyLoss.currentValue) : 0;
   const maxLossRemaining = totalLoss ? Math.max(0, totalLoss.limitValue - totalLoss.currentValue) : 0;
   const consistencyRemaining = consistency ? Math.max(0, consistency.limitValue - consistency.currentValue) : 0;
@@ -119,6 +120,7 @@ export function getAccountEvaluationSummary(account: TradingAccount, rows: RuleE
     totalLoss,
     profitTarget,
     consistency,
+    minTradingDays,
     unrecognizedEvals,
     dailyRemaining,
     maxLossRemaining,

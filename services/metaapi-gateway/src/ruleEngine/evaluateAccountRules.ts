@@ -2,6 +2,7 @@ import { evaluateDailyLoss } from './dailyLossCalculations';
 import { evaluateMaxDrawdown } from './drawdownCalculations';
 import { evaluateProfitTarget } from './profitTargetCalculations';
 import { evaluateConsistency } from './consistencyCalculations';
+import { evaluateMinTradingDays } from './minTradingDaysCalculations';
 import {
   finiteNumber,
   normalizeRuleText,
@@ -27,6 +28,7 @@ const ruleLabels: Record<BoundRuleKey, string> = {
   max_drawdown: 'Drawdown máximo',
   profit_target: 'Meta de lucro',
   consistency: 'Consistência',
+  min_trading_days: 'Dias mínimos',
 };
 
 export const ruleStatusSeverity: Record<RuleEvaluationStatus, number> = {
@@ -53,6 +55,14 @@ const ruleAliases: Record<BoundRuleKey, string[]> = {
   ],
   profit_target: ['meta', 'profit target', 'meta de lucro'],
   consistency: ['best day', 'melhor dia', 'maior dia', 'consistencia diaria', 'consistencia'],
+  min_trading_days: [
+    'dias minimos',
+    'dias negociados',
+    'dias operados',
+    'dias lucrativos',
+    'dias positivos',
+    'trades por dia',
+  ],
 };
 
 function containsAny(value: string, aliases: string[]) {
@@ -80,7 +90,13 @@ function labelMatchesRule(key: BoundRuleKey, label: string) {
  * o classifique como automático via MT5.
  */
 export function engineRuleKeyForLabel(label: string): BoundRuleKey | null {
-  const keys: BoundRuleKey[] = ['daily_loss', 'max_drawdown', 'profit_target', 'consistency'];
+  const keys: BoundRuleKey[] = [
+    'daily_loss',
+    'max_drawdown',
+    'profit_target',
+    'consistency',
+    'min_trading_days',
+  ];
   return keys.find((key) => labelMatchesRule(key, label)) ?? null;
 }
 
@@ -199,6 +215,7 @@ export function evaluateBoundAccountRules(
   const drawdownMonitorability = monitorabilityForRule('max_drawdown', automatic, manual, unsupported);
   const targetMonitorability = monitorabilityForRule('profit_target', automatic, manual, unsupported);
   const consistencyMonitorability = monitorabilityForRule('consistency', automatic, manual, unsupported);
+  const minTradingDaysMonitorability = monitorabilityForRule('min_trading_days', automatic, manual, unsupported);
   const unsupportedReason = globallyUnsupported
     ? 'Futures, BlackArrow ou plataforma sem conector MT5 não recebem cálculo automático.'
     : undefined;
@@ -280,20 +297,36 @@ export function evaluateBoundAccountRules(
           snapshots,
         });
 
-  // Consistência fica fora do status geral e do ruído padrão de alerta: o
-  // texto livre da regra não é parseável pra maioria das mesas (ver
-  // consistencyCalculations.ts), então "not_monitorable" nela é o caso comum,
-  // não um sinal real — não deve derrubar o selo de saúde da conta nem gerar
-  // alerta repetido quando a conta real (perda diária/drawdown/meta) está OK.
-  // Quando o cálculo É confiável e aponta warning/critical/breached, isso sim
-  // é sinal real e entra tanto no status quanto no alerta.
+  const minTradingDays =
+    globallyUnsupported || minTradingDaysMonitorability !== 'automatic_mt5'
+      ? blockedRule(
+          'min_trading_days',
+          snapshot.criticalRules.minTradingDays,
+          currency,
+          globallyUnsupported ? 'not_supported_yet' : minTradingDaysMonitorability,
+          unsupportedReason,
+        )
+      : evaluateMinTradingDays({
+          ruleText: snapshot.criticalRules.minTradingDays,
+          trades,
+          currency,
+        });
+
+  // Consistência e dias mínimos ficam fora do status geral e do ruído padrão
+  // de alerta: o texto livre dessas regras não é parseável pra boa parte das
+  // mesas (ver consistencyCalculations.ts e minTradingDaysCalculations.ts),
+  // então "not_monitorable" nelas é o caso comum, não um sinal real — não deve
+  // derrubar o selo de saúde da conta nem gerar alerta repetido quando a conta
+  // real (perda diária/drawdown/meta) está OK. Quando o cálculo É confiável e
+  // aponta warning/critical/breached, isso sim é sinal real e entra tanto no
+  // status quanto no alerta.
   const riskRules = [daily, drawdown, target];
   const overallStatus = worstStatus(riskRules);
-  const automaticRules = [...riskRules, consistency];
-  const alertableRules =
-    consistency.status === 'not_monitorable' || consistency.status === 'partial'
-      ? riskRules
-      : automaticRules;
+  const automaticRules = [...riskRules, consistency, minTradingDays];
+  const informativeRules = [consistency, minTradingDays].filter(
+    (evaluation) => evaluation.status !== 'not_monitorable' && evaluation.status !== 'partial',
+  );
+  const alertableRules = [...riskRules, ...informativeRules];
   const alerts = alertableRules
     .filter((evaluation) =>
       ['warning', 'critical', 'breached', 'not_monitorable', 'partial'].includes(evaluation.status),

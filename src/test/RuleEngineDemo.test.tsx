@@ -14,7 +14,7 @@ function scenario(id: RuleEngineDemoScenarioId) {
 
 describe('safe rule engine demo mode', () => {
   it('loads all controlled scenarios with the expected engine status', () => {
-    expect(ruleEngineDemoScenarios).toHaveLength(10);
+    expect(ruleEngineDemoScenarios).toHaveLength(11);
 
     for (const item of ruleEngineDemoScenarios) {
       expect(item.evaluation.overallStatus).toBe(item.expectedStatus);
@@ -29,7 +29,7 @@ describe('safe rule engine demo mode', () => {
   it('demonstrates automatic, conservative and BlackArrow behavior', () => {
     expect(
       scenario('safe').evaluation.automaticRules.map((rule) => rule.label),
-    ).toEqual(['Perda diária', 'Drawdown máximo', 'Meta de lucro', 'Consistência']);
+    ).toEqual(['Perda diária', 'Drawdown máximo', 'Meta de lucro', 'Consistência', 'Dias mínimos']);
     // FTMO 2-Step não publica um teto de consistência parseável ("Sem regra de
     // consistência para aprovação do 2-Step") — not_monitorable é o resultado
     // honesto, e não deve derrubar o overallStatus da conta (ver assert acima
@@ -37,6 +37,22 @@ describe('safe rule engine demo mode', () => {
     expect(
       scenario('safe').evaluation.automaticRules.find((rule) => rule.key === 'consistency'),
     ).toMatchObject({ status: 'not_monitorable' });
+    // FTMO 2-Step exige "4 dias em cada fase" — parseável e automático (label
+    // "Dias negociados" está no catálogo FTMO), mas o cenário 'safe' nunca
+    // sincronizou trades, então o resultado honesto é 0 de 4, não "atingido" e
+    // não not_monitorable. Também fora do overallStatus pelo mesmo motivo da
+    // consistência: not_monitorable é comum pra essa regra na maioria das
+    // mesas, não deve degradar contas que estão bem no risco de verdade.
+    expect(
+      scenario('safe').evaluation.automaticRules.find((rule) => rule.key === 'min_trading_days'),
+    ).toMatchObject({ status: 'safe', currentValue: 0, limitValue: 4 });
+    expect(
+      scenario('min_days_met').evaluation.automaticRules.find((rule) => rule.key === 'min_trading_days'),
+    ).toMatchObject({ status: 'safe', currentValue: 4, limitValue: 4 });
+    expect(
+      scenario('min_days_met').evaluation.automaticRules.find((rule) => rule.key === 'min_trading_days')
+        ?.message,
+    ).toContain('atingido');
     expect(
       scenario('warning').evaluation.automaticRules.find(
         (rule) => rule.key === 'daily_loss',
