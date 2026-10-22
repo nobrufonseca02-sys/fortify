@@ -4960,21 +4960,28 @@ fastify.post('/billing/create-checkout-session', async (request, reply) => {
       .maybeSingle() as any);
 
     let stripeCustomerId = subscription?.stripe_customer_id || null;
-    if (!stripeCustomerId && authResult.email) {
+
+    const createFreshStripeCustomer = async (): Promise<string | null> => {
+      if (!authResult.email) return null;
       const customer = await stripeRequest('/customers', {
         email: authResult.email,
         'metadata[user_id]': authResult.id,
       });
-      stripeCustomerId = getStripeId(customer.id);
-      if (stripeCustomerId) {
+      const newCustomerId = getStripeId(customer.id);
+      if (newCustomerId) {
         await (supabase
           .from('user_subscriptions' as any)
           .update({
-            stripe_customer_id: stripeCustomerId,
+            stripe_customer_id: newCustomerId,
             updated_at: new Date().toISOString(),
           })
           .eq('user_id', authResult.id) as any);
       }
+      return newCustomerId;
+    };
+
+    if (!stripeCustomerId) {
+      stripeCustomerId = await createFreshStripeCustomer();
     }
 
     const params: Record<string, unknown> = {
@@ -5000,7 +5007,33 @@ fastify.post('/billing/create-checkout-session', async (request, reply) => {
       params.customer_email = authResult.email;
     }
 
-    const checkoutSession = await stripeRequest('/checkout/sessions', params);
+    let checkoutSession: JsonRecord;
+    try {
+      checkoutSession = await stripeRequest('/checkout/sessions', params);
+    } catch (error: any) {
+      // A customer saved on a prior (possibly test-mode) attempt can stop
+      // existing on the Stripe account this gateway now talks to. Rather
+      // than permanently blocking checkout for that account, drop the dead
+      // ID, mint a replacement, and retry exactly once.
+      const isDeadCustomer =
+        error?.body?.error?.code === 'resource_missing' && error?.body?.error?.param === 'customer';
+      if (!isDeadCustomer || !stripeCustomerId) throw error;
+
+      fastify.log.warn({
+        event: 'stripe_customer_recreated_after_resource_missing',
+        userId: maskForLog(authResult.id),
+        staleCustomerId: maskForLog(stripeCustomerId),
+      });
+
+      stripeCustomerId = await createFreshStripeCustomer();
+      if (stripeCustomerId) {
+        params.customer = stripeCustomerId;
+      } else {
+        delete params.customer;
+        if (authResult.email) params.customer_email = authResult.email;
+      }
+      checkoutSession = await stripeRequest('/checkout/sessions', params);
+    }
 
     fastify.log.info({
       event: 'stripe_checkout_session_created',
