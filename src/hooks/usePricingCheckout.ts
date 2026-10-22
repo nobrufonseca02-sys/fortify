@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { AUTH_SIGNUP_PATH } from '@/components/landing/PublicShell';
 import { useSubscriptionPlan, type FortifyPlan } from '@/hooks/useSubscriptionPlan';
 import { createAddonCheckoutSession, createCheckoutSession, isBillingEnabled } from '@/lib/billing';
 import { hasMarketingConsent, trackBeginCheckout, trackSelectPlan } from '@/lib/analytics';
@@ -113,7 +114,7 @@ export function usePricingCheckout() {
       const message = 'Entre ou crie sua conta para continuar o checkout.';
       setCheckoutNotice(message);
       toast({ title: 'Sessão necessária', description: message });
-      navigate('/auth');
+      navigate(AUTH_SIGNUP_PATH);
       return;
     }
 
@@ -160,7 +161,7 @@ export function usePricingCheckout() {
       const message = 'Entre ou crie sua conta para adicionar contas extras.';
       setCheckoutNotice(message);
       toast({ title: 'Sessão necessária', description: message });
-      navigate('/auth');
+      navigate(AUTH_SIGNUP_PATH);
       return;
     }
 
