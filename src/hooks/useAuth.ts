@@ -14,6 +14,8 @@ import {
   supabaseStartupConfig,
 } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
+import { notifyGatewayOffline } from "@/lib/gateway";
+import { clearIdleActivity } from "@/lib/idleActivity";
 
 const AUTH_BOOTSTRAP_TIMEOUT_MS = 10_000;
 
@@ -121,7 +123,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStartupAttempt((current) => current + 1);
   }, []);
 
-  const signOut = useCallback(() => supabase.auth.signOut(), []);
+  const signOut = useCallback(async () => {
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.access_token) await notifyGatewayOffline(data.session.access_token);
+    clearIdleActivity();
+    return supabase.auth.signOut();
+  }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({

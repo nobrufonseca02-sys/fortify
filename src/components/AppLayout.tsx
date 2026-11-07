@@ -5,6 +5,7 @@ import { CreditCard, Headphones, Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useIdleSession } from "@/hooks/useIdleSession";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 import { SUPPORT_WHATSAPP_URL } from "@/lib/support";
 import { TradingViewProvider } from "@/components/tradingview/TradingViewProvider";
@@ -21,6 +22,7 @@ const supportWhatsAppUrl = SUPPORT_WHATSAPP_URL;
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const { session } = useAuth();
+  useIdleSession();
   const { subscription, plans, activeAccountCount, accountLimit } = useSubscriptionPlan();
   const [theme, setTheme] = useState(() => window.localStorage.getItem("fortify_theme") || "dark");
   const currentPlan = plans.find((plan) => plan.id === subscription?.plan_id || plan.slug === subscription?.plan_id);

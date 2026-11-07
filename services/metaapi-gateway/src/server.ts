@@ -29,6 +29,7 @@ import {
   worstFailureKind,
   type UpstreamFailureKind,
 } from './upstream';
+import { IDLE_TIMEOUT_MS, isDeployableConnection, planIdleUndeploys, type IdleConnection } from './idleDeploy';
 
 const gatewayEnvPath = path.resolve(__dirname, '../.env');
 const gatewayEnvResult = dotenv.config({ path: gatewayEnvPath, override: false });
@@ -2547,6 +2548,165 @@ async function undeployMetaApiAccount(providerAccountId: string) {
   const text = await res.text();
   const body = parseJsonText(text);
   return { ok: res.ok, status: res.status, body };
+}
+
+// --- Pausa por inatividade -------------------------------------------------
+// A MetaApi cobra por hora de conta implantada, mas o Fortify só lê a conta
+// quando o usuário sincroniza. Quem fica 30 min fora da plataforma tem as
+// contas desimplantadas; ao voltar (heartbeat de presença ou sync), elas são
+// reimplantadas. idle_undeployed_at é independente de suspended_at, que é a
+// suspensão por assinatura e não pode ser desfeita por presença.
+
+const IDLE_UNDEPLOY_ENABLED = String(process.env.METAAPI_IDLE_UNDEPLOY_ENABLED ?? 'true').toLowerCase() !== 'false';
+const IDLE_SWEEP_INTERVAL_MS = 5 * 60_000;
+const IDLE_CONNECTION_COLUMNS =
+  'id,user_id,provider_account_id,sync_status,suspended_at,metaapi_suspended_at,idle_undeployed_at';
+
+async function touchUserPresence(userId: string) {
+  const { error } = await (supabase
+    .from('user_presence' as any)
+    .upsert({ user_id: userId, last_seen_at: new Date().toISOString() }) as any);
+  if (error) {
+    fastify.log.warn({ event: 'user_presence_touch_failed', userId: maskForLog(userId), error: error.message });
+  }
+}
+
+async function markUserOffline(userId: string) {
+  const { error } = await (supabase
+    .from('user_presence' as any)
+    .upsert({ user_id: userId, last_seen_at: new Date(Date.now() - IDLE_TIMEOUT_MS).toISOString() }) as any);
+  if (error) throw error;
+}
+
+let idleSweepRunning = false;
+
+async function sweepIdleMetaApiAccounts(onlyUserId?: string) {
+  const result = { planned: 0, undeployed: 0, failed: 0 };
+  if (!METAAPI_TOKEN || (!onlyUserId && idleSweepRunning)) return result;
+  if (!onlyUserId) idleSweepRunning = true;
+  try {
+    const [{ data: connections, error: connectionsError }, { data: presence, error: presenceError }] = await Promise.all([
+      supabase
+        .from('mt5_connections')
+        .select(IDLE_CONNECTION_COLUMNS)
+        .not('provider_account_id', 'is', null)
+        .neq('sync_status', 'removed') as any,
+      supabase.from('user_presence' as any).select('user_id,last_seen_at') as any,
+    ]);
+    if (connectionsError) throw connectionsError;
+    if (presenceError) throw presenceError;
+
+    const lastSeenByUser = new Map<string, number>();
+    for (const row of (presence || []) as JsonRecord[]) {
+      const seen = Date.parse(String(row.last_seen_at));
+      if (Number.isFinite(seen)) lastSeenByUser.set(String(row.user_id), seen);
+    }
+
+    const rows = (connections || []) as IdleConnection[];
+    let plans = planIdleUndeploys(rows, lastSeenByUser, Date.now());
+    if (onlyUserId) {
+      const ownIds = new Set(rows.filter((row) => row.user_id === onlyUserId).map((row) => row.id));
+      plans = plans.filter((plan) => plan.connectionIds.some((id) => ownIds.has(id)));
+    }
+    result.planned = plans.length;
+
+    for (const plan of plans) {
+      try {
+        const undeploy = await undeployMetaApiAccount(plan.providerAccountId);
+        // 404: a conta nem existe mais na MetaApi — nada a pagar, marca igual.
+        if (!undeploy.ok && undeploy.status !== 404) {
+          result.failed++;
+          fastify.log.warn({
+            event: 'metaapi_idle_undeploy_failed',
+            providerAccountId: maskForLog(plan.providerAccountId),
+            status: undeploy.status,
+          });
+          continue;
+        }
+        const { error: markError } = await (supabase
+          .from('mt5_connections')
+          .update({ idle_undeployed_at: new Date().toISOString() } as any)
+          .in('id', plan.connectionIds) as any);
+        if (markError) throw markError;
+        result.undeployed++;
+        fastify.log.info({
+          event: 'metaapi_account_idle_undeployed',
+          providerAccountId: maskForLog(plan.providerAccountId),
+          trigger: onlyUserId ? 'user_offline' : 'sweep',
+        });
+      } catch (planError) {
+        result.failed++;
+        fastify.log.warn({
+          event: 'metaapi_idle_undeploy_error',
+          providerAccountId: maskForLog(plan.providerAccountId),
+          ...safeErrorMetadata(planError),
+        });
+      }
+    }
+    return result;
+  } finally {
+    if (!onlyUserId) idleSweepRunning = false;
+  }
+}
+
+async function wakeUserMetaApiAccounts(userId: string) {
+  const result = { redeployed: 0, failed: 0 };
+  if (!METAAPI_TOKEN) return result;
+
+  const { data, error } = await (supabase
+    .from('mt5_connections')
+    .select(IDLE_CONNECTION_COLUMNS)
+    .eq('user_id', userId)
+    .not('idle_undeployed_at', 'is', null) as any);
+  if (error) throw error;
+
+  const providerAccountIds = new Set(
+    ((data || []) as IdleConnection[])
+      .filter(isDeployableConnection)
+      .map((row) => String(row.provider_account_id).trim()),
+  );
+
+  for (const providerAccountId of providerAccountIds) {
+    // provider_account_id é gravável pelo usuário: só reimplanta conta que a
+    // MetaApi confirma ser dele, como o sync já exige.
+    const ownership = await checkProviderAccountOwnership(providerAccountId, userId);
+    if (ownership.status !== 'owned') {
+      result.failed++;
+      continue;
+    }
+    try {
+      const deploy = await deployMetaApiAccount(providerAccountId);
+      if (!deploy.ok) {
+        result.failed++;
+        fastify.log.warn({
+          event: 'metaapi_idle_redeploy_failed',
+          providerAccountId: maskForLog(providerAccountId),
+          status: deploy.status,
+        });
+        continue;
+      }
+      const { error: clearError } = await (supabase
+        .from('mt5_connections')
+        .update({ idle_undeployed_at: null } as any)
+        .eq('user_id', userId)
+        .eq('provider_account_id', providerAccountId) as any);
+      if (clearError) throw clearError;
+      result.redeployed++;
+      fastify.log.info({
+        event: 'metaapi_account_idle_redeployed',
+        userId: maskForLog(userId),
+        providerAccountId: maskForLog(providerAccountId),
+      });
+    } catch (wakeError) {
+      result.failed++;
+      fastify.log.warn({
+        event: 'metaapi_idle_redeploy_error',
+        providerAccountId: maskForLog(providerAccountId),
+        ...safeErrorMetadata(wakeError),
+      });
+    }
+  }
+  return result;
 }
 
 function isLocallySuspendedMetaApiConnection(connection: JsonRecord) {
@@ -6699,6 +6859,7 @@ fastify.post('/metaapi/connect', async (request, reply) => {
       sync_status: 'queued',
       sync_error: null,
       last_sync_at: null,
+      idle_undeployed_at: null,
     };
 
     let existingConnection: JsonRecord | null = null;
@@ -6815,6 +6976,45 @@ fastify.post('/metaapi/connect', async (request, reply) => {
   }
 });
 
+// Heartbeat do frontend enquanto o usuário está ativo. Não chama a MetaApi,
+// exceto para reimplantar contas que foram pausadas por inatividade.
+fastify.post('/metaapi/presence', async (request, reply) => {
+  try {
+    const limit = checkRateLimit(request, 'metaapi-presence', 30, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
+    const authResult = await verifyBearerUser(request);
+    if (isAuthError(authResult)) return reply.status(authResult.status).send(authResult.error);
+
+    await touchUserPresence(authResult.id);
+    const entitlement = await getUserEntitlement(authResult.id);
+    const wake = entitlement.canUseMetaApi ? await wakeUserMetaApiAccounts(authResult.id) : { redeployed: 0, failed: 0 };
+    return reply.send({ ok: true, redeployed: wake.redeployed, idleTimeoutMinutes: IDLE_TIMEOUT_MS / 60_000 });
+  } catch (error: any) {
+    fastify.log.error({ event: 'metaapi_presence_failed', ...safeErrorMetadata(error) });
+    return reply.status(500).send({ error: 'Não foi possível registrar a presença.', code: 'metaapi_presence_failed' });
+  }
+});
+
+// Chamado no logout (manual ou por inatividade): pausa as contas na hora em
+// vez de esperar a varredura.
+fastify.post('/metaapi/offline', async (request, reply) => {
+  try {
+    const limit = checkRateLimit(request, 'metaapi-offline', 10, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
+    const authResult = await verifyBearerUser(request);
+    if (isAuthError(authResult)) return reply.status(authResult.status).send(authResult.error);
+
+    await markUserOffline(authResult.id);
+    const result = await sweepIdleMetaApiAccounts(authResult.id);
+    return reply.send({ ok: true, undeployed: result.undeployed });
+  } catch (error: any) {
+    fastify.log.error({ event: 'metaapi_offline_failed', ...safeErrorMetadata(error) });
+    return reply.status(500).send({ error: 'Não foi possível pausar as contas.', code: 'metaapi_offline_failed' });
+  }
+});
+
 fastify.post('/metaapi/sync', async (request, reply) => {
   // Preenchido quando a conexão é marcada "running"; zerado ao registrar
   // sucesso ou falha. Se ainda estiver preenchido no finally, alguma saída
@@ -6922,6 +7122,20 @@ fastify.post('/metaapi/sync', async (request, reply) => {
       return reply.status(403).send({
         error: 'MetaApi account does not belong to the authenticated user',
         code: 'provider_account_ownership_mismatch',
+      });
+    }
+
+    if (authResult.id === userId) await touchUserPresence(userId);
+
+    // Conta desimplantada por inatividade: as rotas de dados da MetaApi
+    // falhariam até a conta reconectar à corretora. Reimplanta e devolve uma
+    // mensagem clara em vez de gastar três chamadas que dariam timeout.
+    if ((conn as JsonRecord).idle_undeployed_at) {
+      await wakeUserMetaApiAccounts(userId);
+      return reply.status(409).send({
+        error: 'Sua conta estava pausada por inatividade e está reconectando à corretora. Sincronize de novo em cerca de 1 minuto.',
+        code: 'metaapi_account_waking',
+        retryable: true,
       });
     }
 
@@ -7498,6 +7712,16 @@ fastify
   .then(async () => {
     fastify.log.info(`MetaApi gateway running on port ${PORT}`);
     await validateLoadedMetaApiToken();
+    if (IDLE_UNDEPLOY_ENABLED) {
+      const runSweep = () =>
+        sweepIdleMetaApiAccounts()
+          .then((result) => {
+            if (result.planned) fastify.log.info({ event: 'metaapi_idle_sweep_done', ...result });
+          })
+          .catch((error) => fastify.log.error({ event: 'metaapi_idle_sweep_failed', ...safeErrorMetadata(error) }));
+      setInterval(runSweep, IDLE_SWEEP_INTERVAL_MS).unref();
+      void runSweep();
+    }
   })
   .catch((err) => {
     fastify.log.error({ event: 'metaapi_gateway_start_failed', ...safeErrorMetadata(err) });
