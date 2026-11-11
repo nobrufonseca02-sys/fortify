@@ -92,15 +92,19 @@ export function usePricingCheckout() {
   }, [plans]);
 
   /**
-   * No semestral, o Pro é vendido sob consulta: não há linha nem checkout.
+   * No semestral, a família sem checkout configurado (hoje só pode ser o Pro)
+   * vira card "A consultar". Assim que a linha semestral dela ganha Price ID
+   * no banco, ela entra em visiblePlans com preço e este card some sozinho.
    * O card usa o mensal da família só para mostrar limite de contas e suporte.
    */
   const planosSobConsulta = useMemo(() => {
     if (intervaloEfetivo !== SEMESTER_INTERVAL) return [];
+    const familiasComCheckout = new Set(visiblePlans.map((plan) => planFamily(plan)));
     return SEMESTRAL_SOB_CONSULTA
+      .filter((familia) => !familiasComCheckout.has(familia))
       .map((familia) => mensalPorFamilia.get(familia))
       .filter((plan): plan is FortifyPlan => Boolean(plan));
-  }, [intervaloEfetivo, mensalPorFamilia]);
+  }, [intervaloEfetivo, mensalPorFamilia, visiblePlans]);
 
   const addonPlan = useMemo(
     () => plans.find((plan) => isAddonPlan(plan)) ?? null,

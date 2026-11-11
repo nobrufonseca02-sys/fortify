@@ -25,8 +25,9 @@ export const INCLUDED_IN_EVERY_PLAN = [
  * Os anuais também ficam de fora: os Prices deles foram criados em modo teste e
  * nunca existiram na Stripe live (ver docs/fortify/07-stripe-billing.md).
  *
- * O Pro semestral não tem linha no banco nem checkout: é vendido sob consulta
- * (ver SEMESTRAL_SOB_CONSULTA).
+ * O Pro semestral é vendido com checkout como os outros. Enquanto a linha
+ * dele não tiver Price ID no banco, o card cai para "A consultar" (ver
+ * SEMESTRAL_SOB_CONSULTA) em vez de sumir da vitrine.
  */
 export const MAIN_PLAN_SLUGS = new Set([
   'beginner_monthly',
@@ -34,6 +35,7 @@ export const MAIN_PLAN_SLUGS = new Set([
   'pro_monthly',
   'beginner_semiannual',
   'advanced_semiannual',
+  'pro_semiannual',
 ]);
 
 /** Valor de `plans.billing_interval` dos planos cobrados a cada seis meses. */
@@ -41,7 +43,10 @@ export const SEMESTER_INTERVAL = 'semester';
 
 export type IntervaloCobranca = 'month' | typeof SEMESTER_INTERVAL;
 
-/** Famílias que, no semestral, são vendidas só por conversa (sem checkout). */
+/**
+ * Famílias cujo semestral, se ainda não tiver checkout configurado, aparece
+ * como "A consultar" (conversa no WhatsApp) em vez de desaparecer.
+ */
 export const SEMESTRAL_SOB_CONSULTA = ['pro'];
 
 export function isCommercialPlan(plan: FortifyPlan) {

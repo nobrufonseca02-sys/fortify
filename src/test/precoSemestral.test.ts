@@ -9,7 +9,8 @@ import {
 
 /**
  * Catálogo de 11/11/2026: Beginner, Advanced e Pro, em mensal e semestral.
- * O Enterprise saiu da vitrine e o Pro semestral é vendido sob consulta.
+ * O Enterprise saiu da vitrine. O Pro semestral cai para "A consultar" só
+ * enquanto não tiver Price ID no banco.
  *
  * A aba semestral só liga quando os semestrais com checkout têm Price ID
  * válido. Enquanto os Prices não existem na Stripe, ela fica "em breve" e
@@ -98,6 +99,7 @@ describe('catálogo comercial', () => {
     expect(isCommercialPlan({ id: 'pro_annual', slug: 'pro_annual', billing_interval: 'year' } as never)).toBe(false);
     expect(isCommercialPlan(plano('pro_monthly', 199700, 'month'))).toBe(true);
     expect(isCommercialPlan(plano('advanced_semiannual', 589700, 'semester'))).toBe(true);
+    expect(isCommercialPlan(plano('pro_semiannual', 1189700, 'semester'))).toBe(true);
   });
 
   it('marca o Advanced como oferta de lançamento, e só ele', () => {

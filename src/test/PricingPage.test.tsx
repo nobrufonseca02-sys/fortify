@@ -44,11 +44,18 @@ const PLANS = [
     id: 'advanced_semiannual', slug: 'advanced_semiannual', name: 'Advanced', price_amount: 589700,
     billing_interval: 'semester', account_limit: 3, support_tier: 'standard', stripe_price_id: 'price_advancedsem',
   }),
+  plano({
+    id: 'pro_semiannual', slug: 'pro_semiannual', name: 'Pro', price_amount: 1189700,
+    billing_interval: 'semester', account_limit: 5, support_tier: 'priority', stripe_price_id: 'price_prosem',
+  }),
 ];
+
+// Trocado por teste para simular o banco sem a linha do Pro semestral.
+let mockPlans = PLANS;
 
 vi.mock('@/hooks/useSubscriptionPlan', () => ({
   useSubscriptionPlan: () => ({
-    plans: PLANS,
+    plans: mockPlans,
     subscription: null,
     isLoading: false,
     extraAccountQuantity: 0,
@@ -74,6 +81,7 @@ vi.mock('@/lib/billing', () => ({
 
 afterEach(() => {
   mockSession = null;
+  mockPlans = PLANS;
 });
 
 function renderPricing(props?: { variant?: 'auto' | 'public' }) {
@@ -110,7 +118,18 @@ describe('PricingPage', () => {
     expect(screen.getByText('Preço de lançamento, por tempo limitado.')).toBeInTheDocument();
   });
 
-  it('no semestral, mostra Beginner e Advanced com preço e o Pro sob consulta', () => {
+  it('no semestral, vende os três planos com preço e checkout', () => {
+    renderPricing();
+    fireEvent.click(screen.getByRole('button', { name: 'Semestral' }));
+    expect(screen.getByText(/R\$\s?1\.697/)).toBeInTheDocument();
+    expect(screen.getByText(/R\$\s?5\.897/)).toBeInTheDocument();
+    expect(screen.getByText(/R\$\s?11\.897/)).toBeInTheDocument();
+    expect(screen.queryByText('A consultar')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Assinar' })).toHaveLength(3);
+  });
+
+  it('sem Price ID do Pro semestral no banco, o card dele cai para "A consultar"', () => {
+    mockPlans = PLANS.filter((p) => (p as { id?: string }).id !== 'pro_semiannual');
     renderPricing();
     fireEvent.click(screen.getByRole('button', { name: 'Semestral' }));
     expect(screen.getByText(/R\$\s?1\.697/)).toBeInTheDocument();
@@ -167,6 +186,6 @@ describe('PricingPage', () => {
     expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument();
     expect(screen.getByText('Oferta de lançamento')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Semestral' }));
-    expect(screen.getByText('A consultar')).toBeInTheDocument();
+    expect(screen.getByText(/R\$\s?11\.897/)).toBeInTheDocument();
   });
 });
