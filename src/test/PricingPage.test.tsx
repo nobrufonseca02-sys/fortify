@@ -11,33 +11,39 @@ vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({ user: mockSession ? { id: 'user-1' } : null, session: mockSession }),
 }));
 
+function plano(extra: Record<string, unknown>) {
+  return { currency: 'brl', plan_features: [], ...extra };
+}
+
 const PLANS = [
-  {
-    id: 'beginner_monthly',
-    slug: 'beginner_monthly',
-    name: 'Beginner',
-    price_amount: 9700,
-    currency: 'brl',
-    billing_interval: 'month',
-    account_limit: 1,
-    support_tier: 'basic',
-    stripe_price_id: 'price_beginner',
+  plano({
+    id: 'beginner_monthly', slug: 'beginner_monthly', name: 'Beginner', price_amount: 29700,
+    billing_interval: 'month', account_limit: 1, support_tier: 'basic', stripe_price_id: 'price_beginner',
     plan_features: ['1 conta MT5', 'painel de risco'],
-  },
-  {
-    id: 'pro_monthly',
-    slug: 'pro_monthly',
-    name: 'Pro',
-    price_amount: 49700,
-    currency: 'brl',
-    billing_interval: 'month',
-    account_limit: 5,
-    support_tier: 'priority',
-    stripe_price_id: 'price_pro',
-    highlighted: true,
-    recommended_badge: 'Mais escolhido',
+  }),
+  plano({
+    id: 'advanced_monthly', slug: 'advanced_monthly', name: 'Advanced', price_amount: 99700,
+    billing_interval: 'month', account_limit: 3, support_tier: 'standard', stripe_price_id: 'price_advanced',
+  }),
+  plano({
+    id: 'pro_monthly', slug: 'pro_monthly', name: 'Pro', price_amount: 199700,
+    billing_interval: 'month', account_limit: 5, support_tier: 'priority', stripe_price_id: 'price_pro',
+    highlighted: true, recommended_badge: 'Mais escolhido',
     plan_features: ['ate 5 contas MT5', 'insights avancados'],
-  },
+  }),
+  // Continua no banco para quem já assina, mas saiu da vitrine.
+  plano({
+    id: 'enterprise_monthly', slug: 'enterprise_monthly', name: 'Enterprise', price_amount: 149700,
+    billing_interval: 'month', account_limit: 10, support_tier: 'enterprise', stripe_price_id: 'price_enterprise',
+  }),
+  plano({
+    id: 'beginner_semiannual', slug: 'beginner_semiannual', name: 'Beginner', price_amount: 169700,
+    billing_interval: 'semester', account_limit: 1, support_tier: 'basic', stripe_price_id: 'price_beginnersem',
+  }),
+  plano({
+    id: 'advanced_semiannual', slug: 'advanced_semiannual', name: 'Advanced', price_amount: 589700,
+    billing_interval: 'semester', account_limit: 3, support_tier: 'standard', stripe_price_id: 'price_advancedsem',
+  }),
 ];
 
 vi.mock('@/hooks/useSubscriptionPlan', () => ({
@@ -50,6 +56,14 @@ vi.mock('@/hooks/useSubscriptionPlan', () => ({
     activeAccountCount: 0,
     hasActivePlan: false,
   }),
+}));
+
+// O NumberFlow anima a troca de valor com um custom element que o jsdom não
+// implementa (willUpdate). Aqui só importa o número formatado.
+vi.mock('@number-flow/react', () => ({
+  default: ({ value, format }: { value: number; format: Intl.NumberFormatOptions }) => (
+    <span>{new Intl.NumberFormat('pt-BR', format).format(value)}</span>
+  ),
 }));
 
 vi.mock('@/lib/billing', () => ({
@@ -74,13 +88,38 @@ describe('PricingPage', () => {
   it('mostra o preço e o limite de contas vindos do catálogo, sem valores fixos no código', () => {
     renderPricing();
 
-    // R$ 97 e R$ 497 chegam de price_amount (centavos), não de um texto escrito à mão.
-    expect(screen.getByText(/R\$\s?97/)).toBeInTheDocument();
-    expect(screen.getByText(/R\$\s?497/)).toBeInTheDocument();
+    // Os valores chegam de price_amount (centavos), não de um texto escrito à mão.
+    expect(screen.getByText(/R\$\s?297/)).toBeInTheDocument();
+    expect(screen.getByText(/R\$\s?997/)).toBeInTheDocument();
+    expect(screen.getByText(/R\$\s?1\.997/)).toBeInTheDocument();
 
     expect(screen.getByText('conta MT5 monitorada')).toBeInTheDocument();
-    expect(screen.getByText('contas MT5 monitoradas')).toBeInTheDocument();
+    expect(screen.getAllByText('contas MT5 monitoradas').length).toBeGreaterThan(0);
     expect(screen.getByText('Mais escolhido')).toBeInTheDocument();
+  });
+
+  it('vende só três planos: o Enterprise saiu da vitrine', () => {
+    renderPricing();
+    expect(screen.queryByText('Enterprise')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Assinar' })).toHaveLength(3);
+  });
+
+  it('mostra a oferta de lançamento no Advanced', () => {
+    renderPricing();
+    expect(screen.getByText('Oferta de lançamento')).toBeInTheDocument();
+    expect(screen.getByText('Preço de lançamento, por tempo limitado.')).toBeInTheDocument();
+  });
+
+  it('no semestral, mostra Beginner e Advanced com preço e o Pro sob consulta', () => {
+    renderPricing();
+    fireEvent.click(screen.getByRole('button', { name: 'Semestral' }));
+    expect(screen.getByText(/R\$\s?1\.697/)).toBeInTheDocument();
+    expect(screen.getByText(/R\$\s?5\.897/)).toBeInTheDocument();
+    expect(screen.getByText('A consultar')).toBeInTheDocument();
+    const consulta = screen.getByRole('link', { name: /Falar com a equipe/ });
+    expect(consulta.getAttribute('href')).toContain('wa.me');
+    // Só os dois semestrais com preço têm checkout.
+    expect(screen.getAllByRole('button', { name: 'Assinar' })).toHaveLength(2);
   });
 
   it('não repete o limite de contas nem o suporte na lista secundária do card', () => {
@@ -122,9 +161,12 @@ describe('PricingPage', () => {
     expect(window.sessionStorage.getItem('fortify_checkout_return_path')).toBe(window.location.pathname);
   });
 
-  it('logado, renderiza sem a casca pública — quem dá moldura é o AppLayout', () => {
+  it('logado, renderiza sem a casca pública e com a mesma oferta', () => {
     mockSession = { user: { id: 'user-1' }, access_token: 'token-1' };
     renderPricing();
     expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument();
+    expect(screen.getByText('Oferta de lançamento')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Semestral' }));
+    expect(screen.getByText('A consultar')).toBeInTheDocument();
   });
 });

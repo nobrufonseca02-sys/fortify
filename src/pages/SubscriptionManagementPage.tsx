@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscriptionPlan, type FortifyPlan } from '@/hooks/useSubscriptionPlan';
+import { intervalLabel, isCommercialPlan } from '@/lib/pricingCatalog';
 import { useAccountsStore } from '@/hooks/useAccountsStore';
 import {
   cancelSubscription, resumeSubscription, changePlan, createPortalSession,
@@ -56,10 +57,6 @@ function formatPrice(plan: FortifyPlan) {
     style: 'currency',
     currency: String(plan.currency || 'brl').toUpperCase(),
   });
-}
-
-function intervalLabel(interval?: string | null) {
-  return interval === 'year' ? 'ano' : 'mês';
 }
 
 function formatDate(value?: string | null) {
@@ -406,7 +403,7 @@ export default function SubscriptionManagementPage() {
   }
 
   const periodEndLabel = formatDate(subscription?.paid_until || subscription?.current_period_end);
-  const otherPlans = plans.filter((plan) => isRealPlan(plan) && plan.id !== subscription?.plan_id && hasConfiguredPrice(plan));
+  const otherPlans = plans.filter((plan) => isRealPlan(plan) && isCommercialPlan(plan) && plan.id !== subscription?.plan_id && hasConfiguredPrice(plan));
 
   const renderPlanGrid = (mode: 'stripe' | 'manual') => (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

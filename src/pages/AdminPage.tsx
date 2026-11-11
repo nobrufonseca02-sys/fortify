@@ -663,7 +663,7 @@ export default function AdminPage() {
                     <TableCell>{plan.slug || plan.id}</TableCell>
                     <TableCell>{plan.account_limit}</TableCell>
                     <TableCell>{fmtPrice(plan.price_amount)}</TableCell>
-                    <TableCell>{plan.billing_interval === 'year' ? 'anual' : plan.billing_interval === 'month' ? 'mensal' : '-'}</TableCell>
+                    <TableCell>{plan.billing_interval === 'year' ? 'anual' : plan.billing_interval === 'semester' ? 'semestral' : plan.billing_interval === 'month' ? 'mensal' : '-'}</TableCell>
                     <TableCell>{plan.support_tier || 'basic'}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       <div>{plan.stripe_product_id || 'ausente'}</div>
@@ -694,6 +694,7 @@ export default function AdminPage() {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="month">Mensal</SelectItem>
+                    <SelectItem value="semester">Semestral</SelectItem>
                     <SelectItem value="year">Anual</SelectItem>
                   </SelectContent>
                 </Select>

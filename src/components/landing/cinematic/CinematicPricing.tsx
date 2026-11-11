@@ -1,16 +1,20 @@
 import { useRef, type MouseEvent, type ReactNode } from 'react';
 import { motion, useReducedMotion, useScroll, useTransform } from 'motion/react';
 import NumberFlow from '@number-flow/react';
-import { AlertTriangle, CheckCircle2, Info, Loader2, PlusCircle, ShieldCheck, Star } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Info, Loader2, MessageCircle, PlusCircle, ShieldCheck, Star, Tag } from 'lucide-react';
 import type { FortifyPlan } from '@/hooks/useSubscriptionPlan';
 import type { PricingCheckout } from '@/hooks/usePricingCheckout';
 import { FirmLogoStrip } from '@/components/landing/FirmLogoMarquee';
-import { SUPPORT_WHATSAPP_URL } from '@/lib/support';
+import { CONSULTA_PRO_SEMESTRAL_WHATSAPP_URL, SUPPORT_WHATSAPP_URL } from '@/lib/support';
+import { trackCta } from '@/components/landing/PublicShell';
 import {
   INCLUDED_IN_EVERY_PLAN,
+  SEMESTER_INTERVAL,
   bestFor,
+  detalheSemestral,
   hasConfiguredPrice,
   intervalLabel,
+  ofertaLancamento,
   planFamily,
   priceValue,
   secondaryFeatures,
@@ -46,7 +50,7 @@ function Header({ pricing }: { pricing: PricingCheckout }) {
   const orbY = useTransform(scrollYProgress, [0, 1], ['-50%', '-70%']);
   const orbOpacity = useTransform(scrollYProgress, [0, 1], [1, 0.4]);
   const enter = useEnter();
-  const { intervaloEfetivo, setIntervalo, anuaisLiberados } = pricing;
+  const { intervaloEfetivo, setIntervalo, semestraisLiberados } = pricing;
 
   return (
     <section ref={ref} aria-labelledby="planos-title" className="relative overflow-x-clip px-6 pb-16 pt-36 sm:pt-44">
@@ -80,16 +84,16 @@ function Header({ pricing }: { pricing: PricingCheckout }) {
           <IntervalButton active={intervaloEfetivo === 'month'} onClick={() => setIntervalo('month')}>
             Mensal
           </IntervalButton>
-          {anuaisLiberados ? (
-            <IntervalButton active={intervaloEfetivo === 'year'} onClick={() => setIntervalo('year')}>
-              Anual
+          {semestraisLiberados ? (
+            <IntervalButton active={intervaloEfetivo === SEMESTER_INTERVAL} onClick={() => setIntervalo(SEMESTER_INTERVAL)}>
+              Semestral
             </IntervalButton>
           ) : (
             <span
-              title="Um dos planos anuais está cadastrado com desconto abaixo do mínimo. A aba liga sozinha quando o preço for corrigido."
+              title="Os planos semestrais entram assim que os preços estiverem cadastrados na Stripe."
               className="cursor-not-allowed rounded-full px-4 py-1.5 text-zinc-500"
             >
-              Anual <span className={`${FONT_MONO} text-[9px] uppercase tracking-[0.16em]`}>em breve</span>
+              Semestral <span className={`${FONT_MONO} text-[9px] uppercase tracking-[0.16em]`}>em breve</span>
             </span>
           )}
         </motion.div>
@@ -156,6 +160,8 @@ function PlanCard({ plan, pricing, index }: { plan: FortifyPlan; pricing: Pricin
   const support = supportLabels[String(plan.support_tier || 'basic')] || supportLabels.basic;
   const features = secondaryFeatures(plan);
   const highlighted = Boolean(plan.highlighted);
+  const oferta = ofertaLancamento(plan);
+  const semestral = detalheSemestral(plan, pricing.mensalPorFamilia.get(family));
 
   return (
     <motion.article
@@ -172,12 +178,17 @@ function PlanCard({ plan, pricing, index }: { plan: FortifyPlan; pricing: Pricin
           : 'bg-gradient-to-b from-white/10 via-white/[0.04] to-transparent shadow-[0_32px_100px_rgba(0,0,0,0.9)]',
       )}
     >
-      {highlighted && plan.recommended_badge && (
+      {oferta ? (
+        <div className="absolute -top-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full bg-amber-300 px-2.5 py-1 shadow-[0_8px_24px_-8px_rgba(252,211,77,0.55)]">
+          <Tag className="h-3 w-3 text-zinc-950" aria-hidden="true" />
+          <span className="text-[11px] font-semibold text-zinc-950">{oferta.selo}</span>
+        </div>
+      ) : highlighted && plan.recommended_badge ? (
         <div className="absolute -top-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1 rounded-full bg-white px-2.5 py-1 shadow-[0_8px_24px_-8px_rgba(255,255,255,0.5)]">
           <Star className="h-3 w-3 fill-current text-zinc-950" aria-hidden="true" />
           <span className="text-[11px] font-semibold text-zinc-950">{plan.recommended_badge}</span>
         </div>
-      )}
+      ) : null}
       <div className="relative flex flex-1 flex-col overflow-hidden rounded-[1.25rem] border border-white/5 bg-zinc-950/95 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] backdrop-blur-2xl">
         <div
           aria-hidden="true"
@@ -192,7 +203,12 @@ function PlanCard({ plan, pricing, index }: { plan: FortifyPlan; pricing: Pricin
           {bestFor[family] || 'Plano Fortify para monitoramento profissional.'}
         </p>
 
-        <div className="relative mt-6 flex items-baseline gap-1">
+        <div className="relative mt-6 flex flex-wrap items-baseline gap-x-1">
+          {oferta?.precoCheio && plan.billing_interval === 'month' ? (
+            <s className="mr-1 text-base tabular-nums text-zinc-500">
+              R$ {oferta.precoCheio.toLocaleString('pt-BR')}
+            </s>
+          ) : null}
           <span className="text-4xl font-semibold tabular-nums tracking-tight text-white">
             <NumberFlow
               value={priceValue(plan)}
@@ -207,6 +223,8 @@ function PlanCard({ plan, pricing, index }: { plan: FortifyPlan; pricing: Pricin
           </span>
           <span className="text-sm font-medium text-zinc-500">/ {intervalLabel(plan.billing_interval)}</span>
         </div>
+        {oferta ? <p className="relative mt-2 text-xs font-medium text-amber-200">{oferta.nota}</p> : null}
+        {semestral ? <p className="relative mt-2 text-xs text-zinc-400">{semestral}</p> : null}
 
         <div className="relative mt-5 rounded-xl border border-white/10 bg-zinc-900/60 px-4 py-3">
           <p className={`${FONT_MONO} text-2xl font-medium tabular-nums leading-none text-white`}>{plan.account_limit}</p>
@@ -245,13 +263,68 @@ function PlanCard({ plan, pricing, index }: { plan: FortifyPlan; pricing: Pricin
   );
 }
 
+/**
+ * Card do plano vendido sob consulta (Pro semestral). Mesma moldura dos
+ * outros, mas sem preço nem checkout: o botão abre a conversa no WhatsApp.
+ */
+function ConsultCard({ plan, index }: { plan: FortifyPlan; index: number }) {
+  const reduceMotion = useReducedMotion();
+  const family = planFamily(plan);
+  const support = supportLabels[String(plan.support_tier || 'basic')] || supportLabels.basic;
+
+  return (
+    <motion.article
+      layout
+      initial={reduceMotion ? undefined : { opacity: 0, y: 24, filter: 'blur(8px)' }}
+      whileInView={reduceMotion ? undefined : { opacity: 1, y: 0, filter: 'blur(0px)' }}
+      viewport={VIEW}
+      transition={{ duration: 0.7, ease: EASE, delay: index * 0.08 }}
+      onMouseMove={trackSpotlight}
+      className="group relative flex flex-col rounded-[1.6rem] bg-gradient-to-b from-white/10 via-white/[0.04] to-transparent p-1.5 shadow-[0_32px_100px_rgba(0,0,0,0.9)] transition-transform duration-300 hover:-translate-y-1"
+    >
+      <div className="relative flex flex-1 flex-col overflow-hidden rounded-[1.25rem] border border-white/5 bg-zinc-950/95 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] backdrop-blur-2xl">
+        <h2 className={`${FONT_DISPLAY} relative text-xl font-semibold tracking-tight text-white`}>{plan.name || plan.plan_name}</h2>
+        <p className="relative mt-1 min-h-[2.5rem] text-xs leading-relaxed text-zinc-400">
+          {bestFor[family] || 'Plano Fortify para monitoramento profissional.'}
+        </p>
+
+        <div className="relative mt-6 flex items-baseline gap-1">
+          <span className="text-4xl font-semibold tracking-tight text-white">A consultar</span>
+        </div>
+        <p className="relative mt-2 text-xs text-zinc-400">Cobrança semestral com valor combinado com a equipe.</p>
+
+        <div className="relative mt-5 rounded-xl border border-white/10 bg-zinc-900/60 px-4 py-3">
+          <p className={`${FONT_MONO} text-2xl font-medium tabular-nums leading-none text-white`}>{plan.account_limit}</p>
+          <p className={`${FONT_MONO} mt-1.5 text-[10px] uppercase tracking-[0.16em] text-zinc-400`}>
+            {plan.account_limit === 1 ? 'conta MT5 monitorada' : 'contas MT5 monitoradas'}
+          </p>
+        </div>
+
+        <p className="relative mt-4 text-xs font-medium text-zinc-200">{support}</p>
+
+        <div className="relative mt-5">
+          <TactileButton
+            variant="glass"
+            href={CONSULTA_PRO_SEMESTRAL_WHATSAPP_URL}
+            onClick={() => trackCta('pro_semestral_consulta', 'planos', 'whatsapp_support')}
+            className="w-full"
+          >
+            <MessageCircle className="h-4 w-4" aria-hidden="true" />
+            Falar com a equipe
+          </TactileButton>
+        </div>
+      </div>
+    </motion.article>
+  );
+}
+
 function PlanGrid({ pricing }: { pricing: PricingCheckout }) {
-  const { isLoading, visiblePlans } = pricing;
+  const { isLoading, visiblePlans, planosSobConsulta } = pricing;
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4" aria-busy="true" aria-label="Carregando planos">
-        {[0, 1, 2, 3].map((i) => (
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3" aria-busy="true" aria-label="Carregando planos">
+        {[0, 1, 2].map((i) => (
           <div key={i} className="h-[420px] animate-pulse rounded-[1.6rem] bg-zinc-900/60 ring-1 ring-white/5" />
         ))}
       </div>
@@ -267,9 +340,12 @@ function PlanGrid({ pricing }: { pricing: PricingCheckout }) {
   }
 
   return (
-    <div className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-3">
       {visiblePlans.map((plan, index) => (
         <PlanCard key={planFamily(plan)} plan={plan} pricing={pricing} index={index} />
+      ))}
+      {planosSobConsulta.map((plan, index) => (
+        <ConsultCard key={`${planFamily(plan)}-consulta`} plan={plan} index={visiblePlans.length + index} />
       ))}
     </div>
   );

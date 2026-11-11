@@ -5,6 +5,7 @@ import { useSubscriptionPlan } from '@/hooks/useSubscriptionPlan';
 import { useAuth } from '@/hooks/useAuth';
 import { createPortalSession, isBillingEnabled } from '@/lib/billing';
 import { toast } from '@/hooks/use-toast';
+import { intervalLabel, isCommercialPlan } from '@/lib/pricingCatalog';
 
 const supportLabels: Record<string, string> = {
   basic: 'Suporte básico',
@@ -17,7 +18,7 @@ function formatPlanPrice(plan: any) {
   if (plan.id === 'beta_free') return 'Acesso beta';
   const amount = Number((plan.price_amount ?? plan.price_cents) || 0);
   if (!amount) return 'Preço a confirmar';
-  return `${(amount / 100).toLocaleString('pt-BR', { style: 'currency', currency: String(plan.currency || 'brl').toUpperCase() })}/${plan.billing_interval === 'year' ? 'ano' : 'mês'}`;
+  return `${(amount / 100).toLocaleString('pt-BR', { style: 'currency', currency: String(plan.currency || 'brl').toUpperCase() })}/${intervalLabel(plan.billing_interval)}`;
 }
 
 export function PlanStatusPanel({ compact = false }: { compact?: boolean }) {
@@ -97,8 +98,8 @@ export function PlanStatusPanel({ compact = false }: { compact?: boolean }) {
             ) : null}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            {plans.map((plan) => (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {plans.filter((plan) => isCommercialPlan(plan) && plan.billing_interval === 'month').map((plan) => (
               <div key={plan.id} className="rounded-lg border border-border bg-muted/20 p-3">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="w-3.5 h-3.5 text-primary" />

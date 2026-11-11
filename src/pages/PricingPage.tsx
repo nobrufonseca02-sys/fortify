@@ -1,14 +1,18 @@
 import { motion } from 'motion/react';
 import NumberFlow from '@number-flow/react';
-import { CheckCircle2, Loader2, PlusCircle, ShieldCheck, Star } from 'lucide-react';
+import { CheckCircle2, Loader2, MessageCircle, PlusCircle, ShieldCheck, Star, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CinematicPricing } from '@/components/landing/cinematic/CinematicPricing';
 import { usePricingCheckout } from '@/hooks/usePricingCheckout';
+import { CONSULTA_PRO_SEMESTRAL_WHATSAPP_URL } from '@/lib/support';
 import {
   INCLUDED_IN_EVERY_PLAN,
+  SEMESTER_INTERVAL,
   bestFor,
+  detalheSemestral,
   hasConfiguredPrice,
   intervalLabel,
+  ofertaLancamento,
   planFamily,
   priceValue,
   secondaryFeatures,
@@ -33,8 +37,10 @@ export default function PricingPage({ variant = 'auto' }: { variant?: 'auto' | '
     session,
     isLoading,
     visiblePlans,
+    planosSobConsulta,
+    mensalPorFamilia,
     addonPlan,
-    anuaisLiberados,
+    semestraisLiberados,
     intervaloEfetivo,
     setIntervalo,
     billingEnabled,
@@ -104,35 +110,37 @@ export default function PricingPage({ variant = 'auto' }: { variant?: 'auto' | '
           >
             Mensal
           </button>
-          {anuaisLiberados ? (
+          {semestraisLiberados ? (
             <button
               type="button"
-              onClick={() => setIntervalo('year')}
+              onClick={() => setIntervalo(SEMESTER_INTERVAL)}
               className={
-                intervaloEfetivo === 'year'
+                intervaloEfetivo === SEMESTER_INTERVAL
                   ? 'rounded-full bg-background px-4 py-1.5 font-semibold text-foreground shadow-sm'
                   : 'rounded-full px-4 py-1.5 text-muted-foreground transition-colors hover:text-foreground'
               }
             >
-              Anual
+              Semestral
             </button>
           ) : (
             <span
-              title="Um dos planos anuais está cadastrado com desconto abaixo do mínimo. A aba liga sozinha quando o preço for corrigido."
+              title="Os planos semestrais entram assim que os preços estiverem cadastrados na Stripe."
               className="cursor-not-allowed rounded-full px-4 py-1.5 text-muted-foreground/60"
             >
-              Anual <span className="text-[10px] uppercase tracking-wide">em breve</span>
+              Semestral <span className="text-[10px] uppercase tracking-wide">em breve</span>
             </span>
           )}
         </div>
       </div>
 
-      <div className="mt-8 grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-8 grid grid-cols-1 items-start gap-4 md:grid-cols-3">
         {(isLoading ? [] : visiblePlans).map((plan) => {
           const family = planFamily(plan);
           const action = planAction(plan);
           const support = supportLabels[String(plan.support_tier || 'basic')] || supportLabels.basic;
           const planFeatures = secondaryFeatures(plan);
+          const oferta = ofertaLancamento(plan);
+          const semestral = detalheSemestral(plan, mensalPorFamilia.get(family));
 
           return (
             <motion.article
@@ -145,14 +153,19 @@ export default function PricingPage({ variant = 'auto' }: { variant?: 'auto' | '
                 plan.highlighted ? 'border-primary/70 bg-primary/[0.03]' : 'border-border'
               }`}
             >
-              {plan.highlighted && plan.recommended_badge && (
+              {oferta ? (
+                <div className="absolute -top-3 left-6 flex items-center gap-1 rounded-full bg-warning px-2.5 py-1">
+                  <Tag className="h-3 w-3 text-warning-foreground" />
+                  <span className="text-[11px] font-semibold text-warning-foreground">{oferta.selo}</span>
+                </div>
+              ) : plan.highlighted && plan.recommended_badge ? (
                 <div className="absolute -top-3 left-6 flex items-center gap-1 rounded-full bg-primary px-2.5 py-1">
                   <Star className="h-3 w-3 fill-current text-primary-foreground" />
                   <span className="text-[11px] font-semibold text-primary-foreground">
                     {plan.recommended_badge}
                   </span>
                 </div>
-              )}
+              ) : null}
 
               {/* 1. Identidade do plano */}
               <div className="flex items-center gap-1.5">
@@ -164,7 +177,12 @@ export default function PricingPage({ variant = 'auto' }: { variant?: 'auto' | '
               </p>
 
               {/* 2. Preço */}
-              <div className="mt-6 flex items-baseline gap-1">
+              <div className="mt-6 flex flex-wrap items-baseline gap-x-1">
+                {oferta?.precoCheio && plan.billing_interval === 'month' ? (
+                  <s className="mr-1 font-mono text-base tabular-nums text-muted-foreground">
+                    R$ {oferta.precoCheio.toLocaleString('pt-BR')}
+                  </s>
+                ) : null}
                 <span className="font-mono text-4xl font-bold tabular-nums text-foreground">
                   <NumberFlow
                     value={priceValue(plan)}
@@ -181,6 +199,8 @@ export default function PricingPage({ variant = 'auto' }: { variant?: 'auto' | '
                   / {intervalLabel(plan.billing_interval)}
                 </span>
               </div>
+              {oferta ? <p className="mt-2 text-xs font-medium text-warning">{oferta.nota}</p> : null}
+              {semestral ? <p className="mt-2 text-xs text-muted-foreground">{semestral}</p> : null}
 
               {/* 3. Limite de contas — o eixo real de comparação entre os planos */}
               <div className="mt-5 rounded-lg border border-border bg-muted/40 px-4 py-3">
@@ -225,6 +245,44 @@ export default function PricingPage({ variant = 'auto' }: { variant?: 'auto' | '
                   </li>
                 ))}
               </ul>
+            </motion.article>
+          );
+        })}
+        {planosSobConsulta.map((plan) => {
+          const family = planFamily(plan);
+          const support = supportLabels[String(plan.support_tier || 'basic')] || supportLabels.basic;
+          return (
+            <motion.article
+              key={`${family}-consulta`}
+              layout
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="relative flex flex-col rounded-lg border border-border bg-card p-6"
+            >
+              <h2 className="text-base font-semibold text-foreground">{plan.name || plan.plan_name}</h2>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                {bestFor[family] || 'Plano Fortify para monitoramento profissional.'}
+              </p>
+              <p className="mt-6 font-mono text-3xl font-bold text-foreground">A consultar</p>
+              <p className="mt-2 text-xs text-muted-foreground">Cobrança semestral com valor combinado com a equipe.</p>
+              <div className="mt-5 rounded-lg border border-border bg-muted/40 px-4 py-3">
+                <p className="font-mono text-xl font-bold tabular-nums leading-none text-foreground">
+                  {plan.account_limit}
+                </p>
+                <p className="mt-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  {plan.account_limit === 1 ? 'conta MT5 monitorada' : 'contas MT5 monitoradas'}
+                </p>
+              </div>
+              <p className="mt-4 text-xs font-medium text-foreground">{support}</p>
+              <div className="mt-5">
+                <Button asChild variant="outline" className="w-full gap-2">
+                  <a href={CONSULTA_PRO_SEMESTRAL_WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
+                    <MessageCircle className="h-4 w-4" />
+                    Falar com a equipe
+                  </a>
+                </Button>
+              </div>
             </motion.article>
           );
         })}

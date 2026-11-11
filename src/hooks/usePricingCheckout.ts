@@ -7,11 +7,15 @@ import { createAddonCheckoutSession, createCheckoutSession, isBillingEnabled } f
 import { hasMarketingConsent, trackBeginCheckout, trackSelectPlan } from '@/lib/analytics';
 import { toast } from '@/hooks/use-toast';
 import {
-  MAIN_PLAN_SLUGS,
-  anuaisProntosParaVenda,
+  SEMESTER_INTERVAL,
+  SEMESTRAL_SOB_CONSULTA,
   hasConfiguredPrice,
   isAddonPlan,
+  isCommercialPlan,
   isValidStripePrice,
+  planFamily,
+  semestraisProntosParaVenda,
+  type IntervaloCobranca,
 } from '@/lib/pricingCatalog';
 
 export type PlanAction = {
@@ -45,10 +49,10 @@ export function usePricingCheckout() {
     activeAccountCount,
     hasActivePlan,
   } = useSubscriptionPlan();
-  const anuaisLiberados = useMemo(() => anuaisProntosParaVenda(plans), [plans]);
-  // Mensal continua sendo o padrão: o anual é upsell, não pedágio de entrada.
-  const [intervalo, setIntervalo] = useState<'month' | 'year'>('month');
-  const intervaloEfetivo = anuaisLiberados ? intervalo : 'month';
+  const semestraisLiberados = useMemo(() => semestraisProntosParaVenda(plans), [plans]);
+  // Mensal continua sendo o padrão: o semestral é upsell, não pedágio de entrada.
+  const [intervalo, setIntervalo] = useState<IntervaloCobranca>('month');
+  const intervaloEfetivo: IntervaloCobranca = semestraisLiberados ? intervalo : 'month';
   const [busyPlan, setBusyPlan] = useState<string | null>(null);
   const [busyAddon, setBusyAddon] = useState(false);
   const [resumeAttempted, setResumeAttempted] = useState(false);
@@ -71,12 +75,32 @@ export function usePricingCheckout() {
 
   const visiblePlans = useMemo(() => {
     return plans.filter((plan) => (
-      MAIN_PLAN_SLUGS.has(String(plan.slug || plan.id)) &&
-      plan.billing_interval === (intervaloEfetivo === 'year' ? 'year' : 'month') &&
+      isCommercialPlan(plan) &&
+      plan.billing_interval === intervaloEfetivo &&
       !isAddonPlan(plan) &&
       hasConfiguredPrice(plan)
     ));
   }, [plans, intervaloEfetivo]);
+
+  /** Mensal de cada família: base para mostrar a economia do semestral. */
+  const mensalPorFamilia = useMemo(() => {
+    const mapa = new Map<string, FortifyPlan>();
+    for (const plan of plans) {
+      if (isCommercialPlan(plan) && plan.billing_interval === 'month') mapa.set(planFamily(plan), plan);
+    }
+    return mapa;
+  }, [plans]);
+
+  /**
+   * No semestral, o Pro é vendido sob consulta: não há linha nem checkout.
+   * O card usa o mensal da família só para mostrar limite de contas e suporte.
+   */
+  const planosSobConsulta = useMemo(() => {
+    if (intervaloEfetivo !== SEMESTER_INTERVAL) return [];
+    return SEMESTRAL_SOB_CONSULTA
+      .map((familia) => mensalPorFamilia.get(familia))
+      .filter((plan): plan is FortifyPlan => Boolean(plan));
+  }, [intervaloEfetivo, mensalPorFamilia]);
 
   const addonPlan = useMemo(
     () => plans.find((plan) => isAddonPlan(plan)) ?? null,
@@ -257,8 +281,10 @@ export function usePricingCheckout() {
     session,
     isLoading,
     visiblePlans,
+    planosSobConsulta,
+    mensalPorFamilia,
     addonPlan,
-    anuaisLiberados,
+    semestraisLiberados,
     intervaloEfetivo,
     setIntervalo,
     billingEnabled,

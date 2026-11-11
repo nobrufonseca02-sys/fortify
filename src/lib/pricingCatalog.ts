@@ -16,75 +16,118 @@ export const INCLUDED_IN_EVERY_PLAN = [
   'Painel de saúde da conta MT5',
 ];
 
-// Monthly only, deliberately. Annual rows exist in the plans table
-// (beginner_annual etc., migration 20260608090000_resolved_stripe_price_ids.sql)
-// but per that migration's own header their Stripe prices were created in
-// *test* mode and were never re-verified against whatever mode the gateway's
-// live key actually uses — docs/fortify/07-stripe-billing.md still documents
-// the commercial catalog as monthly-only. Surfacing them here without first
-// validating each price against live Stripe (and re-deriving whether the
-// annual discount is still real — Enterprise's has decayed to ~0% since the
-// monthly price was last updated) risks a real checkout failure or, worse, a
-// captured payment with no matching entitlement. Don't add them back without
-// doing that verification first.
+/**
+ * Catálogo comercial (o que aparece à venda). Desde 11/11/2026 são três planos:
+ * Beginner, Advanced e Pro, em mensal e semestral. O Enterprise saiu da vitrine
+ * por ora — as linhas dele continuam no banco para não quebrar quem já assina,
+ * mas não aparecem em nenhuma tela de compra ou troca de plano.
+ *
+ * Os anuais também ficam de fora: os Prices deles foram criados em modo teste e
+ * nunca existiram na Stripe live (ver docs/fortify/07-stripe-billing.md).
+ *
+ * O Pro semestral não tem linha no banco nem checkout: é vendido sob consulta
+ * (ver SEMESTRAL_SOB_CONSULTA).
+ */
 export const MAIN_PLAN_SLUGS = new Set([
   'beginner_monthly',
   'advanced_monthly',
   'pro_monthly',
-  'enterprise_monthly',
-  'beginner_annual',
-  'advanced_annual',
-  'pro_annual',
-  'enterprise_annual',
+  'beginner_semiannual',
+  'advanced_semiannual',
 ]);
 
-/** Cada anual e o mensal da mesma familia, para calcular o desconto real. */
-const PARES_ANUAL_MENSAL: [string, string][] = [
-  ['beginner_annual', 'beginner_monthly'],
-  ['advanced_annual', 'advanced_monthly'],
-  ['pro_annual', 'pro_monthly'],
-  ['enterprise_annual', 'enterprise_monthly'],
+/** Valor de `plans.billing_interval` dos planos cobrados a cada seis meses. */
+export const SEMESTER_INTERVAL = 'semester';
+
+export type IntervaloCobranca = 'month' | typeof SEMESTER_INTERVAL;
+
+/** Famílias que, no semestral, são vendidas só por conversa (sem checkout). */
+export const SEMESTRAL_SOB_CONSULTA = ['pro'];
+
+export function isCommercialPlan(plan: FortifyPlan) {
+  return MAIN_PLAN_SLUGS.has(String(plan.slug || plan.id));
+}
+
+/** Cada semestral e o mensal da mesma família, para mostrar a economia real. */
+const PARES_SEMESTRAL_MENSAL: [string, string][] = [
+  ['beginner_semiannual', 'beginner_monthly'],
+  ['advanced_semiannual', 'advanced_monthly'],
 ];
 
-/**
- * Desconto minimo para um plano anual poder ir para a tela.
- *
- * O anual do Enterprise esta cadastrado com 0,17% de desconto (R$10.147 contra
- * R$10.164 de doze mensalidades: R$17 de economia para travar um ano). Isso nao
- * passa como oferta — passa como erro de cadastro, ou pior, como pegadinha.
- *
- * A trava existe para o problema ser de DADO, nao de codigo: enquanto qualquer
- * anual estiver abaixo deste piso, a aba anual inteira fica desligada com o
- * motivo na tela. Corrigido o preco no banco, ela liga sozinha, sem deploy.
- */
-const DESCONTO_ANUAL_MINIMO = 0.05;
+function centavos(plan?: FortifyPlan | null) {
+  return Number(plan?.price_amount ?? plan?.price_cents ?? 0);
+}
 
-/** Desconto do anual sobre doze mensalidades. `null` se faltar algum preco. */
-export function descontoAnual(precoAnual?: number | null, precoMensal?: number | null) {
-  const anual = Number(precoAnual ?? 0);
+/** Quanto o semestral sai mais barato que seis mensalidades, em centavos. */
+export function economiaSemestral(precoSemestral?: number | null, precoMensal?: number | null) {
+  const semestral = Number(precoSemestral ?? 0);
   const mensal = Number(precoMensal ?? 0);
-  if (anual <= 0 || mensal <= 0) return null;
-  return 1 - anual / (mensal * 12);
+  if (semestral <= 0 || mensal <= 0) return null;
+  return mensal * 6 - semestral;
 }
 
 /**
- * A aba anual pode ser exibida? Só se TODOS os quatro anuais estiverem
- * compraveis e com desconto acima do piso — mostrar tres de quatro deixaria a
- * tela inconsistente e faria o visitante procurar o plano que falta.
+ * A aba semestral pode ser exibida? Só se os semestrais com checkout estiverem
+ * TODOS compráveis (Price ID válido) e nenhum custar mais que seis
+ * mensalidades — isso seria erro de cadastro, não oferta. Enquanto faltar um
+ * Price ID, a aba fica "em breve" e liga sozinha quando o banco for preenchido.
  */
-export function anuaisProntosParaVenda(planos: FortifyPlan[]) {
+export function semestraisProntosParaVenda(planos: FortifyPlan[]) {
   const por = (chave: string) => planos.find((p) => String(p.slug || p.id) === chave);
-  return PARES_ANUAL_MENSAL.every(([anualSlug, mensalSlug]) => {
-    const anual = por(anualSlug);
+  return PARES_SEMESTRAL_MENSAL.every(([semestralSlug, mensalSlug]) => {
+    const semestral = por(semestralSlug);
     const mensal = por(mensalSlug);
-    if (!anual || !mensal) return false;
-    if (!hasConfiguredPrice(anual)) return false;
-    const desconto = descontoAnual(
-      anual.price_amount ?? anual.price_cents,
-      mensal.price_amount ?? mensal.price_cents,
-    );
-    return desconto !== null && desconto >= DESCONTO_ANUAL_MINIMO;
+    if (!semestral || !mensal) return false;
+    if (!hasConfiguredPrice(semestral)) return false;
+    const economia = economiaSemestral(centavos(semestral), centavos(mensal));
+    return economia !== null && economia >= 0;
   });
+}
+
+/**
+ * Oferta de lançamento por família. `precoCheio` (em reais) é opcional: só
+ * preencha com um preço que de fato será cobrado depois do lançamento — preço
+ * "de" inventado é publicidade enganosa (CDC art. 37). Sem ele, o card mostra
+ * o selo e a nota, sem valor riscado.
+ */
+type OfertaLancamento = { selo: string; nota: string; precoCheio?: number | null };
+
+export const OFERTA_LANCAMENTO: Record<string, OfertaLancamento> = {
+  advanced: {
+    selo: 'Oferta de lançamento',
+    nota: 'Preço de lançamento, por tempo limitado.',
+    precoCheio: null,
+  },
+};
+
+export function ofertaLancamento(plan: FortifyPlan): OfertaLancamento | null {
+  return OFERTA_LANCAMENTO[planFamily(plan)] ?? null;
+}
+
+function brl(valorEmReais: number, casas = 0) {
+  return valorEmReais.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: casas,
+    maximumFractionDigits: casas,
+  });
+}
+
+/**
+ * Linha de apoio do card semestral: o equivalente por mês e, quando o mensal
+ * da mesma família existe, quanto sai mais barato que seis mensalidades.
+ */
+export function detalheSemestral(semestral: FortifyPlan, mensal?: FortifyPlan | null) {
+  if (semestral.billing_interval !== SEMESTER_INTERVAL) return null;
+  const total = centavos(semestral);
+  if (total <= 0) return null;
+  const porMes = brl(total / 6 / 100, 2);
+  const economia = economiaSemestral(total, centavos(mensal));
+  if (economia && economia > 0) {
+    const casas = economia % 100 === 0 ? 0 : 2;
+    return `Equivale a ${porMes}/mês. ${brl(economia / 100, casas)} a menos que 6 mensalidades.`;
+  }
+  return `Equivale a ${porMes}/mês.`;
 }
 
 export const supportLabels: Record<string, string> = {
@@ -125,7 +168,9 @@ export function hasConfiguredPrice(plan: FortifyPlan) {
 }
 
 export function intervalLabel(interval?: string | null) {
-  return interval === 'year' ? 'ano' : 'mês';
+  if (interval === 'year') return 'ano';
+  if (interval === SEMESTER_INTERVAL) return '6 meses';
+  return 'mês';
 }
 
 /** Raw major-unit amount for NumberFlow, which formats its own currency string. */

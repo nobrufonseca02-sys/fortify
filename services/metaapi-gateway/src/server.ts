@@ -1543,12 +1543,16 @@ async function resolveStripePricesForPlans() {
     );
     const expectedAmount = Number(plan.price_amount ?? plan.price_cents ?? 0);
     const expectedCurrency = String(plan.currency || 'brl').toLowerCase();
-    const expectedInterval = String(plan.billing_interval || '').toLowerCase();
+    // 'semester' nao existe na Stripe: e um Price mensal com interval_count 6.
+    const planInterval = String(plan.billing_interval || '').toLowerCase();
+    const expectedInterval = planInterval === 'semester' ? 'month' : planInterval;
+    const expectedIntervalCount = planInterval === 'semester' ? 6 : 1;
     const match = (prices.data || []).find((price: JsonRecord) =>
       price.active === true &&
       price.currency === expectedCurrency &&
       Number(price.unit_amount) === expectedAmount &&
       String(price.recurring?.interval || '').toLowerCase() === expectedInterval &&
+      Number(price.recurring?.interval_count || 1) === expectedIntervalCount &&
       isStripePriceId(price.id)
     );
 
@@ -1854,7 +1858,13 @@ function parsePeriodEnd(value: unknown, fallbackIso: string | null) {
 }
 
 function defaultPeriodEndForPlan(plan: BillingPlan) {
-  const days = plan.id === 'beta_free' ? 90 : plan.billing_interval === 'year' ? 365 : 30;
+  const days = plan.id === 'beta_free'
+    ? 90
+    : plan.billing_interval === 'year'
+      ? 365
+      : plan.billing_interval === 'semester'
+        ? 183
+        : 30;
   return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
 }
 
@@ -3994,9 +4004,9 @@ fastify.post('/admin/plans', async (request, reply) => {
       });
     }
 
-    if (billingInterval && !['month', 'year'].includes(billingInterval)) {
+    if (billingInterval && !['month', 'semester', 'year'].includes(billingInterval)) {
       return reply.status(400).send({
-        error: 'O intervalo de cobrança deve ser month ou year.',
+        error: 'O intervalo de cobrança deve ser month, semester ou year.',
         code: 'admin_invalid_billing_interval',
       });
     }
