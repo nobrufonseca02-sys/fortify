@@ -1,7 +1,7 @@
 import { useRef, type MouseEvent, type ReactNode } from 'react';
 import { motion, useReducedMotion, useScroll, useTransform } from 'motion/react';
 import NumberFlow from '@number-flow/react';
-import { AlertTriangle, CheckCircle2, Info, Loader2, MessageCircle, PlusCircle, ShieldCheck, Star, Tag } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Info, Loader2, MessageCircle, ShieldCheck, Star, Tag } from 'lucide-react';
 import type { FortifyPlan } from '@/hooks/useSubscriptionPlan';
 import type { PricingCheckout } from '@/hooks/usePricingCheckout';
 import { FirmLogoStrip } from '@/components/landing/FirmLogoMarquee';
@@ -12,7 +12,6 @@ import {
   SEMESTER_INTERVAL,
   bestFor,
   detalheSemestral,
-  hasConfiguredPrice,
   intervalLabel,
   ofertaLancamento,
   planFamily,
@@ -391,52 +390,6 @@ function Included() {
   );
 }
 
-function ExtraAccount({ pricing }: { pricing: PricingCheckout }) {
-  const enter = useEnter();
-  const {
-    addonPlan,
-    busyAddon,
-    hasActivePaidStripeSubscription,
-    extraAccountQuantity,
-    activeAccountCount,
-    accountLimit,
-    startAddonCheckout,
-  } = pricing;
-  const addonReady = Boolean(addonPlan && hasConfiguredPrice(addonPlan));
-
-  return (
-    <motion.section {...enter()} aria-labelledby="extra-title">
-      <GlassPanel>
-        <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <PlusCircle className="h-5 w-5 text-zinc-300" aria-hidden="true" />
-              <h2 id="extra-title" className="text-sm font-semibold text-white">
-                Conta MT5 extra
-              </h2>
-            </div>
-            <p className="text-sm text-zinc-300">Conta extra: R$119/mês. Adicione capacidade ao seu plano ativo.</p>
-            <p className="text-xs text-zinc-500">
-              {hasActivePaidStripeSubscription
-                ? `Contas extras ativas: ${extraAccountQuantity}. Uso atual: ${activeAccountCount}/${accountLimit || 0} contas.`
-                : 'Você precisa ter um plano ativo para adicionar contas extras.'}
-            </p>
-          </div>
-          <TactileButton
-            variant="glass"
-            onClick={startAddonCheckout}
-            disabled={busyAddon || !hasActivePaidStripeSubscription || !addonReady}
-            className="md:min-w-[220px]"
-          >
-            {busyAddon ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <PlusCircle className="h-4 w-4" aria-hidden="true" />}
-            {addonReady ? 'Adicionar conta extra' : 'Indisponível'}
-          </TactileButton>
-        </div>
-      </GlassPanel>
-    </motion.section>
-  );
-}
-
 export function CinematicPricing({ pricing }: { pricing: PricingCheckout }) {
   const reduceMotion = useReducedMotion();
   const { billingEnabled, checkoutError, checkoutNotice } = pricing;
@@ -471,7 +424,6 @@ export function CinematicPricing({ pricing }: { pricing: PricingCheckout }) {
 
         <div className="relative z-10 mx-auto w-full max-w-6xl space-y-4 px-5 pt-10 sm:px-6">
           <Included />
-          <ExtraAccount pricing={pricing} />
         </div>
 
         <FinalCta

@@ -1,6 +1,6 @@
 import { motion } from 'motion/react';
 import NumberFlow from '@number-flow/react';
-import { CheckCircle2, Loader2, MessageCircle, PlusCircle, ShieldCheck, Star, Tag } from 'lucide-react';
+import { CheckCircle2, Loader2, MessageCircle, ShieldCheck, Star, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CinematicPricing } from '@/components/landing/cinematic/CinematicPricing';
 import { usePricingCheckout } from '@/hooks/usePricingCheckout';
@@ -10,7 +10,6 @@ import {
   SEMESTER_INTERVAL,
   bestFor,
   detalheSemestral,
-  hasConfiguredPrice,
   intervalLabel,
   ofertaLancamento,
   planFamily,
@@ -39,19 +38,12 @@ export default function PricingPage({ variant = 'auto' }: { variant?: 'auto' | '
     visiblePlans,
     planosSobConsulta,
     mensalPorFamilia,
-    addonPlan,
     semestraisLiberados,
     intervaloEfetivo,
     setIntervalo,
     billingEnabled,
     checkoutError,
     checkoutNotice,
-    busyAddon,
-    hasActivePaidStripeSubscription,
-    extraAccountQuantity,
-    accountLimit,
-    activeAccountCount,
-    startAddonCheckout,
     planAction,
   } = pricing;
 
@@ -301,32 +293,6 @@ export default function PricingPage({ variant = 'auto' }: { variant?: 'auto' | '
         </ul>
       </section>
 
-      <section className="mt-4 flex flex-col gap-5 rounded-lg border border-border bg-card p-6 md:flex-row md:items-center md:justify-between">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <PlusCircle className="h-5 w-5 text-primary" />
-            <p className="text-sm font-semibold text-foreground">Conta MT5 extra</p>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Conta extra: R$119/mês. Adicione capacidade ao seu plano ativo.
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {hasActivePaidStripeSubscription
-              ? `Contas extras ativas: ${extraAccountQuantity}. Uso atual: ${activeAccountCount}/${accountLimit || 0} contas.`
-              : 'Você precisa ter um plano ativo para adicionar contas extras.'}
-          </p>
-        </div>
-        <Button
-          type="button"
-          onClick={startAddonCheckout}
-          disabled={busyAddon || !hasActivePaidStripeSubscription || !addonPlan || !hasConfiguredPrice(addonPlan)}
-          className="gap-2 md:min-w-[220px]"
-          variant="outline"
-        >
-          {busyAddon ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlusCircle className="h-4 w-4" />}
-          {addonPlan && hasConfiguredPrice(addonPlan) ? 'Adicionar conta extra' : 'Indisponível'}
-        </Button>
-      </section>
     </div>
   );
 }

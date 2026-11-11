@@ -85,7 +85,7 @@ const features = [
     icon: Layers,
     title: 'Multi-conta',
     description:
-      'Planos com limite de contas MT5 monitoradas simultaneamente, com a opção de adicionar contas extras conforme sua operação cresce.',
+      'Planos com limite de contas MT5 monitoradas simultaneamente: do Beginner, com uma conta, ao Pro, com até cinco.',
   },
   {
     icon: ListChecks,
