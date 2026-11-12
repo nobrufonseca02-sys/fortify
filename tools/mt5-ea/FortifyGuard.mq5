@@ -16,7 +16,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Fortify"
 #property link      "https://fortify-delta.vercel.app"
-#property version   "1.41"
+#property version   "1.42"
 #property description "Fortify Guard: acompanhe ao vivo as regras da sua mesa proprietaria."
 
 #include <Trade\Trade.mqh>
@@ -45,7 +45,7 @@ input int         InpSimStopPoints = 200;                              // Simula
 input bool        InpSound      = true;                                // Som do Fortify no nível crítico
 input bool        InpPreviewStress = false;                            // Demonstração: mostrar um dia perto do limite
 
-#define GUARD_VERSION "1.41"
+#define GUARD_VERSION "1.42"
 #define PFX           "FG_"
 #define PANEL_W       360
 #define PAD           14
@@ -996,6 +996,67 @@ void MarkUsed(const string name)
    g_used[n] = name;
   }
 
+// Logo do Fortify (mesmo desenho do favicon.svg do site): "F" branco num quadrado
+// preto de cantos arredondados. Desenhada em pixels com antialias 4x4.
+bool LogoInside(const double px, const double py, const double &xs[], const double &ys[])
+  {
+   bool in = false;
+   int n = ArraySize(xs);
+   for(int i = 0, j = n - 1; i < n; j = i++)
+      if(((ys[i] > py) != (ys[j] > py)) && (px < (xs[j] - xs[i]) * (py - ys[i]) / (ys[j] - ys[i]) + xs[i]))
+         in = !in;
+   return in;
+  }
+
+void Logo(const string name, const int x, const int y, const int size)
+  {
+   string res = "::fortify_logo_" + IntegerToString(size);
+   static int built = 0;
+   if(built != size)
+     {
+      double ax[] = {32, 232, 191, 82, 82, 32}, ay[] = {29, 29, 71, 71, 180, 229};
+      double bx[] = {110, 162, 110}, by[] = {100, 100, 152};
+      double scale = 0.2473, offX = 16.0, offY = 18.97; // viewBox 275x251 dentro de 68x64
+      uint px[];
+      ArrayResize(px, size * size);
+      for(int j = 0; j < size; j++)
+         for(int i = 0; i < size; i++)
+           {
+            int inSquare = 0, inF = 0;
+            for(int sj = 0; sj < 4; sj++)
+               for(int si = 0; si < 4; si++)
+                 {
+                  double u = (i + (si + 0.5) / 4.0) * 100.0 / size;
+                  double v = (j + (sj + 0.5) / 4.0) * 100.0 / size;
+                  double cx = MathMax(14.0, MathMin(86.0, u)), cy = MathMax(14.0, MathMin(86.0, v));
+                  if((u - cx) * (u - cx) + (v - cy) * (v - cy) > 14.0 * 14.0)
+                     continue;
+                  inSquare++;
+                  double sx = (u - offX) / scale, sy = (v - offY) / scale;
+                  if(LogoInside(sx, sy, ax, ay) || LogoInside(sx, sy, bx, by))
+                     inF++;
+                 }
+            uint a = (uint)MathRound(255.0 * inSquare / 16.0);
+            uint w = inSquare > 0 ? (uint)MathRound(255.0 * inF / inSquare) : 0;
+            px[j * size + i] = (a << 24) | (w << 16) | (w << 8) | w;
+           }
+      ResourceCreate(res, px, size, size, 0, 0, size, COLOR_FORMAT_ARGB_NORMALIZE);
+      built = size;
+     }
+   string id = PFX + name;
+   if(ObjectFind(0, id) < 0)
+     {
+      ObjectCreate(0, id, OBJ_BITMAP_LABEL, 0, 0, 0);
+      ObjectSetInteger(0, id, OBJPROP_CORNER, CORNER_LEFT_UPPER);
+      ObjectSetInteger(0, id, OBJPROP_SELECTABLE, false);
+      ObjectSetInteger(0, id, OBJPROP_HIDDEN, true);
+     }
+   ObjectSetString(0, id, OBJPROP_BMPFILE, res);
+   ObjectSetInteger(0, id, OBJPROP_XDISTANCE, x);
+   ObjectSetInteger(0, id, OBJPROP_YDISTANCE, y);
+   MarkUsed(id);
+  }
+
 void Rect(const string name, const int x, const int y, const int w, const int h, const color bg, const color border)
   {
    string id = PFX + name;
@@ -1241,15 +1302,17 @@ void DrawPanelPass(const int density)
    Rect("bg", x0, y0, PANEL_W, 40, C_BG, C_BORDER);
 
    // Cabecalho
-   Label("title", x0 + PAD, y, "FORTIFY GUARD", C_TEXT, 10, "Segoe UI Semibold");
+   // Logo no canto superior esquerdo, com o nome ao lado.
+   Logo("logo", x0 + PAD, y, 34);
+   Label("title", x0 + PAD + 44, y, "Fortify Guard", C_TEXT, 11, "Segoe UI Semibold");
    if(InpPreview)
       Label("demo", x0 + PANEL_W - PAD - 32, y + 2, "DEMONSTRAÇÃO", C_WARN, 7, "Segoe UI Semibold", ANCHOR_RIGHT_UPPER);
    Button("btn_min", x0 + PANEL_W - PAD - 24, y - 2, 24, 18, g_collapsed ? "+" : "-", C_TRACK, C_TEXT);
    y += 20;
    // So o essencial: programa e tamanho (a mesa vem no nome do programa).
    string subtitle = g_hasFeed ? g_program + (g_size != "" ? "  ·  " + g_size : "") : "Conectando...";
-   Label("subtitle", x0 + PAD, y, subtitle, C_MUTED, 8);
-   y += 24;
+   Label("subtitle", x0 + PAD + 44, y, subtitle, C_MUTED, 8);
+   y += 26;
 
    // Regra mais perto do limite: maior nivel; no empate, maior percentual usado.
    int worst = 0, worstIdx = -1;
