@@ -152,6 +152,27 @@ describe('Biblioteca: usar este modelo', () => {
   });
 });
 
+describe('Fortify Guard: nome da conta acompanha o tamanho', () => {
+  const ftmo = propFirmRulePrograms.find((program) => program.firmSlug === 'ftmo' && program.accountLevelRules?.length);
+
+  it('trocar o tamanho troca o nome, até o trader escrever um nome próprio', async () => {
+    render(
+      <MemoryRouter>
+        <GuardAccountSheet open onOpenChange={() => {}} program={ftmo!} />
+      </MemoryRouter>,
+    );
+    const name = (await screen.findByLabelText('Nome da conta')) as HTMLInputElement;
+    const sizes = screen.getAllByRole('radio').filter((el) => el.closest('[aria-label="Tamanho da conta"]'));
+    const last = sizes[sizes.length - 1];
+    fireEvent.click(last);
+    expect(name.value).toBe(`FTMO ${last.textContent}`);
+
+    fireEvent.change(name, { target: { value: 'Minha FTMO' } });
+    fireEvent.click(sizes[0]);
+    expect(name.value).toBe('Minha FTMO');
+  });
+});
+
 describe('Fortify Guard: qual login é cada conta', () => {
   it('a conta aguardando o EA recebe o login MT5 que o trader digita', async () => {
     renderPage();

@@ -41,6 +41,7 @@ export function GuardAccountSheet({
   const [accountId, setAccountId] = useState<string>('');
   const [stage, setStage] = useState<AccountStage>('evaluation');
   const [nickname, setNickname] = useState('');
+  const [nicknameEdited, setNicknameEdited] = useState(false);
   const [acknowledged, setAcknowledged] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -50,6 +51,7 @@ export function GuardAccountSheet({
     setAccountId(start?.id ?? '');
     setStage(inferStage({ program: { name: program.programName, type: program.programType } as any }));
     setNickname(start ? `${program.firm} ${formatAccountLabel(start.label)}` : program.firm);
+    setNicknameEdited(false);
     setAcknowledged(false);
   }, [open, initialAccount, program, sizes]);
 
@@ -107,7 +109,11 @@ export function GuardAccountSheet({
                   type="button"
                   role="radio"
                   aria-checked={accountId === size.id}
-                  onClick={() => setAccountId(size.id)}
+                  onClick={() => {
+                    setAccountId(size.id);
+                    // O nome acompanha o tamanho até o trader escrever um nome próprio.
+                    if (!nicknameEdited) setNickname(`${program.firm} ${formatAccountLabel(size.label)}`);
+                  }}
                   className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
                     accountId === size.id ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:text-foreground'
                   }`}
@@ -142,7 +148,10 @@ export function GuardAccountSheet({
             <label htmlFor="guard-account-name" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Nome da conta
             </label>
-            <Input id="guard-account-name" className="mt-2" value={nickname} onChange={(event) => setNickname(event.target.value)} maxLength={60} />
+            <Input id="guard-account-name" className="mt-2" value={nickname} onChange={(event) => {
+                setNickname(event.target.value);
+                setNicknameEdited(true);
+              }} maxLength={60} />
           </div>
 
           <label className="flex items-start gap-3 text-sm text-foreground">
