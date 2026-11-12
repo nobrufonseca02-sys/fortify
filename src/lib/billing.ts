@@ -117,6 +117,10 @@ export async function createGuestCheckoutSession(planSlug: string, marketingCons
   });
 
   const body = await response.json().catch(() => ({}));
+  if (response.status === 404) {
+    // Gateway ainda sem a rota: quem chama volta ao fluxo de cadastro antes do checkout.
+    throwBillingError({ code: 'guest_checkout_unavailable' }, 'Checkout direto indisponível.');
+  }
   if (!response.ok) {
     throw new Error(billingErrorMessage(body, 'Falha ao criar checkout Stripe.'));
   }

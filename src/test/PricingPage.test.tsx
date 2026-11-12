@@ -183,6 +183,14 @@ describe('PricingPage', () => {
     await waitFor(() => expect(createGuestCheckoutSession).toHaveBeenCalledWith('beginner_monthly', expect.any(Boolean)));
   });
 
+  it('deslogado, com gateway sem checkout direto, volta ao cadastro guardando o plano', async () => {
+    window.sessionStorage.clear();
+    createGuestCheckoutSession.mockRejectedValue(Object.assign(new Error('x'), { code: 'guest_checkout_unavailable' }));
+    renderPricing({ variant: 'public' });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Assinar' })[0]);
+    await waitFor(() => expect(window.sessionStorage.getItem('intended_plan_slug')).toBe('beginner_monthly'));
+  });
+
   it('logado, renderiza sem a casca pública e com a mesma oferta', () => {
     mockSession = { user: { id: 'user-1' }, access_token: 'token-1' };
     renderPricing();

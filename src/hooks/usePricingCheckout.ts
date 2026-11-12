@@ -168,6 +168,14 @@ export function usePricingCheckout() {
       setCheckoutNotice('Checkout criado. Redirecionando para a Stripe...');
       window.location.href = checkoutUrl;
     } catch (error: any) {
+      if (!session?.access_token && error?.code === 'guest_checkout_unavailable') {
+        // Gateway antigo, sem checkout direto: cadastro primeiro, checkout em seguida.
+        window.sessionStorage.setItem('fortify_intended_plan', planSelector);
+        window.sessionStorage.setItem('intended_plan_slug', planSelector);
+        window.sessionStorage.setItem('fortify_checkout_return_path', window.location.pathname);
+        navigate(AUTH_SIGNUP_PATH);
+        return;
+      }
       const message = error?.message || 'Revise a configuração Stripe do gateway.';
       console.error('Fortify checkout failed', { plan: planSelector, message });
       setCheckoutError(message);
