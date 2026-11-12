@@ -1557,6 +1557,17 @@ int OnInit()
    g_simStop = MathMax(1, InpSimStopPoints);
    if(InpPreview)
      {
+      // Demonstração: aba inicial opcional, lida de MQL5\Files (só para gerar prints).
+      int fh = FileOpen("FortifyGuard_preview_tab.txt", FILE_READ | FILE_TXT | FILE_ANSI);
+      if(fh != INVALID_HANDLE)
+        {
+         string tab = FileReadString(fh);
+         StringTrimRight(tab);
+         StringTrimLeft(tab);
+         if(tab != "")
+            g_tab = tab;
+         FileClose(fh);
+        }
       // Demonstração: janela solta de tamanho fixo, para o print sair igual em qualquer perfil.
       ChartSetInteger(0, CHART_IS_DOCKED, false);
       ChartSetInteger(0, CHART_FLOAT_LEFT, 20);
