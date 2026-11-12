@@ -16,10 +16,18 @@
 //+------------------------------------------------------------------+
 #property copyright "Fortify"
 #property link      "https://fortify-delta.vercel.app"
-#property version   "1.30"
+#property version   "1.40"
 #property description "Fortify Guard: acompanhe ao vivo as regras da sua mesa proprietaria."
 
 #include <Trade\Trade.mqh>
+#resource "fortify_alert.wav"
+
+enum GuardTheme
+  {
+   GUARD_THEME_AUTO  = 0, // Automático (pela cor do gráfico)
+   GUARD_THEME_DARK  = 1, // Escuro
+   GUARD_THEME_LIGHT = 2  // Claro
+  };
 
 enum GuardCorner
   {
@@ -32,20 +40,28 @@ input string      InpGatewayUrl = "https://137-131-175-251.sslip.io";  // Endere
 input GuardCorner InpCorner     = GUARD_RIGHT;                         // Lado do painel
 input bool        InpPush       = false;                               // Avisar também no celular (MetaQuotes ID)
 input bool        InpPreview    = false;                               // Modo demonstração (dados de exemplo, sem chave)
+input GuardTheme  InpTheme      = GUARD_THEME_AUTO;                    // Tema do painel
+input int         InpSimStopPoints = 200;                              // Simulador de lote: stop padrão (pontos)
+input bool        InpSound      = true;                                // Som do Fortify no nível crítico
 input bool        InpPreviewStress = false;                            // Demonstração: mostrar um dia perto do limite
 
-#define GUARD_VERSION "1.30"
+#define GUARD_VERSION "1.40"
 #define PFX           "FG_"
 #define PANEL_W       360
 #define PAD           14
 #define MAX_DAYS_SENT 400
 
 //--- cores
-#define C_BG       C'14,16,20'
-#define C_BORDER   C'42,47,56'
-#define C_TEXT     C'236,239,244'
-#define C_MUTED    C'134,142,156'
-#define C_TRACK    C'32,36,44'
+// Cores que mudam com o tema (ver ApplyTheme); as de nivel sao iguais nos dois.
+color C_BG      = C'14,16,20';
+color C_BORDER  = C'42,47,56';
+color C_TEXT    = C'236,239,244';
+color C_MUTED   = C'134,142,156';
+color C_TRACK   = C'32,36,44';
+color C_HEADING = C'160,168,182';
+color C_ERRBG   = C'48,22,24';
+color C_TABON   = C'40,46,58';
+bool  g_light   = false;
 #define C_OK       C'38,166,91'
 #define C_WARN     C'240,180,41'
 #define C_CRIT     C'245,124,0'
@@ -109,6 +125,8 @@ datetime  g_lastTradesSent = 0;
 bool      g_tradesDirty = true;
 double    g_todayClosed = 0.0;   // P&L fechado de hoje (UTC), do historico do terminal
 double    g_balanceNow = 0.0, g_equityNow = 0.0;
+string    g_tab = "account";      // aba ativa: account | payout | reminder
+int       g_simStop = 200;        // simulador de lote: stop em pontos
 CTrade    g_trade;
 
 void ResetRule(GuardRule &r)
@@ -121,6 +139,28 @@ void ResetRule(GuardRule &r)
    r.hasCap = false; r.hasRegularize = false; r.hasCurrent = false; r.hasRequired = false;
    r.alertLevel = 0; r.pct = 0; r.level = 0; r.valueText = ""; r.detailText = "";
    r.slack = 0; r.hasSlack = false;
+  }
+
+bool IsLightChart()
+  {
+   color bg = (color)ChartGetInteger(0, CHART_COLOR_BACKGROUND);
+   int r = (int)(bg & 0xFF), g = (int)((bg >> 8) & 0xFF), b = (int)((bg >> 16) & 0xFF);
+   return (r * 299 + g * 587 + b * 114) / 1000 > 128;
+  }
+
+void ApplyTheme()
+  {
+   g_light = (InpTheme == GUARD_THEME_LIGHT) || (InpTheme == GUARD_THEME_AUTO && IsLightChart());
+   if(g_light)
+     {
+      C_BG = C'250,250,252'; C_BORDER = C'214,218,226'; C_TEXT = C'22,26,34'; C_MUTED = C'100,108,122';
+      C_TRACK = C'230,233,240'; C_HEADING = C'88,96,110'; C_ERRBG = C'253,236,236'; C_TABON = C'226,232,244';
+     }
+   else
+     {
+      C_BG = C'14,16,20'; C_BORDER = C'42,47,56'; C_TEXT = C'236,239,244'; C_MUTED = C'134,142,156';
+      C_TRACK = C'32,36,44'; C_HEADING = C'160,168,182'; C_ERRBG = C'48,22,24'; C_TABON = C'40,46,58';
+     }
   }
 
 string PeakVarName()
@@ -901,6 +941,8 @@ void CheckAlerts()
       else
          text = g_rules[i].label + ": " + g_rules[i].valueText + ". " + g_rules[i].detailText;
       Notify(text);
+      if(InpSound && level >= 2)
+         PlaySound("::fortify_alert.wav");
      }
   }
 
@@ -1021,6 +1063,105 @@ void Button(const string name, const int x, const int y, const int w, const int 
    MarkUsed(id);
   }
 
+void Edit(const string name, const int x, const int y, const int w, const int h, const string initial)
+  {
+   string id = PFX + name;
+   if(ObjectFind(0, id) < 0)
+     {
+      ObjectCreate(0, id, OBJ_EDIT, 0, 0, 0);
+      ObjectSetInteger(0, id, OBJPROP_CORNER, CORNER_LEFT_UPPER);
+      ObjectSetInteger(0, id, OBJPROP_SELECTABLE, false);
+      ObjectSetInteger(0, id, OBJPROP_HIDDEN, true);
+      ObjectSetString(0, id, OBJPROP_FONT, "Segoe UI Semibold");
+      ObjectSetInteger(0, id, OBJPROP_FONTSIZE, 8);
+      ObjectSetInteger(0, id, OBJPROP_ALIGN, ALIGN_CENTER);
+      ObjectSetString(0, id, OBJPROP_TEXT, initial); // depois disso o texto e do trader
+     }
+   ObjectSetInteger(0, id, OBJPROP_XDISTANCE, x);
+   ObjectSetInteger(0, id, OBJPROP_YDISTANCE, y);
+   ObjectSetInteger(0, id, OBJPROP_XSIZE, w);
+   ObjectSetInteger(0, id, OBJPROP_YSIZE, h);
+   ObjectSetInteger(0, id, OBJPROP_BGCOLOR, C_TRACK);
+   ObjectSetInteger(0, id, OBJPROP_COLOR, C_TEXT);
+   ObjectSetInteger(0, id, OBJPROP_BORDER_COLOR, C_BORDER);
+   MarkUsed(id);
+  }
+
+// Quanto vale 1 ponto de preco para 1 lote do ativo, na moeda da conta.
+double PointValuePerLot(const string symbol)
+  {
+   double tickValue = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_VALUE_LOSS);
+   if(tickValue <= 0)
+      tickValue = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_VALUE);
+   double tickSize = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_SIZE);
+   double point = SymbolInfoDouble(symbol, SYMBOL_POINT);
+   if(tickValue <= 0 || tickSize <= 0 || point <= 0)
+      return InpPreview ? 1.0 : 0; // demonstração: EURUSD, 1 lote = US$1 por ponto
+   return tickValue * point / tickSize;
+  }
+
+// Lote maximo em que um stop de `stopPoints` consome so a folga de hoje.
+double SimLots(const double budget, const int stopPoints, const double pointValue)
+  {
+   if(stopPoints <= 0 || pointValue <= 0 || budget <= 0)
+      return 0;
+   double step = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP);
+   if(step <= 0)
+      step = 0.01;
+   double lots = MathFloor(budget / (stopPoints * pointValue) / step) * step;
+   double maxVolume = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MAX);
+   if(maxVolume > 0)
+      lots = MathMin(lots, maxVolume);
+   return MathMax(0.0, lots);
+  }
+
+// Linha no grafico: preco em que a regra mais apertada quebra, com as posicoes
+// abertas neste ativo. As de outros ativos ficam paradas na conta.
+void DrawBreakLine(const bool has, const double budget, const string ruleLabel, const int level)
+  {
+   if(!has || g_collapsed)
+      return;
+   double net = 0.0;
+   for(int i = 0; i < PositionsTotal(); i++)
+     {
+      if(PositionGetTicket(i) == 0 || PositionGetString(POSITION_SYMBOL) != _Symbol)
+         continue;
+      double volume = PositionGetDouble(POSITION_VOLUME);
+      net += (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? volume : -volume;
+     }
+   if(InpPreview)
+      net = 2.0;
+   double pointValue = PointValuePerLot(_Symbol);
+   double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+   if(net == 0.0 || pointValue <= 0 || point <= 0)
+      return;
+   double points = MathMax(0.0, budget) / (MathAbs(net) * pointValue);
+   double ref = (net > 0) ? SymbolInfoDouble(_Symbol, SYMBOL_BID) : SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+   if(ref <= 0)
+      ref = iClose(_Symbol, PERIOD_CURRENT, 0);
+   if(ref <= 0)
+      return;
+   double price = (net > 0) ? ref - points * point : ref + points * point;
+   color c = LevelColor(MathMax(1, level));
+   string text = "Fortify · " + ruleLabel + " quebra em " + DoubleToString(price, _Digits) + "  (folga " + Money(MathMax(0.0, budget)) + ")";
+   string id = PFX + "break_line";
+   if(ObjectFind(0, id) < 0)
+     {
+      ObjectCreate(0, id, OBJ_HLINE, 0, 0, price);
+      ObjectSetInteger(0, id, OBJPROP_SELECTABLE, false);
+      ObjectSetInteger(0, id, OBJPROP_HIDDEN, true);
+      ObjectSetInteger(0, id, OBJPROP_STYLE, STYLE_DASH);
+      ObjectSetInteger(0, id, OBJPROP_WIDTH, 1);
+     }
+   ObjectSetDouble(0, id, OBJPROP_PRICE, price);
+   ObjectSetInteger(0, id, OBJPROP_COLOR, c);
+   ObjectSetString(0, id, OBJPROP_TOOLTIP, text);
+   MarkUsed(id);
+   int lx = 0, ly = 0;
+   if(ChartTimePriceToXY(0, 0, TimeCurrent(), price, lx, ly))
+      Label("break_txt", 10, ly - 17, text, c, 8, "Segoe UI Semibold");
+  }
+
 // Quebra o texto em linhas de ate `width` caracteres, no maximo `maxLines`.
 int WrapText(const string text, const int width, const int maxLines, string &out[])
   {
@@ -1116,6 +1257,7 @@ void DrawPanelPass(const int density)
    int worst = 0, worstIdx = -1;
    double worstPct = -1.0, canLose = 0.0;
    bool hasCanLose = false;
+   string canLoseLabel = "";
    for(int i = 0; i < ArraySize(g_rules); i++)
      {
       string k = g_rules[i].kind;
@@ -1131,13 +1273,21 @@ void DrawPanelPass(const int density)
         {
          canLose = g_rules[i].slack;
          hasCanLose = true;
+         canLoseLabel = g_rules[i].label;
         }
      }
 
    if(!g_collapsed && g_hasFeed && g_error == "")
      {
       color tone = LevelColor(worst);
-      color tint = (worst >= 3) ? C'52,20,22' : (worst == 2) ? C'52,32,14' : (worst == 1) ? C'46,38,14' : C'16,38,28';
+      color tint;
+      if(g_light)
+         tint = (worst >= 3) ? C'253,228,228' : (worst == 2) ? C'254,234,218' : (worst == 1) ? C'253,245,222' : C'230,246,236';
+      else
+         tint = (worst >= 3) ? C'52,20,22' : (worst == 2) ? C'52,32,14' : (worst == 1) ? C'46,38,14' : C'16,38,28';
+      // Critico ou limite: a faixa pisca para chamar o olho do trader.
+      if(worst >= 2 && (GetTickCount() / 500) % 2 == 0)
+         tint = g_light ? C'250,196,196' : C'96,30,30';
       string headline = "Dentro das regras";
       string subline = "Todas as regras abaixo de " + DoubleToString(g_warnPct, 0) + "% do limite";
       if(worstIdx >= 0 && worst >= 1)
@@ -1163,6 +1313,17 @@ void DrawPanelPass(const int density)
       y += 40;
       Rect("m_line", x0 + PAD, y, inner, 1, C_BORDER, C_BORDER);
       y += 10;
+
+      // Simulador: stop em pontos -> lote maximo que cabe na folga de hoje.
+      double pointValue = PointValuePerLot(_Symbol);
+      Label("sim_cap", x0 + PAD, y + 4, "SIMULAR", C_MUTED, 7, "Segoe UI Semibold");
+      Edit("sim_stop", x0 + PAD + 50, y, 52, 20, IntegerToString(g_simStop));
+      string simText = "pts de stop: sem folga calculada";
+      if(hasCanLose && pointValue > 0)
+         simText = "pts de stop  →  até " + FormatLots(SimLots(canLose, g_simStop, pointValue)) + " lotes hoje";
+      Label("sim_txt", x0 + PAD + 110, y + 3, simText, C_TEXT, 8);
+      y += 30;
+      DrawBreakLine(hasCanLose, canLose, canLoseLabel, worst);
      }
 
    if(!g_collapsed)
@@ -1171,29 +1332,73 @@ void DrawPanelPass(const int density)
         {
          string lines[];
          int n = WrapText(g_error, 52, 4, lines);
-         Rect("err_bg", x0 + PAD, y, inner, 12 + n * 14, C'48,22,24', C_BREACH);
+         Rect("err_bg", x0 + PAD, y, inner, 12 + n * 14, C_ERRBG, C_BREACH);
          for(int l = 0; l < n; l++)
             Label("err_" + IntegerToString(l), x0 + PAD + 8, y + 6 + l * 14, lines[l], C_TEXT, 8);
          y += 12 + n * 14 + 10;
         }
 
-      string lastGroup = "";
+      // Abas por grupo: Conta (zera a conta), Saque (metas e saque), Lembretes.
+      string groupIds[] = {"account", "payout", "reminder"};
+      string groupTitles[] = {"Conta", "Saque", "Lembretes"};
+      bool present[3];
+      bool alerting[3];
+      ArrayInitialize(present, false);
+      ArrayInitialize(alerting, false);
+      bool grouped = false;
+      for(int i = 0; i < ArraySize(g_rules); i++)
+        {
+         for(int g = 0; g < 3; g++)
+           {
+            if(g_rules[i].group != groupIds[g])
+               continue;
+            grouped = true;
+            present[g] = true;
+            string k = g_rules[i].kind;
+            if(g_rules[i].level >= 1 && k != "note" && k != "target" && k != "counter")
+               alerting[g] = true;
+           }
+        }
+      if(grouped)
+        {
+         int tabs = 0;
+         bool activeOk = false;
+         for(int g = 0; g < 3; g++)
+           {
+            if(!present[g])
+               continue;
+            tabs++;
+            if(groupIds[g] == g_tab)
+               activeOk = true;
+           }
+         if(!activeOk)
+            for(int g = 0; g < 3; g++)
+               if(present[g])
+                 {
+                  g_tab = groupIds[g];
+                  break;
+                 }
+         int tabW = (inner - (tabs - 1) * 6) / tabs;
+         int tx = x0 + PAD;
+         for(int g = 0; g < 3; g++)
+           {
+            if(!present[g])
+               continue;
+            bool on = (g_tab == groupIds[g]);
+            string title = groupTitles[g] + (alerting[g] ? "  ●" : "");
+            color fg = on ? C_TEXT : (alerting[g] ? C_WARN : C_MUTED);
+            Button("tab_" + groupIds[g], tx, y, tabW, 22, title, on ? C_TABON : C_BG, fg);
+            tx += tabW + 6;
+           }
+         y += 30;
+        }
+
       for(int i = 0; i < ArraySize(g_rules); i++)
         {
          string id = "r" + IntegerToString(i) + "_";
          string kind = g_rules[i].kind;
-         if(density >= 2 && kind == "note")
+         if(grouped && g_rules[i].group != g_tab)
             continue;
-         if(g_rules[i].group != "" && g_rules[i].group != lastGroup)
-           {
-            lastGroup = g_rules[i].group;
-            string heading = (lastGroup == "account") ? "ZERAM A CONTA"
-                             : (lastGroup == "payout") ? "SAQUE E METAS"
-                             : "LEMBRETES";
-            Label(id + "group", x0 + PAD, y, heading, C'160,168,182', 7, "Segoe UI Semibold");
-            Rect(id + "groupline", x0 + PAD + 96, y + 6, inner - 96, 1, C_BORDER, C_BORDER);
-            y += 17;
-           }
          if(density >= 2 && kind == "note")
             continue;
          bool measured = (kind == "floor" || kind == "daycap" || kind == "target" || kind == "counter"
@@ -1312,6 +1517,23 @@ int OnInit()
    g_peakEquity = MathMax(g_peakEquity, AccountInfoDouble(ACCOUNT_EQUITY));
    g_currency = AccountInfoString(ACCOUNT_CURRENCY);
    g_trade.SetDeviationInPoints(30);
+   g_simStop = MathMax(1, InpSimStopPoints);
+   if(InpPreview)
+     {
+      // Demonstração: janela solta de tamanho fixo, para o print sair igual em qualquer perfil.
+      ChartSetInteger(0, CHART_IS_DOCKED, false);
+      ChartSetInteger(0, CHART_FLOAT_LEFT, 20);
+      ChartSetInteger(0, CHART_FLOAT_TOP, 20);
+      ChartSetInteger(0, CHART_FLOAT_RIGHT, 1300);
+      ChartSetInteger(0, CHART_FLOAT_BOTTOM, 820);
+      if(InpTheme == GUARD_THEME_LIGHT)
+        {
+         ChartSetInteger(0, CHART_COLOR_BACKGROUND, clrWhite);
+         ChartSetInteger(0, CHART_COLOR_FOREGROUND, clrBlack);
+         ChartSetInteger(0, CHART_COLOR_GRID, C'226,229,236');
+        }
+     }
+   ApplyTheme();
    ObjectsDeleteAll(0, PFX);
    // O painel fica por cima do grafico.
    ChartSetInteger(0, CHART_FOREGROUND, false);
@@ -1371,6 +1593,16 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
   {
    if(id == CHARTEVENT_CHART_CHANGE)
      {
+      ApplyTheme();
+      DrawPanel();
+      return;
+     }
+   if(id == CHARTEVENT_OBJECT_ENDEDIT && sparam == PFX + "sim_stop")
+     {
+      long typed = StringToInteger(ObjectGetString(0, sparam, OBJPROP_TEXT));
+      if(typed > 0 && typed < 1000000)
+         g_simStop = (int)typed;
+      ObjectSetString(0, sparam, OBJPROP_TEXT, IntegerToString(g_simStop));
       DrawPanel();
       return;
      }
@@ -1385,6 +1617,8 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
       CloseAllPositions();
    else if(sparam == PFX + "btn_min")
       g_collapsed = !g_collapsed;
+   else if(StringFind(sparam, PFX + "tab_") == 0)
+      g_tab = StringSubstr(sparam, StringLen(PFX + "tab_"));
    else
       return;
    ObjectSetInteger(0, sparam, OBJPROP_STATE, false);
