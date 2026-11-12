@@ -106,6 +106,9 @@ function legacyRuleSetSelect() {
   return select;
 }
 
+// Estes testes cobrem a tela no modo MetaApi (blocos legados visíveis).
+vi.mock('@/lib/featureFlags', () => ({ METAAPI_ENABLED: true }));
+
 describe('AccountRuleManagement binding edit', () => {
   beforeEach(() => {
     tradingAccountsUpdate.mockClear();

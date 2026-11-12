@@ -1,228 +1,91 @@
-import {
-  AlertTriangle,
-  CheckCircle2,
-  CircleHelp,
-  Hand,
-  ShieldAlert,
-  XCircle,
-} from 'lucide-react';
-import type {
-  BoundAccountRuleEvaluation,
-  RuleEvaluationStatus,
-} from '@/lib/ruleEngine/ruleEngineTypes';
+import { AlertTriangle, CheckCircle2, CircleHelp, ShieldAlert, XCircle } from 'lucide-react';
+import type { BoundAccountRuleEvaluation, BoundRuleEvaluation, RuleEvaluationStatus } from '@/lib/ruleEngine/ruleEngineTypes';
+
+// Regras da conta, uma linha cada: nome, quanto falta e a barra de uso.
+// Sem dado da conta, nada de "violado": mostra que ainda não chegou.
 
 interface BoundRuleEvaluationCardProps {
   evaluation: BoundAccountRuleEvaluation;
+  /** false = a conta ainda não mandou saldo (EA não conectou). */
+  hasData?: boolean;
 }
 
-const statusMeta: Record<
-  RuleEvaluationStatus,
-  {
-    label: string;
-    className: string;
-    icon: typeof CheckCircle2;
-  }
-> = {
-  safe: {
-    label: 'Seguro',
-    className: 'border-success/30 bg-success/10 text-success',
-    icon: CheckCircle2,
-  },
-  partial: {
-    label: 'Verificação parcial',
-    className: 'border-info/30 bg-info/10 text-info',
-    icon: CircleHelp,
-  },
-  warning: {
-    label: 'Atenção',
-    className: 'border-warning/30 bg-warning/10 text-warning',
-    icon: AlertTriangle,
-  },
-  critical: {
-    label: 'Crítico',
-    className: 'border-destructive/40 bg-destructive/10 text-destructive',
-    icon: ShieldAlert,
-  },
-  breached: {
-    label: 'Violado',
-    className: 'border-destructive/50 bg-destructive/15 text-destructive',
-    icon: XCircle,
-  },
-  not_monitorable: {
-    label: 'Não monitorável',
-    className: 'border-border bg-muted/30 text-muted-foreground',
-    icon: CircleHelp,
-  },
-  pending_binding: {
-    label: 'Vínculo pendente',
-    className: 'border-warning/30 bg-warning/10 text-warning',
-    icon: AlertTriangle,
-  },
+const statusMeta: Record<RuleEvaluationStatus, { label: string; tone: string; bar: string; icon: typeof CheckCircle2 }> = {
+  safe: { label: 'Ok', tone: 'text-success', bar: 'bg-success', icon: CheckCircle2 },
+  partial: { label: 'Parcial', tone: 'text-info', bar: 'bg-info', icon: CircleHelp },
+  warning: { label: 'Atenção', tone: 'text-warning', bar: 'bg-warning', icon: AlertTriangle },
+  critical: { label: 'Crítico', tone: 'text-destructive', bar: 'bg-destructive', icon: ShieldAlert },
+  breached: { label: 'Quebrada', tone: 'text-destructive', bar: 'bg-destructive', icon: XCircle },
+  not_monitorable: { label: 'Sem dados', tone: 'text-muted-foreground', bar: 'bg-muted-foreground', icon: CircleHelp },
+  pending_binding: { label: 'Sem modelo', tone: 'text-warning', bar: 'bg-warning', icon: AlertTriangle },
 };
 
-function formatMoney(value: number | null, currency: string) {
-  if (value === null) return 'Sem dados';
+function money(value: number, currency: string) {
   try {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: /^[A-Z]{3}$/.test(currency) ? currency : 'USD',
-      maximumFractionDigits: 2,
+      maximumFractionDigits: 0,
     }).format(value);
   } catch {
-    return value.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+    return value.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
   }
 }
 
-export function BoundRuleEvaluationCard({
-  evaluation,
-}: BoundRuleEvaluationCardProps) {
-  const overall = statusMeta[evaluation.overallStatus];
-  const OverallIcon = overall.icon;
+/** A frase curta de cada regra: o número que o trader precisa ver. */
+function shortValue(rule: BoundRuleEvaluation) {
+  if (rule.status === 'not_monitorable' || rule.status === 'pending_binding') return 'Sem dados';
+  if (rule.status === 'breached') return 'Limite atingido';
+  if (rule.key === 'profit_target') {
+    return rule.remainingValue !== null && rule.remainingValue > 0 ? `faltam ${money(rule.remainingValue, rule.currency)}` : 'Meta atingida';
+  }
+  if (rule.key === 'min_trading_days') {
+    return rule.currentValue !== null && rule.limitValue !== null ? `${rule.currentValue} de ${rule.limitValue} dias` : 'Sem dados';
+  }
+  if (rule.key === 'consistency') {
+    return rule.remainingValue !== null ? `hoje até +${money(rule.remainingValue, rule.currency)}` : rule.message;
+  }
+  return rule.remainingValue !== null ? `folga ${money(rule.remainingValue, rule.currency)}` : 'Sem dados';
+}
+
+export function BoundRuleEvaluationCard({ evaluation, hasData = true }: BoundRuleEvaluationCardProps) {
+  const overallStatus: RuleEvaluationStatus = hasData ? evaluation.overallStatus : 'not_monitorable';
+  const overall = statusMeta[overallStatus];
 
   return (
-    <section className="rounded-xl border border-border bg-card p-5 space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="eyebrow">Motor operacional</p>
-          <h2 className="mt-2 font-semibold text-foreground">
-            Regras do snapshot versionado
-          </h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {evaluation.overallMessage}
-          </p>
-        </div>
-        <span
-          className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase ${overall.className}`}
-        >
-          <OverallIcon className="h-3.5 w-3.5" />
-          {overall.label}
-        </span>
+    <section className="rounded-xl border border-border bg-card p-5">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-semibold text-foreground">Regras</h2>
+        <span className={`text-xs font-semibold ${overall.tone}`}>{hasData ? overall.label : 'Aguardando dados'}</span>
       </div>
 
-      <div className="divide-y divide-border border-y border-border">
+      <ul className="mt-3 divide-y divide-border">
         {evaluation.automaticRules.map((rule) => {
-          const meta = statusMeta[rule.status];
-          const StatusIcon = meta.icon;
+          const status: RuleEvaluationStatus = hasData ? rule.status : 'not_monitorable';
+          const meta = statusMeta[status];
+          const Icon = meta.icon;
+          const used = hasData && rule.percentage !== null ? Math.min(100, Math.max(0, rule.percentage)) : null;
           return (
-            <div
-              key={rule.key}
-              className="grid gap-3 py-3 md:grid-cols-[minmax(180px,0.8fr)_minmax(250px,1.4fr)_auto]"
-            >
-              <div>
-                <div className="flex items-center gap-2">
-                  <StatusIcon className={`h-4 w-4 ${meta.className.split(' ').at(-1)}`} />
-                  <p className="text-sm font-semibold text-foreground">{rule.label}</p>
-                </div>
-                {rule.phaseLabel ? (
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    {rule.phaseLabel}
-                  </p>
-                ) : null}
+            <li key={rule.key} className="py-3" title={rule.sourceRule || undefined}>
+              <div className="flex items-center justify-between gap-3">
+                <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <Icon className={`h-4 w-4 ${meta.tone}`} aria-hidden />
+                  {rule.label}
+                  {rule.phaseLabel ? <span className="text-xs font-normal text-muted-foreground">{rule.phaseLabel}</span> : null}
+                </span>
+                <span className={`font-mono text-sm ${status === 'safe' ? 'text-foreground' : meta.tone}`}>
+                  {hasData ? shortValue(rule) : 'Sem dados'}
+                </span>
               </div>
-              <div>
-                <p className="text-xs text-foreground">{rule.message}</p>
-                {rule.detail ? (
-                  <p className="mt-1 text-[11px] text-muted-foreground">{rule.detail}</p>
-                ) : null}
-                <p className="mt-1 text-[10px] text-muted-foreground">
-                  Regra: {rule.sourceRule || 'Não informada no snapshot'}
-                </p>
-              </div>
-              <div className="grid min-w-[210px] grid-cols-3 gap-3 text-right">
-                <div>
-                  <p className="text-[9px] uppercase text-muted-foreground">Atual</p>
-                  <p className="font-mono text-xs text-foreground">
-                    {formatMoney(rule.currentValue, rule.currency)}
-                  </p>
+              {used !== null && (
+                <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted" aria-hidden>
+                  <div className={`h-full ${meta.bar}`} style={{ width: `${used}%` }} />
                 </div>
-                <div>
-                  <p className="text-[9px] uppercase text-muted-foreground">Limite</p>
-                  <p className="font-mono text-xs text-foreground">
-                    {formatMoney(rule.limitValue, rule.currency)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[9px] uppercase text-muted-foreground">
-                    {rule.key === 'profit_target' ? 'Falta' : 'Margem'}
-                  </p>
-                  <p className="font-mono text-xs text-foreground">
-                    {formatMoney(rule.remainingValue, rule.currency)}
-                  </p>
-                </div>
-              </div>
-            </div>
+              )}
+            </li>
           );
         })}
-      </div>
-
-      {evaluation.notCalculatedRules.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-            <CircleHelp className="h-3.5 w-3.5 text-info" />
-            Ainda não monitorado automaticamente
-          </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            A regra é verificável por MT5, mas o Fortify ainda não calcula este item. Confira manualmente.
-          </p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {evaluation.notCalculatedRules.map((rule) => (
-              <span
-                key={rule.label}
-                className="rounded-full border border-info/20 bg-info/5 px-2 py-1 text-[10px] text-muted-foreground"
-              >
-                {rule.label}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {(evaluation.manualRules.length > 0 ||
-        evaluation.unsupportedRules.length > 0) && (
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-              <Hand className="h-3.5 w-3.5 text-warning" />
-              Validação manual
-            </div>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {evaluation.manualRules.map((rule) => (
-                <span
-                  key={rule.label}
-                  className="rounded-full border border-warning/20 bg-warning/5 px-2 py-1 text-[10px] text-muted-foreground"
-                >
-                  {rule.label}
-                </span>
-              ))}
-            </div>
-          </div>
-          <div>
-            <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-              <CircleHelp className="h-3.5 w-3.5 text-muted-foreground" />
-              Ainda não suportado
-            </div>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {evaluation.unsupportedRules.map((rule) => (
-                <span
-                  key={rule.label}
-                  className="rounded-full border border-border bg-muted/20 px-2 py-1 text-[10px] text-muted-foreground"
-                >
-                  {rule.label}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {evaluation.source.snapshotHash ? (
-        <p className="text-[10px] text-muted-foreground">
-          Fonte operacional: snapshot da conta ·{' '}
-          <span className="font-mono">
-            {evaluation.source.snapshotHash.slice(0, 22)}...
-          </span>
-        </p>
-      ) : null}
+      </ul>
     </section>
   );
 }

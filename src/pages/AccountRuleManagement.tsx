@@ -581,6 +581,8 @@ export default function AccountRuleManagement() {
   });
   const isAutoGeneric = account.rule_selection_status === 'auto_generic';
   const needsReview = currentRuleSet?.review_status === 'needs_review';
+  // Conta do EA ainda sem nenhum dado: mostra '--', nunca saldo zero.
+  const eaHasData = Boolean(snapshot) || account?.ea_status === 'linked';
   const betaChecklist = buildBetaChecklist({
     account,
     connection,
@@ -618,6 +620,7 @@ export default function AccountRuleManagement() {
         )}
       </div>
 
+      {METAAPI_ENABLED ? (
       <section className="rounded-xl border border-border bg-card p-5">
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5">
           <div>
@@ -673,8 +676,40 @@ export default function AccountRuleManagement() {
           </div>
         </div>
       </section>
+      ) : (
+        <section className="rounded-xl border border-border bg-card p-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold text-foreground">{account.nickname}</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {ruleBinding
+                  ? `${ruleBinding.rule_snapshot.propFirm.name} · ${ruleBinding.rule_snapshot.program.name} · ${ruleBinding.rule_snapshot.accountSize.label}`
+                  : 'Sem modelo'}
+                {account.mt5_login ? ` · ${account.mt5_login}` : ''}
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <div className="rounded-lg bg-muted/30 px-4 py-2">
+                <p className="text-[10px] uppercase text-muted-foreground">Saldo</p>
+                <p className="font-mono text-sm text-foreground">{eaHasData ? fmtMoney(snapshot?.balance ?? account.current_balance) : '--'}</p>
+              </div>
+              <div className="rounded-lg bg-muted/30 px-4 py-2">
+                <p className="text-[10px] uppercase text-muted-foreground">Equity</p>
+                <p className="font-mono text-sm text-foreground">{eaHasData ? fmtMoney(snapshot?.equity ?? account.current_equity) : '--'}</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
-      {ruleBinding && !editingBinding ? (
+      {ruleBinding && !editingBinding && !METAAPI_ENABLED ? (
+        <div className="flex justify-end">
+          <button type="button" className="pill-btn" onClick={() => setEditingBinding(true)}>
+            <Pencil className="w-3 h-3" />
+            Trocar modelo
+          </button>
+        </div>
+      ) : ruleBinding && !editingBinding ? (
         <section className="rounded-xl border border-success/30 bg-success/5 p-5 space-y-4">
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
             <div>
@@ -796,13 +831,15 @@ export default function AccountRuleManagement() {
       )}
 
       {ruleBinding ? (
-        <BoundRuleEvaluationCard evaluation={boundRuleEvaluation} />
+        <BoundRuleEvaluationCard evaluation={boundRuleEvaluation} hasData={eaHasData} />
       ) : null}
 
       {ruleBinding && !editingBinding && accountId && (
         <FortifyGuardCard accountId={accountId} binding={ruleBinding} />
       )}
 
+      {METAAPI_ENABLED && (
+        <>
       <BetaReadinessChecklist
         items={betaChecklist}
           title="Checklist do beta"
@@ -1121,6 +1158,8 @@ export default function AccountRuleManagement() {
           ))}
         </div>
       </section>
+        </>
+      )}
     </div>
   );
 }

@@ -115,8 +115,6 @@ describe('safe rule engine demo mode', () => {
     expect(screen.getByText('Perda diária')).toBeInTheDocument();
     expect(screen.getByText('Drawdown máximo')).toBeInTheDocument();
     expect(screen.getByText('Meta de lucro')).toBeInTheDocument();
-    expect(screen.getByText('Validação manual')).toBeInTheDocument();
-    expect(screen.getByText('Ainda não suportado')).toBeInTheDocument();
     expect(screen.getByText(/Assinatura demo:/)).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Cenário de validação'), {
@@ -125,10 +123,7 @@ describe('safe rule engine demo mode', () => {
 
     expect(screen.getByText('NP Future')).toBeInTheDocument();
     expect(screen.getAllByText(/BlackArrow/).length).toBeGreaterThan(0);
-    expect(
-      screen.getAllByText(
-        'Futures, BlackArrow ou plataforma sem conector MT5 não recebem cálculo automático.',
-      ).length,
-    ).toBeGreaterThan(0);
+    // Futures/BlackArrow não recebem cálculo: as regras aparecem como "Sem dados".
+    expect(screen.getAllByText('Sem dados').length).toBeGreaterThan(0);
   });
 });

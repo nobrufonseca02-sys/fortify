@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MonitorSmartphone, ShieldCheck } from 'lucide-react';
+import { MonitorSmartphone } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -170,7 +170,6 @@ export function FortifyGuardCard({ accountId, binding }: { accountId: string; bi
     void savePreferences(explicitKeys, stage, next);
   };
 
-  const selectedCount = options.filter((option) => selected.has(option.key)).length;
 
   const eaStatus = eaAccount?.ea_status ? eaAccountStatus(eaAccount) : null;
   const eaLastSeen = timeAgo(eaAccount?.ea_last_seen_at ?? null);
@@ -182,15 +181,9 @@ export function FortifyGuardCard({ accountId, binding }: { accountId: string; bi
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-primary/30 bg-primary/10">
             <MonitorSmartphone className="h-5 w-5 text-primary" aria-hidden />
           </div>
-          <div>
-            <h2 id="fortify-guard-title" className="text-sm font-semibold text-foreground">
-              Fortify Guard no MetaTrader 5
-            </h2>
-            <p className="mt-1 max-w-xl text-xs text-muted-foreground">
-              As regras da {binding.rule_snapshot.propFirm.name} ao vivo no seu gráfico: quanto falta para cada limite, aviso antes de
-              estourar e um botão para fechar as posições. O EA não opera sozinho.
-            </p>
-          </div>
+          <h2 id="fortify-guard-title" className="self-center text-sm font-semibold text-foreground">
+            Fortify Guard
+          </h2>
         </div>
         {eaStatus && (
           <span
@@ -230,11 +223,7 @@ export function FortifyGuardCard({ accountId, binding }: { accountId: string; bi
                 </button>
               ))}
             </div>
-            <p className="mt-2 text-[11px] text-muted-foreground">
-              A fase muda quais regras valem: no funded entram a consistência do saque e as restrições da conta financiada; sai a meta de
-              lucro.
-              {stage === null && ' Deduzimos pela conta que você vinculou; troque se estiver em outra fase.'}
-            </p>
+
           </div>
 
           {GROUPS.map((group) => {
@@ -245,10 +234,9 @@ export function FortifyGuardCard({ accountId, binding }: { accountId: string; bi
                 <div className="flex items-baseline justify-between gap-3">
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{group.title}</p>
                 </div>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">{group.hint}</p>
                 <ul className="mt-2 divide-y divide-border rounded-lg border border-border">
                   {groupOptions.map((option) => (
-                    <li key={option.key} className="flex items-start justify-between gap-4 p-3">
+                    <li key={option.key} className="flex items-center justify-between gap-4 p-3" title={option.officialText || undefined}>
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="text-sm font-medium text-foreground">{option.label}</p>
@@ -259,7 +247,6 @@ export function FortifyGuardCard({ accountId, binding }: { accountId: string; bi
                             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">só texto</span>
                           )}
                         </div>
-                        <p className="mt-1 text-[11px] text-muted-foreground">Regra oficial: {option.officialText || 'não informada'}</p>
                       </div>
                       <Switch
                         checked={selected.has(option.key)}
@@ -273,10 +260,6 @@ export function FortifyGuardCard({ accountId, binding }: { accountId: string; bi
               </div>
             );
           })}
-          <p className="text-[11px] text-muted-foreground">
-            {selectedCount} {selectedCount === 1 ? 'regra aparece' : 'regras aparecem'} no EA. Regra que a mesa escreve de um jeito que não
-            dá para calcular com segurança aparece como texto, nunca como número estimado.
-          </p>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Quando avisar</p>
@@ -300,20 +283,11 @@ export function FortifyGuardCard({ accountId, binding }: { accountId: string; bi
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 rounded-lg border border-border bg-background/60 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-muted-foreground">
-              O download do EA, a chave e o passo a passo de instalação ficam na página Fortify Guard. Uma instalação serve para todas as
-              suas contas.
-            </p>
-            <Link to="/fortify-guard" className="pill-btn shrink-0 text-xs">
+          <div className="flex justify-end">
+            <Link to="/fortify-guard" className="pill-btn text-xs">
               Abrir Fortify Guard
             </Link>
           </div>
-
-          <p className="flex items-start gap-2 text-[11px] text-muted-foreground">
-            <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
-            O EA só roda no MT5 para computador. Confira se a sua mesa permite EAs de gerenciamento antes de usar na conta financiada.
-          </p>
         </>
       )}
     </section>
