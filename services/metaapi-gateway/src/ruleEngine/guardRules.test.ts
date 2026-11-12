@@ -106,10 +106,11 @@ test('opções em grupos; padrão liga o que zera a conta e o que trava o saque'
   assert.equal(byKey.daily_loss.group, 'account');
   assert.equal(byKey.inactivity.group, 'account');
   assert.equal(byKey.profit_target.group, 'payout');
-  assert.equal(byKey.news.group, 'reminder');
+  // Notícias não fazem parte do Fortify Guard.
+  assert.equal(byKey.news, undefined);
   const defaults = defaultGuardRuleKeys(options);
   assert.ok(defaults.includes('inactivity'));
-  assert.ok(!defaults.includes('news'));
+  assert.ok(defaults.includes('daily_loss'));
   // Conta funded não tem meta de lucro.
   assert.ok(!guardRuleOptions(row.rule_snapshot, 'funded').some((option) => option.key === 'profit_target'));
 });

@@ -42,11 +42,11 @@ function alphaLikeBinding() {
 }
 
 describe('Fortify Guard: escolha das regras', () => {
-  it('separa as regras em "zeram a conta", "saque e metas" e "lembretes", com a consequência de cada uma', async () => {
+  it('separa as regras em "zeram a conta" e "saque e metas", com a consequência de cada uma', async () => {
     renderCard();
     await waitFor(() => expect(screen.getByText('Zeram a conta')).toBeInTheDocument());
     expect(screen.getByText('Saque e metas')).toBeInTheDocument();
-    expect(screen.getByText('Lembretes')).toBeInTheDocument();
+    expect(screen.queryByText('Lembretes')).not.toBeInTheDocument();
     expect(screen.getByText('Inatividade')).toBeInTheDocument();
     expect(screen.getByText('Lote máximo')).toBeInTheDocument();
     expect(screen.getAllByText('Zera a conta').length).toBeGreaterThan(0);
@@ -58,11 +58,11 @@ describe('Fortify Guard: escolha das regras', () => {
     expect(screen.queryByRole('button', { name: /Gerar chave/ })).not.toBeInTheDocument();
   });
 
-  it('liga por padrão o que zera a conta e deixa os lembretes desligados', async () => {
+  it('liga por padrão o que zera a conta e não oferece notícias', async () => {
     renderCard();
     await waitFor(() => expect(screen.getByLabelText('Mostrar Inatividade no EA')).not.toBeDisabled());
     expect(screen.getByLabelText('Mostrar Inatividade no EA')).toHaveAttribute('data-state', 'checked');
-    expect(screen.getByLabelText('Mostrar Notícias no EA')).toHaveAttribute('data-state', 'unchecked');
+    expect(screen.queryByLabelText('Mostrar Notícias no EA')).not.toBeInTheDocument();
   });
 
   it('na fase funded a consistência do saque aparece e a meta de lucro sai', async () => {

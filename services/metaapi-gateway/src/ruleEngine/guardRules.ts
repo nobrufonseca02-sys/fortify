@@ -261,8 +261,6 @@ export const GUARD_RULE_KEYS = [
   'profit_target',
   'consistency',
   'min_trading_days',
-  'news',
-  'overnight',
 ] as const;
 export type GuardRuleKey = (typeof GUARD_RULE_KEYS)[number];
 
@@ -270,8 +268,8 @@ export function isGuardRuleKey(value: unknown): value is GuardRuleKey {
   return typeof value === 'string' && (GUARD_RULE_KEYS as readonly string[]).includes(value);
 }
 
-/** account: quebrar zera a conta. payout: trava a aprovação ou o saque. reminder: texto. */
-export type GuardGroup = 'account' | 'payout' | 'reminder';
+/** account: quebrar zera a conta. payout: trava a aprovação ou o saque. */
+export type GuardGroup = 'account' | 'payout';
 
 export interface GuardRuleOption {
   key: GuardRuleKey;
@@ -312,8 +310,6 @@ export function guardRuleOptions(snapshot: RuleBindingSnapshot, stage: AccountSt
   const lots = lotLimitFor(rules.maxLots, snapshot.accountSize.label);
   if (lots) {
     push({ key: 'max_lots', label: 'Lote máximo', group: 'account', consequence: 'Zera a conta', officialText: rules.maxLots, live: true });
-  } else if (isExplicitRuleValue(rules.maxLots)) {
-    push({ key: 'max_lots', label: 'Lote máximo', group: 'reminder', consequence: 'Confira o limite do seu tamanho de conta', officialText: rules.maxLots, live: false });
   }
   const floating = floatingLossPercent(conditions, stage);
   if (floating !== null) {
@@ -333,8 +329,6 @@ export function guardRuleOptions(snapshot: RuleBindingSnapshot, stage: AccountSt
       officialText: close.clause,
       live: true,
     });
-  } else if (isExplicitRuleValue(rules.weekendRule)) {
-    push({ key: 'weekend', label: 'Fim de semana', group: 'reminder', consequence: 'Lembrete', officialText: rules.weekendRule, live: false });
   }
 
   if (stage === 'evaluation') {
@@ -357,8 +351,6 @@ export function guardRuleOptions(snapshot: RuleBindingSnapshot, stage: AccountSt
       officialText: rules.consistencyRule,
       live: true,
     });
-  } else if (consistency === null && isExplicitRuleValue(rules.consistencyRule)) {
-    push({ key: 'consistency', label: 'Consistência', group: 'reminder', consequence: 'Confira o texto oficial', officialText: rules.consistencyRule, live: false });
   }
   const minDaysText = normalizeRuleText(rules.minTradingDays);
   if (isExplicitRuleValue(rules.minTradingDays) && /\d/.test(minDaysText) && !minDaysText.startsWith('sem minimo')) {
@@ -371,20 +363,10 @@ export function guardRuleOptions(snapshot: RuleBindingSnapshot, stage: AccountSt
       live: true,
     });
   }
-  if (isExplicitRuleValue(rules.newsRule)) {
-    push({ key: 'news', label: 'Notícias', group: 'reminder', consequence: 'Lucro do trade pode ser anulado', officialText: rules.newsRule, live: false });
-  }
-  if (
-    !close &&
-    isExplicitRuleValue(rules.overnightRule) &&
-    normalizeRuleText(rules.overnightRule) !== normalizeRuleText(rules.weekendRule)
-  ) {
-    push({ key: 'overnight', label: 'Overnight', group: 'reminder', consequence: 'Lembrete', officialText: rules.overnightRule, live: false });
-  }
   return options;
 }
 
-/** Sem escolha salva: tudo que zera a conta ou trava o saque fica ligado; lembretes, desligados. */
+/** Sem escolha salva: tudo que zera a conta ou trava o saque fica ligado. Notícias e lembretes de texto não fazem parte do Fortify Guard. */
 export function defaultGuardRuleKeys(options: GuardRuleOption[]): GuardRuleKey[] {
-  return options.filter((option) => option.group !== 'reminder').map((option) => option.key);
+  return options.map((option) => option.key);
 }

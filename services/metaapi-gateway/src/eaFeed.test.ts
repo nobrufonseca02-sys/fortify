@@ -103,17 +103,15 @@ test('consistência devolve o teto de lucro de hoje: c/(1-c) do lucro anterior',
   assert.equal(rule.regularizeProfit, 2_500);
 });
 
-test('consistência que o motor não sabe calcular vira lembrete, nunca número', () => {
+test('consistência que o motor não sabe calcular não vai para o EA, nunca vira número chutado', () => {
   const row = fullBinding({ consistencyRule: 'Trade Value Score acima de 50%' });
-  const rule = feedFor(row, live, { ...ALL, ruleKeys: ['consistency'] }).rules.find((r) => r.key === 'consistency')!;
-  assert.equal(rule.kind, 'note');
-  assert.equal(rule.todayCap, undefined);
+  const rule = feedFor(row, live, { ...ALL, ruleKeys: ['consistency'] }).rules.find((r) => r.key === 'consistency');
+  assert.equal(rule, undefined);
 });
 
-test('só manda as regras que o trader escolheu', () => {
-  const feed = feedFor(fullBinding(), live, { ruleKeys: ['consistency', 'news'], stage: 'evaluation', warningPct: 60, criticalPct: 90 });
-  assert.deepEqual(feed.rules.map((r) => r.key), ['consistency', 'news']);
-  assert.equal(feed.rules[1].kind, 'note');
+test('só manda as regras que o trader escolheu; notícias salvas antes são ignoradas', () => {
+  const feed = feedFor(fullBinding(), live, { ruleKeys: ['consistency', 'news'] as any, stage: 'evaluation', warningPct: 60, criticalPct: 90 });
+  assert.deepEqual(feed.rules.map((r) => r.key), ['consistency']);
   assert.equal(feed.warningPct, 60);
 });
 
@@ -128,14 +126,13 @@ test('histórico do terminal é limpo: datas inválidas e duplicadas saem', () =
 });
 
 test('formato para o EA: versionado, uma regra por linha, sem "|" solto no texto', () => {
-  const row = fullBinding({ newsRule: 'Proibido | 2 min antes\ne depois' });
-  const text = serializeEaFeed(feedFor(row, live, { ...ALL, ruleKeys: ['daily_loss', 'news'] }));
+  const row = fullBinding({ consistencyRule: 'Sem consistência na avaliação; 25% | no\nestágio funded' });
+  const text = serializeEaFeed(feedFor(row, live, { ...ALL, stage: 'funded', ruleKeys: ['daily_loss', 'consistency'] }));
   const lines = text.trim().split('\n');
   assert.equal(lines[0], 'FORTIFY-EA|1');
   assert.match(lines[1], /^OK\|Firm\|2-Step\|\$100K\|USD\|/);
   assert.equal(lines.at(-1), 'END');
-  const news = lines.find((line) => line.startsWith('R|news|'))!;
-  assert.equal(news.split('|').length, 20);
+  for (const line of lines.filter((l) => l.startsWith('R|'))) assert.equal(line.split('|').length, 20);
   assert.match(serializeEaError('plan_inactive', 'Assinatura | inativa'), /^FORTIFY-EA\|1\nERR\|plan_inactive\|Assinatura inativa\nEND/);
 });
 

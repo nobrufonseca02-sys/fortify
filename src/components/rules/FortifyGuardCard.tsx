@@ -35,12 +35,6 @@ const GROUPS: Array<{ id: GuardGroup; title: string; hint: string; chip: string 
     hint: 'Não encerram a conta, mas travam a aprovação ou o saque.',
     chip: 'border-warning/30 bg-warning/10 text-warning',
   },
-  {
-    id: 'reminder',
-    title: 'Lembretes',
-    hint: 'Aparecem como texto fixo no painel. Ficam desligados se você não ligar.',
-    chip: 'border-border bg-muted text-muted-foreground',
-  },
 ];
 
 const STAGES: Array<{ id: AccountStage; label: string }> = [

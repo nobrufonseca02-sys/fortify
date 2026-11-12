@@ -16,7 +16,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Fortify"
 #property link      "https://fortify-delta.vercel.app"
-#property version   "1.42"
+#property version   "1.43"
 #property description "Fortify Guard: acompanhe ao vivo as regras da sua mesa proprietaria."
 
 #include <Trade\Trade.mqh>
@@ -45,7 +45,7 @@ input int         InpSimStopPoints = 200;                              // Simula
 input bool        InpSound      = true;                                // Som do Fortify no nível crítico
 input bool        InpPreviewStress = false;                            // Demonstração: mostrar um dia perto do limite
 
-#define GUARD_VERSION "1.42"
+#define GUARD_VERSION "1.43"
 #define PFX           "FG_"
 #define PANEL_W       360
 #define PAD           14
@@ -1385,17 +1385,17 @@ void DrawPanelPass(const int density)
          y += 12 + n * 14 + 10;
         }
 
-      // Abas por grupo: Conta (zera a conta), Saque (metas e saque), Lembretes.
-      string groupIds[] = {"account", "payout", "reminder"};
-      string groupTitles[] = {"Conta", "Saque", "Lembretes"};
-      bool present[3];
-      bool alerting[3];
+      // Abas por grupo: Conta (zera a conta) e Saque (metas e saque). Lembretes/notícias não fazem parte do Guard.
+      string groupIds[] = {"account", "payout"};
+      string groupTitles[] = {"Conta", "Saque"};
+      bool present[2];
+      bool alerting[2];
       ArrayInitialize(present, false);
       ArrayInitialize(alerting, false);
       bool grouped = false;
       for(int i = 0; i < ArraySize(g_rules); i++)
         {
-         for(int g = 0; g < 3; g++)
+         for(int g = 0; g < 2; g++)
            {
             if(g_rules[i].group != groupIds[g])
                continue;
@@ -1410,7 +1410,7 @@ void DrawPanelPass(const int density)
         {
          int tabs = 0;
          bool activeOk = false;
-         for(int g = 0; g < 3; g++)
+         for(int g = 0; g < 2; g++)
            {
             if(!present[g])
                continue;
@@ -1419,7 +1419,7 @@ void DrawPanelPass(const int density)
                activeOk = true;
            }
          if(!activeOk)
-            for(int g = 0; g < 3; g++)
+            for(int g = 0; g < 2; g++)
                if(present[g])
                  {
                   g_tab = groupIds[g];
@@ -1427,7 +1427,7 @@ void DrawPanelPass(const int density)
                  }
          int tabW = (inner - (tabs - 1) * 6) / tabs;
          int tx = x0 + PAD;
-         for(int g = 0; g < 3; g++)
+         for(int g = 0; g < 2; g++)
            {
             if(!present[g])
                continue;
