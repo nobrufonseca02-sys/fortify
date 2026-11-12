@@ -31,6 +31,7 @@ input string      InpToken      = "";                                  // Chave 
 input string      InpGatewayUrl = "https://137-131-175-251.sslip.io";  // Endereço do Fortify
 input GuardCorner InpCorner     = GUARD_RIGHT;                         // Lado do painel
 input bool        InpPush       = false;                               // Avisar também no celular (MetaQuotes ID)
+input bool        InpPreview    = false;                               // Modo demonstração (dados de exemplo, sem chave)
 
 #define GUARD_VERSION "1.00"
 #define PFX           "FG_"
@@ -95,6 +96,8 @@ bool      g_collapsed = false;
 bool      g_hasFeed = false;
 double    g_peakEquity = 0.0;
 string    g_used[];
+bool      g_previewShot = false;
+uint      g_startTick = 0;
 CTrade    g_trade;
 
 void ResetRule(GuardRule &r)
@@ -282,6 +285,23 @@ string BuildPayload()
    return json;
   }
 
+// Dados de exemplo do modo demonstração: regras reais do FXIFY Lightning Challenge
+// do catálogo do Fortify, calculadas pelo motor sobre uma conta simulada de $100K.
+string PreviewFeed()
+  {
+   string f = "";
+   f += "FORTIFY-EA|1\n";
+   f += "OK|FXIFY|Lightning Challenge||USD|warning|15|70.00|85.00\n";
+   f += "R|daily_loss|Perda diária|floor|warning|3000.00|99000.00|min|||||||||\n";
+   f += "R|max_drawdown|Drawdown máximo|floor|partial|4000.00|98000.00|min|balance|100000.00|||||||\n";
+   f += "R|profit_target|Meta de lucro (Avaliação)|target|safe|5000.00|||||105000.00||||||\n";
+   f += "R|consistency|Consistência|daycap|breached|450.00||||||102000.00|857.14|1833.33|||Nenhum dia pode passar de 30% do lucro total.\n";
+   f += "R|min_trading_days|Dias mínimos|note|not_monitorable||||||||||||Prazo de 5 dias de negociação para concluir; confirmar contagem no dashboard.\n";
+   f += "R|news|Notícias|note|safe||||||||||||Restrição de ±5 minutos em notícias de alto impacto.\n";
+   f += "END\n";
+   return f;
+  }
+
 //+------------------------------------------------------------------+
 //| Consulta ao Fortify                                               |
 //+------------------------------------------------------------------+
@@ -392,6 +412,19 @@ bool ParseFeed(const string text, string &error)
 void Poll()
   {
    g_lastPoll = TimeLocal();
+   if(InpPreview)
+     {
+      string previewError;
+      if(ParseFeed(PreviewFeed(), previewError))
+        {
+         g_error = "";
+         g_lastOk = TimeLocal();
+         g_hasFeed = true;
+        }
+      else
+         g_error = previewError;
+      return;
+     }
    if(StringLen(Trimmed(InpToken)) == 0)
      {
       g_error = "Cole a chave do EA nas configurações (F7). Ela é gerada na página da conta no Fortify.";
@@ -415,7 +448,13 @@ void ComputeLive()
   {
    double balance = AccountInfoDouble(ACCOUNT_BALANCE);
    double equity  = AccountInfoDouble(ACCOUNT_EQUITY);
-   if(equity > g_peakEquity)
+   if(InpPreview)
+     {
+      // Conta simulada: equity oscilando para mostrar o painel ao vivo.
+      balance = 101500.0;
+      equity  = 99750.0 + 450.0 * MathSin(GetTickCount() / 2500.0);
+     }
+   else if(equity > g_peakEquity)
      {
       g_peakEquity = equity;
       GlobalVariableSet(PeakVarName(), g_peakEquity);
@@ -508,6 +547,8 @@ void Notify(const string text)
 
 void CheckAlerts()
   {
+   if(InpPreview)
+      return;
    for(int i = 0; i < ArraySize(g_rules); i++)
      {
       string kind = g_rules[i].kind;
@@ -544,6 +585,11 @@ void CheckAlerts()
 //+------------------------------------------------------------------+
 void CloseAllPositions()
   {
+   if(InpPreview)
+     {
+      g_notice = "Demonstração: o botão não fecha posições. Na sua conta ele pede confirmação antes.";
+      return;
+     }
    int total = PositionsTotal();
    if(total == 0)
      {
@@ -701,7 +747,8 @@ void DrawPanel()
   {
    ArrayResize(g_used, 0);
    int chartW = (int)ChartGetInteger(0, CHART_WIDTH_IN_PIXELS);
-   int x0 = (InpCorner == GUARD_RIGHT) ? MathMax(8, chartW - PANEL_W - 12) : 12;
+   // A largura do grafico inclui a escala de preco a direita (~70px).
+   int x0 = (InpCorner == GUARD_RIGHT) ? MathMax(8, chartW - PANEL_W - 84) : 12;
    int y0 = 28;
    int inner = PANEL_W - 2 * PAD;
    int y = y0 + PAD;
@@ -711,9 +758,13 @@ void DrawPanel()
 
    // Cabecalho
    Label("title", x0 + PAD, y, "FORTIFY GUARD", C_TEXT, 10, "Segoe UI Semibold");
+   if(InpPreview)
+      Label("demo", x0 + PANEL_W - PAD - 32, y + 2, "DEMONSTRAÇÃO", C_WARN, 7, "Segoe UI Semibold", ANCHOR_RIGHT_UPPER);
    Button("btn_min", x0 + PANEL_W - PAD - 24, y - 2, 24, 18, g_collapsed ? "+" : "-", C_TRACK, C_TEXT);
    y += 20;
-   string subtitle = g_hasFeed ? g_firm + "  ·  " + g_program + "  ·  " + g_size : "Regras da sua mesa, ao vivo";
+   string subtitle = "Regras da sua mesa, ao vivo";
+   if(g_hasFeed)
+      subtitle = g_firm + "  ·  " + g_program + (g_size != "" ? "  ·  " + g_size : "");
    Label("subtitle", x0 + PAD, y, subtitle, C_MUTED, 8);
    y += 18;
 
@@ -833,12 +884,13 @@ void DrawPanel()
 //+------------------------------------------------------------------+
 int OnInit()
   {
-   if(MQLInfoInteger(MQL_TESTER))
+   if(MQLInfoInteger(MQL_TESTER) && !InpPreview)
      {
       Print("Fortify Guard não roda no Testador de Estratégia: precisa consultar o Fortify ao vivo.");
       return INIT_FAILED;
      }
    g_utcDay = UtcDayKey(TimeGMT());
+   g_startTick = GetTickCount();
    if(GlobalVariableCheck(PeakVarName()))
       g_peakEquity = GlobalVariableGet(PeakVarName());
    g_peakEquity = MathMax(g_peakEquity, AccountInfoDouble(ACCOUNT_EQUITY));
@@ -875,6 +927,14 @@ void OnTimer()
    if(g_error == "")
       CheckAlerts();
    DrawPanel();
+   if(InpPreview && !g_previewShot && g_hasFeed && GetTickCount() - g_startTick > 6000)
+     {
+      g_previewShot = true;
+      int w = (int)ChartGetInteger(0, CHART_WIDTH_IN_PIXELS);
+      int h = (int)ChartGetInteger(0, CHART_HEIGHT_IN_PIXELS);
+      if(ChartScreenShot(0, "FortifyGuard_preview.png", w, h, ALIGN_RIGHT))
+         Print("Fortify Guard: prévia salva em MQL5\\Files\\FortifyGuard_preview.png");
+     }
   }
 
 void OnTick()

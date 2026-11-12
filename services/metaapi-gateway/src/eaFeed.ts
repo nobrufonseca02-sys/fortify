@@ -209,7 +209,13 @@ export function evaluateForEa(
 
 const round2 = (value: number) => Math.round(value * 100) / 100;
 
+const NO_RULE_MARKERS = ['sem regra', 'sem consistencia', 'nao possui', 'sem minimo', 'nao exige'];
+
 function noteFromEngine(key: EaRuleKey, rule: BoundRuleEvaluation): EaRule {
+  // Mesa sem a regra nesta fase: diz isso direto, sem o texto de "não calculável".
+  if (NO_RULE_MARKERS.some((marker) => normalizeRuleText(rule.sourceRule).includes(marker))) {
+    return { key, label: rule.label, kind: 'note', status: 'safe', message: rule.sourceRule, limit: null };
+  }
   return {
     key,
     label: rule.label,
@@ -419,7 +425,8 @@ export function buildEaFeed(input: {
   return {
     firmName: snapshot.propFirm.name,
     programName: snapshot.program.name,
-    accountSizeLabel: snapshot.accountSize.label,
+    // "Confirmar no checkout oficial" não é tamanho de conta: fica fora do cabeçalho do painel.
+    accountSizeLabel: isExplicitRuleValue(snapshot.accountSize.label) ? snapshot.accountSize.label : '',
     currency: snapshot.accountSize.currency || 'USD',
     overallStatus: evaluation.overallStatus,
     warningPct: preferences.warningPct,
