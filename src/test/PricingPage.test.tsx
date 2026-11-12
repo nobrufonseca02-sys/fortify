@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import PricingPage from '../pages/PricingPage';
@@ -73,9 +73,12 @@ vi.mock('@number-flow/react', () => ({
   ),
 }));
 
+const createGuestCheckoutSession = vi.fn();
+
 vi.mock('@/lib/billing', () => ({
   createCheckoutSession: vi.fn(),
   createAddonCheckoutSession: vi.fn(),
+  createGuestCheckoutSession: (...args: unknown[]) => createGuestCheckoutSession(...args),
   isBillingEnabled: () => true,
 }));
 
@@ -172,12 +175,12 @@ describe('PricingPage', () => {
     ).toBe(true);
   });
 
-  it('deslogado, Assinar guarda o plano e a rota de volta antes de mandar para o login', () => {
-    window.sessionStorage.clear();
+  it('deslogado, Assinar vai direto para o checkout da Stripe, sem passar pelo login', async () => {
+    // Promessa que nunca resolve: o teste só confere a chamada, sem navegar no jsdom.
+    createGuestCheckoutSession.mockReturnValue(new Promise(() => {}));
     renderPricing({ variant: 'public' });
     fireEvent.click(screen.getAllByRole('button', { name: 'Assinar' })[0]);
-    expect(window.sessionStorage.getItem('intended_plan_slug')).toBe('beginner_monthly');
-    expect(window.sessionStorage.getItem('fortify_checkout_return_path')).toBe(window.location.pathname);
+    await waitFor(() => expect(createGuestCheckoutSession).toHaveBeenCalledWith('beginner_monthly', expect.any(Boolean)));
   });
 
   it('logado, renderiza sem a casca pública e com a mesma oferta', () => {

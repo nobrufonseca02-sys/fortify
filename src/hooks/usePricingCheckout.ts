@@ -3,7 +3,12 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { AUTH_SIGNUP_PATH } from '@/components/landing/PublicShell';
 import { useSubscriptionPlan, type FortifyPlan } from '@/hooks/useSubscriptionPlan';
-import { createAddonCheckoutSession, createCheckoutSession, isBillingEnabled } from '@/lib/billing';
+import {
+  createAddonCheckoutSession,
+  createCheckoutSession,
+  createGuestCheckoutSession,
+  isBillingEnabled,
+} from '@/lib/billing';
 import { hasMarketingConsent, trackBeginCheckout, trackSelectPlan } from '@/lib/analytics';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -133,19 +138,6 @@ export function usePricingCheckout() {
       autenticado: Boolean(session?.access_token),
     });
 
-    if (!session?.access_token) {
-      window.sessionStorage.setItem('fortify_intended_plan', planSelector);
-      window.sessionStorage.setItem('intended_plan_slug', planSelector);
-      // Guarda a rota de origem: quem clicou em Assinar na página pública
-      // precisa voltar para ela depois do login, e não cair no produto.
-      window.sessionStorage.setItem('fortify_checkout_return_path', window.location.pathname);
-      const message = 'Entre ou crie sua conta para continuar o checkout.';
-      setCheckoutNotice(message);
-      toast({ title: 'Sessão necessária', description: message });
-      navigate(AUTH_SIGNUP_PATH);
-      return;
-    }
-
     if (!hasConfiguredPrice(plan)) {
       const message = 'Este plano ainda não possui um Price ID válido da Stripe.';
       setCheckoutError(message);
@@ -162,7 +154,11 @@ export function usePricingCheckout() {
 
     setBusyPlan(plan.id);
     try {
-      const checkout = await createCheckoutSession(planSelector, session.access_token, hasMarketingConsent());
+      // Sem login, Assinar vai direto para a Stripe: a conta é criada depois do
+      // pagamento, pelo e-mail usado lá (rota /checkout/sucesso).
+      const checkout = session?.access_token
+        ? await createCheckoutSession(planSelector, session.access_token, hasMarketingConsent())
+        : await createGuestCheckoutSession(planSelector, hasMarketingConsent());
       const checkoutUrl = String(checkout.checkout_url || '');
       if (!checkoutUrl.startsWith('https://checkout.stripe.com/')) {
         throw new Error('A Stripe retornou uma URL inválida para checkout.');

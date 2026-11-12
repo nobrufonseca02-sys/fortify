@@ -17,6 +17,7 @@ import { fortifyMotionConfig } from "@/lib/motion";
 
 const AuthPage = lazy(() => import("./pages/AuthPage"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const CheckoutSuccess = lazy(() => import("./pages/CheckoutSuccess"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Accounts = lazy(() => import("./pages/Accounts"));
 const AccountRuleManagement = lazy(() => import("./pages/AccountRuleManagement"));
@@ -299,6 +300,7 @@ function AppContent() {
           <Route path="/blog/:slug" element={<BlogPost />} />
           <Route path="/auth" element={<AuthGuard />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/checkout/sucesso" element={<CheckoutSuccess />} />
           <Route path="/*" element={<ProtectedRoutes />} />
         </Routes>
       </Suspense>

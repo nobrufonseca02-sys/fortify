@@ -6046,6 +6046,182 @@ fastify.post('/internal/whatsapp/create-checkout-session', async (request, reply
   }
 });
 
+// ---- Checkout direto da pagina de planos, sem login ----
+// O visitante clica em Assinar e vai direto para a Stripe. Nao existe usuario Fortify ainda:
+// a conta so nasce depois que a Stripe confirma o pagamento (webhook assinado ou a consulta
+// de status abaixo, que tambem confere o pagamento na Stripe), pelo e-mail coletado la.
+const SITE_GUEST_SOURCE = 'site_guest';
+// So o catalogo comercial pode ser comprado sem login: nada de Enterprise, anual ou legado.
+const SITE_GUEST_PLAN_IDS = new Set([
+  'beginner_monthly',
+  'advanced_monthly',
+  'pro_monthly',
+  'beginner_semiannual',
+  'advanced_semiannual',
+  'pro_semiannual',
+]);
+
+function publicSiteOrigin() {
+  // STRIPE_SUCCESS_URL ja aponta para o app publicado; PUBLIC_APP_URL e o fallback.
+  try {
+    return new URL(STRIPE_SUCCESS_URL.replace('{CHECKOUT_SESSION_ID}', 'x')).origin;
+  } catch {
+    return PUBLIC_APP_URL.replace(/\/+$/, '');
+  }
+}
+
+function maskEmail(email: string) {
+  const [local, domain] = email.split('@');
+  if (!local || !domain) return '';
+  return `${local.slice(0, 2)}***@${domain}`;
+}
+
+fastify.post('/billing/guest-checkout-session', async (request, reply) => {
+  try {
+    const limit = checkRateLimit(request, 'site-guest-checkout', 10, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
+    const body = request.body as { planSlug?: string; marketingConsent?: boolean };
+    const selector = String(body?.planSlug || '').trim();
+    if (!selector) {
+      return reply.status(400).send({ error: 'Informe o plano desejado.', code: 'billing_plan_required' });
+    }
+
+    const validation = await validateBillingPlanForCheckout(selector);
+    if (!validation.ok) return reply.status(validation.status).send(validation.error);
+    const plan = validation.plan;
+
+    if (!SITE_GUEST_PLAN_IDS.has(plan.id)) {
+      return reply.status(400).send({ error: 'Plano indisponível para compra pelo site.', code: 'plan_not_for_sale' });
+    }
+
+    if (!STRIPE_SECRET_KEY) {
+      return reply.status(503).send(stripeConfigError());
+    }
+
+    const origin = publicSiteOrigin();
+    const marketingConsent = body?.marketingConsent === true ? 'granted' : 'denied';
+    const checkoutSession = await stripeRequest('/checkout/sessions', {
+      mode: 'subscription',
+      success_url: `${origin}/checkout/sucesso?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/vendas/planos?checkout=cancel`,
+      'line_items[0][price]': plan.stripe_price_id,
+      'line_items[0][quantity]': 1,
+      'metadata[source]': SITE_GUEST_SOURCE,
+      'metadata[plan_id]': plan.id,
+      'metadata[plan_slug]': plan.slug || plan.id,
+      'metadata[marketing_consent]': marketingConsent,
+      'subscription_data[metadata][source]': SITE_GUEST_SOURCE,
+      'subscription_data[metadata][plan_id]': plan.id,
+      'subscription_data[metadata][plan_slug]': plan.slug || plan.id,
+      allow_promotion_codes: true,
+    });
+    // Deliberadamente sem metadata[user_id], client_reference_id e customer: e essa ausencia
+    // que leva o webhook ao ramo site_guest, que cria ou acha a conta pelo e-mail pago.
+
+    fastify.log.info({
+      event: 'site_guest_checkout_session_created',
+      planId: plan.id,
+      sessionId: maskForLog(checkoutSession.id),
+    });
+
+    return reply.send({ checkout_url: checkoutSession.url, session_id: checkoutSession.id });
+  } catch (error: any) {
+    fastify.log.error({ event: 'site_guest_checkout_session_failed', error: error?.message, status: error?.status });
+    return reply.status(error?.status && error.status < 500 ? 400 : 500).send({
+      error: publicErrorMessage(error, 'Falha ao criar checkout Stripe.'),
+      code: 'site_guest_checkout_failed',
+    });
+  }
+});
+
+// Cria (ou acha) a conta do comprador pelo e-mail do pagamento. So e chamada com uma sessao
+// de checkout ja paga, conferida na Stripe. Idempotente: webhook e pagina de sucesso podem
+// chegar juntos, e quem perder a corrida acha a conta que o outro criou.
+async function resolveSiteGuestUser(session: JsonRecord): Promise<{ userId: string; email: string } | null> {
+  const email = String(session.customer_details?.email || '').trim().toLowerCase();
+  if (!email) {
+    fastify.log.error({ event: 'site_guest_missing_email', sessionId: maskForLog(session.id) });
+    return null;
+  }
+
+  const existing = await findAuthUserByEmail(email);
+  if (existing) return { userId: existing.id, email };
+
+  const { data, error } = await supabase.auth.admin.createUser({
+    email,
+    email_confirm: true, // confiavel: acabou de pagar na Stripe com este e-mail
+    user_metadata: { source: SITE_GUEST_SOURCE, checkout_session_id: String(session.id || '') },
+  });
+  if (error || !data.user) {
+    const raced = await findAuthUserByEmail(email);
+    if (raced) return { userId: raced.id, email };
+    fastify.log.error({ event: 'site_guest_create_user_failed', error: error?.message, sessionId: maskForLog(session.id) });
+    return null;
+  }
+  return { userId: data.user.id, email };
+}
+
+// A pagina /checkout/sucesso consulta aqui ate o pagamento estar confirmado. So devolve link
+// de entrada para a conta que ESTA sessao criou e que nunca entrou: quem paga usando o e-mail
+// de uma conta que ja existe nao ganha acesso a ela, precisa entrar com a propria senha.
+fastify.get('/billing/guest-checkout-status', async (request, reply) => {
+  try {
+    const limit = checkRateLimit(request, 'site-guest-status', 40, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
+    const sessionId = getQueryParam(request, 'session_id');
+    if (!/^cs_(test|live)_[A-Za-z0-9]+$/.test(sessionId)) {
+      return reply.status(400).send({ error: 'Sessão de checkout inválida.', code: 'invalid_checkout_session' });
+    }
+    if (!STRIPE_SECRET_KEY) {
+      return reply.status(503).send(stripeConfigError());
+    }
+
+    let session: JsonRecord;
+    try {
+      session = await stripeGet(`/checkout/sessions/${encodeURIComponent(sessionId)}`);
+    } catch {
+      return reply.status(404).send({ error: 'Sessão de checkout não encontrada.', code: 'checkout_session_not_found' });
+    }
+    if (String(session.metadata?.source || '') !== SITE_GUEST_SOURCE) {
+      return reply.status(404).send({ error: 'Sessão de checkout não encontrada.', code: 'checkout_session_not_found' });
+    }
+
+    const paid = session.status === 'complete' && ['paid', 'no_payment_required'].includes(String(session.payment_status));
+    if (!paid) return reply.send({ state: 'pending' });
+
+    const resolved = await resolveSiteGuestUser(session);
+    if (!resolved) return reply.send({ state: 'manual_review' });
+
+    const { data: userData } = await supabase.auth.admin.getUserById(resolved.userId);
+    const user = userData?.user;
+    const createdBySession =
+      user?.user_metadata?.source === SITE_GUEST_SOURCE &&
+      user?.user_metadata?.checkout_session_id === session.id &&
+      !user?.last_sign_in_at;
+    if (!createdBySession) {
+      return reply.send({ state: 'existing_account', email: maskEmail(resolved.email) });
+    }
+
+    const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+      type: 'magiclink',
+      email: resolved.email,
+      options: { redirectTo: `${publicSiteOrigin()}/dashboard` },
+    });
+    const loginUrl = linkData?.properties?.action_link;
+    if (linkError || !loginUrl) {
+      fastify.log.error({ event: 'site_guest_magic_link_failed', error: linkError?.message });
+      return reply.send({ state: 'existing_account', email: maskEmail(resolved.email) });
+    }
+
+    return reply.send({ state: 'ready', login_url: loginUrl });
+  } catch (error: any) {
+    fastify.log.error({ event: 'site_guest_status_failed', error: error?.message });
+    return reply.status(500).send({ error: 'Não foi possível confirmar o pagamento agora.', code: 'site_guest_status_failed' });
+  }
+});
+
 async function findAuthUserByEmail(email: string): Promise<{ id: string; email: string } | null> {
   const normalized = email.trim().toLowerCase();
   const perPage = 1000;
@@ -6330,6 +6506,25 @@ fastify.post('/billing/webhook', async (request, reply) => {
                 content: confirmationText,
                 delivery_status: 'pending',
               }) as any);
+            }
+          }
+        }
+      }
+
+      if (String(object.metadata?.source || '') === SITE_GUEST_SOURCE && !object.metadata?.user_id) {
+        const resolved = await resolveSiteGuestUser(object);
+        if (resolved) {
+          fallbackUserId = resolved.userId;
+          // Mesmo motivo do ramo whatsapp_preauth: os proximos webhooks da assinatura so
+          // acham o usuario pelo subscription.metadata.user_id.
+          if (subscriptionId && STRIPE_SECRET_KEY) {
+            try {
+              await stripeRequest(`/subscriptions/${encodeURIComponent(subscriptionId)}`, {
+                'metadata[user_id]': resolved.userId,
+                'metadata[source]': SITE_GUEST_SOURCE,
+              });
+            } catch (backfillError: any) {
+              fastify.log.error({ event: 'site_guest_metadata_backfill_failed', error: backfillError?.message });
             }
           }
         }

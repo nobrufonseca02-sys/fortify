@@ -106,6 +106,44 @@ export async function createCheckoutSession(planSlug: string, accessToken: strin
   return body as { checkout_url: string; session_id: string };
 }
 
+/** Checkout de quem ainda não tem conta: a conta nasce depois do pagamento, pelo e-mail pago. */
+export async function createGuestCheckoutSession(planSlug: string, marketingConsent = false) {
+  await assertBillingGatewayAvailable();
+
+  const response = await billingFetch('/billing/guest-checkout-session', {
+    method: 'POST',
+    headers: gatewayJsonHeaders(),
+    body: JSON.stringify({ planSlug, marketingConsent }),
+  });
+
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(billingErrorMessage(body, 'Falha ao criar checkout Stripe.'));
+  }
+
+  assertCheckoutUrl(body?.checkout_url);
+  return body as { checkout_url: string; session_id: string };
+}
+
+export type GuestCheckoutStatus =
+  | { state: 'pending' }
+  | { state: 'ready'; login_url: string }
+  | { state: 'existing_account'; email?: string }
+  | { state: 'manual_review' };
+
+export async function getGuestCheckoutStatus(sessionId: string): Promise<GuestCheckoutStatus> {
+  const response = await billingFetch(
+    `/billing/guest-checkout-status?session_id=${encodeURIComponent(sessionId)}`,
+    { method: 'GET', headers: { Accept: 'application/json' } },
+  );
+
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(billingErrorMessage(body, 'Não foi possível confirmar o pagamento.'));
+  }
+  return body as GuestCheckoutStatus;
+}
+
 export async function confirmCheckoutSession(sessionId: string, accessToken: string) {
   const response = await billingFetch('/billing/confirm-checkout-session', {
     method: 'POST',
