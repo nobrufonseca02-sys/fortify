@@ -71,8 +71,7 @@ function Header({ pricing }: { pricing: PricingCheckout }) {
           Escolha pelo número de contas <span className="font-medium text-zinc-400">que você opera.</span>
         </motion.h1>
         <motion.p {...enter(0.25)} className="max-w-xl text-pretty text-sm leading-relaxed text-zinc-400 sm:text-base">
-          Todo plano inclui monitoramento de regras, alertas e painel de contas. O que muda é o limite de contas MT5 e
-          o nível de suporte.
+          Muda só o número de contas e o suporte.
         </motion.p>
         <motion.div
           {...enter(0.35)}
@@ -333,7 +332,7 @@ function PlanGrid({ pricing }: { pricing: PricingCheckout }) {
   if (visiblePlans.length === 0) {
     return (
       <Notice tone="info" title="Planos indisponíveis no momento">
-        Não foi possível carregar o catálogo agora. Tente de novo em instantes ou fale com o suporte.
+        Planos indisponíveis agora. Tente de novo.
       </Notice>
     );
   }

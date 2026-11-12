@@ -41,9 +41,9 @@ const CHECKOUT_LINK = { label: 'Escolher plano', to: '/pricing' };
 
 type Secondary = { label: string; to?: string; href?: string; destination: string };
 
-const DEFAULT_TITLE = 'Veja os limites da sua conta antes da próxima ordem.';
+const DEFAULT_TITLE = 'Veja os limites antes da próxima ordem.';
 const DEFAULT_BODY =
-  'Crie a conta, conecte o MT5 e vincule o programa da sua mesa. O Fortify mostra o estado da conta; as ordens continuam na sua plataforma.';
+  'Escolha a mesa, instale o Fortify Guard e opere.';
 const DEFAULT_SECONDARY: Secondary = { label: 'Ver planos', to: '/vendas/planos', destination: '/vendas/planos' };
 const DEFAULT_TRACKING = { primary: 'final_primary', secondary: 'final_secondary', location: 'final_cta' };
 

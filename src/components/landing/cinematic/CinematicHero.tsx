@@ -66,8 +66,7 @@ function HeroCopy() {
         transition={{ duration: 0.7, ease: EASE }}
         className="max-w-2xl text-pretty text-sm leading-relaxed text-zinc-400 sm:text-base"
       >
-        Conecte sua conta MT5, vincule o programa contratado e acompanhe drawdown, limite diário e regras da mesa
-        em um só painel.
+        Regras da sua mesa ao vivo no MT5.
       </motion.p>
 
       <motion.div

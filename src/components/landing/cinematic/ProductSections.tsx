@@ -296,34 +296,34 @@ export function ProductSections() {
     <div className="relative z-30 bg-black">
       <FeatureSection
         id="regras"
-        eyebrow="01 · Regras vinculadas à conta"
+        eyebrow="01 · Regras"
         title="A regra certa, presa à conta certa."
-        body="Cada conta é ligada a uma mesa, um programa, um tamanho, uma plataforma e uma versão da regra. O vínculo fica registrado com a versão usada, e só é salvo depois da sua confirmação manual."
-        chips={['Versão registrada', 'Confirmação manual', 'Uma regra por conta']}
+        body="Regras conferidas na fonte oficial de cada mesa."
+        chips={['Fonte oficial', 'Consistência calculada', 'Uma regra por conta']}
         visual={<BindingVisual />}
       />
       <FeatureSection
         id="limites"
-        eyebrow="02 · Limites visíveis antes da entrada"
+        eyebrow="02 · Limites"
         title="Saiba quanto sobra antes de clicar."
-        body="A Calculadora de Risco transforma entrada e stop em lote, e mostra o que resta do limite diário e do drawdown se o stop for atingido."
+        body="Lote pelo risco. Folga do dia e do drawdown."
         chips={['Lote pelo risco', 'Folga do dia', 'Folga do drawdown']}
         visual={<LimitsVisual />}
         reverse
       />
       <FeatureSection
         id="saude"
-        eyebrow="03 · Saúde por conta MT5"
-        title="Cada conta com o próprio estado."
-        body="O painel de contas mostra a conexão MT5 e a saúde de cada conta em relação às regras vinculadas. Sem conexão ou sem avaliação, a conta aparece como sem dados, em vez de parecer segura."
-        chips={['Por conta', 'Conexão MT5', 'Sem dados ≠ seguro']}
+        eyebrow="03 · No MT5"
+        title="As regras ao vivo no gráfico."
+        body="O Fortify Guard mostra quanto falta para cada regra. Avisa antes de quebrar."
+        chips={['Por conta', 'Alerta e som', 'Sem dados ≠ seguro']}
         visual={<HealthVisual />}
       />
       <FeatureSection
         id="biblioteca"
-        eyebrow="04 · Biblioteca de mesas proprietárias"
+        eyebrow="04 · Biblioteca"
         title="As regras das mesas, num só lugar."
-        body={`A biblioteca reúne ${firmCount} mesas proprietárias com os programas, tamanhos e regras de cada uma. Escolha o programa que você contratou e leve a seleção direto para o vínculo da sua conta.`}
+        body={`${firmCount} mesas. Escolha a sua e comece.`}
         chips={[`${firmCount} mesas`, 'Programas e tamanhos', 'Direto para a conta']}
         visual={<OrbitVisual />}
         reverse
