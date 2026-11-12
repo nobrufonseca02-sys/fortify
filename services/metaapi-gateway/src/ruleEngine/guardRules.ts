@@ -6,7 +6,7 @@
 // forma inequívoca. Texto ambíguo vira lembrete, nunca um número chutado.
 // Módulo puro: roda no gateway (eaFeed.ts) e no app (escolha das regras na tela).
 
-import type { RuleBindingSnapshot } from './bindingTypes';
+import type { ConsistencyClause, RuleBindingSnapshot } from './bindingTypes';
 import { isExplicitRuleValue, normalizeRuleText } from './ruleEngineTypes';
 
 export type AccountStage = 'evaluation' | 'funded';
@@ -120,6 +120,35 @@ export function consistencyForStage(ruleText: string, stage: AccountStage): Cons
     return spec;
   }
   return negativeForStage ? 'none' : null;
+}
+
+/** Cláusulas que valem nesta fase. `[]` = sem consistência; `null` = não dá para afirmar. */
+export function consistencyClausesForStage(
+  snapshot: Pick<RuleBindingSnapshot, 'criticalRules'>,
+  stage: AccountStage,
+): ConsistencyClause[] | null {
+  const structured = snapshot.criticalRules.consistency;
+  if (Array.isArray(structured)) {
+    return structured.filter((clause) => clause.appliesTo === 'both' || clause.appliesTo === stage);
+  }
+  const legacy = consistencyForStage(snapshot.criticalRules.consistencyRule, stage);
+  if (legacy === 'none') return [];
+  if (!legacy) return null;
+  return [
+    {
+      appliesTo: stage,
+      kind: 'best_day_vs_total_profit',
+      percent: legacy.percent,
+      amount: null,
+      days: null,
+      minDayProfitPercent: null,
+      effect: legacy.soft ? 'soft' : stage === 'funded' ? 'blocks_payout' : 'blocks_pass',
+      condition: legacy.addOn ? 'Só com o add-on de consistência.' : null,
+      estimated: false,
+      officialText: legacy.clause,
+      sourceUrl: '',
+    },
+  ];
 }
 
 // ---- Inatividade ----
@@ -337,18 +366,21 @@ export function guardRuleOptions(snapshot: RuleBindingSnapshot, stage: AccountSt
       push({ key: 'profit_target', label: 'Meta de lucro', group: 'payout', consequence: 'Conclui a fase', officialText: targets, live: true });
     }
   }
-  const consistency = consistencyForStage(rules.consistencyRule, stage);
-  if (consistency && consistency !== 'none') {
+  const consistency = consistencyClausesForStage(snapshot, stage);
+  if (consistency && consistency.length > 0) {
+    const effects = new Set(consistency.map((clause) => clause.effect));
     push({
       key: 'consistency',
       label: 'Consistência',
       group: 'payout',
-      consequence: consistency.soft
+      consequence: effects.has('soft')
         ? 'Obriga a continuar operando'
-        : stage === 'funded'
-          ? 'Trava o saque'
-          : 'Impede a aprovação',
-      officialText: rules.consistencyRule,
+        : effects.has('raises_target')
+          ? 'Aumenta a meta'
+          : stage === 'funded'
+            ? 'Trava o saque'
+            : 'Impede a aprovação',
+      officialText: consistency.map((clause) => clause.officialText).join(' · ') || rules.consistencyRule,
       live: true,
     });
   }

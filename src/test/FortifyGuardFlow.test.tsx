@@ -120,7 +120,17 @@ describe('Biblioteca: usar este modelo', () => {
     const checkbox = await screen.findByRole('checkbox', { name: 'Li as regras oficiais desta mesa' });
     const create = screen.getByRole('button', { name: 'Criar conta e conectar pelo Fortify Guard' });
     expect(checkbox).toHaveAttribute('data-state', 'unchecked');
+    // Sem abrir as regras oficiais, não dá nem para marcar.
+    expect(checkbox).toBeDisabled();
     expect(create).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ler regras oficiais' }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByText('Perda diária')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Abrir na mesa/ })).toHaveAttribute('href', expect.stringContaining('ftmo.com'));
+    // Abrir as regras não marca o aceite por conta própria (requisito de auditoria).
+    expect(checkbox).toHaveAttribute('data-state', 'unchecked');
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
 
     fireEvent.click(checkbox);
     expect(create).toBeEnabled();

@@ -529,6 +529,7 @@ function normalizeAccount(program: PropFirmRuleProgram, label: string, index: nu
     eaRule: overrides.eaRule ?? verifyOfficial,
     copyTradingRule: overrides.copyTradingRule ?? verifyOfficial,
     consistencyRule: explicit(program.consistencyRule, verifyOfficial),
+    ...(program.consistency ? { consistency: program.consistency.map((clause) => ({ ...clause })) } : {}),
     bestDayRule: overrides.bestDayRule ?? bestDayRule(program),
     inactivityRule: overrides.inactivityRule ?? inactivityRule(program),
     payoutSplit: overrides.payoutSplit ?? payoutSplit(program),

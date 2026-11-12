@@ -11,6 +11,8 @@ import type { PropFirmRuleProgram, RuleAccountSize } from '@/data/propFirmRules'
 import { formatAccountLabel } from '@/lib/propFirmSummary';
 import { createGuardAccount, fetchUsedAccountSlots, guardAccountSizes, planFullMessage } from '@/lib/guardAccount';
 import { useSubscriptionPlan } from '@/hooks/useSubscriptionPlan';
+import { OfficialRulesDialog } from '@/components/library/OfficialRulesDialog';
+import { FileText } from 'lucide-react';
 import { inferStage, type AccountStage } from '@/lib/ruleEngine/guardRules';
 
 // "Usar este modelo": cria a conta que o Fortify Guard vai alimentar. O aceite
@@ -43,6 +45,8 @@ export function GuardAccountSheet({
   const [nickname, setNickname] = useState('');
   const [nicknameEdited, setNicknameEdited] = useState(false);
   const [acknowledged, setAcknowledged] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
+  const [rulesRead, setRulesRead] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -53,6 +57,7 @@ export function GuardAccountSheet({
     setNickname(start ? `${program.firm} ${formatAccountLabel(start.label)}` : program.firm);
     setNicknameEdited(false);
     setAcknowledged(false);
+    setRulesRead(false);
   }, [open, initialAccount, program, sizes]);
 
   useEffect(() => {
@@ -111,6 +116,9 @@ export function GuardAccountSheet({
                   aria-checked={accountId === size.id}
                   onClick={() => {
                     setAccountId(size.id);
+                    // Outro tamanho, outras regras: precisa ler e concordar de novo.
+                    setRulesRead(false);
+                    setAcknowledged(false);
                     // O nome acompanha o tamanho até o trader escrever um nome próprio.
                     if (!nicknameEdited) setNickname(`${program.firm} ${formatAccountLabel(size.label)}`);
                   }}
@@ -133,7 +141,11 @@ export function GuardAccountSheet({
                   type="button"
                   role="radio"
                   aria-checked={stage === option.id}
-                  onClick={() => setStage(option.id)}
+                  onClick={() => {
+                    setStage(option.id);
+                    setRulesRead(false);
+                    setAcknowledged(false);
+                  }}
                   className={`rounded-md px-4 py-1.5 text-xs font-medium ${
                     stage === option.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
                   }`}
@@ -154,15 +166,35 @@ export function GuardAccountSheet({
               }} maxLength={60} />
           </div>
 
-          <label className="flex items-start gap-3 text-sm text-foreground">
+          {account && (
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full gap-2"
+              onClick={() => {
+                setRulesOpen(true);
+                setRulesRead(true);
+              }}
+            >
+              <FileText className="h-4 w-4" />
+              Ler regras oficiais
+            </Button>
+          )}
+
+          <label className={`flex items-start gap-3 text-sm ${rulesRead ? 'text-foreground' : 'text-muted-foreground'}`}>
             <Checkbox
               checked={acknowledged}
+              disabled={!rulesRead}
               onCheckedChange={(checked) => setAcknowledged(checked === true)}
               aria-label="Li as regras oficiais desta mesa"
               className="mt-0.5"
             />
-            <span>Li as regras oficiais desta mesa e confirmo que são as da minha conta.</span>
+            <span>{rulesRead ? 'Li e concordo com as regras oficiais desta conta.' : 'Abra as regras oficiais para concordar.'}</span>
           </label>
+
+          {account && (
+            <OfficialRulesDialog open={rulesOpen} onOpenChange={setRulesOpen} program={program} account={account} stage={stage} />
+          )}
 
           {planFull ? (
             <div className="rounded-lg border border-warning/40 bg-warning/10 p-4" role="alert">

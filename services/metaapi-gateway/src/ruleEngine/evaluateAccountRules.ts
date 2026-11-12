@@ -2,6 +2,8 @@ import { evaluateDailyLoss } from './dailyLossCalculations';
 import { evaluateMaxDrawdown } from './drawdownCalculations';
 import { evaluateProfitTarget } from './profitTargetCalculations';
 import { evaluateConsistency } from './consistencyCalculations';
+import { consistencyClausesForStage, primaryConsistency } from './consistencyRules';
+import { inferStage } from './guardRules';
 import { evaluateMinTradingDays } from './minTradingDaysCalculations';
 import {
   finiteNumber,
@@ -149,6 +151,66 @@ function overallMessage(status: RuleEvaluationStatus) {
   return 'As regras automáticas disponíveis estão dentro dos limites monitorados.';
 }
 
+/** Consistência estruturada (catálogo conferido): mesmo cálculo que o EA mostra. */
+function evaluateStructuredConsistency(input: {
+  snapshot: import('./bindingTypes').RuleBindingSnapshot;
+  stage: 'evaluation' | 'funded';
+  initialBalance: number | null;
+  currentBalance: number | null;
+  currency: string;
+  snapshots: NonNullable<EvaluateBoundAccountRulesInput['snapshots']>;
+  trades: NonNullable<EvaluateBoundAccountRulesInput['trades']>;
+  bestClosedTrade: number | null | undefined;
+  profitTargetAmount: number | null;
+}): BoundRuleEvaluation {
+  const sourceRule = input.snapshot.criticalRules.consistencyRule;
+  const clauses = consistencyClausesForStage(input.snapshot, input.stage) ?? [];
+  if (clauses.length === 0) {
+    return { ...notMonitorableRule('consistency', 'Consistência', sourceRule, input.currency, 'Sem consistência nesta fase.'), status: 'safe' };
+  }
+  if (input.initialBalance === null || input.currentBalance === null) {
+    return notMonitorableRule('consistency', 'Consistência', sourceRule, input.currency, 'Saldo ainda não chegou.');
+  }
+  const byDay = new Map<string, number>();
+  for (const snapshot of input.snapshots) {
+    const date = String(snapshot.date ?? snapshot.createdAt ?? '').slice(0, 10);
+    const pnl = finiteNumber(snapshot.dailyPnl);
+    if (date && pnl !== null && !byDay.has(date)) byDay.set(date, pnl);
+  }
+  const days = [...byDay.entries()].map(([date, pnl]) => ({ date, pnl })).sort((a, b) => a.date.localeCompare(b.date));
+  const tradeResults = input.trades
+    .map((trade) => (finiteNumber(trade.profit) ?? 0) + (finiteNumber(trade.commission) ?? 0) + (finiteNumber(trade.swap) ?? 0))
+    .filter((value) => Number.isFinite(value));
+  const bestClosedTrade =
+    input.bestClosedTrade !== undefined ? input.bestClosedTrade : tradeResults.length ? Math.max(...tradeResults) : null;
+  const result = primaryConsistency(clauses, {
+    initialBalance: input.initialBalance,
+    balance: input.currentBalance,
+    days,
+    today: days.at(-1)?.date ?? '',
+    profitTargetAmount: input.profitTargetAmount,
+    bestClosedTrade,
+  });
+  if (!result) {
+    return notMonitorableRule('consistency', 'Consistência', sourceRule, input.currency, 'Dados insuficientes para calcular.');
+  }
+  const limit = result.limitValue;
+  const current = result.currentValue;
+  return {
+    key: 'consistency',
+    label: 'Consistência',
+    status: result.status,
+    monitorability: 'automatic_mt5',
+    sourceRule: clauses.map((clause) => clause.officialText).join(' · ') || sourceRule,
+    currentValue: current,
+    limitValue: limit,
+    remainingValue: result.cap,
+    percentage: limit && limit > 0 && current !== null ? (current / limit) * 100 : null,
+    currency: input.currency,
+    message: result.message,
+  };
+}
+
 export function evaluateBoundAccountRules(
   input: EvaluateBoundAccountRulesInput,
 ): BoundAccountRuleEvaluation {
@@ -280,8 +342,9 @@ export function evaluateBoundAccountRules(
           currency,
         });
 
+  const structuredConsistency = Array.isArray(snapshot.criticalRules.consistency);
   const consistency =
-    globallyUnsupported || consistencyMonitorability !== 'automatic_mt5'
+    globallyUnsupported || (!structuredConsistency && consistencyMonitorability !== 'automatic_mt5')
       ? blockedRule(
           'consistency',
           snapshot.criticalRules.consistencyRule,
@@ -289,13 +352,26 @@ export function evaluateBoundAccountRules(
           globallyUnsupported ? 'not_supported_yet' : consistencyMonitorability,
           unsupportedReason,
         )
-      : evaluateConsistency({
-          ruleText: snapshot.criticalRules.consistencyRule,
-          initialBalance,
-          currentBalance,
-          currency,
-          snapshots,
-        });
+      : structuredConsistency
+        ? evaluateStructuredConsistency({
+            snapshot,
+            stage: account.stage ?? inferStage(snapshot),
+            initialBalance,
+            currentBalance,
+            currency,
+            snapshots,
+            trades,
+            // undefined = não informado (usa os trades); null = desconhecido.
+            bestClosedTrade: account.bestClosedTrade === undefined ? undefined : finiteNumber(account.bestClosedTrade),
+            profitTargetAmount: target.status === 'not_monitorable' || target.status === 'pending_binding' ? null : target.limitValue,
+          })
+        : evaluateConsistency({
+            ruleText: snapshot.criticalRules.consistencyRule,
+            initialBalance,
+            currentBalance,
+            currency,
+            snapshots,
+          });
 
   const minTradingDays =
     globallyUnsupported || minTradingDaysMonitorability !== 'automatic_mt5'

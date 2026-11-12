@@ -6460,12 +6460,15 @@ fastify.post('/ea/feed', async (request, reply) => {
       equity,
       days: sanitizeEaDays(body.days),
       peakEquity: Number.isFinite(peakEquity) && peakEquity > 0 ? peakEquity : null,
+      // EA 1.50+: maior trade fechado do histórico (consistência por trade).
+      bestTrade: body.bestTrade === undefined || body.bestTrade === null || !Number.isFinite(Number(body.bestTrade)) ? null : Number(body.bestTrade),
       now: new Date(),
     };
     const accountContext = {
       startBalance: toNullableNumber(account.start_balance),
       highestEquity: toNullableNumber(account.highest_equity),
       phase: account.phase ?? null,
+      stage: preferences.stage,
     };
     const evaluation = evaluateForEa(binding, accountContext, live);
     const feed = buildEaFeed({ binding, evaluation, live, account: accountContext, preferences });

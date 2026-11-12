@@ -1,3 +1,4 @@
+import type { ConsistencyClause } from '../../services/metaapi-gateway/src/ruleEngine/bindingTypes';
 import { asapFundingPropPrograms } from './prop-firms/asapFundingProp';
 import { alphaCapitalGroupPrograms } from './prop-firms/alphaCapitalGroup';
 import { apexTraderFundingPrograms } from './prop-firms/apexTraderFunding';
@@ -113,6 +114,8 @@ export interface RuleAccountSize {
   eaRule: string;
   copyTradingRule: string;
   consistencyRule: string;
+  /** Consistência estruturada, conferida na fonte oficial (ver bindingTypes). */
+  consistency?: ConsistencyClause[];
   bestDayRule: string;
   inactivityRule: string;
   payoutSplit: string;
@@ -153,6 +156,8 @@ export interface PropFirmRuleProgram {
   trailingDescription: string;
   minTradingDays: string;
   consistencyRule: string;
+  /** Consistência estruturada por fase, conferida na fonte oficial. Ausente = só o texto. */
+  consistency?: ConsistencyClause[];
   newsRule: string;
   weekendRule: string;
   payout: string;
@@ -161,6 +166,8 @@ export interface PropFirmRuleProgram {
   mainRisk: string;
   bestFor: string;
   officialSourceUrl: string;
+  /** PDF ou página oficial com as regras do programa, aberto no pop-up do "Usar este modelo". */
+  officialDocumentUrl?: string;
   officialSourceUrls?: string[];
   sourceLabel: string;
   lastReviewedAt: string;

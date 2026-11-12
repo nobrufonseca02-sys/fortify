@@ -22,8 +22,8 @@ import {
   type EvaluateBoundAccountRulesInput,
   type RuleEvaluationStatus,
 } from './ruleEngine/ruleEngineTypes';
+import { consistencyClausesForStage, primaryConsistency } from './ruleEngine/consistencyRules';
 import {
-  consistencyForStage,
   defaultGuardRuleKeys,
   floatingLossPercent,
   forcedCloseForStage,
@@ -63,6 +63,8 @@ export interface EaLiveInput {
   days: EaDayInput[];
   /** Maior equity que o EA já viu nesta conta (pico intradiário para trailing). */
   peakEquity?: number | null;
+  /** Maior resultado de um trade fechado no histórico do terminal (EA 1.50+). */
+  bestTrade?: number | null;
   now: Date;
 }
 
@@ -70,6 +72,8 @@ export interface EaAccountContext {
   startBalance: number | null;
   highestEquity: number | null;
   phase: string | null;
+  /** Fase escolhida pelo trader no Fortify Guard (consistência por fase). */
+  stage?: AccountStage | null;
 }
 
 export interface EaPreferences {
@@ -81,7 +85,7 @@ export interface EaPreferences {
   criticalPct: number;
 }
 
-export type EaRuleKind = 'floor' | 'target' | 'daycap' | 'counter' | 'idle' | 'close' | 'lots' | 'floating' | 'risk' | 'note';
+export type EaRuleKind = 'floor' | 'target' | 'daycap' | 'tradecap' | 'counter' | 'idle' | 'close' | 'lots' | 'floating' | 'risk' | 'note';
 export type EaMetric = 'equity' | 'balance' | 'min' | 'utc' | 'server';
 
 export interface EaRule {
@@ -199,6 +203,9 @@ export function buildEaEngineInput(
       currentEquity: live.equity,
       highestEquity: knownPeaks.length > 0 ? Math.max(...knownPeaks) : null,
       phase: account.phase,
+      stage: account.stage ?? null,
+      // Explícito (mesmo null): os "trades" abaixo são somas por dia, não servem para o maior trade.
+      bestClosedTrade: finiteNumber(live.bestTrade ?? null),
     },
     snapshots,
     trades,
@@ -319,36 +326,6 @@ function floorRule(
   };
 }
 
-function consistencyRule(percent: number, live: EaLiveInput, initialBalance: number, extra: string): EaRule {
-  const c = percent / 100;
-  const today = utcDateKey(live.now);
-  const todayPnl = live.days.find((day) => day.date === today)?.pnl ?? 0;
-  const dayStartBalance = live.balance - todayPnl;
-  const profitBeforeToday = Math.max(0, dayStartBalance - initialBalance);
-  // Hoje (P) cabe na regra se P <= c * (lucro anterior + P)  =>  P <= c/(1-c) * lucro anterior.
-  const todayCap = round2((c / (1 - c)) * profitBeforeToday);
-  const bestPrevious = Math.max(0, ...live.days.filter((day) => day.date < today).map((day) => day.pnl));
-  const totalNow = Math.max(0, live.balance - initialBalance);
-  // Melhor dia anterior <= c * lucro total  =>  lucro total >= melhor dia / c.
-  const regularize = bestPrevious > 0 && bestPrevious > c * totalNow ? round2(bestPrevious / c - totalNow) : null;
-  const pctText = percent.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
-  const base =
-    profitBeforeToday <= 0
-      ? `Nenhum dia pode passar de ${pctText}% do lucro total. Sem lucro acumulado antes de hoje, todo lucro de hoje vira o melhor dia.`
-      : `Nenhum dia pode passar de ${pctText}% do lucro total.`;
-  return {
-    key: 'consistency',
-    label: 'Consistência',
-    kind: 'daycap',
-    status: regularize ? 'warning' : 'safe',
-    message: `${base} ${extra}`.trim(),
-    limit: round2(c * totalNow),
-    dayStartBalance: round2(dayStartBalance),
-    todayCap,
-    regularizeProfit: regularize,
-  };
-}
-
 function daysBetween(fromDate: string, now: Date) {
   const from = Date.parse(`${fromDate}T00:00:00.000Z`);
   const today = Date.parse(`${utcDateKey(now)}T00:00:00.000Z`);
@@ -417,17 +394,32 @@ function buildRule(option: GuardRuleOption, ctx: RuleContext): EaRule {
       };
     }
     case 'consistency': {
-      const spec = consistencyForStage(rules.consistencyRule, stage);
-      if (!spec || spec === 'none' || initialBalance === null) return noteFromOption(option);
-      const extra = [
-        spec.soft ? 'Exceder não reprova, mas obriga a continuar operando.' : '',
-        spec.addOn ? 'Vale se você contratou o add-on de consistência.' : '',
-        // A cláusula oficial carrega a condição ("no payout on-demand", "no Performance").
-        `Regra oficial: ${spec.clause}.`,
-      ]
-        .filter(Boolean)
-        .join(' ');
-      return consistencyRule(spec.percent, live, initialBalance, extra);
+      const clauses = consistencyClausesForStage(binding.rule_snapshot, stage);
+      if (!clauses || clauses.length === 0 || initialBalance === null) return noteFromOption(option);
+      const target = evaluation.automaticRules.find((rule) => rule.key === 'profit_target');
+      const result = primaryConsistency(clauses, {
+        initialBalance,
+        balance: live.balance,
+        days: live.days.map((day) => ({ date: day.date, pnl: day.pnl })),
+        today: utcDateKey(live.now),
+        profitTargetAmount: target?.limitValue ?? null,
+        bestClosedTrade: finiteNumber(live.bestTrade ?? null),
+      });
+      if (!result) return noteFromOption(option);
+      return {
+        key: 'consistency',
+        label: option.label,
+        kind: result.display,
+        status: result.status,
+        message: result.message,
+        limit: result.limitValue,
+        dayStartBalance: result.dayStartBalance ?? undefined,
+        todayCap: result.cap ?? undefined,
+        regularizeProfit: result.regularize,
+        current: result.current,
+        required: result.required,
+        mode: result.display === 'counter' ? 'profitable' : undefined,
+      };
     }
     case 'inactivity': {
       const required = inactivityDays(rules.minTradingDays);

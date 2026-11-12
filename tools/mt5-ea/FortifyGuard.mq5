@@ -16,7 +16,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Fortify"
 #property link      "https://fortify-delta.vercel.app"
-#property version   "1.43"
+#property version   "1.50"
 #property description "Fortify Guard: acompanhe ao vivo as regras da sua mesa proprietaria."
 
 #include <Trade\Trade.mqh>
@@ -45,7 +45,7 @@ input int         InpSimStopPoints = 200;                              // Simula
 input bool        InpSound      = true;                                // Som do Fortify no nível crítico
 input bool        InpPreviewStress = false;                            // Demonstração: mostrar um dia perto do limite
 
-#define GUARD_VERSION "1.43"
+#define GUARD_VERSION "1.50"
 #define PFX           "FG_"
 #define PANEL_W       360
 #define PAD           14
@@ -273,6 +273,12 @@ string BuildPayload()
    int    days = 0;
    double running = 0.0;
 
+   // Resultado de cada trade (posicao) fechado, para a consistencia por trade.
+   ulong  posIds[];
+   double posSum[];
+   bool   posClosed[];
+   int    positions = 0;
+
    if(HistorySelect(0, TimeTradeServer() + 86400))
      {
       int total = HistoryDealsTotal();
@@ -306,6 +312,25 @@ string BuildPayload()
            {
             dayPnl[days - 1] += amount;
             dayTraded[days - 1] = true;
+            ulong posId = (ulong)HistoryDealGetInteger(ticket, DEAL_POSITION_ID);
+            long  entry = HistoryDealGetInteger(ticket, DEAL_ENTRY);
+            int   slot = -1;
+            for(int p = positions - 1; p >= 0; p--)
+               if(posIds[p] == posId) { slot = p; break; }
+            if(slot < 0)
+              {
+               positions++;
+               ArrayResize(posIds, positions);
+               ArrayResize(posSum, positions);
+               ArrayResize(posClosed, positions);
+               slot = positions - 1;
+               posIds[slot] = posId;
+               posSum[slot] = 0.0;
+               posClosed[slot] = false;
+              }
+            posSum[slot] += amount;
+            if(entry == DEAL_ENTRY_OUT || entry == DEAL_ENTRY_OUT_BY || entry == DEAL_ENTRY_INOUT)
+               posClosed[slot] = true;
            }
          dayEod[days - 1] = running;
         }
@@ -326,6 +351,16 @@ string BuildPayload()
    json += "\"balance\":" + DoubleToString(balance, 2) + ",";
    json += "\"equity\":" + DoubleToString(equity, 2) + ",";
    json += "\"peakEquity\":" + DoubleToString(g_peakEquity, 2) + ",";
+   bool   hasBest = false;
+   double bestTrade = 0.0;
+   for(int p = 0; p < positions; p++)
+      if(posClosed[p] && (!hasBest || posSum[p] > bestTrade))
+        {
+         bestTrade = posSum[p];
+         hasBest = true;
+        }
+   if(hasBest)
+      json += "\"bestTrade\":" + DoubleToString(bestTrade, 2) + ",";
    json += "\"days\":[";
    int first = MathMax(0, days - MAX_DAYS_SENT);
    for(int d = first; d < days; d++)
@@ -809,14 +844,47 @@ void ComputeLive()
          if(g_rules[i].hasRegularize && g_rules[i].regularize > 0)
             g_rules[i].detailText += "  |  falta +" + Money(g_rules[i].regularize) + " de lucro total para o melhor dia caber na regra";
         }
+      else if(kind == "tradecap" && g_rules[i].hasCap)
+        {
+         // Maior lucro entre os trades abertos agora, contra o teto do proximo trade.
+         double openBest = 0.0;
+         for(int p = PositionsTotal() - 1; p >= 0; p--)
+           {
+            ulong ticket = PositionGetTicket(p);
+            if(ticket == 0 || !PositionSelectByTicket(ticket))
+               continue;
+            double result = PositionGetDouble(POSITION_PROFIT) + PositionGetDouble(POSITION_SWAP);
+            if(result > openBest)
+               openBest = result;
+           }
+         if(g_rules[i].todayCap > 0)
+           {
+            g_rules[i].pct = MathMax(0.0, openBest / g_rules[i].todayCap * 100.0);
+            double room = g_rules[i].todayCap - openBest;
+            g_rules[i].valueText = (room > 0) ? "trade até +" + Money(g_rules[i].todayCap) : "TRADE ACIMA DO TETO";
+            g_rules[i].detailText = "Trade aberto +" + Money(openBest) + " de teto " + Money(g_rules[i].todayCap);
+           }
+         else
+           {
+            g_rules[i].pct = (openBest > 0) ? 100.0 : 0.0;
+            g_rules[i].valueText = "sem folga";
+            g_rules[i].detailText = g_rules[i].message;
+           }
+         g_rules[i].level = LevelFor(g_rules[i].pct);
+         if(g_rules[i].hasRegularize && g_rules[i].regularize > 0)
+            g_rules[i].detailText += "  |  falta +" + Money(g_rules[i].regularize) + " de lucro total para o maior trade caber na regra";
+        }
       else if(kind == "counter")
         {
          if(g_rules[i].hasCurrent && g_rules[i].hasRequired)
            {
             bool done = g_rules[i].current >= g_rules[i].required;
-            g_rules[i].valueText = done ? "cumprido" : DoubleToString(g_rules[i].current, 0) + " de " + DoubleToString(g_rules[i].required, 0) + " dias";
+            string unit = (g_rules[i].mode == "profitable") ? " dias lucrativos" : " dias";
+            g_rules[i].valueText = done ? "cumprido" : DoubleToString(g_rules[i].current, 0) + " de " + DoubleToString(g_rules[i].required, 0) + unit;
             g_rules[i].pct = (g_rules[i].required > 0) ? MathMin(100.0, g_rules[i].current / g_rules[i].required * 100.0) : 100.0;
-            g_rules[i].detailText = DoubleToString(g_rules[i].current, 0) + " dias operados; a mesa exige " + DoubleToString(g_rules[i].required, 0) + ".";
+            g_rules[i].detailText = (g_rules[i].mode == "profitable")
+                                    ? DoubleToString(g_rules[i].current, 0) + " dias lucrativos; a mesa exige " + DoubleToString(g_rules[i].required, 0) + "."
+                                    : DoubleToString(g_rules[i].current, 0) + " dias operados; a mesa exige " + DoubleToString(g_rules[i].required, 0) + ".";
            }
          else
             g_rules[i].detailText = g_rules[i].message;
@@ -921,7 +989,7 @@ void CheckAlerts()
            }
          continue;
         }
-      bool alertable = (kind == "floor" || kind == "daycap" || kind == "idle" || kind == "close"
+      bool alertable = (kind == "floor" || kind == "daycap" || kind == "tradecap" || kind == "idle" || kind == "close"
                         || kind == "lots" || kind == "floating" || kind == "risk");
       if(!alertable)
          continue;
@@ -930,7 +998,11 @@ void CheckAlerts()
          continue;
       g_rules[i].alertLevel = level;
       string text;
-      if(kind == "daycap")
+      if(kind == "tradecap")
+         text = (level >= 3)
+                ? g_rules[i].label + ": o trade aberto passou do teto. " + g_rules[i].detailText
+                : g_rules[i].label + ": " + DoubleToString(g_rules[i].pct, 0) + "% do teto do trade. " + g_rules[i].detailText + ".";
+      else if(kind == "daycap")
          text = (level >= 3)
                 ? g_rules[i].label + ": o lucro de hoje passou do teto. " + g_rules[i].detailText
                 : g_rules[i].label + ": " + DoubleToString(g_rules[i].pct, 0) + "% do teto de hoje. " + g_rules[i].valueText + ".";
@@ -1448,7 +1520,7 @@ void DrawPanelPass(const int density)
             continue;
          if(density >= 2 && kind == "note")
             continue;
-         bool measured = (kind == "floor" || kind == "daycap" || kind == "target" || kind == "counter"
+         bool measured = (kind == "floor" || kind == "daycap" || kind == "tradecap" || kind == "target" || kind == "counter"
                           || kind == "idle" || kind == "close" || kind == "lots" || kind == "floating" || kind == "risk");
          color accent = (kind == "target" || kind == "counter") ? C_INFO
                         : (kind == "note") ? C_MUTED

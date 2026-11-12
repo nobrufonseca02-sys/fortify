@@ -11,6 +11,47 @@ export interface RuleBindingPhase {
   profitTarget: string;
 }
 
+/**
+ * Consistência estruturada, conferida na fonte oficial da mesa. Substitui a
+ * leitura do texto livre `consistencyRule` quando presente (vínculos antigos não
+ * têm este campo e seguem pelo texto).
+ *
+ * - best_day_vs_total_profit: maior dia <= X% do lucro total.
+ * - best_day_vs_profit_target: maior dia <= X% da meta de lucro.
+ * - largest_trade_vs_net_profit: maior trade <= X% do lucro líquido.
+ * - daily_profit_cap: lucro do dia acima de X (valor ou % do saldo inicial) não conta.
+ * - profitable_days: N dias com lucro >= Y% do saldo inicial.
+ */
+export type ConsistencyKind =
+  | 'best_day_vs_total_profit'
+  | 'best_day_vs_profit_target'
+  | 'largest_trade_vs_net_profit'
+  | 'daily_profit_cap'
+  | 'profitable_days';
+
+export type ConsistencyEffect = 'blocks_pass' | 'blocks_payout' | 'raises_target' | 'soft' | 'caps_counted_profit';
+
+export interface ConsistencyClause {
+  appliesTo: 'evaluation' | 'funded' | 'both';
+  kind: ConsistencyKind;
+  /** Percentual (40 = 40%). */
+  percent: number | null;
+  /** Valor fixo na moeda da conta. */
+  amount: number | null;
+  /** profitable_days: dias exigidos. */
+  days: number | null;
+  /** profitable_days: lucro mínimo do dia em % do saldo inicial. */
+  minDayProfitPercent: number | null;
+  effect: ConsistencyEffect;
+  /** Condição curta em português (ex.: "só com o add-on de saque on-demand"). */
+  condition: string | null;
+  /** A fonte oficial não define a fórmula inteira: o Fortify mostra como estimativa. */
+  estimated: boolean;
+  /** Trecho literal da fonte oficial. */
+  officialText: string;
+  sourceUrl: string;
+}
+
 export interface RuleBindingSnapshot {
   schemaVersion: typeof RULE_BINDING_SCHEMA_VERSION;
   propFirm: {
@@ -47,6 +88,8 @@ export interface RuleBindingSnapshot {
     drawdownCalculation: string;
     minTradingDays: string;
     consistencyRule: string;
+    /** Ausente em vínculos antigos. Lista vazia = a mesa não tem consistência. */
+    consistency?: ConsistencyClause[];
     newsRule: string;
     weekendRule: string;
     overnightRule: string;

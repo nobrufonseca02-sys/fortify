@@ -203,6 +203,8 @@ export function buildRuleSnapshot(draft: RuleBindingDraft): RuleBindingSnapshot 
       drawdownCalculation: accountSize.drawdownCalculation,
       minTradingDays: accountSize.minTradingDays,
       consistencyRule: accountSize.consistencyRule,
+      // Só entra no snapshot quando o catálogo tem a regra estruturada: perfis sem ela mantêm o hash.
+      ...(accountSize.consistency ? { consistency: accountSize.consistency.map((clause) => ({ ...clause })) } : {}),
       newsRule: accountSize.newsRule,
       weekendRule: accountSize.weekendRule,
       overnightRule: accountSize.overnightRule,

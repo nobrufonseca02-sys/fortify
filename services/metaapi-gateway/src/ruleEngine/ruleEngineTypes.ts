@@ -56,6 +56,10 @@ export interface RuleEngineAccountInput {
   dailyLossUsed?: number | null;
   dailyLossResetDate?: string | null;
   phase?: string | null;
+  /** Fase para a consistência (avaliação ou funded). null = deduz pelo programa. */
+  stage?: 'evaluation' | 'funded' | null;
+  /** Maior resultado de um trade fechado, quando o terminal informa (EA). */
+  bestClosedTrade?: number | null;
 }
 
 export interface RuleEngineSnapshotInput {
