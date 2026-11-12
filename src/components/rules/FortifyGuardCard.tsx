@@ -22,6 +22,9 @@ import type { AccountRuleBindingRow } from '@/lib/ruleBinding';
 // no EA, gera a chave e baixa o EA. As opções e os padrões vêm do mesmo módulo
 // que o gateway usa (services/metaapi-gateway/src/ruleEngine/guardRules.ts).
 
+// Download do EA ainda não liberado para os traders (decisão de produto, 12/11/2026).
+const EA_DOWNLOAD_ENABLED = false;
+
 const GROUPS: Array<{ id: GuardGroup; title: string; hint: string; chip: string }> = [
   {
     id: 'account',
@@ -343,6 +346,7 @@ export function FortifyGuardCard({ accountId, binding }: { accountId: string; bi
             </div>
           </div>
 
+          {EA_DOWNLOAD_ENABLED ? (
           <div className="space-y-3 rounded-lg border border-border bg-background/60 p-4">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Instalar em 4 passos</p>
             <ol className="space-y-3 text-xs text-muted-foreground">
@@ -397,6 +401,11 @@ export function FortifyGuardCard({ accountId, binding }: { accountId: string; bi
               </li>
             </ol>
           </div>
+          ) : (
+            <p className="rounded-lg border border-border bg-background/60 p-4 text-xs text-muted-foreground">
+              O download do EA será liberado em breve. Você já pode deixar escolhidas a fase e as regras desta conta.
+            </p>
+          )}
 
           <p className="flex items-start gap-2 text-[11px] text-muted-foreground">
             <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />

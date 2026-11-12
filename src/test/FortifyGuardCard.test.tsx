@@ -43,6 +43,12 @@ describe('Fortify Guard: escolha das regras', () => {
     expect(screen.getAllByText('Zera a conta').length).toBeGreaterThan(0);
   });
 
+  it('ainda não oferece o download do EA', async () => {
+    render(<FortifyGuardCard accountId="account-a" binding={alphaLikeBinding()} />);
+    await waitFor(() => expect(screen.getByText(/download do EA será liberado em breve/i)).toBeInTheDocument());
+    expect(screen.queryByRole('link', { name: /Baixar FortifyGuard/ })).not.toBeInTheDocument();
+  });
+
   it('liga por padrão o que zera a conta e deixa os lembretes desligados', async () => {
     render(<FortifyGuardCard accountId="account-a" binding={alphaLikeBinding()} />);
     await waitFor(() => expect(screen.getByLabelText('Mostrar Inatividade no EA')).not.toBeDisabled());
