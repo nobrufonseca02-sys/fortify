@@ -488,24 +488,18 @@ const Accounts = () => {
       {!isFocusedConnect && (
       <header className="flex flex-col gap-6 border-b border-border pb-6 md:flex-row md:items-end md:justify-between">
         <div className="max-w-2xl">
-          <span className="eyebrow">Monitoramento MT5</span>
-          <h1 className="display-editorial-sm text-foreground mt-1">Contas</h1>
-          <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-            {METAAPI_ENABLED
-              ? 'Conecte sua conta MT5 para acompanhar sincronização, regras e limites.'
-              : 'Suas contas são alimentadas pelo Fortify Guard, o EA que roda no seu MT5. Para adicionar uma conta, escolha a mesa e o modelo na Biblioteca.'}
-          </p>
+          <h1 className="display-editorial-sm text-foreground">Contas</h1>
           {accounts.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 mt-4">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-2.5 py-1 text-xs text-muted-foreground">
                 <Wallet className="w-3.5 h-3.5" aria-hidden="true" />
                 <strong className="font-mono font-semibold text-foreground tabular-nums">{accounts.length}</strong>
-                {accounts.length === 1 ? 'conta conectada' : 'contas conectadas'}
+                {accounts.length === 1 ? 'conta' : 'contas'}
               </span>
               {violatedCount > 0 && (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-destructive/30 bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
                   <XCircle className="w-3.5 h-3.5" aria-hidden="true" />
-                  {violatedCount} {violatedCount === 1 ? 'conta crítica ou violada' : 'contas críticas ou violadas'}
+                  {violatedCount} {violatedCount === 1 ? 'crítica' : 'críticas'}
                 </span>
               )}
               {warningCount > 0 && (
@@ -517,7 +511,7 @@ const Accounts = () => {
               {noDataCount > 0 && (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-2.5 py-1 text-xs font-medium text-muted-foreground">
                   <HelpCircle className="w-3.5 h-3.5" aria-hidden="true" />
-                  {noDataCount} {noDataCount === 1 ? 'conta sem confirmação de segurança' : 'contas sem confirmação de segurança'}
+                  {noDataCount} sem dados
                 </span>
               )}
               {/* Only claim "tudo dentro dos limites" when every account is
@@ -526,7 +520,7 @@ const Accounts = () => {
               {violatedCount === 0 && warningCount === 0 && noDataCount === 0 && (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-2.5 py-1 text-xs font-medium text-success">
                   <Shield className="w-3.5 h-3.5" aria-hidden="true" />
-                  Tudo dentro dos limites
+                  Tudo ok
                 </span>
               )}
             </div>
@@ -543,7 +537,7 @@ const Accounts = () => {
           <div className="flex items-center gap-4 text-xs">
             <button onClick={() => navigate('/library')} className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
               <BookOpen className="w-3.5 h-3.5" aria-hidden="true" />
-              Biblioteca de mesas
+              Biblioteca
             </button>
             {METAAPI_ENABLED ? (
               <button onClick={() => navigate('/accounts/new')} className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
@@ -834,12 +828,12 @@ const Accounts = () => {
                   account.eaStatus === 'pending' ? (
                     <span className="inline-flex items-center gap-1 font-semibold uppercase tracking-wider px-2 py-1 rounded-full bg-warning/10 text-warning">
                       <Loader2 className="w-3 h-3" aria-hidden="true" />
-                      Aguardando o Fortify Guard
+                      Aguardando EA
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 font-semibold uppercase tracking-wider px-2 py-1 rounded-full bg-muted text-muted-foreground">
                       <XCircle className="w-3 h-3" aria-hidden="true" />
-                      Sem conexão MT5
+                      Sem conexão
                     </span>
                   )
                 )}
@@ -850,7 +844,7 @@ const Accounts = () => {
                 <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Saldo</span>
                 <div className="mt-1 flex items-end justify-between gap-2">
                   <span className="font-mono font-bold text-foreground tabular-nums text-xl md:text-2xl">
-                    {fmt(account.currentEquity, account.baseCurrency)}
+                    {account.eaStatus === 'pending' ? '--' : fmt(account.currentEquity, account.baseCurrency)}
                   </span>
                   <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-mono font-semibold tabular-nums ${isPositive ? 'bg-success/15 text-success' : 'bg-destructive/15 text-destructive'}`}>
                     {isPositive ? <ArrowUpRight className="w-3 h-3" aria-hidden="true" /> : <ArrowDownRight className="w-3 h-3" aria-hidden="true" />}
@@ -879,11 +873,11 @@ const Accounts = () => {
       {!isFocusedConnect && accounts.length === 0 && (
         <GuidedEmptyState
           icon={Wallet}
-          title="Nenhuma conta cadastrada"
+          title="Nenhuma conta"
           description={METAAPI_ENABLED
-            ? 'Conecte uma conta MT5 para começar. Depois da primeira sincronização, a mesa vinculada e a saúde da conta aparecem aqui.'
-            : 'Escolha a mesa e o modelo da sua conta na Biblioteca. Depois abra o MT5 com o Fortify Guard: a saúde da conta aparece aqui.'}
-          actionLabel={METAAPI_ENABLED ? 'Conectar conta' : 'Ir para a Biblioteca'}
+            ? 'Conecte uma conta MT5.'
+            : 'Crie pela Biblioteca.'}
+          actionLabel={METAAPI_ENABLED ? 'Conectar conta' : 'Biblioteca'}
           onAction={METAAPI_ENABLED ? openConnectForm : () => navigate('/')}
         />
       )}

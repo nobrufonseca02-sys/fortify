@@ -125,7 +125,7 @@ const STATUS_VIEW: Record<AccountDisplayStatus, Omit<AccountStatusView, 'status'
     action: 'sync',
   },
   no_connection: {
-    label: 'Sem conexão MT5',
+    label: 'Sem conexão',
     tone: 'muted',
     detail: 'A conta não tem conexão MT5 ativa.',
     action: 'fix_connection',

@@ -349,11 +349,11 @@ describe('Accounts', () => {
     await waitFor(() => expect(mt5ConnectionsSelect.order).toHaveBeenCalled());
 
     // Badge and connection strip both name the missing connection.
-    expect((await screen.findAllByText('Sem conexão MT5')).length).toBeGreaterThanOrEqual(2);
+    expect((await screen.findAllByText('Sem conexão')).length).toBeGreaterThanOrEqual(2);
     expect(screen.queryByText('Seguro')).not.toBeInTheDocument();
     // ...and the header must not claim compliance over an unmonitored account.
-    expect(screen.getByText(/1 conta sem confirmação de segurança/)).toBeInTheDocument();
-    expect(screen.queryByText('Tudo dentro dos limites')).not.toBeInTheDocument();
+    expect(screen.getByText(/1 sem dados/)).toBeInTheDocument();
+    expect(screen.queryByText('Tudo ok')).not.toBeInTheDocument();
   });
 
   it('says server-side monitoring is not active for an account bound only through account_rule_bindings', async () => {
@@ -429,7 +429,7 @@ describe('Accounts', () => {
 
     expect(await screen.findByText('Seguro')).toBeInTheDocument();
     expect(screen.queryByText('Sem dados')).not.toBeInTheDocument();
-    expect(screen.getByText('Tudo dentro dos limites')).toBeInTheDocument();
+    expect(screen.getByText('Tudo ok')).toBeInTheDocument();
   });
 
   it('never shows Seguro when the MT5 connection has an auth error', async () => {
@@ -444,7 +444,7 @@ describe('Accounts', () => {
 
     expect(await screen.findByText('Conexão com erro')).toBeInTheDocument();
     expect(screen.queryByText('Seguro')).not.toBeInTheDocument();
-    expect(screen.queryByText('Tudo dentro dos limites')).not.toBeInTheDocument();
+    expect(screen.queryByText('Tudo ok')).not.toBeInTheDocument();
   });
 
   it('opens the credential fix dialog from ?fixConnection without prefilling a password', async () => {
@@ -555,7 +555,7 @@ describe('Accounts', () => {
     await waitFor(() => expect(screen.getByPlaceholderText('Ex.: 12345678')).toBeInTheDocument());
     expect(screen.queryByText(/Mesa e programa escolhidos na Biblioteca/)).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Contas' })).not.toBeInTheDocument();
-    expect(screen.queryByText('Biblioteca de mesas')).not.toBeInTheDocument();
+    expect(screen.queryByText('Biblioteca')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Conectar conta' })).not.toBeInTheDocument();
     // No account-size/platform/version selector at all — nothing to pick manually.
     expect(screen.queryByLabelText('Tamanho ou variante')).not.toBeInTheDocument();
