@@ -90,6 +90,8 @@ function mapSupabaseToTradingAccount(row: any): TradingAccount {
     detectedBroker: row.detected_broker || undefined,
     detectedPropFirm: row.detected_prop_firm || undefined,
     detectionConfidence: row.detection_confidence || undefined,
+    eaStatus: row.ea_status || undefined,
+    eaLastSeenAt: row.ea_last_seen_at || undefined,
   };
 }
 

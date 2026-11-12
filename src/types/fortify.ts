@@ -47,6 +47,9 @@ export interface TradingAccount {
   detectedBroker?: string;
   detectedPropFirm?: string;
   detectionConfidence?: string;
+  /** Fortify Guard: 'pending' aguardando o EA, 'linked' ligado ao login MT5. */
+  eaStatus?: 'pending' | 'linked';
+  eaLastSeenAt?: string;
 }
 
 export interface Mt5Connection {

@@ -646,7 +646,7 @@ export default function PropFirmLibrary() {
               Etapa 3 de 4 · {selectedFirm} · {selectedProgram.programName}
             </p>
             <h2 className="mt-1 text-lg font-semibold text-foreground">
-              {autoDetectConnectionPath ? 'Conecte sua conta' : 'Escolha a conta'}
+              {autoDetectConnectionPath ? (METAAPI_ENABLED ? 'Conecte sua conta' : 'Crie sua conta') : 'Escolha a conta'}
             </h2>
             {!autoDetectConnectionPath && (
               <p className="mt-1 text-sm text-muted-foreground">Selecione o tamanho da conta para ver as regras.</p>

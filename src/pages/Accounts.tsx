@@ -831,10 +831,17 @@ const Accounts = () => {
                      an mt5_connections row. Rendering nothing here used to let a
                      card show equity 0, no connection indicator at all and a
                      green shield at the same time. */
-                  <span className="inline-flex items-center gap-1 font-semibold uppercase tracking-wider px-2 py-1 rounded-full bg-muted text-muted-foreground">
-                    <XCircle className="w-3 h-3" aria-hidden="true" />
-                    Sem conexão MT5
-                  </span>
+                  account.eaStatus === 'pending' ? (
+                    <span className="inline-flex items-center gap-1 font-semibold uppercase tracking-wider px-2 py-1 rounded-full bg-warning/10 text-warning">
+                      <Loader2 className="w-3 h-3" aria-hidden="true" />
+                      Aguardando o Fortify Guard
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 font-semibold uppercase tracking-wider px-2 py-1 rounded-full bg-muted text-muted-foreground">
+                      <XCircle className="w-3 h-3" aria-hidden="true" />
+                      Sem conexão MT5
+                    </span>
+                  )
                 )}
               </div>
 
