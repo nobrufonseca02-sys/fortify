@@ -1,23 +1,75 @@
-import { describe, expect, it } from 'vitest';
-import { guardOptionsFromBinding } from '@/components/rules/FortifyGuardCard';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { FortifyGuardCard } from '@/components/rules/FortifyGuardCard';
 import { binding } from '../../services/metaapi-gateway/src/testFixtures';
 
-describe('Fortify Guard: opções de regras para o EA', () => {
-  it('oferece as 5 regras calculadas e os lembretes que têm texto oficial da mesa', () => {
-    const row = binding();
-    row.rule_snapshot.criticalRules.newsRule = 'Proibido operar 2 minutos antes e depois de notícia de alto impacto';
-    row.rule_snapshot.criticalRules.maxLots = 'Indisponível';
-    row.rule_snapshot.criticalRules.maxContracts = 'Não informado';
-    const keys = guardOptionsFromBinding(row as any).map((option) => option.key);
-    expect(keys.slice(0, 5)).toEqual(['daily_loss', 'max_drawdown', 'profit_target', 'consistency', 'min_trading_days']);
-    expect(keys).toContain('news');
-    // Sem texto oficial de tamanho máximo, o lembrete não aparece.
-    expect(keys).not.toContain('max_lots');
+const upsert = vi.fn().mockResolvedValue({ error: null });
+
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({ user: { id: 'user-a' }, session: { access_token: 'token-a' } }),
+}));
+
+vi.mock('@/integrations/supabase/client', () => {
+  const chain: any = {
+    select: () => chain,
+    eq: () => chain,
+    is: () => chain,
+    maybeSingle: () => Promise.resolve({ data: null, error: null }),
+    upsert: (...args: unknown[]) => upsert(...args),
+  };
+  return { supabase: { from: () => chain } };
+});
+
+afterEach(() => upsert.mockClear());
+
+function alphaLikeBinding() {
+  const row = binding();
+  const rules = row.rule_snapshot.criticalRules;
+  rules.minTradingDays = '3 dias por fase; sem prazo máximo; inatividade em 30 dias';
+  rules.consistencyRule = 'Sem consistência na avaliação; payout on-demand exige Best Day de 40% e 2% de lucro bruto';
+  rules.newsRule = 'Avaliação livre; Qualified proíbe execução em ±2 minutos de eventos direcionados';
+  rules.maxLots = '2,5 / 5 / 10 / 20 / 40 / 80 / 120 lotes';
+  return row as any;
+}
+
+describe('Fortify Guard: escolha das regras', () => {
+  it('separa as regras em "zeram a conta", "saque e metas" e "lembretes", com a consequência de cada uma', async () => {
+    render(<FortifyGuardCard accountId="account-a" binding={alphaLikeBinding()} />);
+    await waitFor(() => expect(screen.getByText('Zeram a conta')).toBeInTheDocument());
+    expect(screen.getByText('Saque e metas')).toBeInTheDocument();
+    expect(screen.getByText('Lembretes')).toBeInTheDocument();
+    expect(screen.getByText('Inatividade')).toBeInTheDocument();
+    expect(screen.getByText('Lote máximo')).toBeInTheDocument();
+    expect(screen.getAllByText('Zera a conta').length).toBeGreaterThan(0);
   });
 
-  it('mostra a regra oficial da mesa ao lado de cada opção', () => {
-    const options = guardOptionsFromBinding(binding() as any);
-    expect(options.find((option) => option.key === 'daily_loss')?.officialText).toBe('5%');
-    expect(options.find((option) => option.key === 'profit_target')?.officialText).toBe('Fase 1: 10%');
+  it('liga por padrão o que zera a conta e deixa os lembretes desligados', async () => {
+    render(<FortifyGuardCard accountId="account-a" binding={alphaLikeBinding()} />);
+    await waitFor(() => expect(screen.getByLabelText('Mostrar Inatividade no EA')).not.toBeDisabled());
+    expect(screen.getByLabelText('Mostrar Inatividade no EA')).toHaveAttribute('data-state', 'checked');
+    expect(screen.getByLabelText('Mostrar Notícias no EA')).toHaveAttribute('data-state', 'unchecked');
+  });
+
+  it('na fase funded a consistência do saque aparece e a meta de lucro sai', async () => {
+    render(<FortifyGuardCard accountId="account-a" binding={alphaLikeBinding()} />);
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'Funded' })).not.toBeDisabled());
+    expect(screen.getByText('Meta de lucro')).toBeInTheDocument();
+    expect(screen.queryByText('Trava o saque')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Funded' }));
+    expect(screen.queryByText('Meta de lucro')).not.toBeInTheDocument();
+    expect(screen.getAllByText('Trava o saque').length).toBeGreaterThan(0);
+    // A fase é salva, e as regras continuam no padrão (null), que acompanha a fase.
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({ account_stage: 'funded', rule_keys: null }));
+  });
+
+  it('desligar uma regra salva a lista escolhida', async () => {
+    render(<FortifyGuardCard accountId="account-a" binding={alphaLikeBinding()} />);
+    await waitFor(() => expect(screen.getByLabelText('Mostrar Lote máximo no EA')).not.toBeDisabled());
+    fireEvent.click(screen.getByLabelText('Mostrar Lote máximo no EA'));
+    const saved = upsert.mock.calls.at(-1)?.[0] as { rule_keys: string[] };
+    expect(saved.rule_keys).not.toContain('max_lots');
+    expect(saved.rule_keys).toContain('daily_loss');
+    expect(within(document.body).getByLabelText('Mostrar Lote máximo no EA')).toHaveAttribute('data-state', 'unchecked');
   });
 });

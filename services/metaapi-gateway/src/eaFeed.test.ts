@@ -13,7 +13,7 @@ import { binding } from './testFixtures';
 import type { AccountRuleBindingRow } from './ruleEngine/bindingTypes';
 
 const NOW = new Date('2026-11-12T15:00:00Z');
-const ALL: EaPreferences = { ruleKeys: null, warningPct: 70, criticalPct: 85 };
+const ALL: EaPreferences = { ruleKeys: null, stage: 'evaluation', warningPct: 70, criticalPct: 85 };
 const account = { startBalance: 100_000, highestEquity: null, phase: 'Fase 1' };
 
 function fullBinding(overrides: Partial<AccountRuleBindingRow['rule_snapshot']['criticalRules']> = {}) {
@@ -105,13 +105,13 @@ test('consistência devolve o teto de lucro de hoje: c/(1-c) do lucro anterior',
 
 test('consistência que o motor não sabe calcular vira lembrete, nunca número', () => {
   const row = fullBinding({ consistencyRule: 'Trade Value Score acima de 50%' });
-  const rule = feedFor(row, live).rules.find((r) => r.key === 'consistency')!;
+  const rule = feedFor(row, live, { ...ALL, ruleKeys: ['consistency'] }).rules.find((r) => r.key === 'consistency')!;
   assert.equal(rule.kind, 'note');
   assert.equal(rule.todayCap, undefined);
 });
 
 test('só manda as regras que o trader escolheu', () => {
-  const feed = feedFor(fullBinding(), live, { ruleKeys: ['consistency', 'news'], warningPct: 60, criticalPct: 90 });
+  const feed = feedFor(fullBinding(), live, { ruleKeys: ['consistency', 'news'], stage: 'evaluation', warningPct: 60, criticalPct: 90 });
   assert.deepEqual(feed.rules.map((r) => r.key), ['consistency', 'news']);
   assert.equal(feed.rules[1].kind, 'note');
   assert.equal(feed.warningPct, 60);
@@ -129,12 +129,67 @@ test('histórico do terminal é limpo: datas inválidas e duplicadas saem', () =
 
 test('formato para o EA: versionado, uma regra por linha, sem "|" solto no texto', () => {
   const row = fullBinding({ newsRule: 'Proibido | 2 min antes\ne depois' });
-  const text = serializeEaFeed(feedFor(row, live));
+  const text = serializeEaFeed(feedFor(row, live, { ...ALL, ruleKeys: ['daily_loss', 'news'] }));
   const lines = text.trim().split('\n');
   assert.equal(lines[0], 'FORTIFY-EA|1');
   assert.match(lines[1], /^OK\|Firm\|2-Step\|\$100K\|USD\|/);
   assert.equal(lines.at(-1), 'END');
   const news = lines.find((line) => line.startsWith('R|news|'))!;
-  assert.equal(news.split('|').length, 17);
+  assert.equal(news.split('|').length, 20);
   assert.match(serializeEaError('plan_inactive', 'Assinatura | inativa'), /^FORTIFY-EA\|1\nERR\|plan_inactive\|Assinatura inativa\nEND/);
+});
+
+test('fase funded: consistência do saque vira teto de hoje e a meta de lucro sai', () => {
+  const row = fullBinding({ consistencyRule: 'Sem consistência na avaliação; 25% no estágio funded' });
+  const evaluationFeed = feedFor(row, live);
+  assert.equal(evaluationFeed.rules.some((r) => r.key === 'consistency'), false);
+  const fundedFeed = feedFor(row, live, { ...ALL, stage: 'funded' });
+  const consistency = fundedFeed.rules.find((r) => r.key === 'consistency')!;
+  assert.equal(consistency.kind, 'daycap');
+  // 0,25/0,75 × 2.000 de lucro antes de hoje.
+  assert.equal(consistency.todayCap, 666.67);
+  assert.equal(fundedFeed.rules.some((r) => r.key === 'profit_target'), false);
+  assert.equal(fundedFeed.stage, 'funded');
+});
+
+test('inatividade conta os dias desde o último dia operado', () => {
+  const row = fullBinding({ minTradingDays: '3 dias por fase; inatividade em 30 dias' });
+  const quiet: EaLiveInput = {
+    ...live,
+    days: [
+      { date: '2026-10-20', pnl: 300, eodBalance: 101_500, traded: true },
+      { date: '2026-11-12', pnl: 0, eodBalance: 101_500, traded: false },
+    ],
+  };
+  const rule = feedFor(row, quiet).rules.find((r) => r.key === 'inactivity')!;
+  assert.equal(rule.kind, 'idle');
+  assert.equal(rule.current, 23);
+  assert.equal(rule.required, 30);
+});
+
+test('fechamento de sexta, lote máximo, perda flutuante e risco aberto viram regras ao vivo', () => {
+  const row = fullBinding({
+    weekendRule: 'Obrigatório fechar sexta-feira até 23:45 GMT+3',
+    maxLots: '2,5 / 5 / 10 / 20 / 40 / 80 / 120 lotes',
+    breachConditions: ['Perda flutuante máxima de 1,5%.', 'Risco aberto funded de 3%.'],
+  });
+  const feed = feedFor(row, live, { ...ALL, stage: 'funded' });
+  const byKey = Object.fromEntries(feed.rules.map((r) => [r.key, r]));
+  assert.equal(byKey.weekend.kind, 'close');
+  assert.equal(byKey.weekend.param1, 20 * 60 + 45);
+  assert.equal(byKey.weekend.metric, 'utc');
+  assert.equal(byKey.max_lots.kind, 'lots');
+  assert.equal(byKey.max_lots.limit, 40);
+  assert.equal(byKey.floating_loss.limit, 1_500);
+  assert.equal(byKey.open_risk.limit, 3_000);
+  // Ordem do painel: o que zera a conta vem antes do que trava o saque.
+  const groups = feed.rules.map((r) => r.group);
+  assert.ok(groups.lastIndexOf('account') < groups.indexOf('payout'));
+});
+
+test('inatividade não depende da ordem do histórico', () => {
+  const row = fullBinding({ minTradingDays: 'inatividade em 30 dias' });
+  // Histórico em ordem crescente, como vem do terminal antes da limpeza.
+  const rule = feedFor(row, live).rules.find((r) => r.key === 'inactivity')!;
+  assert.equal(rule.current, 0);
 });

@@ -6199,11 +6199,12 @@ fastify.post('/ea/feed', async (request, reply) => {
 
     const { data: prefRow } = await (supabase
       .from('ea_rule_preferences' as any)
-      .select('rule_keys, warning_pct, critical_pct')
+      .select('rule_keys, warning_pct, critical_pct, account_stage')
       .eq('trading_account_id', tokenRow.trading_account_id)
       .maybeSingle() as any);
     const preferences: EaPreferences = {
-      ruleKeys: prefRow ? (prefRow.rule_keys || []).filter(isEaRuleKey) : null,
+      ruleKeys: Array.isArray(prefRow?.rule_keys) ? prefRow.rule_keys.filter(isEaRuleKey) : null,
+      stage: prefRow?.account_stage === 'funded' || prefRow?.account_stage === 'evaluation' ? prefRow.account_stage : null,
       warningPct: Number(prefRow?.warning_pct ?? 70),
       criticalPct: Number(prefRow?.critical_pct ?? 85),
     };

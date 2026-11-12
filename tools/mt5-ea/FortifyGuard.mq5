@@ -16,7 +16,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Fortify"
 #property link      "https://fortify-delta.vercel.app"
-#property version   "1.00"
+#property version   "1.10"
 #property description "Fortify Guard: acompanhe ao vivo as regras da sua mesa proprietaria."
 
 #include <Trade\Trade.mqh>
@@ -33,7 +33,7 @@ input GuardCorner InpCorner     = GUARD_RIGHT;                         // Lado d
 input bool        InpPush       = false;                               // Avisar também no celular (MetaQuotes ID)
 input bool        InpPreview    = false;                               // Modo demonstração (dados de exemplo, sem chave)
 
-#define GUARD_VERSION "1.00"
+#define GUARD_VERSION "1.10"
 #define PFX           "FG_"
 #define PANEL_W       360
 #define PAD           14
@@ -60,6 +60,10 @@ struct GuardRule
    string            metric;
    string            trailing;
    string            message;
+   string            mode;         // close: weekly|daily  lots: total|per_order
+   string            group;        // account|payout|reminder
+   double            param1;       // close: minuto do dia do fechamento
+   bool              hasParam1;
    double            limit;
    double            floorValue;
    double            floorMax;
@@ -86,7 +90,7 @@ struct GuardRule
   };
 
 GuardRule g_rules[];
-string    g_firm = "", g_program = "", g_size = "", g_currency = "USD", g_overall = "";
+string    g_firm = "", g_program = "", g_size = "", g_currency = "USD", g_overall = "", g_stage = "";
 string    g_error = "", g_notice = "";
 double    g_warnPct = 70.0, g_critPct = 85.0;
 int       g_pollSeconds = 15;
@@ -103,6 +107,7 @@ CTrade    g_trade;
 void ResetRule(GuardRule &r)
   {
    r.key = ""; r.label = ""; r.kind = ""; r.status = ""; r.metric = ""; r.trailing = ""; r.message = "";
+   r.mode = ""; r.group = ""; r.param1 = 0; r.hasParam1 = false;
    r.limit = 0; r.floorValue = 0; r.floorMax = 0; r.targetBalance = 0; r.dayStart = 0;
    r.todayCap = 0; r.regularize = 0; r.current = 0; r.required = 0;
    r.hasLimit = false; r.hasFloor = false; r.hasFloorMax = false; r.hasTarget = false; r.hasDayStart = false;
@@ -285,19 +290,21 @@ string BuildPayload()
    return json;
   }
 
-// Dados de exemplo do modo demonstração: regras reais do FXIFY Lightning Challenge
+// Dados de exemplo do modo demonstração: regras reais do Alpha Pro 10% (fase funded)
 // do catálogo do Fortify, calculadas pelo motor sobre uma conta simulada de $100K.
 string PreviewFeed()
   {
    string f = "";
    f += "FORTIFY-EA|1\n";
-   f += "OK|FXIFY|Lightning Challenge||USD|warning|15|70.00|85.00\n";
-   f += "R|daily_loss|Perda diária|floor|warning|3000.00|99000.00|min|||||||||\n";
-   f += "R|max_drawdown|Drawdown máximo|floor|partial|4000.00|98000.00|min|balance|100000.00|||||||\n";
-   f += "R|profit_target|Meta de lucro (Avaliação)|target|safe|5000.00|||||105000.00||||||\n";
-   f += "R|consistency|Consistência|daycap|breached|450.00||||||102000.00|857.14|1833.33|||Nenhum dia pode passar de 30% do lucro total.\n";
-   f += "R|min_trading_days|Dias mínimos|note|not_monitorable||||||||||||Prazo de 5 dias de negociação para concluir; confirmar contagem no dashboard.\n";
-   f += "R|news|Notícias|note|safe||||||||||||Restrição de ±5 minutos em notícias de alto impacto.\n";
+   f += "OK|Alpha Capital Group|Alpha Pro 10%|$100K|USD|partial|15|70.00|85.00|funded\n";
+   f += "R|daily_loss|Perda diária|floor|partial|5000.00|97000.00|min|||||||||Perda diária de 5%.|||account\n";
+   f += "R|max_drawdown|Drawdown máximo|floor|safe|10000.00|90000.00|min|||||||||Drawdown estático de 10%.|||account\n";
+   f += "R|inactivity|Inatividade|idle|safe|30.00|||||||||0.00|30.00|A mesa encerra a conta com 30 dias sem operar.|||account\n";
+   f += "R|max_lots|Lote máximo|lots|safe|40.00|||||||||||Até 40 lotes abertos, somando todas as posições.|total||account\n";
+   f += "R|weekend|Fechamento de sexta|close|safe||||||||||||Qualified Analyst Pro não permite manter posição no fim de semana e aplica soft breach.|weekly||account\n";
+   f += "R|consistency|Consistência|daycap|warning|600.00||||||102000.00|1333.33|1000.00|||Nenhum dia pode passar de 40% do lucro total. Regra oficial: payout on-demand exige Best Day de 40% e 2% de lucro bruto.|||payout\n";
+   f += "R|min_trading_days|Dias mínimos|counter|safe|3.00|||||||||5.00|3.00|Mínimo de dias operados atingido.|||payout\n";
+   f += "R|news|Notícias|note|safe||||||||||||Avaliação livre; Qualified proíbe execução em ±2 minutos de eventos direcionados.|||reminder\n";
    f += "END\n";
    return f;
   }
@@ -371,6 +378,7 @@ bool ParseFeed(const string text, string &error)
          g_pollSeconds = (int)MathMax(5, StringToInteger(f[6]));
          ParseNum(f[7], g_warnPct);
          ParseNum(f[8], g_critPct);
+         g_stage = (k >= 10) ? f[9] : "";
          continue;
         }
       if(f[0] == "R" && k >= 17)
@@ -393,6 +401,12 @@ bool ParseFeed(const string text, string &error)
          r.hasCurrent    = ParseNum(f[14], r.current);
          r.hasRequired   = ParseNum(f[15], r.required);
          r.message       = f[16];
+         if(k >= 20)
+           {
+            r.mode      = f[17];
+            r.hasParam1 = ParseNum(f[18], r.param1);
+            r.group     = f[19];
+           }
          // Mantem o nivel ja avisado hoje para nao repetir o popup a cada consulta.
          for(int j = 0; j < ArraySize(g_rules); j++)
             if(g_rules[j].key == r.key)
@@ -442,6 +456,101 @@ void Poll()
   }
 
 //+------------------------------------------------------------------+
+//| Utilidades das regras novas                                       |
+//+------------------------------------------------------------------+
+string FormatLots(const double lots)
+  {
+   string text = DoubleToString(lots, 2);
+   while(StringLen(text) > 1 && StringSubstr(text, StringLen(text) - 1) == "0")
+      text = StringSubstr(text, 0, StringLen(text) - 1);
+   if(StringSubstr(text, StringLen(text) - 1) == ".")
+      text = StringSubstr(text, 0, StringLen(text) - 1);
+   StringReplace(text, ".", ",");
+   return text;
+  }
+
+string FormatDuration(const long seconds)
+  {
+   long minutes = seconds / 60;
+   if(minutes < 60)
+      return IntegerToString(minutes) + " min";
+   long hours = minutes / 60;
+   if(hours < 48)
+      return IntegerToString(hours) + "h" + StringFormat("%02d", (int)(minutes % 60));
+   return IntegerToString(hours / 24) + " dias";
+  }
+
+string WeekdayShort(const int day)
+  {
+   string names[] = {"dom", "seg", "ter", "qua", "qui", "sex", "sáb"};
+   return names[day % 7];
+  }
+
+// Horario local do trader para um instante UTC, ex.: "sex 17:45".
+string FormatLocal(const datetime utc)
+  {
+   datetime local = (datetime)(utc + (TimeLocal() - TimeGMT()));
+   MqlDateTime t;
+   TimeToStruct(local, t);
+   return WeekdayShort(t.day_of_week) + " " + StringFormat("%02d:%02d", t.hour, t.min);
+  }
+
+// Fim do pregao de sexta (minuto do dia, horario do servidor) dos ativos com posicao aberta.
+int FridaySessionCloseMinutes()
+  {
+   int best = -1;
+   for(int i = 0; i < PositionsTotal(); i++)
+     {
+      if(PositionGetTicket(i) == 0)
+         continue;
+      string symbol = PositionGetString(POSITION_SYMBOL);
+      datetime from, to;
+      for(uint session = 0; SymbolInfoSessionTrade(symbol, FRIDAY, session, from, to); session++)
+        {
+         int minutes = (int)((long)to / 60);
+         if(minutes > best)
+            best = minutes;
+        }
+     }
+   return best;
+  }
+
+// Proximo fechamento obrigatorio em UTC; 0 = horario desconhecido.
+datetime NextCloseUtc(const GuardRule &rule)
+  {
+   datetime nowUtc = TimeGMT();
+   long offset = (long)(TimeTradeServer() - TimeGMT());
+   bool server = (rule.metric == "server");
+   int minutes = rule.hasParam1 ? (int)rule.param1 : -1;
+   if(rule.mode == "weekly" && minutes < 0)
+     {
+      minutes = InpPreview ? 21 * 60 : FridaySessionCloseMinutes();
+      server = !InpPreview;
+     }
+   if(minutes < 0)
+      return 0;
+   datetime nowRef = server ? (datetime)(nowUtc + offset) : nowUtc;
+   datetime dayStart = nowRef - (nowRef % 86400);
+   datetime candidate;
+   if(rule.mode == "daily")
+     {
+      candidate = dayStart + minutes * 60;
+      if(candidate <= nowRef)
+         candidate += 86400;
+     }
+   else
+     {
+      MqlDateTime t;
+      TimeToStruct(nowRef, t);
+      int daysToFriday = (5 - t.day_of_week + 7) % 7;
+      candidate = dayStart + daysToFriday * 86400 + minutes * 60;
+      if(candidate <= nowRef)
+         candidate += 7 * 86400;
+     }
+   return server ? (datetime)(candidate - offset) : candidate;
+  }
+
+//+------------------------------------------------------------------+
 //| Calculo ao vivo                                                   |
 //+------------------------------------------------------------------+
 void ComputeLive()
@@ -452,12 +561,41 @@ void ComputeLive()
      {
       // Conta simulada: equity oscilando para mostrar o painel ao vivo.
       balance = 101500.0;
-      equity  = 99750.0 + 450.0 * MathSin(GetTickCount() / 2500.0);
+      equity  = 100950.0 + 350.0 * MathSin(GetTickCount() / 2500.0);
      }
    else if(equity > g_peakEquity)
      {
       g_peakEquity = equity;
       GlobalVariableSet(PeakVarName(), g_peakEquity);
+     }
+
+   double totalLots = 0.0, biggestLot = 0.0, openRisk = 0.0;
+   int positions = PositionsTotal(), withoutStop = 0;
+   for(int p = 0; p < positions; p++)
+     {
+      if(PositionGetTicket(p) == 0)
+         continue;
+      double volume = PositionGetDouble(POSITION_VOLUME);
+      totalLots += volume;
+      biggestLot = MathMax(biggestLot, volume);
+      double stop = PositionGetDouble(POSITION_SL);
+      if(stop <= 0)
+        {
+         withoutStop++;
+         continue;
+        }
+      ENUM_ORDER_TYPE side = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? ORDER_TYPE_BUY : ORDER_TYPE_SELL;
+      double atStop = 0.0;
+      if(OrderCalcProfit(side, PositionGetString(POSITION_SYMBOL), volume, PositionGetDouble(POSITION_PRICE_OPEN), stop, atStop))
+         openRisk += MathMax(0.0, -atStop);
+     }
+   if(InpPreview)
+     {
+      totalLots = 12.5;
+      biggestLot = 5.0;
+      openRisk = 1180.0;
+      positions = 3;
+      withoutStop = 0;
      }
 
    for(int i = 0; i < ArraySize(g_rules); i++)
@@ -523,10 +661,78 @@ void ComputeLive()
         {
          if(g_rules[i].hasCurrent && g_rules[i].hasRequired)
            {
-            g_rules[i].valueText = DoubleToString(g_rules[i].current, 0) + " de " + DoubleToString(g_rules[i].required, 0) + " dias";
+            bool done = g_rules[i].current >= g_rules[i].required;
+            g_rules[i].valueText = done ? "cumprido" : DoubleToString(g_rules[i].current, 0) + " de " + DoubleToString(g_rules[i].required, 0) + " dias";
             g_rules[i].pct = (g_rules[i].required > 0) ? MathMin(100.0, g_rules[i].current / g_rules[i].required * 100.0) : 100.0;
+            g_rules[i].detailText = DoubleToString(g_rules[i].current, 0) + " dias operados; a mesa exige " + DoubleToString(g_rules[i].required, 0) + ".";
            }
-         g_rules[i].detailText = g_rules[i].message;
+         else
+            g_rules[i].detailText = g_rules[i].message;
+        }
+      else if(kind == "idle" && g_rules[i].hasRequired && g_rules[i].required > 0)
+        {
+         if(g_rules[i].hasCurrent)
+           {
+            double left = g_rules[i].required - g_rules[i].current;
+            g_rules[i].pct = g_rules[i].current / g_rules[i].required * 100.0;
+            g_rules[i].level = LevelFor(g_rules[i].pct);
+            g_rules[i].valueText = (left > 0) ? "faltam " + DoubleToString(left, 0) + " dias" : "LIMITE ATINGIDO";
+            g_rules[i].detailText = ((g_rules[i].current < 1) ? "Operou hoje." : "Último trade há " + DoubleToString(g_rules[i].current, 0) + " dias.")
+                                    + " A mesa encerra a conta com "
+                                    + DoubleToString(g_rules[i].required, 0) + " dias sem operar.";
+           }
+         else
+            g_rules[i].detailText = g_rules[i].message;
+        }
+      else if(kind == "close")
+        {
+         datetime deadline = NextCloseUtc(g_rules[i]);
+         string when = (deadline > 0) ? FormatLocal(deadline) : "no fim do pregão";
+         if(positions == 0)
+           {
+            g_rules[i].valueText = "sem posição aberta";
+            g_rules[i].detailText = "Próximo fechamento: " + when + ". " + g_rules[i].message;
+           }
+         else if(deadline == 0)
+           {
+            g_rules[i].valueText = "confira o horário";
+            g_rules[i].level = 1;
+            g_rules[i].detailText = g_rules[i].message;
+           }
+         else
+           {
+            long left = (long)(deadline - TimeGMT());
+            g_rules[i].pct = (left < 86400) ? (1.0 - left / 86400.0) * 100.0 : 0.0;
+            g_rules[i].level = (left <= 0) ? 3 : (left <= 1800) ? 2 : (left <= 7200) ? 1 : 0;
+            g_rules[i].valueText = (left > 0) ? "feche em " + FormatDuration(left) : "HORÁRIO PASSOU";
+            g_rules[i].detailText = "Fechamento obrigatório " + when + " (seu horário). " + g_rules[i].message;
+           }
+        }
+      else if(kind == "lots" && g_rules[i].hasLimit && g_rules[i].limit > 0)
+        {
+         bool perOrder = (g_rules[i].mode == "per_order");
+         double used = perOrder ? biggestLot : totalLots;
+         g_rules[i].pct = used / g_rules[i].limit * 100.0;
+         g_rules[i].level = LevelFor(g_rules[i].pct);
+         g_rules[i].valueText = FormatLots(used) + " de " + FormatLots(g_rules[i].limit) + " lotes";
+         g_rules[i].detailText = perOrder ? "Maior posição aberta. " + g_rules[i].message
+                                          : "Soma das posições abertas. " + g_rules[i].message;
+        }
+      else if(kind == "floating" && g_rules[i].hasLimit && g_rules[i].limit > 0)
+        {
+         double loss = MathMax(0.0, balance - equity);
+         double slack = g_rules[i].limit - loss;
+         g_rules[i].pct = loss / g_rules[i].limit * 100.0;
+         g_rules[i].level = LevelFor(g_rules[i].pct);
+         g_rules[i].valueText = (slack > 0) ? "folga " + Money(slack) : "LIMITE ATINGIDO";
+         g_rules[i].detailText = "Em aberto -" + Money(loss) + " de -" + Money(g_rules[i].limit) + ". " + g_rules[i].message;
+        }
+      else if(kind == "risk" && g_rules[i].hasLimit && g_rules[i].limit > 0)
+        {
+         g_rules[i].pct = openRisk / g_rules[i].limit * 100.0;
+         g_rules[i].level = (withoutStop > 0) ? MathMax(2, LevelFor(g_rules[i].pct)) : LevelFor(g_rules[i].pct);
+         g_rules[i].valueText = (withoutStop > 0) ? IntegerToString(withoutStop) + " sem stop" : "risco " + Money(openRisk);
+         g_rules[i].detailText = "Risco até os stops " + Money(openRisk) + " de " + Money(g_rules[i].limit) + ". " + g_rules[i].message;
         }
       else
         {
@@ -561,7 +767,9 @@ void CheckAlerts()
            }
          continue;
         }
-      if(kind != "floor" && kind != "daycap")
+      bool alertable = (kind == "floor" || kind == "daycap" || kind == "idle" || kind == "close"
+                        || kind == "lots" || kind == "floating" || kind == "risk");
+      if(!alertable)
          continue;
       int level = g_rules[i].level;
       if(level <= g_rules[i].alertLevel)
@@ -572,10 +780,12 @@ void CheckAlerts()
          text = (level >= 3)
                 ? g_rules[i].label + ": o lucro de hoje passou do teto. " + g_rules[i].detailText
                 : g_rules[i].label + ": " + DoubleToString(g_rules[i].pct, 0) + "% do teto de hoje. " + g_rules[i].valueText + ".";
-      else
+      else if(kind == "floor" || kind == "floating")
          text = (level >= 3)
                 ? g_rules[i].label + ": limite atingido. " + g_rules[i].detailText
                 : g_rules[i].label + ": " + DoubleToString(g_rules[i].pct, 0) + "% do limite usado, " + g_rules[i].valueText + ".";
+      else
+         text = g_rules[i].label + ": " + g_rules[i].valueText + ". " + g_rules[i].detailText;
       Notify(text);
      }
   }
@@ -743,7 +953,21 @@ string Elapsed()
    return "atualizado há " + IntegerToString(secs / 60) + " min";
   }
 
+int g_panelBottom = 0;
+
+// Desenha o painel; se nao couber na altura do grafico, redesenha compacto
+// (sem o texto de detalhe das regras que estao no verde).
+void DrawPanelPass(const bool compact);
+
 void DrawPanel()
+  {
+   DrawPanelPass(false);
+   int chartH = (int)ChartGetInteger(0, CHART_HEIGHT_IN_PIXELS);
+   if(g_panelBottom > chartH - 6)
+      DrawPanelPass(true);
+  }
+
+void DrawPanelPass(const bool compact)
   {
    ArrayResize(g_used, 0);
    int chartW = (int)ChartGetInteger(0, CHART_WIDTH_IN_PIXELS);
@@ -764,13 +988,14 @@ void DrawPanel()
    y += 20;
    string subtitle = "Regras da sua mesa, ao vivo";
    if(g_hasFeed)
-      subtitle = g_firm + "  ·  " + g_program + (g_size != "" ? "  ·  " + g_size : "");
+      subtitle = g_firm + "  ·  " + g_program + (g_size != "" ? "  ·  " + g_size : "")
+                 + (g_stage == "funded" ? "  ·  Funded" : g_stage == "evaluation" ? "  ·  Avaliação" : "");
    Label("subtitle", x0 + PAD, y, subtitle, C_MUTED, 8);
    y += 18;
 
    int worst = 0;
    for(int i = 0; i < ArraySize(g_rules); i++)
-      if((g_rules[i].kind == "floor" || g_rules[i].kind == "daycap") && g_rules[i].level > worst)
+      if(g_rules[i].kind != "target" && g_rules[i].kind != "counter" && g_rules[i].kind != "note" && g_rules[i].level > worst)
          worst = g_rules[i].level;
 
    if(!g_collapsed)
@@ -785,11 +1010,23 @@ void DrawPanel()
          y += 12 + n * 14 + 10;
         }
 
+      string lastGroup = "";
       for(int i = 0; i < ArraySize(g_rules); i++)
         {
          string id = "r" + IntegerToString(i) + "_";
          string kind = g_rules[i].kind;
-         bool measured = (kind == "floor" || kind == "daycap" || kind == "target" || kind == "counter");
+         if(g_rules[i].group != "" && g_rules[i].group != lastGroup)
+           {
+            lastGroup = g_rules[i].group;
+            string heading = (lastGroup == "account") ? "ZERAM A CONTA"
+                             : (lastGroup == "payout") ? "SAQUE E METAS"
+                             : "LEMBRETES";
+            Label(id + "group", x0 + PAD, y, heading, C_MUTED, 7, "Segoe UI Semibold");
+            Rect(id + "groupline", x0 + PAD + 92, y + 6, inner - 92, 1, C_BORDER, C_BORDER);
+            y += 16;
+           }
+         bool measured = (kind == "floor" || kind == "daycap" || kind == "target" || kind == "counter"
+                          || kind == "idle" || kind == "close" || kind == "lots" || kind == "floating" || kind == "risk");
          color accent = (kind == "target" || kind == "counter") ? C_INFO
                         : (kind == "note") ? C_MUTED
                         : LevelColor(g_rules[i].level);
@@ -806,7 +1043,7 @@ void DrawPanel()
             int fill = (int)MathRound(inner * MathMin(100.0, g_rules[i].pct) / 100.0);
             if(fill > 0)
                Rect(id + "fill", x0 + PAD, y, fill, 5, accent, accent);
-            if(kind == "floor" || kind == "daycap")
+            if(kind == "floor" || kind == "daycap" || kind == "idle" || kind == "lots" || kind == "floating" || kind == "risk")
               {
                int warnX = (int)MathRound(inner * g_warnPct / 100.0);
                int critX = (int)MathRound(inner * g_critPct / 100.0);
@@ -816,7 +1053,7 @@ void DrawPanel()
             y += 10;
            }
 
-         if(g_rules[i].detailText != "")
+         if(g_rules[i].detailText != "" && (!compact || g_rules[i].level >= 1 || kind == "note"))
            {
             string lines[];
             int n = WrapText(g_rules[i].detailText, 56, kind == "note" ? 3 : 2, lines);
@@ -856,6 +1093,7 @@ void DrawPanel()
      }
 
    int h = y - y0 + PAD / 2;
+   g_panelBottom = y0 + h;
    color border = (worst >= 2 && !g_collapsed) ? LevelColor(worst) : C_BORDER;
    Rect("bg", x0, y0, PANEL_W, h, C_BG, border);
    // Botoes recebem o clique antes do fundo.

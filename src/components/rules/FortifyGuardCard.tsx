@@ -6,57 +6,47 @@ import { toast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { gatewayBaseUrl, gatewayJsonHeaders } from '@/lib/gateway';
-import { isExplicitRuleValue } from '@/lib/ruleEngine/ruleEngineTypes';
+import {
+  defaultGuardRuleKeys,
+  guardRuleOptions,
+  inferStage,
+  isGuardRuleKey,
+  type AccountStage,
+  type GuardGroup,
+  type GuardRuleKey,
+} from '@/lib/ruleEngine/guardRules';
 import type { AccountRuleBindingRow } from '@/lib/ruleBinding';
 
 // Fortify Guard: o EA do MT5 que mostra ao vivo as regras desta conta.
-// Aqui o trader escolhe quais regras da mesa aparecem no EA, gera a chave e
-// baixa o EA. O cálculo ao vivo acontece no gateway + EA (services/metaapi-gateway/src/eaFeed.ts).
+// Aqui o trader informa a fase da conta, escolhe quais regras da mesa aparecem
+// no EA, gera a chave e baixa o EA. As opções e os padrões vêm do mesmo módulo
+// que o gateway usa (services/metaapi-gateway/src/ruleEngine/guardRules.ts).
 
-export const GUARD_RULE_KEYS = [
-  'daily_loss',
-  'max_drawdown',
-  'profit_target',
-  'consistency',
-  'min_trading_days',
-  'news',
-  'weekend',
-  'overnight',
-  'max_lots',
-] as const;
-export type GuardRuleKey = (typeof GUARD_RULE_KEYS)[number];
+const GROUPS: Array<{ id: GuardGroup; title: string; hint: string; chip: string }> = [
+  {
+    id: 'account',
+    title: 'Zeram a conta',
+    hint: 'Quebrar qualquer uma encerra a conta. Recomendamos deixar todas ligadas.',
+    chip: 'border-destructive/30 bg-destructive/10 text-destructive',
+  },
+  {
+    id: 'payout',
+    title: 'Saque e metas',
+    hint: 'Não encerram a conta, mas travam a aprovação ou o saque.',
+    chip: 'border-warning/30 bg-warning/10 text-warning',
+  },
+  {
+    id: 'reminder',
+    title: 'Lembretes',
+    hint: 'Aparecem como texto fixo no painel. Ficam desligados se você não ligar.',
+    chip: 'border-border bg-muted text-muted-foreground',
+  },
+];
 
-interface GuardOption {
-  key: GuardRuleKey;
-  label: string;
-  hint: string;
-  officialText: string;
-  live: boolean;
-}
-
-export function guardOptionsFromBinding(binding: AccountRuleBindingRow): GuardOption[] {
-  const rules = binding.rule_snapshot.criticalRules;
-  const lots = isExplicitRuleValue(rules.maxLots) ? rules.maxLots : rules.maxContracts;
-  const all: GuardOption[] = [
-    { key: 'daily_loss', label: 'Perda diária', hint: 'Equity mínima do dia e folga até o limite', officialText: rules.dailyLoss, live: true },
-    { key: 'max_drawdown', label: 'Drawdown máximo', hint: 'Piso da conta, inclusive trailing', officialText: rules.maxLoss, live: true },
-    {
-      key: 'profit_target',
-      label: 'Meta de lucro',
-      hint: 'Quanto falta para concluir a fase',
-      officialText: rules.phases.map((phase) => `${phase.label}: ${phase.profitTarget}`).join(' · '),
-      live: true,
-    },
-    { key: 'consistency', label: 'Consistência', hint: 'Teto de lucro de hoje para não concentrar no melhor dia', officialText: rules.consistencyRule, live: true },
-    { key: 'min_trading_days', label: 'Dias mínimos', hint: 'Dias operados contra o exigido', officialText: rules.minTradingDays, live: true },
-    { key: 'news', label: 'Notícias', hint: 'Lembrete fixo no painel', officialText: rules.newsRule, live: false },
-    { key: 'weekend', label: 'Fim de semana', hint: 'Lembrete fixo no painel', officialText: rules.weekendRule, live: false },
-    { key: 'overnight', label: 'Overnight', hint: 'Lembrete fixo no painel', officialText: rules.overnightRule, live: false },
-    { key: 'max_lots', label: 'Tamanho máximo', hint: 'Lembrete fixo no painel', officialText: lots, live: false },
-  ];
-  // Lembrete sem texto oficial não tem o que mostrar: fica fora da lista.
-  return all.filter((option) => option.live || isExplicitRuleValue(option.officialText));
-}
+const STAGES: Array<{ id: AccountStage; label: string }> = [
+  { id: 'evaluation', label: 'Avaliação' },
+  { id: 'funded', label: 'Funded' },
+];
 
 interface TokenRow {
   token_prefix: string;
@@ -84,8 +74,15 @@ const THRESHOLDS = [
 
 export function FortifyGuardCard({ accountId, binding }: { accountId: string; binding: AccountRuleBindingRow }) {
   const { user, session } = useAuth();
-  const options = useMemo(() => guardOptionsFromBinding(binding), [binding]);
-  const [selected, setSelected] = useState<Set<GuardRuleKey>>(() => new Set(options.map((option) => option.key)));
+  // null = ainda sem escolha salva: fase deduzida pelo programa e regras no padrão.
+  const [stage, setStage] = useState<AccountStage | null>(null);
+  const [explicitKeys, setExplicitKeys] = useState<Set<GuardRuleKey> | null>(null);
+  const effectiveStage = stage ?? inferStage(binding.rule_snapshot);
+  const options = useMemo(() => guardRuleOptions(binding.rule_snapshot, effectiveStage), [binding, effectiveStage]);
+  const selected = useMemo(
+    () => explicitKeys ?? new Set(defaultGuardRuleKeys(options)),
+    [explicitKeys, options],
+  );
   const [thresholds, setThresholds] = useState(THRESHOLDS[1]);
   const [token, setToken] = useState<TokenRow | null>(null);
   const [freshToken, setFreshToken] = useState<string | null>(null);
@@ -102,7 +99,7 @@ export function FortifyGuardCard({ accountId, binding }: { accountId: string; bi
       const [prefRes, tokenRes] = await Promise.all([
         supabase
           .from('ea_rule_preferences' as any)
-          .select('rule_keys, warning_pct, critical_pct')
+          .select('rule_keys, warning_pct, critical_pct, account_stage')
           .eq('trading_account_id', accountId)
           .maybeSingle() as any,
         supabase
@@ -119,11 +116,13 @@ export function FortifyGuardCard({ accountId, binding }: { accountId: string; bi
         setLoading(false);
         return;
       }
-      if (prefRes.data && Array.isArray(prefRes.data.rule_keys)) {
-        const keys = (prefRes.data.rule_keys as string[]).filter((key): key is GuardRuleKey =>
-          (GUARD_RULE_KEYS as readonly string[]).includes(key),
-        );
-        setSelected(new Set(keys));
+      if (prefRes.data) {
+        if (Array.isArray(prefRes.data.rule_keys)) {
+          setExplicitKeys(new Set((prefRes.data.rule_keys as string[]).filter(isGuardRuleKey)));
+        }
+        if (prefRes.data.account_stage === 'evaluation' || prefRes.data.account_stage === 'funded') {
+          setStage(prefRes.data.account_stage);
+        }
         const match = THRESHOLDS.find(
           (option) => option.warning === Number(prefRes.data.warning_pct) && option.critical === Number(prefRes.data.critical_pct),
         );
@@ -141,13 +140,19 @@ export function FortifyGuardCard({ accountId, binding }: { accountId: string; bi
     };
   }, [accountId]);
 
-  const savePreferences = async (nextSelected: Set<GuardRuleKey>, nextThresholds = thresholds) => {
+  const savePreferences = async (
+    nextKeys: Set<GuardRuleKey> | null,
+    nextStage: AccountStage | null = stage,
+    nextThresholds = thresholds,
+  ) => {
     if (!user?.id) return;
     setSaving(true);
     const { error } = await (supabase.from('ea_rule_preferences' as any).upsert({
       trading_account_id: accountId,
       user_id: user.id,
-      rule_keys: GUARD_RULE_KEYS.filter((key) => nextSelected.has(key)),
+      // null mantém o padrão por grupo, que acompanha a fase.
+      rule_keys: nextKeys ? [...nextKeys] : null,
+      account_stage: nextStage,
       warning_pct: nextThresholds.warning,
       critical_pct: nextThresholds.critical,
       updated_at: new Date().toISOString(),
@@ -162,15 +167,22 @@ export function FortifyGuardCard({ accountId, binding }: { accountId: string; bi
     const next = new Set(selected);
     if (enabled) next.add(key);
     else next.delete(key);
-    setSelected(next);
+    setExplicitKeys(next);
     void savePreferences(next);
+  };
+
+  const changeStage = (next: AccountStage) => {
+    setStage(next);
+    void savePreferences(explicitKeys, next);
   };
 
   const changeThresholds = (index: number) => {
     const next = THRESHOLDS[index];
     setThresholds(next);
-    void savePreferences(selected, next);
+    void savePreferences(explicitKeys, stage, next);
   };
+
+  const selectedCount = options.filter((option) => selected.has(option.key)).length;
 
   const generateToken = async () => {
     if (!session?.access_token) return;
@@ -243,32 +255,71 @@ export function FortifyGuardCard({ accountId, binding }: { accountId: string; bi
       ) : (
         <>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Regras que aparecem no EA</p>
-            <ul className="mt-2 divide-y divide-border rounded-lg border border-border">
-              {options.map((option) => (
-                <li key={option.key} className="flex items-start justify-between gap-4 p-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground">
-                      {option.label}
-                      {!option.live && <span className="ml-2 text-[10px] font-normal uppercase tracking-wider text-muted-foreground">lembrete</span>}
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">{option.hint}</p>
-                    <p className="mt-1 text-[11px] text-muted-foreground/80">Regra oficial: {option.officialText || 'não informada'}</p>
-                  </div>
-                  <Switch
-                    checked={selected.has(option.key)}
-                    onCheckedChange={(checked) => toggle(option.key, checked)}
-                    disabled={loading}
-                    aria-label={`Mostrar ${option.label} no EA`}
-                  />
-                </li>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Fase da conta</p>
+            <div className="mt-2 inline-flex rounded-lg border border-border p-1" role="radiogroup" aria-label="Fase da conta">
+              {STAGES.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={effectiveStage === option.id}
+                  onClick={() => changeStage(option.id)}
+                  disabled={loading}
+                  className={`rounded-md px-4 py-1.5 text-xs font-medium transition-colors ${
+                    effectiveStage === option.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {option.label}
+                </button>
               ))}
-            </ul>
+            </div>
             <p className="mt-2 text-[11px] text-muted-foreground">
-              Regra que a mesa escreve de um jeito que não dá para calcular com segurança aparece no EA como texto, nunca como número
-              estimado.
+              A fase muda quais regras valem: no funded entram a consistência do saque e as restrições da conta financiada; sai a meta de
+              lucro.
+              {stage === null && ' Deduzimos pela conta que você vinculou; troque se estiver em outra fase.'}
             </p>
           </div>
+
+          {GROUPS.map((group) => {
+            const groupOptions = options.filter((option) => option.group === group.id);
+            if (groupOptions.length === 0) return null;
+            return (
+              <div key={group.id}>
+                <div className="flex items-baseline justify-between gap-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{group.title}</p>
+                </div>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">{group.hint}</p>
+                <ul className="mt-2 divide-y divide-border rounded-lg border border-border">
+                  {groupOptions.map((option) => (
+                    <li key={option.key} className="flex items-start justify-between gap-4 p-3">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-medium text-foreground">{option.label}</p>
+                          <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${group.chip}`}>
+                            {option.consequence}
+                          </span>
+                          {!option.live && (
+                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">só texto</span>
+                          )}
+                        </div>
+                        <p className="mt-1 text-[11px] text-muted-foreground">Regra oficial: {option.officialText || 'não informada'}</p>
+                      </div>
+                      <Switch
+                        checked={selected.has(option.key)}
+                        onCheckedChange={(checked) => toggle(option.key, checked)}
+                        disabled={loading}
+                        aria-label={`Mostrar ${option.label} no EA`}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+          <p className="text-[11px] text-muted-foreground">
+            {selectedCount} {selectedCount === 1 ? 'regra aparece' : 'regras aparecem'} no EA. Regra que a mesa escreve de um jeito que não
+            dá para calcular com segurança aparece como texto, nunca como número estimado.
+          </p>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Quando avisar</p>

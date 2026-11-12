@@ -35,14 +35,18 @@ CREATE POLICY "ea_access_tokens_select_own" ON public.ea_access_tokens
 CREATE TABLE IF NOT EXISTS public.ea_rule_preferences (
   trading_account_id uuid PRIMARY KEY REFERENCES public.trading_accounts (id) ON DELETE CASCADE,
   user_id uuid NOT NULL REFERENCES auth.users (id) ON DELETE CASCADE,
-  rule_keys text[] NOT NULL DEFAULT '{}',
+  -- NULL = padrão: tudo que zera a conta ou trava o saque, sem os lembretes.
+  rule_keys text[],
+  -- Fase da conta: muda quais regras valem (consistência do saque, fechamento de
+  -- sexta no funded). NULL = o Fortify deduz pelo programa.
+  account_stage text CHECK (account_stage IN ('evaluation', 'funded')),
   warning_pct numeric NOT NULL DEFAULT 70,
   critical_pct numeric NOT NULL DEFAULT 85,
   updated_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT ea_rule_preferences_rule_keys_valid CHECK (
     rule_keys <@ ARRAY[
-      'daily_loss', 'max_drawdown', 'profit_target', 'consistency', 'min_trading_days',
-      'news', 'weekend', 'overnight', 'max_lots'
+      'daily_loss', 'max_drawdown', 'inactivity', 'max_lots', 'floating_loss', 'open_risk',
+      'weekend', 'profit_target', 'consistency', 'min_trading_days', 'news', 'overnight'
     ]::text[]
   ),
   CONSTRAINT ea_rule_preferences_thresholds_valid CHECK (
