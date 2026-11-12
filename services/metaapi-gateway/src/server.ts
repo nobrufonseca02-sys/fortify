@@ -30,7 +30,7 @@ import {
   worstFailureKind,
   type UpstreamFailureKind,
 } from './upstream';
-import { IDLE_TIMEOUT_MS, isDeployableConnection, planIdleUndeploys, type IdleConnection } from './idleDeploy';
+import { IDLE_TIMEOUT_MS, isDeployableConnection, metaApiEnabled, planIdleUndeploys, type IdleConnection } from './idleDeploy';
 import {
   buildEaFeed,
   evaluateForEa,
@@ -2582,6 +2582,7 @@ async function undeployMetaApiAccount(providerAccountId: string) {
 // suspensão por assinatura e não pode ser desfeita por presença.
 
 const IDLE_UNDEPLOY_ENABLED = String(process.env.METAAPI_IDLE_UNDEPLOY_ENABLED ?? 'true').toLowerCase() !== 'false';
+const METAAPI_ENABLED = metaApiEnabled();
 const IDLE_SWEEP_INTERVAL_MS = 5 * 60_000;
 const IDLE_CONNECTION_COLUMNS =
   'id,user_id,provider_account_id,sync_status,suspended_at,metaapi_suspended_at,idle_undeployed_at';
@@ -2675,7 +2676,8 @@ async function sweepIdleMetaApiAccounts(onlyUserId?: string) {
 
 async function wakeUserMetaApiAccounts(userId: string) {
   const result = { redeployed: 0, failed: 0 };
-  if (!METAAPI_TOKEN) return result;
+  // MetaApi desligada (o EA é a fonte de dados): não religa conta antiga.
+  if (!METAAPI_TOKEN || !METAAPI_ENABLED) return result;
 
   const { data, error } = await (supabase
     .from('mt5_connections')
@@ -8325,6 +8327,7 @@ fastify
   .listen({ port: PORT, host: '0.0.0.0' })
   .then(async () => {
     fastify.log.info(`MetaApi gateway running on port ${PORT}`);
+    fastify.log.info({ event: 'metaapi_wake_mode', metaApiEnabled: METAAPI_ENABLED });
     await validateLoadedMetaApiToken();
     if (IDLE_UNDEPLOY_ENABLED) {
       const runSweep = () =>

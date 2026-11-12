@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { IDLE_TIMEOUT_MS, isUserOnline, planIdleUndeploys, type IdleConnection } from './idleDeploy';
+import { IDLE_TIMEOUT_MS, isUserOnline, metaApiEnabled, planIdleUndeploys, type IdleConnection } from './idleDeploy';
 
 const NOW = Date.parse('2026-11-06T12:00:00Z');
 const conn = (overrides: Partial<IdleConnection>): IdleConnection => ({
@@ -56,4 +56,11 @@ test('conta apontada por dois usuários fica implantada se um deles estiver onli
     NOW,
   );
   assert.deepEqual(plans, []);
+});
+
+test('MetaApi fica desligada por padrão: sem METAAPI_ENABLED=true o servidor não religa conta antiga', () => {
+  assert.equal(metaApiEnabled({}), false);
+  assert.equal(metaApiEnabled({ METAAPI_ENABLED: 'false' }), false);
+  assert.equal(metaApiEnabled({ METAAPI_ENABLED: '1' }), false);
+  assert.equal(metaApiEnabled({ METAAPI_ENABLED: ' TRUE ' }), true);
 });

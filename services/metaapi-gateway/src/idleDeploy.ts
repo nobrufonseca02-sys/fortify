@@ -4,6 +4,19 @@
 
 export const IDLE_TIMEOUT_MS = 30 * 60_000;
 
+/**
+ * MetaApi ligada no servidor? Desde 12/11/2026 o Fortify Guard (EA) é a fonte
+ * de dados e a MetaApi fica desligada por padrão, como no site
+ * (VITE_METAAPI_ENABLED). Desligada, o servidor não reimplanta conta pausada:
+ * cada conta antiga ligada pela MetaApi custaria a hora de implantação sem que
+ * nada no site use os dados dela. A varredura de inatividade continua
+ * desimplantando, então essas contas param de gerar custo e não voltam.
+ * Para religar, METAAPI_ENABLED=true no .env do gateway.
+ */
+export function metaApiEnabled(env: Record<string, string | undefined> = process.env): boolean {
+  return String(env.METAAPI_ENABLED ?? '').trim().toLowerCase() === 'true';
+}
+
 export type IdleConnection = {
   id: string;
   user_id: string;
