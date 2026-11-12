@@ -24,6 +24,7 @@ import {
 import { RuleBindingSelector } from '@/components/rules/RuleBindingSelector';
 import { currentCanonicalEvaluation, type CanonicalRuleEvaluationRow } from '@/lib/canonicalEvaluationView';
 import { BoundRuleEvaluationCard } from '@/components/rules/BoundRuleEvaluationCard';
+import { FortifyGuardCard } from '@/components/rules/FortifyGuardCard';
 import { evaluateBoundAccountRules } from '@/lib/ruleEngine/evaluateAccountRules';
 import {
   emptyRuleBindingDraft,
@@ -789,6 +790,10 @@ export default function AccountRuleManagement() {
       {ruleBinding ? (
         <BoundRuleEvaluationCard evaluation={boundRuleEvaluation} />
       ) : null}
+
+      {ruleBinding && !editingBinding && accountId && (
+        <FortifyGuardCard accountId={accountId} binding={ruleBinding} />
+      )}
 
       <BetaReadinessChecklist
         items={betaChecklist}

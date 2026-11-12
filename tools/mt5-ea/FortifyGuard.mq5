@@ -1,0 +1,915 @@
+﻿//+------------------------------------------------------------------+
+//|                                                  FortifyGuard.mq5 |
+//|                         Fortify Guard: as regras da sua mesa,      |
+//|                         ao vivo na tela do MetaTrader 5.           |
+//|                                                                    |
+//| O EA NAO opera sozinho. Ele mostra quanto falta para cada regra   |
+//| da mesa vinculada a conta no Fortify, avisa em popup quando o     |
+//| limite se aproxima e oferece um botao para fechar as posicoes,    |
+//| que so age depois da confirmacao do trader.                       |
+//|                                                                    |
+//| A cada consulta o EA envia ao Fortify o saldo, a equity e o P&L    |
+//| fechado por dia (UTC) deste terminal. O Fortify roda o motor de    |
+//| regras e devolve um valor de referencia por regra (equity minima  |
+//| do dia, piso do drawdown, saldo da meta, teto de lucro de hoje).  |
+//| Entre consultas o EA compara a equity de agora com esse valor.    |
+//+------------------------------------------------------------------+
+#property copyright "Fortify"
+#property link      "https://fortify-delta.vercel.app"
+#property version   "1.00"
+#property description "Fortify Guard: acompanhe ao vivo as regras da sua mesa proprietaria."
+
+#include <Trade\Trade.mqh>
+
+enum GuardCorner
+  {
+   GUARD_RIGHT = 0, // Direita
+   GUARD_LEFT  = 1  // Esquerda
+  };
+
+input string      InpToken      = "";                                  // Chave do EA (gerada no Fortify)
+input string      InpGatewayUrl = "https://137-131-175-251.sslip.io";  // Endereço do Fortify
+input GuardCorner InpCorner     = GUARD_RIGHT;                         // Lado do painel
+input bool        InpPush       = false;                               // Avisar também no celular (MetaQuotes ID)
+
+#define GUARD_VERSION "1.00"
+#define PFX           "FG_"
+#define PANEL_W       360
+#define PAD           14
+#define MAX_DAYS_SENT 400
+
+//--- cores
+#define C_BG       C'14,16,20'
+#define C_BORDER   C'42,47,56'
+#define C_TEXT     C'236,239,244'
+#define C_MUTED    C'134,142,156'
+#define C_TRACK    C'32,36,44'
+#define C_OK       C'38,166,91'
+#define C_WARN     C'240,180,41'
+#define C_CRIT     C'245,124,0'
+#define C_BREACH   C'229,57,53'
+#define C_INFO     C'96,125,255'
+
+struct GuardRule
+  {
+   string            key;
+   string            label;
+   string            kind;
+   string            status;
+   string            metric;
+   string            trailing;
+   string            message;
+   double            limit;
+   double            floorValue;
+   double            floorMax;
+   double            targetBalance;
+   double            dayStart;
+   double            todayCap;
+   double            regularize;
+   double            current;
+   double            required;
+   bool              hasLimit;
+   bool              hasFloor;
+   bool              hasFloorMax;
+   bool              hasTarget;
+   bool              hasDayStart;
+   bool              hasCap;
+   bool              hasRegularize;
+   bool              hasCurrent;
+   bool              hasRequired;
+   int               alertLevel;   // maior nivel ja avisado hoje (0 nenhum, 1 atencao, 2 critico, 3 limite)
+   double            pct;          // calculado ao vivo
+   int               level;        // calculado ao vivo
+   string            valueText;    // calculado ao vivo
+   string            detailText;   // calculado ao vivo
+  };
+
+GuardRule g_rules[];
+string    g_firm = "", g_program = "", g_size = "", g_currency = "USD", g_overall = "";
+string    g_error = "", g_notice = "";
+double    g_warnPct = 70.0, g_critPct = 85.0;
+int       g_pollSeconds = 15;
+datetime  g_lastPoll = 0, g_lastOk = 0;
+string    g_utcDay = "";
+bool      g_collapsed = false;
+bool      g_hasFeed = false;
+double    g_peakEquity = 0.0;
+string    g_used[];
+CTrade    g_trade;
+
+void ResetRule(GuardRule &r)
+  {
+   r.key = ""; r.label = ""; r.kind = ""; r.status = ""; r.metric = ""; r.trailing = ""; r.message = "";
+   r.limit = 0; r.floorValue = 0; r.floorMax = 0; r.targetBalance = 0; r.dayStart = 0;
+   r.todayCap = 0; r.regularize = 0; r.current = 0; r.required = 0;
+   r.hasLimit = false; r.hasFloor = false; r.hasFloorMax = false; r.hasTarget = false; r.hasDayStart = false;
+   r.hasCap = false; r.hasRegularize = false; r.hasCurrent = false; r.hasRequired = false;
+   r.alertLevel = 0; r.pct = 0; r.level = 0; r.valueText = ""; r.detailText = "";
+  }
+
+string PeakVarName()
+  {
+   return "FortifyGuard_peak_" + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN));
+  }
+
+//+------------------------------------------------------------------+
+//| Utilidades                                                        |
+//+------------------------------------------------------------------+
+string UtcDayKey(const datetime utc)
+  {
+   MqlDateTime t;
+   TimeToStruct(utc, t);
+   return StringFormat("%04d-%02d-%02d", t.year, t.mon, t.day);
+  }
+
+string Trimmed(string s)
+  {
+   StringTrimLeft(s);
+   StringTrimRight(s);
+   return s;
+  }
+
+string BaseUrl()
+  {
+   string url = Trimmed(InpGatewayUrl);
+   while(StringLen(url) > 0 && StringSubstr(url, StringLen(url) - 1) == "/")
+      url = StringSubstr(url, 0, StringLen(url) - 1);
+   return url;
+  }
+
+string CurrencySymbol()
+  {
+   if(g_currency == "USD") return "$";
+   if(g_currency == "BRL") return "R$";
+   if(g_currency == "EUR") return "€";
+   if(g_currency == "GBP") return "£";
+   return g_currency + " ";
+  }
+
+// 1234567.5 -> "1.234.567,50"
+string FormatNumber(const double value)
+  {
+   string raw = DoubleToString(MathAbs(value), 2);
+   int dot = StringFind(raw, ".");
+   string intPart = (dot >= 0) ? StringSubstr(raw, 0, dot) : raw;
+   string decPart = (dot >= 0) ? StringSubstr(raw, dot + 1) : "00";
+   string grouped = "";
+   int len = StringLen(intPart);
+   for(int i = 0; i < len; i++)
+     {
+      if(i > 0 && (len - i) % 3 == 0)
+         grouped += ".";
+      grouped += StringSubstr(intPart, i, 1);
+     }
+   return (value < 0 ? "-" : "") + grouped + "," + decPart;
+  }
+
+string Money(const double value)
+  {
+   return (value < 0 ? "-" : "") + CurrencySymbol() + FormatNumber(MathAbs(value));
+  }
+
+string JsonSafe(string s)
+  {
+   StringReplace(s, "\\", "");
+   StringReplace(s, "\"", "'");
+   return s;
+  }
+
+bool ParseNum(const string s, double &out)
+  {
+   if(StringLen(s) == 0)
+      return false;
+   out = StringToDouble(s);
+   return true;
+  }
+
+color LevelColor(const int level)
+  {
+   if(level >= 3) return C_BREACH;
+   if(level == 2) return C_CRIT;
+   if(level == 1) return C_WARN;
+   return C_OK;
+  }
+
+int LevelFor(const double pct)
+  {
+   if(pct >= 100.0) return 3;
+   if(pct >= g_critPct) return 2;
+   if(pct >= g_warnPct) return 1;
+   return 0;
+  }
+
+//+------------------------------------------------------------------+
+//| Historico do terminal por dia UTC                                 |
+//+------------------------------------------------------------------+
+string BuildPayload()
+  {
+   long   login   = AccountInfoInteger(ACCOUNT_LOGIN);
+   double balance = AccountInfoDouble(ACCOUNT_BALANCE);
+   double equity  = AccountInfoDouble(ACCOUNT_EQUITY);
+   long   offset  = (long)(TimeTradeServer() - TimeGMT()); // servidor - UTC, em segundos
+
+   string dayKeys[];
+   double dayPnl[];
+   double dayEod[];
+   bool   dayTraded[];
+   int    days = 0;
+   double running = 0.0;
+
+   if(HistorySelect(0, TimeTradeServer() + 86400))
+     {
+      int total = HistoryDealsTotal();
+      for(int i = 0; i < total; i++)
+        {
+         ulong ticket = HistoryDealGetTicket(i);
+         if(ticket == 0)
+            continue;
+         long     type   = HistoryDealGetInteger(ticket, DEAL_TYPE);
+         datetime when   = (datetime)HistoryDealGetInteger(ticket, DEAL_TIME);
+         double   amount = HistoryDealGetDouble(ticket, DEAL_PROFIT)
+                           + HistoryDealGetDouble(ticket, DEAL_COMMISSION)
+                           + HistoryDealGetDouble(ticket, DEAL_SWAP)
+                           + HistoryDealGetDouble(ticket, DEAL_FEE);
+         running += amount;
+
+         string key = UtcDayKey((datetime)(when - offset));
+         if(days == 0 || dayKeys[days - 1] != key)
+           {
+            days++;
+            ArrayResize(dayKeys, days);
+            ArrayResize(dayPnl, days);
+            ArrayResize(dayEod, days);
+            ArrayResize(dayTraded, days);
+            dayKeys[days - 1]   = key;
+            dayPnl[days - 1]    = 0.0;
+            dayTraded[days - 1] = false;
+           }
+         bool isTrade = (type == DEAL_TYPE_BUY || type == DEAL_TYPE_SELL);
+         if(isTrade)
+           {
+            dayPnl[days - 1] += amount;
+            dayTraded[days - 1] = true;
+           }
+         dayEod[days - 1] = running;
+        }
+     }
+
+   // Se o terminal nao tem o historico inteiro, os saldos ficam deslocados por uma
+   // constante: corrige para o ultimo dia terminar no saldo atual.
+   double drift = balance - running;
+
+   string json = "{";
+   json += "\"login\":\"" + IntegerToString(login) + "\",";
+   json += "\"server\":\"" + JsonSafe(AccountInfoString(ACCOUNT_SERVER)) + "\",";
+   json += "\"company\":\"" + JsonSafe(AccountInfoString(ACCOUNT_COMPANY)) + "\",";
+   json += "\"currency\":\"" + JsonSafe(AccountInfoString(ACCOUNT_CURRENCY)) + "\",";
+   json += "\"eaVersion\":\"" + GUARD_VERSION + "\",";
+   json += "\"balance\":" + DoubleToString(balance, 2) + ",";
+   json += "\"equity\":" + DoubleToString(equity, 2) + ",";
+   json += "\"peakEquity\":" + DoubleToString(g_peakEquity, 2) + ",";
+   json += "\"days\":[";
+   int first = MathMax(0, days - MAX_DAYS_SENT);
+   for(int d = first; d < days; d++)
+     {
+      if(d > first)
+         json += ",";
+      json += "{\"date\":\"" + dayKeys[d] + "\",\"pnl\":" + DoubleToString(dayPnl[d], 2)
+              + ",\"eodBalance\":" + DoubleToString(dayEod[d] + drift, 2)
+              + ",\"traded\":" + (dayTraded[d] ? "true" : "false") + "}";
+     }
+   json += "]}";
+   return json;
+  }
+
+//+------------------------------------------------------------------+
+//| Consulta ao Fortify                                               |
+//+------------------------------------------------------------------+
+bool FetchFeed(string &response, string &error)
+  {
+   string url = BaseUrl() + "/ea/feed";
+   string headers = "Content-Type: application/json\r\nX-Fortify-EA-Token: " + Trimmed(InpToken) + "\r\n";
+   string payload = BuildPayload();
+   char body[];
+   int size = StringToCharArray(payload, body, 0, WHOLE_ARRAY, CP_UTF8);
+   if(size > 0)
+      ArrayResize(body, size - 1); // sem o \0 final
+   char result[];
+   string resultHeaders;
+   ResetLastError();
+   int code = WebRequest("POST", url, headers, 8000, body, result, resultHeaders);
+   if(code == -1)
+     {
+      int err = GetLastError();
+      if(err == 4014)
+         error = "Libere o endereço " + BaseUrl() + " em Ferramentas > Opções > Expert Advisors > Permitir WebRequest.";
+      else
+         error = "Sem conexão com o Fortify (erro " + IntegerToString(err) + "). Tentando de novo.";
+      return false;
+     }
+   response = CharArrayToString(result, 0, WHOLE_ARRAY, CP_UTF8);
+   if(code != 200)
+     {
+      error = "O Fortify respondeu HTTP " + IntegerToString(code) + ". Tentando de novo.";
+      return false;
+     }
+   return true;
+  }
+
+bool ParseFeed(const string text, string &error)
+  {
+   string lines[];
+   int count = StringSplit(text, '\n', lines);
+   if(count < 2 || StringFind(lines[0], "FORTIFY-EA|1") != 0)
+     {
+      error = "Resposta inesperada do Fortify. Atualize o EA pela página da conta.";
+      return false;
+     }
+
+   GuardRule parsed[];
+   int n = 0;
+   for(int i = 1; i < count; i++)
+     {
+      string line = lines[i];
+      StringReplace(line, "\r", "");
+      string f[];
+      int k = StringSplit(line, '|', f);
+      if(k < 1)
+         continue;
+      if(f[0] == "ERR" && k >= 3)
+        {
+         error = f[2];
+         return false;
+        }
+      if(f[0] == "OK" && k >= 9)
+        {
+         g_firm     = f[1];
+         g_program  = f[2];
+         g_size     = f[3];
+         g_currency = f[4];
+         g_overall  = f[5];
+         g_pollSeconds = (int)MathMax(5, StringToInteger(f[6]));
+         ParseNum(f[7], g_warnPct);
+         ParseNum(f[8], g_critPct);
+         continue;
+        }
+      if(f[0] == "R" && k >= 17)
+        {
+         GuardRule r;
+         ResetRule(r);
+         r.key      = f[1];
+         r.label    = f[2];
+         r.kind     = f[3];
+         r.status   = f[4];
+         r.hasLimit = ParseNum(f[5], r.limit);
+         r.hasFloor = ParseNum(f[6], r.floorValue);
+         r.metric   = f[7];
+         r.trailing = f[8];
+         r.hasFloorMax   = ParseNum(f[9], r.floorMax);
+         r.hasTarget     = ParseNum(f[10], r.targetBalance);
+         r.hasDayStart   = ParseNum(f[11], r.dayStart);
+         r.hasCap        = ParseNum(f[12], r.todayCap);
+         r.hasRegularize = ParseNum(f[13], r.regularize);
+         r.hasCurrent    = ParseNum(f[14], r.current);
+         r.hasRequired   = ParseNum(f[15], r.required);
+         r.message       = f[16];
+         // Mantem o nivel ja avisado hoje para nao repetir o popup a cada consulta.
+         for(int j = 0; j < ArraySize(g_rules); j++)
+            if(g_rules[j].key == r.key)
+               r.alertLevel = g_rules[j].alertLevel;
+         n++;
+         ArrayResize(parsed, n);
+         parsed[n - 1] = r;
+        }
+     }
+
+   ArrayResize(g_rules, n);
+   for(int i = 0; i < n; i++)
+      g_rules[i] = parsed[i];
+   return true;
+  }
+
+void Poll()
+  {
+   g_lastPoll = TimeLocal();
+   if(StringLen(Trimmed(InpToken)) == 0)
+     {
+      g_error = "Cole a chave do EA nas configurações (F7). Ela é gerada na página da conta no Fortify.";
+      return;
+     }
+   string response, error;
+   if(FetchFeed(response, error) && ParseFeed(response, error))
+     {
+      g_error  = "";
+      g_lastOk = TimeLocal();
+      g_hasFeed = true;
+     }
+   else
+      g_error = error;
+  }
+
+//+------------------------------------------------------------------+
+//| Calculo ao vivo                                                   |
+//+------------------------------------------------------------------+
+void ComputeLive()
+  {
+   double balance = AccountInfoDouble(ACCOUNT_BALANCE);
+   double equity  = AccountInfoDouble(ACCOUNT_EQUITY);
+   if(equity > g_peakEquity)
+     {
+      g_peakEquity = equity;
+      GlobalVariableSet(PeakVarName(), g_peakEquity);
+     }
+
+   for(int i = 0; i < ArraySize(g_rules); i++)
+     {
+      g_rules[i].pct = 0.0;
+      g_rules[i].level = 0;
+      g_rules[i].valueText = "";
+      g_rules[i].detailText = "";
+      string kind = g_rules[i].kind;
+
+      if(kind == "floor" && g_rules[i].hasFloor && g_rules[i].hasLimit && g_rules[i].limit > 0)
+        {
+         if(g_rules[i].trailing != "")
+           {
+            double source = (g_rules[i].trailing == "equity") ? equity : balance;
+            double candidate = source - g_rules[i].limit;
+            if(g_rules[i].hasFloorMax)
+               candidate = MathMin(candidate, g_rules[i].floorMax);
+            if(candidate > g_rules[i].floorValue)
+               g_rules[i].floorValue = candidate;
+           }
+         double metric = (g_rules[i].metric == "equity") ? equity
+                         : (g_rules[i].metric == "balance") ? balance
+                         : MathMin(balance, equity);
+         double slack = metric - g_rules[i].floorValue;
+         double used  = g_rules[i].limit - slack;
+         g_rules[i].pct = MathMax(0.0, used / g_rules[i].limit * 100.0);
+         g_rules[i].level = LevelFor(g_rules[i].pct);
+         g_rules[i].valueText = (slack > 0) ? "folga " + Money(slack) : "LIMITE ATINGIDO";
+         g_rules[i].detailText = "Equity mínima " + Money(g_rules[i].floorValue)
+                                 + (g_rules[i].trailing != "" ? " (sobe com o pico)" : "");
+        }
+      else if(kind == "target" && g_rules[i].hasTarget && g_rules[i].hasLimit && g_rules[i].limit > 0)
+        {
+         double missing = g_rules[i].targetBalance - balance;
+         g_rules[i].pct = MathMin(100.0, MathMax(0.0, (g_rules[i].limit - missing) / g_rules[i].limit * 100.0));
+         g_rules[i].valueText = (missing > 0) ? "faltam " + Money(missing) : "META ATINGIDA";
+         g_rules[i].detailText = "Saldo da meta " + Money(g_rules[i].targetBalance)
+                                 + "  |  lucro flutuante só conta ao fechar";
+        }
+      else if(kind == "daycap" && g_rules[i].hasDayStart && g_rules[i].hasCap)
+        {
+         double today = equity - g_rules[i].dayStart;
+         if(g_rules[i].todayCap > 0)
+           {
+            g_rules[i].pct = MathMax(0.0, today / g_rules[i].todayCap * 100.0);
+            double room = g_rules[i].todayCap - today;
+            g_rules[i].valueText = (room > 0) ? "pode ganhar +" + Money(room) : "ACIMA DO TETO";
+            g_rules[i].detailText = "Hoje " + (today >= 0 ? "+" : "") + Money(today)
+                                    + " de teto " + Money(g_rules[i].todayCap);
+           }
+         else
+           {
+            g_rules[i].pct = (today > 0) ? 100.0 : 0.0;
+            g_rules[i].valueText = "sem folga hoje";
+            g_rules[i].detailText = g_rules[i].message;
+           }
+         g_rules[i].level = LevelFor(g_rules[i].pct);
+         if(g_rules[i].hasRegularize && g_rules[i].regularize > 0)
+            g_rules[i].detailText += "  |  falta +" + Money(g_rules[i].regularize) + " de lucro total para o melhor dia caber na regra";
+        }
+      else if(kind == "counter")
+        {
+         if(g_rules[i].hasCurrent && g_rules[i].hasRequired)
+           {
+            g_rules[i].valueText = DoubleToString(g_rules[i].current, 0) + " de " + DoubleToString(g_rules[i].required, 0) + " dias";
+            g_rules[i].pct = (g_rules[i].required > 0) ? MathMin(100.0, g_rules[i].current / g_rules[i].required * 100.0) : 100.0;
+           }
+         g_rules[i].detailText = g_rules[i].message;
+        }
+      else
+        {
+         g_rules[i].detailText = g_rules[i].message;
+        }
+     }
+  }
+
+//+------------------------------------------------------------------+
+//| Avisos                                                            |
+//+------------------------------------------------------------------+
+void Notify(const string text)
+  {
+   Alert("Fortify Guard  |  " + text);
+   if(InpPush)
+      SendNotification("Fortify Guard: " + text);
+  }
+
+void CheckAlerts()
+  {
+   for(int i = 0; i < ArraySize(g_rules); i++)
+     {
+      string kind = g_rules[i].kind;
+      if(kind == "target")
+        {
+         if(g_rules[i].pct >= 100.0 && g_rules[i].alertLevel < 3)
+           {
+            g_rules[i].alertLevel = 3;
+            Notify(g_rules[i].label + ": meta atingida. Confira o próximo passo da sua mesa.");
+           }
+         continue;
+        }
+      if(kind != "floor" && kind != "daycap")
+         continue;
+      int level = g_rules[i].level;
+      if(level <= g_rules[i].alertLevel)
+         continue;
+      g_rules[i].alertLevel = level;
+      string text;
+      if(kind == "daycap")
+         text = (level >= 3)
+                ? g_rules[i].label + ": o lucro de hoje passou do teto. " + g_rules[i].detailText
+                : g_rules[i].label + ": " + DoubleToString(g_rules[i].pct, 0) + "% do teto de hoje. " + g_rules[i].valueText + ".";
+      else
+         text = (level >= 3)
+                ? g_rules[i].label + ": limite atingido. " + g_rules[i].detailText
+                : g_rules[i].label + ": " + DoubleToString(g_rules[i].pct, 0) + "% do limite usado, " + g_rules[i].valueText + ".";
+      Notify(text);
+     }
+  }
+
+//+------------------------------------------------------------------+
+//| Fechar posicoes (so com confirmacao)                              |
+//+------------------------------------------------------------------+
+void CloseAllPositions()
+  {
+   int total = PositionsTotal();
+   if(total == 0)
+     {
+      g_notice = "Nenhuma posição aberta.";
+      return;
+     }
+   if(!TerminalInfoInteger(TERMINAL_TRADE_ALLOWED) || !MQLInfoInteger(MQL_TRADE_ALLOWED))
+     {
+      g_notice = "Ative o Algo Trading no MT5 para o botão conseguir fechar as posições.";
+      return;
+     }
+   string question = "Fechar TODAS as " + IntegerToString(total) + " posições abertas desta conta agora?";
+   if(MessageBox(question, "Fortify Guard", MB_YESNO | MB_ICONWARNING) != IDYES)
+      return;
+
+   int closed = 0, failed = 0;
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+     {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket == 0)
+         continue;
+      if(g_trade.PositionClose(ticket))
+         closed++;
+      else
+         failed++;
+     }
+   g_notice = IntegerToString(closed) + " posição(ões) fechada(s)" + (failed > 0 ? ", " + IntegerToString(failed) + " falharam: confira na aba Negociação." : ".");
+   Poll();
+  }
+
+//+------------------------------------------------------------------+
+//| Painel                                                            |
+//+------------------------------------------------------------------+
+void MarkUsed(const string name)
+  {
+   int n = ArraySize(g_used);
+   ArrayResize(g_used, n + 1);
+   g_used[n] = name;
+  }
+
+void Rect(const string name, const int x, const int y, const int w, const int h, const color bg, const color border)
+  {
+   string id = PFX + name;
+   if(ObjectFind(0, id) < 0)
+     {
+      ObjectCreate(0, id, OBJ_RECTANGLE_LABEL, 0, 0, 0);
+      ObjectSetInteger(0, id, OBJPROP_CORNER, CORNER_LEFT_UPPER);
+      ObjectSetInteger(0, id, OBJPROP_BORDER_TYPE, BORDER_FLAT);
+      ObjectSetInteger(0, id, OBJPROP_SELECTABLE, false);
+      ObjectSetInteger(0, id, OBJPROP_HIDDEN, true);
+      ObjectSetInteger(0, id, OBJPROP_BACK, false);
+     }
+   ObjectSetInteger(0, id, OBJPROP_XDISTANCE, x);
+   ObjectSetInteger(0, id, OBJPROP_YDISTANCE, y);
+   ObjectSetInteger(0, id, OBJPROP_XSIZE, MathMax(1, w));
+   ObjectSetInteger(0, id, OBJPROP_YSIZE, MathMax(1, h));
+   ObjectSetInteger(0, id, OBJPROP_BGCOLOR, bg);
+   ObjectSetInteger(0, id, OBJPROP_COLOR, border);
+   MarkUsed(id);
+  }
+
+void Label(const string name, const int x, const int y, const string text, const color clr, const int size,
+           const string font = "Segoe UI", const ENUM_ANCHOR_POINT anchor = ANCHOR_LEFT_UPPER)
+  {
+   string id = PFX + name;
+   if(ObjectFind(0, id) < 0)
+     {
+      ObjectCreate(0, id, OBJ_LABEL, 0, 0, 0);
+      ObjectSetInteger(0, id, OBJPROP_CORNER, CORNER_LEFT_UPPER);
+      ObjectSetInteger(0, id, OBJPROP_SELECTABLE, false);
+      ObjectSetInteger(0, id, OBJPROP_HIDDEN, true);
+     }
+   ObjectSetInteger(0, id, OBJPROP_XDISTANCE, x);
+   ObjectSetInteger(0, id, OBJPROP_YDISTANCE, y);
+   ObjectSetInteger(0, id, OBJPROP_ANCHOR, anchor);
+   ObjectSetString(0, id, OBJPROP_TEXT, text);
+   ObjectSetString(0, id, OBJPROP_FONT, font);
+   ObjectSetInteger(0, id, OBJPROP_FONTSIZE, size);
+   ObjectSetInteger(0, id, OBJPROP_COLOR, clr);
+   MarkUsed(id);
+  }
+
+void Button(const string name, const int x, const int y, const int w, const int h, const string text,
+            const color bg, const color fg)
+  {
+   string id = PFX + name;
+   if(ObjectFind(0, id) < 0)
+     {
+      ObjectCreate(0, id, OBJ_BUTTON, 0, 0, 0);
+      ObjectSetInteger(0, id, OBJPROP_CORNER, CORNER_LEFT_UPPER);
+      ObjectSetInteger(0, id, OBJPROP_SELECTABLE, false);
+      ObjectSetInteger(0, id, OBJPROP_HIDDEN, true);
+      ObjectSetString(0, id, OBJPROP_FONT, "Segoe UI Semibold");
+      ObjectSetInteger(0, id, OBJPROP_FONTSIZE, 8);
+     }
+   ObjectSetInteger(0, id, OBJPROP_XDISTANCE, x);
+   ObjectSetInteger(0, id, OBJPROP_YDISTANCE, y);
+   ObjectSetInteger(0, id, OBJPROP_XSIZE, w);
+   ObjectSetInteger(0, id, OBJPROP_YSIZE, h);
+   ObjectSetString(0, id, OBJPROP_TEXT, text);
+   ObjectSetInteger(0, id, OBJPROP_BGCOLOR, bg);
+   ObjectSetInteger(0, id, OBJPROP_COLOR, fg);
+   ObjectSetInteger(0, id, OBJPROP_BORDER_COLOR, C_BORDER);
+   ObjectSetInteger(0, id, OBJPROP_STATE, false);
+   MarkUsed(id);
+  }
+
+// Quebra o texto em linhas de ate `width` caracteres, no maximo `maxLines`.
+int WrapText(const string text, const int width, const int maxLines, string &out[])
+  {
+   ArrayResize(out, 0);
+   string words[];
+   int count = StringSplit(text, ' ', words);
+   string line = "";
+   int lines = 0;
+   for(int i = 0; i < count; i++)
+     {
+      string candidate = (line == "") ? words[i] : line + " " + words[i];
+      if(StringLen(candidate) > width && line != "")
+        {
+         lines++;
+         ArrayResize(out, lines);
+         out[lines - 1] = line;
+         line = words[i];
+         if(lines == maxLines)
+            break;
+        }
+      else
+         line = candidate;
+     }
+   if(lines < maxLines && line != "")
+     {
+      lines++;
+      ArrayResize(out, lines);
+      out[lines - 1] = line;
+     }
+   else if(lines == maxLines && line != "" && ArraySize(out) > 0)
+      out[lines - 1] = StringSubstr(out[lines - 1], 0, MathMax(0, width - 3)) + "...";
+   return lines;
+  }
+
+string Elapsed()
+  {
+   if(g_lastOk == 0)
+      return "aguardando o Fortify";
+   long secs = (long)(TimeLocal() - g_lastOk);
+   if(secs < 5)
+      return "atualizado agora";
+   if(secs < 60)
+      return "atualizado há " + IntegerToString(secs) + "s";
+   return "atualizado há " + IntegerToString(secs / 60) + " min";
+  }
+
+void DrawPanel()
+  {
+   ArrayResize(g_used, 0);
+   int chartW = (int)ChartGetInteger(0, CHART_WIDTH_IN_PIXELS);
+   int x0 = (InpCorner == GUARD_RIGHT) ? MathMax(8, chartW - PANEL_W - 12) : 12;
+   int y0 = 28;
+   int inner = PANEL_W - 2 * PAD;
+   int y = y0 + PAD;
+
+   // Fundo primeiro: no MT5 o objeto criado antes fica atras dos demais.
+   Rect("bg", x0, y0, PANEL_W, 40, C_BG, C_BORDER);
+
+   // Cabecalho
+   Label("title", x0 + PAD, y, "FORTIFY GUARD", C_TEXT, 10, "Segoe UI Semibold");
+   Button("btn_min", x0 + PANEL_W - PAD - 24, y - 2, 24, 18, g_collapsed ? "+" : "-", C_TRACK, C_TEXT);
+   y += 20;
+   string subtitle = g_hasFeed ? g_firm + "  ·  " + g_program + "  ·  " + g_size : "Regras da sua mesa, ao vivo";
+   Label("subtitle", x0 + PAD, y, subtitle, C_MUTED, 8);
+   y += 18;
+
+   int worst = 0;
+   for(int i = 0; i < ArraySize(g_rules); i++)
+      if((g_rules[i].kind == "floor" || g_rules[i].kind == "daycap") && g_rules[i].level > worst)
+         worst = g_rules[i].level;
+
+   if(!g_collapsed)
+     {
+      if(g_error != "")
+        {
+         string lines[];
+         int n = WrapText(g_error, 52, 4, lines);
+         Rect("err_bg", x0 + PAD, y, inner, 12 + n * 14, C'48,22,24', C_BREACH);
+         for(int l = 0; l < n; l++)
+            Label("err_" + IntegerToString(l), x0 + PAD + 8, y + 6 + l * 14, lines[l], C_TEXT, 8);
+         y += 12 + n * 14 + 10;
+        }
+
+      for(int i = 0; i < ArraySize(g_rules); i++)
+        {
+         string id = "r" + IntegerToString(i) + "_";
+         string kind = g_rules[i].kind;
+         bool measured = (kind == "floor" || kind == "daycap" || kind == "target" || kind == "counter");
+         color accent = (kind == "target" || kind == "counter") ? C_INFO
+                        : (kind == "note") ? C_MUTED
+                        : LevelColor(g_rules[i].level);
+
+         Rect(id + "dot", x0 + PAD, y + 5, 6, 6, accent, accent);
+         Label(id + "label", x0 + PAD + 12, y, g_rules[i].label, C_TEXT, 9, "Segoe UI Semibold");
+         if(g_rules[i].valueText != "")
+            Label(id + "value", x0 + PANEL_W - PAD, y, g_rules[i].valueText, accent, 9, "Segoe UI Semibold", ANCHOR_RIGHT_UPPER);
+         y += 18;
+
+         if((measured && kind != "counter") || (kind == "counter" && g_rules[i].hasRequired))
+           {
+            Rect(id + "track", x0 + PAD, y, inner, 5, C_TRACK, C_TRACK);
+            int fill = (int)MathRound(inner * MathMin(100.0, g_rules[i].pct) / 100.0);
+            if(fill > 0)
+               Rect(id + "fill", x0 + PAD, y, fill, 5, accent, accent);
+            if(kind == "floor" || kind == "daycap")
+              {
+               int warnX = (int)MathRound(inner * g_warnPct / 100.0);
+               int critX = (int)MathRound(inner * g_critPct / 100.0);
+               Rect(id + "mw", x0 + PAD + warnX, y - 1, 1, 7, C_MUTED, C_MUTED);
+               Rect(id + "mc", x0 + PAD + critX, y - 1, 1, 7, C_MUTED, C_MUTED);
+              }
+            y += 10;
+           }
+
+         if(g_rules[i].detailText != "")
+           {
+            string lines[];
+            int n = WrapText(g_rules[i].detailText, 56, kind == "note" ? 3 : 2, lines);
+            for(int l = 0; l < n; l++)
+               Label(id + "d" + IntegerToString(l), x0 + PAD + (kind == "note" ? 12 : 0), y + l * 13, lines[l], C_MUTED, 7);
+            y += n * 13;
+           }
+         y += 10;
+        }
+
+      if(ArraySize(g_rules) == 0 && g_error == "")
+        {
+         Label("empty", x0 + PAD, y, g_hasFeed ? "Nenhuma regra escolhida para o EA nesta conta." : "Conectando ao Fortify...", C_MUTED, 8);
+         y += 22;
+        }
+
+      if(g_notice != "")
+        {
+         string lines[];
+         int n = WrapText(g_notice, 56, 2, lines);
+         for(int l = 0; l < n; l++)
+            Label("notice" + IntegerToString(l), x0 + PAD, y + l * 13, lines[l], C_WARN, 7);
+         y += n * 13 + 6;
+        }
+
+      int bw = (inner - 8) / 2;
+      Button("btn_close", x0 + PAD, y, bw, 24, "Fechar posições", worst >= 2 ? C_BREACH : C_TRACK, C_TEXT);
+      Button("btn_refresh", x0 + PAD + bw + 8, y, bw, 24, "Atualizar", C_TRACK, C_TEXT);
+      y += 32;
+      Label("footer", x0 + PAD, y, Elapsed() + "  ·  avisos em " + DoubleToString(g_warnPct, 0) + "% e " + DoubleToString(g_critPct, 0) + "%", C_MUTED, 7);
+      y += 16;
+     }
+   else
+     {
+      Label("collapsed", x0 + PAD, y, worst >= 2 ? "ATENÇÃO: regra perto do limite" : "Regras dentro do limite", worst >= 2 ? LevelColor(worst) : C_OK, 8, "Segoe UI Semibold");
+      y += 18;
+     }
+
+   int h = y - y0 + PAD / 2;
+   color border = (worst >= 2 && !g_collapsed) ? LevelColor(worst) : C_BORDER;
+   Rect("bg", x0, y0, PANEL_W, h, C_BG, border);
+   // Botoes recebem o clique antes do fundo.
+   ObjectSetInteger(0, PFX + "bg", OBJPROP_ZORDER, 0);
+   for(int i = 0; i < ArraySize(g_used); i++)
+      if(g_used[i] != PFX + "bg")
+         ObjectSetInteger(0, g_used[i], OBJPROP_ZORDER, 1);
+
+   // Remove objetos de regras que sairam da lista.
+   for(int i = ObjectsTotal(0, 0, -1) - 1; i >= 0; i--)
+     {
+      string name = ObjectName(0, i, 0, -1);
+      if(StringFind(name, PFX) != 0)
+         continue;
+      bool keep = false;
+      for(int j = 0; j < ArraySize(g_used) && !keep; j++)
+         keep = (g_used[j] == name);
+      if(!keep)
+         ObjectDelete(0, name);
+     }
+   ChartRedraw(0);
+  }
+
+//+------------------------------------------------------------------+
+//| Eventos                                                           |
+//+------------------------------------------------------------------+
+int OnInit()
+  {
+   if(MQLInfoInteger(MQL_TESTER))
+     {
+      Print("Fortify Guard não roda no Testador de Estratégia: precisa consultar o Fortify ao vivo.");
+      return INIT_FAILED;
+     }
+   g_utcDay = UtcDayKey(TimeGMT());
+   if(GlobalVariableCheck(PeakVarName()))
+      g_peakEquity = GlobalVariableGet(PeakVarName());
+   g_peakEquity = MathMax(g_peakEquity, AccountInfoDouble(ACCOUNT_EQUITY));
+   g_currency = AccountInfoString(ACCOUNT_CURRENCY);
+   g_trade.SetDeviationInPoints(30);
+   ObjectsDeleteAll(0, PFX);
+   // O painel fica por cima do grafico.
+   ChartSetInteger(0, CHART_FOREGROUND, false);
+   EventSetMillisecondTimer(500);
+   DrawPanel();
+   return INIT_SUCCEEDED;
+  }
+
+void OnDeinit(const int reason)
+  {
+   EventKillTimer();
+   ObjectsDeleteAll(0, PFX);
+   ChartRedraw(0);
+  }
+
+void OnTimer()
+  {
+   string today = UtcDayKey(TimeGMT());
+   bool newDay = (today != g_utcDay);
+   if(newDay)
+     {
+      g_utcDay = today;
+      for(int i = 0; i < ArraySize(g_rules); i++)
+         g_rules[i].alertLevel = 0;
+     }
+   if(newDay || g_lastPoll == 0 || TimeLocal() - g_lastPoll >= g_pollSeconds)
+      Poll();
+   ComputeLive();
+   if(g_error == "")
+      CheckAlerts();
+   DrawPanel();
+  }
+
+void OnTick()
+  {
+  }
+
+void OnTradeTransaction(const MqlTradeTransaction &trans, const MqlTradeRequest &request, const MqlTradeResult &result)
+  {
+   // Uma posicao fechada muda o P&L do dia: consulta de novo sem esperar o ciclo.
+   if(trans.type == TRADE_TRANSACTION_DEAL_ADD)
+      g_lastPoll = 0;
+  }
+
+void OnChartEvent(const int id, const long &lparam, const double &dparam, const string &sparam)
+  {
+   if(id == CHARTEVENT_CHART_CHANGE)
+     {
+      DrawPanel();
+      return;
+     }
+   if(id != CHARTEVENT_OBJECT_CLICK)
+      return;
+   if(sparam == PFX + "btn_refresh")
+     {
+      g_notice = "";
+      Poll();
+     }
+   else if(sparam == PFX + "btn_close")
+      CloseAllPositions();
+   else if(sparam == PFX + "btn_min")
+      g_collapsed = !g_collapsed;
+   else
+      return;
+   ObjectSetInteger(0, sparam, OBJPROP_STATE, false);
+   ComputeLive();
+   DrawPanel();
+  }
+//+------------------------------------------------------------------+
