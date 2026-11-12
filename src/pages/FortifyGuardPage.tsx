@@ -242,12 +242,8 @@ export default function FortifyGuardPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-6">
       <header>
-        <span className="eyebrow">Fortify Guard</span>
-        <h1 className="display-editorial-sm mt-1 text-foreground">As regras da sua mesa, ao vivo no MetaTrader 5</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-          O Fortify Guard roda dentro do seu MT5 e mostra quanto falta para cada regra da sua mesa. É ele que alimenta o Fortify
-          com tudo o que você opera. Instale uma vez e esqueça.
-        </p>
+        <h1 className="display-editorial-sm text-foreground">Fortify Guard</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Regras da mesa ao vivo no MT5.</p>
       </header>
 
       <div className="relative">
@@ -257,36 +253,29 @@ export default function FortifyGuardPage() {
         >
           <section className="rounded-xl border border-border bg-card p-5">
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary">1</span>
-            <h2 className="mt-3 text-sm font-semibold text-foreground">Baixe e instale</h2>
-            <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-              No MT5, abra Arquivo &gt; Abrir pasta de dados &gt; MQL5 &gt; Experts e cole o arquivo baixado.
-            </p>
+            <h2 className="mt-3 text-sm font-semibold text-foreground">Baixe</h2>
+            <p className="mt-1.5 text-xs text-muted-foreground">Cole em MQL5 &gt; Experts.</p>
             <Button className="mt-4 gap-2" onClick={download} disabled={downloading || locked}>
               {downloading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
               Baixar para Windows
             </Button>
-            <p className="mt-2 text-[11px] text-muted-foreground">MT5 para computador · Windows 10 ou superior</p>
           </section>
 
           <section className="rounded-xl border border-border bg-card p-5">
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary">2</span>
-            <h2 className="mt-3 text-sm font-semibold text-foreground">Libere o Fortify no MT5</h2>
-            <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-              Ferramentas &gt; Opções &gt; Expert Advisors. Marque "Permitir WebRequest para as URLs listadas" e adicione:
-            </p>
+            <h2 className="mt-3 text-sm font-semibold text-foreground">Libere</h2>
+            <p className="mt-1.5 text-xs text-muted-foreground">Opções &gt; Expert Advisors &gt; WebRequest:</p>
             <CopyField value={gatewayUrl} label="Copiar endereço do Fortify" />
           </section>
 
           <section className="rounded-xl border border-border bg-card p-5">
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary">3</span>
-            <h2 className="mt-3 text-sm font-semibold text-foreground">Arraste para o gráfico e cole a chave</h2>
-            <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-              Uma chave só para todas as suas contas. O EA reconhece cada conta MT5 sozinho.
-            </p>
+            <h2 className="mt-3 text-sm font-semibold text-foreground">Cole a chave</h2>
+            <p className="mt-1.5 text-xs text-muted-foreground">Uma chave para todas as contas.</p>
             {freshToken ? (
               <>
                 <CopyField value={freshToken} label="Copiar chave do EA" />
-                <p className="mt-2 text-[11px] text-muted-foreground">Esta chave aparece só agora. Guarde até colar no EA.</p>
+                <p className="mt-2 text-[11px] text-muted-foreground">Aparece só agora.</p>
               </>
             ) : token ? (
               <p className="mt-3 rounded-lg border border-border bg-muted/40 px-3 py-2 font-mono text-xs text-muted-foreground">
@@ -304,10 +293,7 @@ export default function FortifyGuardPage() {
           <div className="absolute inset-0 flex items-center justify-center rounded-xl">
             <div className="max-w-md rounded-xl border border-border bg-background/90 p-6 text-center shadow-xl">
               <Lock className="mx-auto h-8 w-8 text-primary" aria-hidden />
-              <h2 className="mt-3 text-lg font-semibold text-foreground">Disponível a partir do plano Beginner</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Assine para baixar o Fortify Guard e acompanhar as regras da sua mesa ao vivo no MT5.
-              </p>
+              <h2 className="mt-3 text-lg font-semibold text-foreground">A partir do Beginner</h2>
               <Button className="mt-4" onClick={() => navigate('/pricing')}>
                 Ver planos
               </Button>
@@ -318,26 +304,21 @@ export default function FortifyGuardPage() {
 
       <section className="rounded-xl border border-border bg-card p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-foreground">Suas contas no Fortify Guard</h2>
-          <span className="rounded-full border border-border px-2.5 py-1 text-[11px] text-muted-foreground">Atualiza sozinho</span>
+          <h2 className="text-sm font-semibold text-foreground">Contas</h2>
         </div>
         {accounts.length === 0 ? (
           <div className="mt-4 flex flex-col items-start gap-3 rounded-lg border border-dashed border-border p-5">
-            <p className="text-sm text-muted-foreground">
-              Nenhuma conta ainda. Escolha a mesa e o modelo da sua conta na Biblioteca de Mesas: o EA conecta sozinho quando você
-              abrir o MT5.
-            </p>
+            <p className="text-sm text-muted-foreground">Nenhuma conta. Crie pela Biblioteca.</p>
             <Button variant="outline" className="gap-2" onClick={() => navigate('/')}>
               <BookOpen className="h-4 w-4" />
-              Ir para a Biblioteca de Mesas
+              Biblioteca
             </Button>
           </div>
         ) : (
           <>
           {accounts.filter((account) => account.ea_status === 'pending').length > 1 && (
-            <p className="mt-3 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs leading-relaxed text-foreground">
-              Mais de uma conta aguardando o EA. Informe o login MT5 de cada uma para o EA saber qual é qual. Sem isso, ele só
-              liga sozinho quando a mesa ou o tamanho da conta deixam claro.
+            <p className="mt-3 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-foreground">
+              Várias aguardando: informe o login de cada uma.
             </p>
           )}
           <div className="mt-3 overflow-x-auto">
@@ -345,10 +326,10 @@ export default function FortifyGuardPage() {
               <thead>
                 <tr className="text-[11px] uppercase tracking-wider text-muted-foreground">
                   <th className="py-2 pr-3 font-medium">Conta</th>
-                  <th className="py-2 pr-3 font-medium">Mesa e modelo</th>
-                  <th className="py-2 pr-3 font-medium">Conta MT5</th>
-                  <th className="py-2 pr-3 font-medium">Status do EA</th>
-                  <th className="py-2 font-medium">Último dado</th>
+                  <th className="py-2 pr-3 font-medium">Modelo</th>
+                  <th className="py-2 pr-3 font-medium">Login</th>
+                  <th className="py-2 pr-3 font-medium">EA</th>
+                  <th className="py-2 font-medium">Último sinal</th>
                 </tr>
               </thead>
               <tbody>

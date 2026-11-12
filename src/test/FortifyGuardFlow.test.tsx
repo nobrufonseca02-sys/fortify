@@ -92,7 +92,7 @@ describe('Fortify Guard: página do EA', () => {
   it('sem plano, o download e a chave ficam bloqueados com o convite para assinar', async () => {
     mockHasActivePlan = false;
     renderPage();
-    expect(screen.getByText('Disponível a partir do plano Beginner')).toBeInTheDocument();
+    expect(screen.getByText('A partir do Beginner')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ver planos' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Baixar para Windows/, hidden: true })).toBeDisabled();
   });

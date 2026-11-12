@@ -46,7 +46,7 @@ describe('PropFirmLibrary', () => {
     fireEvent.click(screen.getByTestId('firm-FTMO'));
 
     expect(screen.getByTestId('program-step')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Modelos disponíveis na FTMO' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Modelo' })).toBeInTheDocument();
     expect(screen.getAllByTestId(/^program-(?!step$)/)).toHaveLength(2);
     expect(screen.getByText('FTMO Challenge 1-Step')).toBeInTheDocument();
     expect(screen.getByText('FTMO Challenge 2-Step')).toBeInTheDocument();
@@ -61,7 +61,7 @@ describe('PropFirmLibrary', () => {
     expect(screen.getByTestId('account-step')).toBeInTheDocument();
     // FTMO is MT5-monitorable: the account-size step collapses into a single
     // direct "Conectar conta" CTA — no size picker, no extra copy.
-    expect(screen.getByRole('heading', { name: 'Conecte sua conta' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Conectar|Criar conta/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Conectar conta/ })).toBeInTheDocument();
     expect(screen.queryByTestId('account-options')).not.toBeInTheDocument();
     expect(screen.queryByTestId('account-rules')).not.toBeInTheDocument();
@@ -79,10 +79,9 @@ describe('PropFirmLibrary', () => {
     fireEvent.click(sizeButton);
 
     expect(screen.getByTestId('account-rules')).toBeInTheDocument();
-    expect(screen.getByText('Regras críticas')).toBeInTheDocument();
-    expect(screen.getByText('Ver detalhes completos')).toBeInTheDocument();
+    expect(screen.getByText('Regras')).toBeInTheDocument();
+    expect(screen.getByText('Mais detalhes')).toBeInTheDocument();
     expect(screen.getByText('Operacional')).toBeInTheDocument();
-    expect(screen.getByText('Fortify monitora')).toBeInTheDocument();
     expect(screen.getByText('Fontes oficiais')).toBeInTheDocument();
     // Topstep não opera via MT5 — sem botão de conectar, só consulta de regras.
     expect(screen.queryByRole('button', { name: 'Conectar essa conta' })).not.toBeInTheDocument();
@@ -173,6 +172,6 @@ describe('PropFirmLibrary', () => {
     if (sizeButton) fireEvent.click(sizeButton);
 
     expect(screen.queryByRole('button', { name: 'Conectar essa conta' })).not.toBeInTheDocument();
-    expect(screen.getAllByText(/Monitoramento automático via MT5 indisponível|não opera em MT5/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Sem MT5: só consulta/).length).toBeGreaterThan(0);
   });
 });

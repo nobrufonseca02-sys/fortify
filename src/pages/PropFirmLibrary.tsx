@@ -26,6 +26,7 @@ import {
 } from '@/data/propFirmRules';
 import { firmLogos } from '@/data/firmLogos';
 import { METAAPI_ENABLED } from '@/lib/featureFlags';
+import { officialRuleRows } from '@/lib/officialRules';
 import { GuardAccountSheet } from '@/components/library/GuardAccountSheet';
 import {
   classifyAccountMonitoring,
@@ -284,6 +285,16 @@ function MonitoringList({ level, items }: { level: MonitoringLevel; items: Monit
   );
 }
 
+/** Regras da conta na Biblioteca: avaliação + consistência do funded, curtas. */
+function libraryRuleRows(program: PropFirmRuleProgram, account: RuleAccountSize) {
+  const evaluation = officialRuleRows(program, account, 'evaluation');
+  const funded = officialRuleRows(program, account, 'funded')
+    .filter((row) => row.label === 'Consistência' && row.value !== 'Não tem nesta fase')
+    .map((row) => ({ ...row, label: 'Consistência no funded' }));
+  const fundedKeys = new Set(funded.map((row) => row.value));
+  return [...evaluation.filter((row) => !(row.label === 'Consistência' && fundedKeys.has(row.value))), ...funded];
+}
+
 function RulesView({ firm, program, account, onConnect, connectionUnavailable }: {
   firm: PropFirmName;
   program: PropFirmRuleProgram;
@@ -320,52 +331,35 @@ function RulesView({ firm, program, account, onConnect, connectionUnavailable }:
       </header>
 
       <section data-library-reveal>
-        <div className="mb-3">
-          <h3 className="text-sm font-semibold text-foreground">Regras críticas</h3>
-          <p className="mt-1 text-xs text-muted-foreground">O que decide se a conta continua ativa.</p>
-        </div>
-        <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <RuleCard label="Meta" value={phaseSummary(account)} />
-          <RuleCard label="Perda diária" value={account.dailyLoss} warning />
-          <RuleCard label="Perda máxima" value={account.maxLoss} warning />
-          <RuleCard label="Drawdown" value={`${account.drawdownType} · ${account.drawdownCalculation}`} warning />
+        <h3 className="mb-3 text-sm font-semibold text-foreground">Regras</h3>
+        <dl className="divide-y divide-border rounded-lg border border-border">
+          {libraryRuleRows(program, account).map((row, index) => (
+            <div key={`${row.label}-${index}`} className="grid gap-1 px-4 py-3 sm:grid-cols-[170px_1fr]">
+              <dt className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{row.label}</dt>
+              <dd className="text-sm text-foreground" title={row.quote}>
+                {row.value}
+                {row.estimated && <span className="ml-2 text-[11px] text-warning">estimativa</span>}
+              </dd>
+            </div>
+          ))}
         </dl>
-      </section>
-
-      <section data-library-reveal>
-        <div className="mb-3 flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">Fortify monitora</h3>
-        </div>
         {!mt5Monitorable && (
-          <p className="mb-3 flex items-start gap-2 rounded-lg border border-warning/25 bg-warning/5 px-3 py-2.5 text-xs text-warning">
-            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <span>
-              Monitoramento automático via MT5 indisponível para esta conta ({program.market}). As regras ficam disponíveis para consulta.
-            </span>
+          <p className="mt-3 flex items-center gap-2 text-xs text-warning">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+            Sem MT5: só consulta.
           </p>
         )}
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          {(['automatic', 'partial', 'manual', 'unavailable'] as MonitoringLevel[]).map((level) => (
-            <MonitoringList
-              key={level}
-              level={level}
-              items={monitoringItems.filter((item) => item.level === level)}
-            />
-          ))}
-        </div>
       </section>
 
       <details data-library-reveal className="group border-t border-b border-border py-1">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-sm font-semibold text-foreground">
-          <span>Ver detalhes completos</span>
+          <span>Mais detalhes</span>
           <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
         </summary>
         <div className="space-y-6 border-t border-border py-4">
           <div>
             <h4 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Regras adicionais</h4>
             <dl className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              <RuleCard label="Consistência" value={account.consistencyRule} />
               <RuleCard label="Notícias" value={account.newsRule} />
               <RuleCard label="Fim de semana" value={account.weekendRule} />
             </dl>
@@ -405,11 +399,9 @@ function RulesView({ firm, program, account, onConnect, connectionUnavailable }:
 
       <footer data-library-reveal className="flex flex-col gap-4 rounded-lg border border-primary/25 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
         <div className="max-w-2xl">
-          <p className="text-sm font-semibold text-foreground">Monitoramento desta conta</p>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            {METAAPI_ENABLED
-              ? 'A Biblioteca é para consulta. O monitoramento começa após cadastrar e conectar a conta.'
-              : 'Use este modelo para criar a sua conta. O Fortify Guard, no seu MT5, passa a acompanhar estas regras ao vivo.'}
+          <p className="text-sm font-semibold text-foreground">Monitorar</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {METAAPI_ENABLED ? 'Cadastre e conecte para monitorar.' : 'Crie a conta e acompanhe no MT5.'}
           </p>
         </div>
         {onConnect ? (
@@ -422,8 +414,8 @@ function RulesView({ firm, program, account, onConnect, connectionUnavailable }:
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
             <span>
               {mt5Monitorable
-                ? 'Conexão indisponível para este modelo. Os dados de plataforma ou da versão de regra estão incompletos na Biblioteca.'
-                : 'Esta conta não opera em MT5, então o Fortify ainda não consegue monitorá-la automaticamente. Use as regras acima como consulta.'}
+                ? 'Indisponível para este modelo.'
+                : 'Sem MT5: só consulta.'}
             </span>
           </div>
         ) : null}
@@ -552,14 +544,14 @@ export default function PropFirmLibrary() {
             <div data-library-reveal className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">Etapa 1 de 4</p>
-              <h2 className="mt-1 text-lg font-semibold text-foreground">Escolha uma mesa proprietária</h2>
+              <h2 className="mt-1 text-lg font-semibold text-foreground">Mesa</h2>
             </div>
             <div className="relative w-full sm:max-w-sm">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Buscar mesa proprietária..."
+                placeholder="Buscar mesa"
                 aria-label="Buscar mesa proprietária"
                 className="pl-9"
               />
@@ -569,7 +561,7 @@ export default function PropFirmLibrary() {
           {!query && featuredSlides.length > 3 && (
             <section aria-labelledby="featured-firms-title" data-library-reveal>
               <h3 id="featured-firms-title" className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                Mesas em destaque
+                Destaques
               </h3>
               <CoverflowCarousel
                 slides={featuredSlides}
@@ -588,7 +580,7 @@ export default function PropFirmLibrary() {
                 <section aria-labelledby="operational-firms-title">
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <h3 id="operational-firms-title" className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                      Mesas operacionais
+                      Mesas
                     </h3>
                     <span className="text-xs text-muted-foreground">{operationalFirms.length} disponíveis</span>
                   </div>
@@ -603,9 +595,8 @@ export default function PropFirmLibrary() {
               {coverageFirms.length > 0 && (
                 <section aria-labelledby="coverage-firms-title" className="border-t border-border pt-5">
                   <h3 id="coverage-firms-title" className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                    Cobertura indisponível ou legada
+                    Indisponíveis
                   </h3>
-                  <p className="mt-1 text-xs text-muted-foreground">Mantida apenas para referência histórica.</p>
                   <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     {coverageFirms.map(({ name, programs: firmRulePrograms }) => (
                       <FirmCard key={name} name={name} programs={firmRulePrograms} onSelect={() => chooseFirm(name)} />
@@ -618,7 +609,6 @@ export default function PropFirmLibrary() {
             <div data-library-reveal className="rounded-lg border border-dashed border-border p-8 text-center">
               <Building2 className="mx-auto h-8 w-8 text-muted-foreground" />
               <p className="mt-3 text-sm font-medium text-foreground">Mesa não encontrada</p>
-              <p className="mt-1 text-xs text-muted-foreground">Revise o nome informado ou limpe a busca.</p>
             </div>
           )}
           </section>
@@ -628,8 +618,7 @@ export default function PropFirmLibrary() {
           <section className="space-y-5" data-testid="program-step">
             <div data-library-reveal>
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">Etapa 2 de 4 · {selectedFirm}</p>
-            <h2 className="mt-1 text-lg font-semibold text-foreground">Modelos disponíveis na {selectedFirm}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Escolha o modelo que deseja consultar.</p>
+            <h2 className="mt-1 text-lg font-semibold text-foreground">Modelo</h2>
           </div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {programs.map((program) => (
@@ -646,11 +635,8 @@ export default function PropFirmLibrary() {
               Etapa 3 de 4 · {selectedFirm} · {selectedProgram.programName}
             </p>
             <h2 className="mt-1 text-lg font-semibold text-foreground">
-              {autoDetectConnectionPath ? (METAAPI_ENABLED ? 'Conecte sua conta' : 'Crie sua conta') : 'Escolha a conta'}
+              {autoDetectConnectionPath ? (METAAPI_ENABLED ? 'Conectar' : 'Criar conta') : 'Tamanho'}
             </h2>
-            {!autoDetectConnectionPath && (
-              <p className="mt-1 text-sm text-muted-foreground">Selecione o tamanho da conta para ver as regras.</p>
-            )}
           </div>
           {autoDetectConnectionPath ? (
             <div data-library-reveal>
