@@ -16,7 +16,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Fortify"
 #property link      "https://fortify-delta.vercel.app"
-#property version   "1.20"
+#property version   "1.30"
 #property description "Fortify Guard: acompanhe ao vivo as regras da sua mesa proprietaria."
 
 #include <Trade\Trade.mqh>
@@ -32,8 +32,9 @@ input string      InpGatewayUrl = "https://137-131-175-251.sslip.io";  // Endere
 input GuardCorner InpCorner     = GUARD_RIGHT;                         // Lado do painel
 input bool        InpPush       = false;                               // Avisar também no celular (MetaQuotes ID)
 input bool        InpPreview    = false;                               // Modo demonstração (dados de exemplo, sem chave)
+input bool        InpPreviewStress = false;                            // Demonstração: mostrar um dia perto do limite
 
-#define GUARD_VERSION "1.20"
+#define GUARD_VERSION "1.30"
 #define PFX           "FG_"
 #define PANEL_W       360
 #define PAD           14
@@ -87,6 +88,8 @@ struct GuardRule
    int               level;        // calculado ao vivo
    string            valueText;    // calculado ao vivo
    string            detailText;   // calculado ao vivo
+   double            slack;        // folga em dinheiro ate quebrar (floor e floating)
+   bool              hasSlack;
   };
 
 GuardRule g_rules[];
@@ -104,6 +107,8 @@ bool      g_previewShot = false;
 uint      g_startTick = 0;
 datetime  g_lastTradesSent = 0;
 bool      g_tradesDirty = true;
+double    g_todayClosed = 0.0;   // P&L fechado de hoje (UTC), do historico do terminal
+double    g_balanceNow = 0.0, g_equityNow = 0.0;
 CTrade    g_trade;
 
 void ResetRule(GuardRule &r)
@@ -115,6 +120,7 @@ void ResetRule(GuardRule &r)
    r.hasLimit = false; r.hasFloor = false; r.hasFloorMax = false; r.hasTarget = false; r.hasDayStart = false;
    r.hasCap = false; r.hasRegularize = false; r.hasCurrent = false; r.hasRequired = false;
    r.alertLevel = 0; r.pct = 0; r.level = 0; r.valueText = ""; r.detailText = "";
+   r.slack = 0; r.hasSlack = false;
   }
 
 string PeakVarName()
@@ -268,6 +274,8 @@ string BuildPayload()
    // Se o terminal nao tem o historico inteiro, os saldos ficam deslocados por uma
    // constante: corrige para o ultimo dia terminar no saldo atual.
    double drift = balance - running;
+   string todayKey = UtcDayKey(TimeGMT());
+   g_todayClosed = (days > 0 && dayKeys[days - 1] == todayKey) ? dayPnl[days - 1] : 0.0;
 
    string json = "{";
    json += "\"login\":\"" + IntegerToString(login) + "\",";
@@ -660,7 +668,8 @@ void ComputeLive()
      {
       // Conta simulada: equity oscilando para mostrar o painel ao vivo.
       balance = 101500.0;
-      equity  = 100950.0 + 350.0 * MathSin(GetTickCount() / 2500.0);
+      equity  = (InpPreviewStress ? 98000.0 : 100950.0) + (InpPreviewStress ? 120.0 : 350.0) * MathSin(GetTickCount() / 2500.0);
+      g_todayClosed = -500.0;
      }
    else if(equity > g_peakEquity)
      {
@@ -668,6 +677,8 @@ void ComputeLive()
       GlobalVariableSet(PeakVarName(), g_peakEquity);
      }
 
+   g_balanceNow = balance;
+   g_equityNow = equity;
    double totalLots = 0.0, biggestLot = 0.0, openRisk = 0.0;
    int positions = PositionsTotal(), withoutStop = 0;
    for(int p = 0; p < positions; p++)
@@ -721,6 +732,8 @@ void ComputeLive()
                          : MathMin(balance, equity);
          double slack = metric - g_rules[i].floorValue;
          double used  = g_rules[i].limit - slack;
+         g_rules[i].slack = slack;
+         g_rules[i].hasSlack = true;
          g_rules[i].pct = MathMax(0.0, used / g_rules[i].limit * 100.0);
          g_rules[i].level = LevelFor(g_rules[i].pct);
          g_rules[i].valueText = (slack > 0) ? "folga " + Money(slack) : "LIMITE ATINGIDO";
@@ -821,6 +834,8 @@ void ComputeLive()
         {
          double loss = MathMax(0.0, balance - equity);
          double slack = g_rules[i].limit - loss;
+         g_rules[i].slack = slack;
+         g_rules[i].hasSlack = true;
          g_rules[i].pct = loss / g_rules[i].limit * 100.0;
          g_rules[i].level = LevelFor(g_rules[i].pct);
          g_rules[i].valueText = (slack > 0) ? "folga " + Money(slack) : "LIMITE ATINGIDO";
@@ -1056,17 +1071,22 @@ int g_panelBottom = 0;
 
 // Desenha o painel; se nao couber na altura do grafico, redesenha compacto
 // (sem o texto de detalhe das regras que estao no verde).
-void DrawPanelPass(const bool compact);
+void DrawPanelPass(const int density);
 
+// 0 = completo; 1 = sem o texto de detalhe das regras no verde; 2 = tambem sem
+// as barras das regras no verde e sem os lembretes (grafico baixo).
 void DrawPanel()
   {
-   DrawPanelPass(false);
    int chartH = (int)ChartGetInteger(0, CHART_HEIGHT_IN_PIXELS);
-   if(g_panelBottom > chartH - 6)
-      DrawPanelPass(true);
+   for(int density = 0; density <= 2; density++)
+     {
+      DrawPanelPass(density);
+      if(g_panelBottom <= chartH - 6)
+         break;
+     }
   }
 
-void DrawPanelPass(const bool compact)
+void DrawPanelPass(const int density)
   {
    ArrayResize(g_used, 0);
    int chartW = (int)ChartGetInteger(0, CHART_WIDTH_IN_PIXELS);
@@ -1092,10 +1112,58 @@ void DrawPanelPass(const bool compact)
    Label("subtitle", x0 + PAD, y, subtitle, C_MUTED, 8);
    y += 22;
 
-   int worst = 0;
+   // Regra mais perto do limite: maior nivel; no empate, maior percentual usado.
+   int worst = 0, worstIdx = -1;
+   double worstPct = -1.0, canLose = 0.0;
+   bool hasCanLose = false;
    for(int i = 0; i < ArraySize(g_rules); i++)
-      if(g_rules[i].kind != "target" && g_rules[i].kind != "counter" && g_rules[i].kind != "note" && g_rules[i].level > worst)
+     {
+      string k = g_rules[i].kind;
+      if(k == "target" || k == "counter" || k == "note")
+         continue;
+      if(g_rules[i].level > worst || (g_rules[i].level == worst && g_rules[i].pct > worstPct))
+        {
          worst = g_rules[i].level;
+         worstPct = g_rules[i].pct;
+         worstIdx = i;
+        }
+      if(g_rules[i].hasSlack && (!hasCanLose || g_rules[i].slack < canLose))
+        {
+         canLose = g_rules[i].slack;
+         hasCanLose = true;
+        }
+     }
+
+   if(!g_collapsed && g_hasFeed && g_error == "")
+     {
+      color tone = LevelColor(worst);
+      color tint = (worst >= 3) ? C'52,20,22' : (worst == 2) ? C'52,32,14' : (worst == 1) ? C'46,38,14' : C'16,38,28';
+      string headline = "Dentro das regras";
+      string subline = "Todas as regras abaixo de " + DoubleToString(g_warnPct, 0) + "% do limite";
+      if(worstIdx >= 0 && worst >= 1)
+        {
+         string prefix = (worst >= 3) ? "Limite atingido" : (worst == 2) ? "Perto do limite" : "Atenção";
+         headline = prefix + " · " + g_rules[worstIdx].label;
+         subline = DoubleToString(MathMin(999.0, g_rules[worstIdx].pct), 0) + "% usado  ·  " + g_rules[worstIdx].valueText;
+        }
+      Rect("hero_bg", x0 + PAD, y, inner, 44, tint, tone);
+      Rect("hero_bar", x0 + PAD, y, 3, 44, tone, tone);
+      Label("hero_title", x0 + PAD + 12, y + 6, headline, C_TEXT, 10, "Segoe UI Semibold");
+      Label("hero_sub", x0 + PAD + 12, y + 25, subline, C_MUTED, 8);
+      y += 54;
+
+      double today = g_todayClosed + (g_equityNow - g_balanceNow);
+      int col = inner / 3;
+      Label("m1_cap", x0 + PAD, y, "EQUITY", C_MUTED, 7, "Segoe UI Semibold");
+      Label("m1_val", x0 + PAD, y + 12, Money(g_equityNow), C_TEXT, 11, "Segoe UI Semibold");
+      Label("m2_cap", x0 + PAD + col, y, "RESULTADO HOJE", C_MUTED, 7, "Segoe UI Semibold");
+      Label("m2_val", x0 + PAD + col, y + 12, (today >= 0 ? "+" : "") + Money(today), today >= 0 ? C_OK : C_BREACH, 11, "Segoe UI Semibold");
+      Label("m3_cap", x0 + PAD + 2 * col, y, "PODE PERDER HOJE", C_MUTED, 7, "Segoe UI Semibold");
+      Label("m3_val", x0 + PAD + 2 * col, y + 12, hasCanLose ? Money(MathMax(0.0, canLose)) : "-", hasCanLose ? tone : C_MUTED, 11, "Segoe UI Semibold");
+      y += 40;
+      Rect("m_line", x0 + PAD, y, inner, 1, C_BORDER, C_BORDER);
+      y += 10;
+     }
 
    if(!g_collapsed)
      {
@@ -1114,16 +1182,20 @@ void DrawPanelPass(const bool compact)
         {
          string id = "r" + IntegerToString(i) + "_";
          string kind = g_rules[i].kind;
+         if(density >= 2 && kind == "note")
+            continue;
          if(g_rules[i].group != "" && g_rules[i].group != lastGroup)
            {
             lastGroup = g_rules[i].group;
             string heading = (lastGroup == "account") ? "ZERAM A CONTA"
                              : (lastGroup == "payout") ? "SAQUE E METAS"
                              : "LEMBRETES";
-            Label(id + "group", x0 + PAD, y, heading, C_MUTED, 7, "Segoe UI Semibold");
-            Rect(id + "groupline", x0 + PAD + 92, y + 6, inner - 92, 1, C_BORDER, C_BORDER);
-            y += 16;
+            Label(id + "group", x0 + PAD, y, heading, C'160,168,182', 7, "Segoe UI Semibold");
+            Rect(id + "groupline", x0 + PAD + 96, y + 6, inner - 96, 1, C_BORDER, C_BORDER);
+            y += 17;
            }
+         if(density >= 2 && kind == "note")
+            continue;
          bool measured = (kind == "floor" || kind == "daycap" || kind == "target" || kind == "counter"
                           || kind == "idle" || kind == "close" || kind == "lots" || kind == "floating" || kind == "risk");
          color accent = (kind == "target" || kind == "counter") ? C_INFO
@@ -1132,11 +1204,15 @@ void DrawPanelPass(const bool compact)
 
          Rect(id + "dot", x0 + PAD, y + 5, 6, 6, accent, accent);
          Label(id + "label", x0 + PAD + 12, y, g_rules[i].label, C_TEXT, 9, "Segoe UI Semibold");
+         bool calm = (g_rules[i].level == 0 && kind != "target" && kind != "counter");
          if(g_rules[i].valueText != "")
-            Label(id + "value", x0 + PANEL_W - PAD, y, g_rules[i].valueText, accent, 9, "Segoe UI Semibold", ANCHOR_RIGHT_UPPER);
+            Label(id + "value", x0 + PANEL_W - PAD, y, g_rules[i].valueText, calm ? C_TEXT : accent, 9, "Segoe UI Semibold", ANCHOR_RIGHT_UPPER);
          y += 18;
 
-         if((measured && kind != "counter") || (kind == "counter" && g_rules[i].hasRequired))
+         bool showBar = (measured && kind != "counter") || (kind == "counter" && g_rules[i].hasRequired);
+         if(density >= 2 && g_rules[i].level == 0)
+            showBar = false;
+         if(showBar)
            {
             Rect(id + "track", x0 + PAD, y, inner, 5, C_TRACK, C_TRACK);
             int fill = (int)MathRound(inner * MathMin(100.0, g_rules[i].pct) / 100.0);
@@ -1152,15 +1228,15 @@ void DrawPanelPass(const bool compact)
             y += 10;
            }
 
-         if(g_rules[i].detailText != "" && (!compact || g_rules[i].level >= 1 || kind == "note"))
+         if(g_rules[i].detailText != "" && (density == 0 || g_rules[i].level >= 1 || (kind == "note" && density < 2)))
            {
             string lines[];
-            int n = WrapText(g_rules[i].detailText, 56, kind == "note" ? 3 : 2, lines);
+            int n = WrapText(g_rules[i].detailText, 56, kind == "note" ? 1 : 2, lines);
             for(int l = 0; l < n; l++)
                Label(id + "d" + IntegerToString(l), x0 + PAD + (kind == "note" ? 12 : 0), y + l * 13, lines[l], C_MUTED, 7);
             y += n * 13;
            }
-         y += 10;
+         y += (density >= 2) ? 4 : 10;
         }
 
       if(ArraySize(g_rules) == 0 && g_error == "")
@@ -1187,7 +1263,10 @@ void DrawPanelPass(const bool compact)
      }
    else
      {
-      Label("collapsed", x0 + PAD, y, worst >= 2 ? "ATENÇÃO: regra perto do limite" : "Regras dentro do limite", worst >= 2 ? LevelColor(worst) : C_OK, 8, "Segoe UI Semibold");
+      string mini = (worstIdx >= 0 && worst >= 1) ? "Atenção · " + g_rules[worstIdx].label : "Dentro das regras";
+      if(hasCanLose)
+         mini += "  ·  pode perder " + Money(MathMax(0.0, canLose)) + " hoje";
+      Label("collapsed", x0 + PAD, y, mini, worst >= 1 ? LevelColor(worst) : C_OK, 8, "Segoe UI Semibold");
       y += 18;
      }
 
@@ -1264,7 +1343,7 @@ void OnTimer()
    if(g_error == "")
       CheckAlerts();
    DrawPanel();
-   if(InpPreview && !g_previewShot && g_hasFeed && GetTickCount() - g_startTick > 6000)
+   if(InpPreview && !g_previewShot && g_hasFeed && GetTickCount() - g_startTick > 10000)
      {
       g_previewShot = true;
       int w = (int)ChartGetInteger(0, CHART_WIDTH_IN_PIXELS);
