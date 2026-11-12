@@ -1,0 +1,2187 @@
+[
+ {
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "Termos & Condições v1.6 (Setembro/2026)",
+    "url": "https://asapfundingprop.com/pt/termos/",
+    "kind": "terms"
+   },
+   {
+    "label": "Home (cards de produto)",
+    "url": "https://asapfundingprop.com/pt/",
+    "kind": "page"
+   },
+   {
+    "label": "FAQ oficial",
+    "url": "https://asapfundingprop.com/pt/faqs/",
+    "kind": "help_center"
+   }
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "Challenge Express (fase única)",
+     "percent": 6
+    }
+   ],
+   "quote": "O Cliente será considerado aprovado ao atingir lucro de 6% sobre o saldo inicial",
+   "url": "https://asapfundingprop.com/pt/termos/"
+  },
+  "dailyLoss": {
+   "percent": 3,
+   "measuredOn": null,
+   "reset": null,
+   "quote": "O cálculo poderá ser realizado com base no saldo de fechamento anterior, equity de fechamento anterior, valor fixo sobre o saldo inicial ou outro método técnico suportado pela plataforma e informado no painel.",
+   "url": "https://asapfundingprop.com/pt/termos/",
+   "note": "Base de cálculo e horário/fuso de reset NÃO definidos oficialmente."
+  },
+  "maxLoss": {
+   "percent": 6,
+   "type": "static",
+   "quote": "Na fase de avaliação Challenge Express não há regra de consistência, não há regra de lote médio, não há trailing drawdown",
+   "url": "https://asapfundingprop.com/pt/termos/",
+   "note": "FAQ: 'as modalidades usam drawdown estático e não trailing drawdown, salvo configuração técnica diversa aprovada pela plataforma.' Termos: a leitura 'poderá considerar saldo, equity, posições abertas... conforme configuração da plataforma'."
+  },
+  "minTradingDays": {
+   "days": 7,
+   "perDayRequirement": "resultado da conta de pelo menos 0,1% do saldo (balance) no dia",
+   "quote": "É exigido um mínimo de 7 dias operados na fase de avaliação, sendo considerado dia operado aquele em que o resultado da conta representar pelo menos 0,1% do saldo (balance).",
+   "url": "https://asapfundingprop.com/pt/termos/",
+   "conflict": "Card da home (asapfundingprop.com/pt/) mostra 'Mín. Dias Operados 10 dias' para o Desafio Express."
+  },
+  "consistency": [
+   {
+    "appliesTo": "evaluation",
+    "kind": "none",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": null,
+    "effect": null,
+    "condition": null,
+    "precise": true,
+    "quote": "Na fase de avaliação Challenge Express não há regra de consistência",
+    "url": "https://asapfundingprop.com/pt/termos/"
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Inatividade 15 dias",
+    "quote": "A regra de inatividade é de 15 dias.",
+    "url": "https://asapfundingprop.com/pt/termos/"
+   },
+   {
+    "text": "Alavancagem máx. 1:100; sem exigência de SL/TP e sem restrição de notícias na avaliação",
+    "quote": "A alavancagem máxima da conta é de 1:100.",
+    "url": "https://asapfundingprop.com/pt/termos/"
+   }
+  ],
+  "differencesVsCatalog": [
+   "Conflito oficial: Termos v1.6 dizem 7 dias mínimos; card da home diz 10 dias. Catálogo segue os Termos (7).",
+   "Termos v1.6 (Setembro/2026) são mais novos que a revisão de 2026-07-15; regras numéricas (6%/3%/6%, estático, sem consistência) continuam iguais.",
+   "Catálogo: 'weekendRule: Não informado publicamente' — FAQ oficial agora diz que depende da configuração da plataforma (sem regra fixa)."
+  ],
+  "notFound": [
+   "Horário/fuso de reset da perda diária (não publicado)",
+   "Base exata da perda diária (balance vs equity) — Termos listam alternativas",
+   "PDF oficial dos termos (não encontrado; termos só em HTML)"
+  ],
+  "firmSlug": "asap-funding-prop",
+  "programSlug": "asap-challenge-express",
+  "programName": "Challenge Express",
+  "embeddability": "Termos: CSP só 'upgrade-insecure-requests', sem X-Frame-Options (provável embutível)."
+ },
+ {
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "Termos & Condições v1.6 (Setembro/2026)",
+    "url": "https://asapfundingprop.com/pt/termos/",
+    "kind": "terms"
+   },
+   {
+    "label": "Home (cards de produto)",
+    "url": "https://asapfundingprop.com/pt/",
+    "kind": "page"
+   },
+   {
+    "label": "FAQ oficial",
+    "url": "https://asapfundingprop.com/pt/faqs/",
+    "kind": "help_center"
+   }
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [],
+   "quote": "Funded Express | Não aplicável",
+   "url": "https://asapfundingprop.com/pt/termos/"
+  },
+  "dailyLoss": {
+   "percent": 3,
+   "measuredOn": null,
+   "reset": null,
+   "quote": "O cálculo poderá ser realizado com base no saldo de fechamento anterior, equity de fechamento anterior, valor fixo sobre o saldo inicial ou outro método técnico suportado pela plataforma e informado no painel.",
+   "url": "https://asapfundingprop.com/pt/termos/",
+   "note": "Base de cálculo e horário/fuso de reset NÃO definidos oficialmente."
+  },
+  "maxLoss": {
+   "percent": 6,
+   "type": "static",
+   "quote": "A perda total estabelece o limite máximo de perda permitido sobre o saldo inicial da conta.",
+   "url": "https://asapfundingprop.com/pt/termos/",
+   "note": "FAQ: 'as modalidades usam drawdown estático e não trailing drawdown, salvo configuração técnica diversa aprovada pela plataforma.' Termos: a leitura 'poderá considerar saldo, equity, posições abertas... conforme configuração da plataforma'."
+  },
+  "minTradingDays": {
+   "days": 7,
+   "perDayRequirement": "dia positivo com resultado >= +0,1% do saldo (balance); dias negativos/zerados/abaixo não contam",
+   "quote": "É exigido um mínimo de 7 dias operados positivos, sendo considerado dia válido aquele em que a conta apresente resultado positivo de pelo menos 0,1% do saldo (balance).",
+   "url": "https://asapfundingprop.com/pt/termos/"
+  },
+  "consistency": [
+   {
+    "appliesTo": "funded",
+    "kind": "largest_trade_vs_net_profit",
+    "percent": 33,
+    "amount": null,
+    "days": null,
+    "measuredOn": "unknown",
+    "effect": "blocks_payout",
+    "condition": null,
+    "precise": false,
+    "quote": "O maior trade lucrativo não poderá representar mais de 33% do lucro líquido total do ciclo analisado.",
+    "url": "https://asapfundingprop.com/pt/termos/",
+    "note": "'Ciclo analisado' e 'lucro líquido' (vs 'lucro validado' do exemplo) não são definidos com precisão; trades < 2 min são excluídos do cálculo."
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "other",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": "unknown",
+    "effect": "blocks_payout",
+    "condition": null,
+    "precise": false,
+    "quote": "o Cliente deverá manter progressão de lotes coerente com seu histórico operacional, saldo, risco, estratégia e padrão de execução.",
+    "url": "https://asapfundingprop.com/pt/termos/",
+    "note": "Regra de 'lote médio' (consistência de tamanho de lote) sem fórmula/percentual publicado; avaliação discricionária."
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Perda flutuante máxima 1,5% do saldo inicial (Funded Express e Instant)",
+    "quote": "a perda flutuante máxima permitida é de 1,5% do saldo inicial ou do parâmetro configurado na plataforma.",
+    "url": "https://asapfundingprop.com/pt/termos/"
+   },
+   {
+    "text": "SL e TP obrigatórios, sistema de 2 strikes",
+    "quote": "É obrigatório o uso de stop loss e take profit em todas as operações.",
+    "url": "https://asapfundingprop.com/pt/termos/"
+   },
+   {
+    "text": "Proibido operar notícias de alto impacto ±5 min (FXStreet), 2 strikes",
+    "quote": "É proibido operar durante notícias de alto impacto (high-impact news), incluindo os 5 minutos antes e 5 minutos após a divulgação.",
+    "url": "https://asapfundingprop.com/pt/termos/"
+   },
+   {
+    "text": "Posição mínima de 2 minutos; trades menores excluídos de lucro validado, dias, TVS e lote médio",
+    "quote": "Toda posição deverá permanecer aberta por, no mínimo, 2 (dois) minutos completos",
+    "url": "https://asapfundingprop.com/pt/termos/"
+   },
+   {
+    "text": "Inatividade 15 dias",
+    "quote": "A regra de inatividade é de 15 dias.",
+    "url": "https://asapfundingprop.com/pt/termos/"
+   },
+   {
+    "text": "Payout a cada 15 dias corridos; 70% × lucro líquido validado; sem colchão",
+    "quote": "As solicitações de payout poderão ser realizadas a cada 15 dias corridos",
+    "url": "https://asapfundingprop.com/pt/termos/"
+   }
+  ],
+  "differencesVsCatalog": [
+   "Dias mínimos: oficial exige 7 dias POSITIVOS (>= +0,1%); catálogo diz apenas 'cada dia deve representar ao menos 0,1%' sem exigir resultado positivo.",
+   "Oficial não diz explicitamente 'por ciclo' — diz 'Para que a conta esteja elegível para payout'.",
+   "Catálogo não registra: regra de lote médio, perda flutuante 1,5%, SL/TP obrigatório (2 strikes), notícias ±5 min (2 strikes), tempo mínimo de 2 min por posição, payout a cada 15 dias."
+  ],
+  "notFound": [
+   "Definição precisa de 'ciclo analisado' para o TVS",
+   "Fórmula da regra de lote médio",
+   "Horário/fuso de reset da perda diária",
+   "PDF oficial"
+  ],
+  "firmSlug": "asap-funding-prop",
+  "programSlug": "asap-funded-express",
+  "programName": "Funded Express",
+  "embeddability": "Termos: CSP só 'upgrade-insecure-requests', sem X-Frame-Options (provável embutível)."
+ },
+ {
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "Termos & Condições v1.6 (Setembro/2026)",
+    "url": "https://asapfundingprop.com/pt/termos/",
+    "kind": "terms"
+   },
+   {
+    "label": "Home (cards de produto)",
+    "url": "https://asapfundingprop.com/pt/",
+    "kind": "page"
+   },
+   {
+    "label": "FAQ oficial",
+    "url": "https://asapfundingprop.com/pt/faqs/",
+    "kind": "help_center"
+   }
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [],
+   "quote": "Instant Account | Não aplicável",
+   "url": "https://asapfundingprop.com/pt/termos/"
+  },
+  "dailyLoss": {
+   "percent": 3,
+   "measuredOn": null,
+   "reset": null,
+   "quote": "O cálculo poderá ser realizado com base no saldo de fechamento anterior, equity de fechamento anterior, valor fixo sobre o saldo inicial ou outro método técnico suportado pela plataforma e informado no painel.",
+   "url": "https://asapfundingprop.com/pt/termos/",
+   "note": "Base de cálculo e horário/fuso de reset NÃO definidos oficialmente."
+  },
+  "maxLoss": {
+   "percent": 6,
+   "type": "static",
+   "quote": "A perda total estabelece o limite máximo de perda permitido sobre o saldo inicial da conta.",
+   "url": "https://asapfundingprop.com/pt/termos/",
+   "note": "FAQ: 'as modalidades usam drawdown estático e não trailing drawdown, salvo configuração técnica diversa aprovada pela plataforma.' Termos: a leitura 'poderá considerar saldo, equity, posições abertas... conforme configuração da plataforma'."
+  },
+  "minTradingDays": {
+   "days": 10,
+   "perDayRequirement": "dia positivo com resultado >= +0,5% do saldo (balance)",
+   "quote": "É exigido um mínimo de 10 dias operados positivos, sendo considerado dia válido aquele em que a conta apresente resultado positivo de pelo menos 0,5% do saldo (balance).",
+   "url": "https://asapfundingprop.com/pt/termos/"
+  },
+  "consistency": [
+   {
+    "appliesTo": "funded",
+    "kind": "largest_trade_vs_net_profit",
+    "percent": 33,
+    "amount": null,
+    "days": null,
+    "measuredOn": "unknown",
+    "effect": "blocks_payout",
+    "condition": null,
+    "precise": false,
+    "quote": "O maior trade lucrativo não poderá representar mais de 33% do lucro líquido total do ciclo analisado.",
+    "url": "https://asapfundingprop.com/pt/termos/",
+    "note": "'Ciclo analisado' e 'lucro líquido' (vs 'lucro validado' do exemplo) não são definidos com precisão; trades < 2 min são excluídos do cálculo."
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "other",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": "unknown",
+    "effect": "blocks_payout",
+    "condition": null,
+    "precise": false,
+    "quote": "o Cliente deverá manter progressão de lotes coerente com seu histórico operacional, saldo, risco, estratégia e padrão de execução.",
+    "url": "https://asapfundingprop.com/pt/termos/",
+    "note": "Regra de 'lote médio' (consistência de tamanho de lote) sem fórmula/percentual publicado; avaliação discricionária."
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Perda flutuante máxima 1,5% do saldo inicial (Funded Express e Instant)",
+    "quote": "a perda flutuante máxima permitida é de 1,5% do saldo inicial ou do parâmetro configurado na plataforma.",
+    "url": "https://asapfundingprop.com/pt/termos/"
+   },
+   {
+    "text": "SL e TP obrigatórios, sistema de 2 strikes",
+    "quote": "É obrigatório o uso de stop loss e take profit em todas as operações.",
+    "url": "https://asapfundingprop.com/pt/termos/"
+   },
+   {
+    "text": "Proibido operar notícias de alto impacto ±5 min (FXStreet), 2 strikes",
+    "quote": "É proibido operar durante notícias de alto impacto (high-impact news), incluindo os 5 minutos antes e 5 minutos após a divulgação.",
+    "url": "https://asapfundingprop.com/pt/termos/"
+   },
+   {
+    "text": "Posição mínima de 2 minutos; trades menores excluídos de lucro validado, dias, TVS e lote médio",
+    "quote": "Toda posição deverá permanecer aberta por, no mínimo, 2 (dois) minutos completos",
+    "url": "https://asapfundingprop.com/pt/termos/"
+   },
+   {
+    "text": "Inatividade 15 dias",
+    "quote": "A regra de inatividade é de 15 dias.",
+    "url": "https://asapfundingprop.com/pt/termos/"
+   },
+   {
+    "text": "Base de payout limitada a 2% do valor nominal por ciclo; alavancagem 1:30",
+    "quote": "O valor-base máximo elegível para cálculo do payout em cada ciclo será limitado a 2% do valor nominal da conta contratada.",
+    "url": "https://asapfundingprop.com/pt/termos/"
+   }
+  ],
+  "differencesVsCatalog": [
+   "Dias mínimos: oficial exige 10 dias POSITIVOS (>= +0,5%); catálogo não diz 'positivo'.",
+   "Catálogo não registra: teto de payout de 2% do valor nominal por ciclo, lote médio, perda flutuante 1,5%, SL/TP obrigatório, notícias ±5 min, posição mínima 2 min, alavancagem 1:30."
+  ],
+  "notFound": [
+   "Definição precisa de 'ciclo analisado' para o TVS",
+   "Fórmula da regra de lote médio",
+   "Horário/fuso de reset da perda diária",
+   "PDF oficial"
+  ],
+  "firmSlug": "asap-funding-prop",
+  "programSlug": "asap-instant-account",
+  "programName": "Instant Account",
+  "embeddability": "Termos: CSP só 'upgrade-insecure-requests', sem X-Frame-Options (provável embutível)."
+ },
+ {
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "Regulamento NPFuture (Regras Gerais, Operacionais, Standard, Funded, Flash)",
+    "url": "https://npfuture.com/regulamento/",
+    "kind": "terms"
+   },
+   {
+    "label": "Home (seletor de planos, por plataforma)",
+    "url": "https://npfuture.com/",
+    "kind": "page"
+   }
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "Standard (avaliação)",
+     "percent": 6,
+     "amounts": {
+      "25K": 1500,
+      "50K": 3000,
+      "100K": 6000,
+      "150K": 9000,
+      "200K": 12000
+     }
+    }
+   ],
+   "quote": "O operador será aprovado ao atingir a meta de aprovação do plano",
+   "url": "https://npfuture.com/regulamento/",
+   "note": "Metas em US$ fixos (= 6% do saldo inicial em todos os tamanhos)."
+  },
+  "dailyLoss": {
+   "percent": null,
+   "amounts": {
+    "25K": 600,
+    "50K": 1200,
+    "100K": 1800,
+    "150K": 2700,
+    "200K": 3600
+   },
+   "measuredOn": "saldo de fechamento do dia anterior menos DD diário; checado em tempo real pelo equity",
+   "reset": "no 'horário oficial de encerramento' definido pela NPFuture (horário/fuso não publicado)",
+   "quote": "Limite diário = Saldo de fechamento do dia operacional anterior - DD diário do plano",
+   "url": "https://npfuture.com/regulamento/"
+  },
+  "maxLoss": {
+   "percent": null,
+   "amounts": {
+    "25K": 1000,
+    "50K": 2000,
+    "100K": 3000,
+    "150K": 4500,
+    "200K": 6000
+   },
+   "type": "unclear",
+   "quote": "A avaliação Standard não utiliza EOD com trava em saldo inicial + $100.",
+   "url": "https://npfuture.com/regulamento/",
+   "note": "Regulamento não diz se o Max Loss da Standard é estático ou trailing; o card da home mostra 'Drawdown EOD' na fase de avaliação."
+  },
+  "minTradingDays": {
+   "days": 3,
+   "perDayRequirement": null,
+   "quote": "O operador deverá cumprir pelo menos 3 dias mínimos operados na avaliação Standard.",
+   "url": "https://npfuture.com/regulamento/"
+  },
+  "consistency": [
+   {
+    "appliesTo": "evaluation",
+    "kind": "best_day_vs_total_profit",
+    "percent": 40,
+    "amount": null,
+    "days": null,
+    "measuredOn": "unknown",
+    "effect": "soft",
+    "condition": null,
+    "precise": false,
+    "quote": "O maior dia de lucro da avaliação não poderá representar mais de 40% do lucro total acumulado para aprovação.",
+    "url": "https://npfuture.com/regulamento/",
+    "note": "Se exceder: 'o operador deverá continuar operando até que a consistência seja normalizada' (dentro do prazo de 30 dias). Não define se 'dia' é por saldo fechado ou equity nem se dias negativos reduzem o 'lucro total acumulado'."
+   },
+   {
+    "appliesTo": "both",
+    "kind": "other",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": "unknown",
+    "effect": "blocks_payout",
+    "condition": null,
+    "precise": false,
+    "quote": "A faixa permitida poderá considerar variação de até 100% para cima e 50% para baixo da média apurada",
+    "url": "https://npfuture.com/regulamento/",
+    "note": "Consistência de lote ('poderá aplicar'): +100%/-50% da média de lote do ciclo; ordens em janela de 60s podem ser somadas. Aplicação discricionária."
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Somente operações abertas por >= 60 segundos contam para lucro, consistência, dias e payout",
+    "quote": "somente serão consideradas operações que permanecerem abertas por pelo menos 60 segundos.",
+    "url": "https://npfuture.com/regulamento/"
+   },
+   {
+    "text": "Limites verificados em tempo real pelo equity (inclui flutuante)",
+    "quote": "os limites de perda (DD diário, quando houver, e Max Loss / EOD Drawdown) são verificados em tempo real, pelo equity da conta",
+    "url": "https://npfuture.com/regulamento/"
+   },
+   {
+    "text": "Encerramento após 30 dias corridos sem abrir operação",
+    "quote": "Permanecer 30 dias corridos sem abrir operação.",
+    "url": "https://npfuture.com/regulamento/"
+   },
+   {
+    "text": "Prazo máximo de 30 dias corridos para aprovação",
+    "quote": "O operador terá o prazo máximo de 30 dias corridos para atingir a meta de aprovação da avaliação Standard",
+    "url": "https://npfuture.com/regulamento/"
+   },
+   {
+    "text": "Swing Trade: Não (card BlackArrow)",
+    "quote": "Swing Trade: Não (card BlackArrow)",
+    "url": "https://npfuture.com/"
+   }
+  ],
+  "differencesVsCatalog": [
+   "Consistência: oficial 40% (catálogo 50%).",
+   "Dias mínimos: oficial 3 (catálogo 2).",
+   "Tempo mínimo por operação: oficial 60 segundos (catálogo 30 segundos).",
+   "Catálogo não registra prazo máximo de 30 dias corridos para aprovar.",
+   "Tipo de drawdown: catálogo diz 'Static', mas o regulamento não define; card da home diz 'Drawdown EOD' — tratar como não confirmado.",
+   "Catálogo não registra consistência de lote (+100%/-50% da média)."
+  ],
+  "notFound": [
+   "Tipo do Max Loss na Standard (estático vs EOD trailing sem trava)",
+   "Horário/fuso do 'horário oficial de encerramento' (reset diário)",
+   "PDF oficial do regulamento",
+   "Data de versão do regulamento (página não mostra)"
+  ],
+  "firmSlug": "np-future",
+  "programSlug": "npfuture-standard-blackarrow",
+  "programName": "Standard - BlackArrow",
+  "embeddability": "Regulamento: CSP só 'upgrade-insecure-requests', sem X-Frame-Options (provável embutível)."
+ },
+ {
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "Regulamento NPFuture (Regras Gerais, Operacionais, Standard, Funded, Flash)",
+    "url": "https://npfuture.com/regulamento/",
+    "kind": "terms"
+   },
+   {
+    "label": "Home (seletor de planos, por plataforma)",
+    "url": "https://npfuture.com/",
+    "kind": "page"
+   }
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "Standard (avaliação)",
+     "percent": 6,
+     "amounts": {
+      "25K": 1500,
+      "50K": 3000,
+      "100K": 6000,
+      "150K": 9000,
+      "200K": 12000
+     }
+    }
+   ],
+   "quote": "O operador será aprovado ao atingir a meta de aprovação do plano",
+   "url": "https://npfuture.com/regulamento/",
+   "note": "Metas em US$ fixos (= 6% do saldo inicial em todos os tamanhos)."
+  },
+  "dailyLoss": {
+   "percent": null,
+   "amounts": {
+    "25K": 600,
+    "50K": 1200,
+    "100K": 1800,
+    "150K": 2700,
+    "200K": 3600
+   },
+   "measuredOn": "saldo de fechamento do dia anterior menos DD diário; checado em tempo real pelo equity",
+   "reset": "no 'horário oficial de encerramento' definido pela NPFuture (horário/fuso não publicado)",
+   "quote": "Limite diário = Saldo de fechamento do dia operacional anterior - DD diário do plano",
+   "url": "https://npfuture.com/regulamento/"
+  },
+  "maxLoss": {
+   "percent": null,
+   "amounts": {
+    "25K": 1000,
+    "50K": 2000,
+    "100K": 3000,
+    "150K": 4500,
+    "200K": 6000
+   },
+   "type": "unclear",
+   "quote": "A avaliação Standard não utiliza EOD com trava em saldo inicial + $100.",
+   "url": "https://npfuture.com/regulamento/",
+   "note": "Regulamento não diz se o Max Loss da Standard é estático ou trailing; o card da home mostra 'Drawdown EOD' na fase de avaliação."
+  },
+  "minTradingDays": {
+   "days": 3,
+   "perDayRequirement": null,
+   "quote": "O operador deverá cumprir pelo menos 3 dias mínimos operados na avaliação Standard.",
+   "url": "https://npfuture.com/regulamento/"
+  },
+  "consistency": [
+   {
+    "appliesTo": "evaluation",
+    "kind": "best_day_vs_total_profit",
+    "percent": 40,
+    "amount": null,
+    "days": null,
+    "measuredOn": "unknown",
+    "effect": "soft",
+    "condition": null,
+    "precise": false,
+    "quote": "O maior dia de lucro da avaliação não poderá representar mais de 40% do lucro total acumulado para aprovação.",
+    "url": "https://npfuture.com/regulamento/",
+    "note": "Se exceder: 'o operador deverá continuar operando até que a consistência seja normalizada' (dentro do prazo de 30 dias). Não define se 'dia' é por saldo fechado ou equity nem se dias negativos reduzem o 'lucro total acumulado'."
+   },
+   {
+    "appliesTo": "both",
+    "kind": "other",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": "unknown",
+    "effect": "blocks_payout",
+    "condition": null,
+    "precise": false,
+    "quote": "A faixa permitida poderá considerar variação de até 100% para cima e 50% para baixo da média apurada",
+    "url": "https://npfuture.com/regulamento/",
+    "note": "Consistência de lote ('poderá aplicar'): +100%/-50% da média de lote do ciclo; ordens em janela de 60s podem ser somadas. Aplicação discricionária."
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Somente operações abertas por >= 60 segundos contam para lucro, consistência, dias e payout",
+    "quote": "somente serão consideradas operações que permanecerem abertas por pelo menos 60 segundos.",
+    "url": "https://npfuture.com/regulamento/"
+   },
+   {
+    "text": "Limites verificados em tempo real pelo equity (inclui flutuante)",
+    "quote": "os limites de perda (DD diário, quando houver, e Max Loss / EOD Drawdown) são verificados em tempo real, pelo equity da conta",
+    "url": "https://npfuture.com/regulamento/"
+   },
+   {
+    "text": "Encerramento após 30 dias corridos sem abrir operação",
+    "quote": "Permanecer 30 dias corridos sem abrir operação.",
+    "url": "https://npfuture.com/regulamento/"
+   },
+   {
+    "text": "Prazo máximo de 30 dias corridos para aprovação",
+    "quote": "O operador terá o prazo máximo de 30 dias corridos para atingir a meta de aprovação da avaliação Standard",
+    "url": "https://npfuture.com/regulamento/"
+   },
+   {
+    "text": "Swing Trade: Permitido (card MT5)",
+    "quote": "Swing Trade: Permitido (card MT5)",
+    "url": "https://npfuture.com/"
+   }
+  ],
+  "differencesVsCatalog": [
+   "Consistência: oficial 40% (catálogo 50%).",
+   "Dias mínimos: oficial 3 (catálogo 2).",
+   "Tempo mínimo por operação: oficial 60 segundos (catálogo 30 segundos).",
+   "Catálogo não registra prazo máximo de 30 dias corridos para aprovar.",
+   "Tipo de drawdown: catálogo diz 'Static', mas o regulamento não define; card da home diz 'Drawdown EOD' — tratar como não confirmado.",
+   "Catálogo não registra consistência de lote (+100%/-50% da média)."
+  ],
+  "notFound": [
+   "Tipo do Max Loss na Standard (estático vs EOD trailing sem trava)",
+   "Horário/fuso do 'horário oficial de encerramento' (reset diário)",
+   "PDF oficial do regulamento",
+   "Data de versão do regulamento (página não mostra)"
+  ],
+  "firmSlug": "np-future",
+  "programSlug": "npfuture-standard-mt5",
+  "programName": "Standard - MT5",
+  "embeddability": "Regulamento: CSP só 'upgrade-insecure-requests', sem X-Frame-Options (provável embutível)."
+ },
+ {
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "Regulamento NPFuture (Regras Gerais, Operacionais, Standard, Funded, Flash)",
+    "url": "https://npfuture.com/regulamento/",
+    "kind": "terms"
+   },
+   {
+    "label": "Home (seletor de planos, por plataforma)",
+    "url": "https://npfuture.com/",
+    "kind": "page"
+   }
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [],
+   "quote": "Base do payout | Lucro total elegível disponível, inclusive acumulado/remanescente",
+   "url": "https://npfuture.com/regulamento/"
+  },
+  "dailyLoss": {
+   "percent": null,
+   "measuredOn": null,
+   "reset": null,
+   "quote": "A Conta Funded não possui limite de perda diária.",
+   "url": "https://npfuture.com/regulamento/"
+  },
+  "maxLoss": {
+   "percent": null,
+   "amounts": {
+    "25K": 1000,
+    "50K": 2000,
+    "100K": 3000,
+    "150K": 4500,
+    "200K": 6000
+   },
+   "type": "EOD trailing, trava em saldo inicial + $100",
+   "quote": "A trava do EOD será sempre em: saldo inicial da conta + $100.",
+   "url": "https://npfuture.com/regulamento/"
+  },
+  "minTradingDays": {
+   "days": 5,
+   "perDayRequirement": "dia positivo com lucro >= $100 / $150 / $250 / $350 / $500 (25K/50K/100K/150K/200K)",
+   "quote": "Os 5 dias positivos devem ser compostos por dias operacionais encerrados com lucro igual ou superior ao lucro mínimo diário exigido para o plano contratado.",
+   "url": "https://npfuture.com/regulamento/"
+  },
+  "consistency": [
+   {
+    "appliesTo": "funded",
+    "kind": "best_day_vs_total_profit",
+    "percent": 30,
+    "amount": null,
+    "days": null,
+    "measuredOn": "unknown",
+    "effect": "blocks_payout",
+    "condition": null,
+    "precise": false,
+    "quote": "O maior dia de lucro considerado na solicitação não poderá representar mais de 30% do lucro total elegível disponível considerado para o payout.",
+    "url": "https://npfuture.com/regulamento/",
+    "note": "Soft: 'o operador deverá continuar operando até que a consistência seja normalizada'. Base = 'lucro total elegível disponível' (inclui lucro remanescente de payouts anteriores); apurada novamente a cada solicitação."
+   },
+   {
+    "appliesTo": "both",
+    "kind": "other",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": "unknown",
+    "effect": "blocks_payout",
+    "condition": null,
+    "precise": false,
+    "quote": "A faixa permitida poderá considerar variação de até 100% para cima e 50% para baixo da média apurada",
+    "url": "https://npfuture.com/regulamento/",
+    "note": "Consistência de lote ('poderá aplicar'): +100%/-50% da média de lote do ciclo; ordens em janela de 60s podem ser somadas. Aplicação discricionária."
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Somente operações abertas por >= 60 segundos contam para lucro, consistência, dias e payout",
+    "quote": "somente serão consideradas operações que permanecerem abertas por pelo menos 60 segundos.",
+    "url": "https://npfuture.com/regulamento/"
+   },
+   {
+    "text": "Limites verificados em tempo real pelo equity (inclui flutuante)",
+    "quote": "os limites de perda (DD diário, quando houver, e Max Loss / EOD Drawdown) são verificados em tempo real, pelo equity da conta",
+    "url": "https://npfuture.com/regulamento/"
+   },
+   {
+    "text": "Encerramento após 30 dias corridos sem abrir operação",
+    "quote": "Permanecer 30 dias corridos sem abrir operação.",
+    "url": "https://npfuture.com/regulamento/"
+   },
+   {
+    "text": "Payout até 50% do lucro elegível disponível, com teto por plano e saque mínimo",
+    "quote": "o operador poderá solicitar até 50% do lucro total elegível disponível da conta",
+    "url": "https://npfuture.com/regulamento/"
+   },
+   {
+    "text": "Swing Trade: Não (card BlackArrow)",
+    "quote": "Swing Trade: Não (card BlackArrow)",
+    "url": "https://npfuture.com/"
+   }
+  ],
+  "differencesVsCatalog": [
+   "Consistência e dias positivos conferem (30%; 5 dias com mínimo por plano).",
+   "Catálogo não registra: limite de saque de 50% do lucro elegível, tetos por payout, saque mínimo ($500..$1.500), split 80/20 → 90/10, tempo mínimo de 60s, consistência de lote."
+  ],
+  "notFound": [
+   "Horário/fuso do fechamento diário usado para o EOD",
+   "PDF oficial"
+  ],
+  "firmSlug": "np-future",
+  "programSlug": "npfuture-funded-blackarrow",
+  "programName": "Funded - BlackArrow",
+  "embeddability": "Regulamento: CSP só 'upgrade-insecure-requests', sem X-Frame-Options (provável embutível)."
+ },
+ {
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "Regulamento NPFuture (Regras Gerais, Operacionais, Standard, Funded, Flash)",
+    "url": "https://npfuture.com/regulamento/",
+    "kind": "terms"
+   },
+   {
+    "label": "Home (seletor de planos, por plataforma)",
+    "url": "https://npfuture.com/",
+    "kind": "page"
+   }
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [],
+   "quote": "Base do payout | Lucro total elegível disponível, inclusive acumulado/remanescente",
+   "url": "https://npfuture.com/regulamento/"
+  },
+  "dailyLoss": {
+   "percent": null,
+   "measuredOn": null,
+   "reset": null,
+   "quote": "A Conta Funded não possui limite de perda diária.",
+   "url": "https://npfuture.com/regulamento/"
+  },
+  "maxLoss": {
+   "percent": null,
+   "amounts": {
+    "25K": 1000,
+    "50K": 2000,
+    "100K": 3000,
+    "150K": 4500,
+    "200K": 6000
+   },
+   "type": "EOD trailing, trava em saldo inicial + $100",
+   "quote": "A trava do EOD será sempre em: saldo inicial da conta + $100.",
+   "url": "https://npfuture.com/regulamento/"
+  },
+  "minTradingDays": {
+   "days": 5,
+   "perDayRequirement": "dia positivo com lucro >= $100 / $150 / $250 / $350 / $500 (25K/50K/100K/150K/200K)",
+   "quote": "Os 5 dias positivos devem ser compostos por dias operacionais encerrados com lucro igual ou superior ao lucro mínimo diário exigido para o plano contratado.",
+   "url": "https://npfuture.com/regulamento/"
+  },
+  "consistency": [
+   {
+    "appliesTo": "funded",
+    "kind": "best_day_vs_total_profit",
+    "percent": 30,
+    "amount": null,
+    "days": null,
+    "measuredOn": "unknown",
+    "effect": "blocks_payout",
+    "condition": null,
+    "precise": false,
+    "quote": "O maior dia de lucro considerado na solicitação não poderá representar mais de 30% do lucro total elegível disponível considerado para o payout.",
+    "url": "https://npfuture.com/regulamento/",
+    "note": "Soft: 'o operador deverá continuar operando até que a consistência seja normalizada'. Base = 'lucro total elegível disponível' (inclui lucro remanescente de payouts anteriores); apurada novamente a cada solicitação."
+   },
+   {
+    "appliesTo": "both",
+    "kind": "other",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": "unknown",
+    "effect": "blocks_payout",
+    "condition": null,
+    "precise": false,
+    "quote": "A faixa permitida poderá considerar variação de até 100% para cima e 50% para baixo da média apurada",
+    "url": "https://npfuture.com/regulamento/",
+    "note": "Consistência de lote ('poderá aplicar'): +100%/-50% da média de lote do ciclo; ordens em janela de 60s podem ser somadas. Aplicação discricionária."
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Somente operações abertas por >= 60 segundos contam para lucro, consistência, dias e payout",
+    "quote": "somente serão consideradas operações que permanecerem abertas por pelo menos 60 segundos.",
+    "url": "https://npfuture.com/regulamento/"
+   },
+   {
+    "text": "Limites verificados em tempo real pelo equity (inclui flutuante)",
+    "quote": "os limites de perda (DD diário, quando houver, e Max Loss / EOD Drawdown) são verificados em tempo real, pelo equity da conta",
+    "url": "https://npfuture.com/regulamento/"
+   },
+   {
+    "text": "Encerramento após 30 dias corridos sem abrir operação",
+    "quote": "Permanecer 30 dias corridos sem abrir operação.",
+    "url": "https://npfuture.com/regulamento/"
+   },
+   {
+    "text": "Payout até 50% do lucro elegível disponível, com teto por plano e saque mínimo",
+    "quote": "o operador poderá solicitar até 50% do lucro total elegível disponível da conta",
+    "url": "https://npfuture.com/regulamento/"
+   },
+   {
+    "text": "Swing Trade: Permitido (card MT5)",
+    "quote": "Swing Trade: Permitido (card MT5)",
+    "url": "https://npfuture.com/"
+   }
+  ],
+  "differencesVsCatalog": [
+   "Consistência e dias positivos conferem (30%; 5 dias com mínimo por plano).",
+   "Catálogo não registra: limite de saque de 50% do lucro elegível, tetos por payout, saque mínimo ($500..$1.500), split 80/20 → 90/10, tempo mínimo de 60s, consistência de lote."
+  ],
+  "notFound": [
+   "Horário/fuso do fechamento diário usado para o EOD",
+   "PDF oficial"
+  ],
+  "firmSlug": "np-future",
+  "programSlug": "npfuture-funded-mt5",
+  "programName": "Funded - MT5",
+  "embeddability": "Regulamento: CSP só 'upgrade-insecure-requests', sem X-Frame-Options (provável embutível)."
+ },
+ {
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "Regulamento NPFuture (Regras Gerais, Operacionais, Standard, Funded, Flash)",
+    "url": "https://npfuture.com/regulamento/",
+    "kind": "terms"
+   },
+   {
+    "label": "Home (seletor de planos, por plataforma)",
+    "url": "https://npfuture.com/",
+    "kind": "page"
+   }
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "Meta 1º payout",
+     "percent": null,
+     "amounts": {
+      "25K": 2000,
+      "50K": 3000,
+      "100K": 6000,
+      "150K": 9000,
+      "200K": 12000
+     }
+    },
+    {
+     "phase": "Meta 2º payout em diante",
+     "percent": null,
+     "amounts": {
+      "25K": 2000,
+      "50K": 2500,
+      "100K": 4000,
+      "150K": 5000,
+      "200K": 7000
+     }
+    }
+   ],
+   "quote": "Atingir a meta de payout do ciclo.",
+   "url": "https://npfuture.com/regulamento/"
+  },
+  "dailyLoss": {
+   "percent": null,
+   "amounts": {
+    "25K": 600,
+    "50K": 1200,
+    "100K": 1800,
+    "150K": 2700,
+    "200K": 3600
+   },
+   "measuredOn": "saldo de fechamento do dia anterior menos DD diário; checado em tempo real pelo equity",
+   "reset": "a cada novo dia operacional (horário oficial de encerramento não publicado)",
+   "quote": "O DD diário é reiniciado a cada novo dia operacional e permanece ativo durante toda a vida da conta, inclusive após payouts.",
+   "url": "https://npfuture.com/regulamento/"
+  },
+  "maxLoss": {
+   "percent": null,
+   "amounts": {
+    "25K": 1000,
+    "50K": 2000,
+    "100K": 3000,
+    "150K": 4500,
+    "200K": 6000
+   },
+   "type": "EOD trailing, trava em saldo inicial + $100",
+   "quote": "O Plano Flash utiliza EOD Drawdown com trava.",
+   "url": "https://npfuture.com/regulamento/"
+  },
+  "minTradingDays": {
+   "days": 5,
+   "perDayRequirement": "nenhum lucro mínimo diário",
+   "quote": "Não haverá exigência de lucro mínimo diário para validação dos dias operados no Plano Flash.",
+   "url": "https://npfuture.com/regulamento/"
+  },
+  "consistency": [
+   {
+    "appliesTo": "funded",
+    "kind": "best_day_vs_total_profit",
+    "percent": 20,
+    "amount": null,
+    "days": null,
+    "measuredOn": "unknown",
+    "effect": "blocks_payout",
+    "condition": null,
+    "precise": false,
+    "quote": "Em qualquer ciclo, o maior dia de lucro não poderá representar mais de 20% do lucro total elegível do ciclo.",
+    "url": "https://npfuture.com/regulamento/",
+    "note": "Soft: continuar operando até normalizar; reinicia após cada payout."
+   },
+   {
+    "appliesTo": "both",
+    "kind": "other",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": "unknown",
+    "effect": "blocks_payout",
+    "condition": null,
+    "precise": false,
+    "quote": "A faixa permitida poderá considerar variação de até 100% para cima e 50% para baixo da média apurada",
+    "url": "https://npfuture.com/regulamento/",
+    "note": "Consistência de lote ('poderá aplicar'): +100%/-50% da média de lote do ciclo; ordens em janela de 60s podem ser somadas. Aplicação discricionária."
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Somente operações abertas por >= 60 segundos contam para lucro, consistência, dias e payout",
+    "quote": "somente serão consideradas operações que permanecerem abertas por pelo menos 60 segundos.",
+    "url": "https://npfuture.com/regulamento/"
+   },
+   {
+    "text": "Limites verificados em tempo real pelo equity (inclui flutuante)",
+    "quote": "os limites de perda (DD diário, quando houver, e Max Loss / EOD Drawdown) são verificados em tempo real, pelo equity da conta",
+    "url": "https://npfuture.com/regulamento/"
+   },
+   {
+    "text": "Encerramento após 30 dias corridos sem abrir operação",
+    "quote": "Permanecer 30 dias corridos sem abrir operação.",
+    "url": "https://npfuture.com/regulamento/"
+   },
+   {
+    "text": "Margem real pós-saque (saldo − EOD travado) deve ser >= DD diário",
+    "quote": "Nenhum payout do Plano Flash poderá ser aprovado caso, após o saque, a margem real da conta fique inferior ao DD diário do plano contratado.",
+    "url": "https://npfuture.com/regulamento/"
+   },
+   {
+    "text": "Swing Trade: Não (card BlackArrow)",
+    "quote": "Swing Trade: Não (card BlackArrow)",
+    "url": "https://npfuture.com/"
+   }
+  ],
+  "differencesVsCatalog": [
+   "Catálogo só registra meta do 1º payout; oficial tem metas menores do 2º payout em diante ($2.000/$2.500/$4.000/$5.000/$7.000).",
+   "Catálogo não registra: regra de margem mínima pós-saque, tetos brutos por ciclo, tempo mínimo de 60s, consistência de lote.",
+   "Consistência 20% e 5 dias sem lucro mínimo conferem."
+  ],
+  "notFound": [
+   "Horário/fuso do reset diário",
+   "PDF oficial"
+  ],
+  "firmSlug": "np-future",
+  "programSlug": "npfuture-flash-blackarrow",
+  "programName": "Flash - BlackArrow",
+  "embeddability": "Regulamento: CSP só 'upgrade-insecure-requests', sem X-Frame-Options (provável embutível)."
+ },
+ {
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "Regulamento NPFuture (Regras Gerais, Operacionais, Standard, Funded, Flash)",
+    "url": "https://npfuture.com/regulamento/",
+    "kind": "terms"
+   },
+   {
+    "label": "Home (seletor de planos, por plataforma)",
+    "url": "https://npfuture.com/",
+    "kind": "page"
+   }
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "Meta 1º payout",
+     "percent": null,
+     "amounts": {
+      "25K": 2000,
+      "50K": 3000,
+      "100K": 6000,
+      "150K": 9000,
+      "200K": 12000
+     }
+    },
+    {
+     "phase": "Meta 2º payout em diante",
+     "percent": null,
+     "amounts": {
+      "25K": 2000,
+      "50K": 2500,
+      "100K": 4000,
+      "150K": 5000,
+      "200K": 7000
+     }
+    }
+   ],
+   "quote": "Atingir a meta de payout do ciclo.",
+   "url": "https://npfuture.com/regulamento/"
+  },
+  "dailyLoss": {
+   "percent": null,
+   "amounts": {
+    "25K": 600,
+    "50K": 1200,
+    "100K": 1800,
+    "150K": 2700,
+    "200K": 3600
+   },
+   "measuredOn": "saldo de fechamento do dia anterior menos DD diário; checado em tempo real pelo equity",
+   "reset": "a cada novo dia operacional (horário oficial de encerramento não publicado)",
+   "quote": "O DD diário é reiniciado a cada novo dia operacional e permanece ativo durante toda a vida da conta, inclusive após payouts.",
+   "url": "https://npfuture.com/regulamento/"
+  },
+  "maxLoss": {
+   "percent": null,
+   "amounts": {
+    "25K": 1000,
+    "50K": 2000,
+    "100K": 3000,
+    "150K": 4500,
+    "200K": 6000
+   },
+   "type": "EOD trailing, trava em saldo inicial + $100",
+   "quote": "O Plano Flash utiliza EOD Drawdown com trava.",
+   "url": "https://npfuture.com/regulamento/"
+  },
+  "minTradingDays": {
+   "days": 5,
+   "perDayRequirement": "nenhum lucro mínimo diário",
+   "quote": "Não haverá exigência de lucro mínimo diário para validação dos dias operados no Plano Flash.",
+   "url": "https://npfuture.com/regulamento/"
+  },
+  "consistency": [
+   {
+    "appliesTo": "funded",
+    "kind": "best_day_vs_total_profit",
+    "percent": 20,
+    "amount": null,
+    "days": null,
+    "measuredOn": "unknown",
+    "effect": "blocks_payout",
+    "condition": null,
+    "precise": false,
+    "quote": "Em qualquer ciclo, o maior dia de lucro não poderá representar mais de 20% do lucro total elegível do ciclo.",
+    "url": "https://npfuture.com/regulamento/",
+    "note": "Soft: continuar operando até normalizar; reinicia após cada payout."
+   },
+   {
+    "appliesTo": "both",
+    "kind": "other",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": "unknown",
+    "effect": "blocks_payout",
+    "condition": null,
+    "precise": false,
+    "quote": "A faixa permitida poderá considerar variação de até 100% para cima e 50% para baixo da média apurada",
+    "url": "https://npfuture.com/regulamento/",
+    "note": "Consistência de lote ('poderá aplicar'): +100%/-50% da média de lote do ciclo; ordens em janela de 60s podem ser somadas. Aplicação discricionária."
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Somente operações abertas por >= 60 segundos contam para lucro, consistência, dias e payout",
+    "quote": "somente serão consideradas operações que permanecerem abertas por pelo menos 60 segundos.",
+    "url": "https://npfuture.com/regulamento/"
+   },
+   {
+    "text": "Limites verificados em tempo real pelo equity (inclui flutuante)",
+    "quote": "os limites de perda (DD diário, quando houver, e Max Loss / EOD Drawdown) são verificados em tempo real, pelo equity da conta",
+    "url": "https://npfuture.com/regulamento/"
+   },
+   {
+    "text": "Encerramento após 30 dias corridos sem abrir operação",
+    "quote": "Permanecer 30 dias corridos sem abrir operação.",
+    "url": "https://npfuture.com/regulamento/"
+   },
+   {
+    "text": "Margem real pós-saque (saldo − EOD travado) deve ser >= DD diário",
+    "quote": "Nenhum payout do Plano Flash poderá ser aprovado caso, após o saque, a margem real da conta fique inferior ao DD diário do plano contratado.",
+    "url": "https://npfuture.com/regulamento/"
+   },
+   {
+    "text": "Swing Trade: Permitido (card MT5)",
+    "quote": "Swing Trade: Permitido (card MT5)",
+    "url": "https://npfuture.com/"
+   }
+  ],
+  "differencesVsCatalog": [
+   "Catálogo só registra meta do 1º payout; oficial tem metas menores do 2º payout em diante ($2.000/$2.500/$4.000/$5.000/$7.000).",
+   "Catálogo não registra: regra de margem mínima pós-saque, tetos brutos por ciclo, tempo mínimo de 60s, consistência de lote.",
+   "Consistência 20% e 5 dias sem lucro mínimo conferem."
+  ],
+  "notFound": [
+   "Horário/fuso do reset diário",
+   "PDF oficial"
+  ],
+  "firmSlug": "np-future",
+  "programSlug": "npfuture-flash-mt5",
+  "programName": "Flash - MT5",
+  "embeddability": "Regulamento: CSP só 'upgrade-insecure-requests', sem X-Frame-Options (provável embutível)."
+ },
+ {
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "1-Step Challenge",
+    "url": "https://ftmo.com/en/1-step-challenge/",
+    "kind": "page"
+   },
+   {
+    "label": "Trading Objectives",
+    "url": "https://ftmo.com/en/trading-objectives/",
+    "kind": "page"
+   },
+   {
+    "label": "FTMO Challenge Terms and Conditions (PDF, last updated 1 Nov 2026)",
+    "url": "https://cdn.ftmo.com/docs%2Fterms-and-conditions%2F118cdaed571a48529431ffa6ff28a91b",
+    "kind": "pdf"
+   },
+   {
+    "label": "Terms and Conditions page (embeds the PDF)",
+    "url": "https://ftmo.com/en/terms-and-conditions/",
+    "kind": "terms"
+   },
+   {
+    "label": "Swing account type FAQ",
+    "url": "https://ftmo.com/en/faq/what-is-the-swing-account-type-and-how-does-it-work/",
+    "kind": "help_center"
+   }
+  ],
+  "officialPdfUrl": "https://cdn.ftmo.com/docs%2Fterms-and-conditions%2F118cdaed571a48529431ffa6ff28a91b",
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "FTMO Challenge 1-Step",
+     "percent": 10
+    }
+   ],
+   "quote": "The Profit Target for the FTMO Challenge is calculated as 10% of the Initial Simulated Capital.",
+   "url": "https://ftmo.com/en/trading-objectives/"
+  },
+  "dailyLoss": {
+   "percent": 3,
+   "measuredOn": "balance recorded at 00:00 CE(S)T minus 3% of Initial Simulated Capital; equity (incl. open P/L, swaps, commissions) must not drop below",
+   "reset": "00:00 CE(S)T daily",
+   "quote": "the Maximum Daily Loss Amount, which is 3% of the Initial Simulated Capital.",
+   "url": "https://ftmo.com/en/trading-objectives/"
+  },
+  "maxLoss": {
+   "percent": 10,
+   "type": "EOD trailing (highest balance at 00:00 CE(S)T, never decreases; fully resets after a Reward withdrawal)",
+   "quote": "The Maximum Loss rule establishes an end-of-day trailing limit (the Maximum Loss Limit) below which your account equity",
+   "url": "https://ftmo.com/en/trading-objectives/",
+   "note": "Página não menciona trava no saldo inicial; diz 'The limit can only increase, but never decrease.'"
+  },
+  "minTradingDays": {
+   "days": null,
+   "perDayRequirement": null,
+   "quote": "Trading Period: Unlimited",
+   "url": "https://ftmo.com/en/1-step-challenge/",
+   "note": "Trading Objectives não lista Minimum Trading Days para o 1-Step."
+  },
+  "consistency": [
+   {
+    "appliesTo": "both",
+    "kind": "best_day_vs_total_profit",
+    "percent": 50,
+    "amount": null,
+    "days": null,
+    "measuredOn": "closed P&L per trading day (00:00 CE(S)T)",
+    "effect": "soft",
+    "condition": "Contas de ordens criadas em/após 12 Oct 2026 (ou contas mescladas a partir dessa data). Aplica-se para passar no Challenge 1-Step e para elegibilidade de Reward na FTMO Account (1-Step).",
+    "precise": true,
+    "quote": "the Consistency rule requires that your Best Day does not represent more than 50% of your total profit.",
+    "url": "https://ftmo.com/en/trading-objectives/",
+    "note": "'The total profit is the cumulative sum of closed profits and losses across all trading days'; Best Day = maior lucro de trades fechados no fim do dia (00:00 CE(S)T) ou quando os demais objetivos forem cumpridos. 'Exceeding the Consistency limit is not treated as a rule breach.'"
+   },
+   {
+    "appliesTo": "both",
+    "kind": "other",
+    "percent": 50,
+    "amount": null,
+    "days": null,
+    "measuredOn": "closed P&L per trading day (00:00 CE(S)T)",
+    "effect": "soft",
+    "condition": "LEGADO: contas iniciadas de ordens criadas antes de 12 Oct 2026.",
+    "precise": true,
+    "quote": "the Best Day Rule requires that your Best Day does not represent more than 50% of your Positive Days’ Profit.",
+    "url": "https://ftmo.com/en/trading-objectives/",
+    "note": "Best Day <= 50% da soma dos dias POSITIVOS (dias negativos não entram no denominador)."
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Swing account type não disponível no 1-Step",
+    "quote": "It is not offered for the 1-Step FTMO Challenge or the FTMO Instant Account.",
+    "url": "https://ftmo.com/en/faq/what-is-the-swing-account-type-and-how-does-it-work/"
+   }
+  ],
+  "differencesVsCatalog": [
+   "Consistência mudou: para ordens a partir de 12 Oct 2026 vale a regra 'Consistency' (Best Day <= 50% do lucro TOTAL, incluindo dias de perda); a 'Best Day Rule' do catálogo (denominador = lucro dos dias positivos) virou legado para ordens anteriores a 12 Oct 2026.",
+   "A regra se aplica também à elegibilidade de Reward na FTMO Account 1-Step (catálogo cita só a aprovação).",
+   "Restante confere (10% / 3% / 10% EOD trailing / sem mínimo de dias / Swing indisponível).",
+   "Novo produto não presente no catálogo: FTMO Instant Account (DLL 3%, Max Loss 10% intraday balance-based trailing, Consistency 30% para Reward)."
+  ],
+  "notFound": [
+   "Tamanhos de conta (não listados nas páginas do 1-Step/Trading Objectives)",
+   "Se a Consistency reinicia após Reward no 1-Step (explicitado só para o Instant)"
+  ],
+  "firmSlug": "ftmo",
+  "programSlug": "ftmo-challenge-1-step-2026",
+  "programName": "FTMO Challenge 1-Step",
+  "embeddability": "Trading Objectives: resposta sem X-Frame-Options/CSP frame-ancestors (provável embutível). PDF de T&C (application/pdf) já é exibido pela FTMO em iframe."
+ },
+ {
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "2-Step Challenge",
+    "url": "https://ftmo.com/en/2-step-challenge/",
+    "kind": "page"
+   },
+   {
+    "label": "Trading Objectives",
+    "url": "https://ftmo.com/en/trading-objectives/",
+    "kind": "page"
+   },
+   {
+    "label": "FTMO Challenge Terms and Conditions (PDF, last updated 1 Nov 2026)",
+    "url": "https://cdn.ftmo.com/docs%2Fterms-and-conditions%2F118cdaed571a48529431ffa6ff28a91b",
+    "kind": "pdf"
+   },
+   {
+    "label": "Terms and Conditions page (embeds the PDF)",
+    "url": "https://ftmo.com/en/terms-and-conditions/",
+    "kind": "terms"
+   },
+   {
+    "label": "Swing account type FAQ",
+    "url": "https://ftmo.com/en/faq/what-is-the-swing-account-type-and-how-does-it-work/",
+    "kind": "help_center"
+   }
+  ],
+  "officialPdfUrl": "https://cdn.ftmo.com/docs%2Fterms-and-conditions%2F118cdaed571a48529431ffa6ff28a91b",
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "FTMO Challenge",
+     "percent": 10
+    },
+    {
+     "phase": "Verification",
+     "percent": 5
+    }
+   ],
+   "quote": "10% for the FTMO Challenge / 5% for the Verification",
+   "url": "https://ftmo.com/en/trading-objectives/"
+  },
+  "dailyLoss": {
+   "percent": 5,
+   "measuredOn": "balance recorded at 00:00 CE(S)T minus 5% of Initial Simulated Capital; equity must not drop below",
+   "reset": "00:00 CE(S)T daily",
+   "quote": "the Maximum Daily Loss Amount, which is 5% of the Initial Simulated Capital.",
+   "url": "https://ftmo.com/en/trading-objectives/"
+  },
+  "maxLoss": {
+   "percent": 10,
+   "type": "static",
+   "quote": "The Maximum Loss rule establishes a static limit (the Maximum Loss Limit) below which your account equity",
+   "url": "https://ftmo.com/en/trading-objectives/"
+  },
+  "minTradingDays": {
+   "days": 4,
+   "perDayRequirement": "dia com ao menos uma posição aberta (00:00:00–23:59:59 CE(S)T); sem mínimo na FTMO Account",
+   "quote": "The Minimum Trading Days rule requires the trader to achieve at least 4 Trading Days.",
+   "url": "https://ftmo.com/en/trading-objectives/"
+  },
+  "consistency": [
+   {
+    "appliesTo": "both",
+    "kind": "none",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": null,
+    "effect": null,
+    "condition": null,
+    "precise": true,
+    "quote": "This rule applies to both phases (FTMO Challenge and Verification) of the FTMO Challenge: 2-Step.",
+    "url": "https://ftmo.com/en/trading-objectives/",
+    "note": "Seção 2-Step lista apenas Profit Target, Maximum Daily Loss, Maximum Loss e Minimum Trading Days; nenhuma regra de Consistency/Best Day."
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Swing disponível só no 2-Step; Standard tem restrições de notícias/overnight/fim de semana apenas na FTMO Account",
+    "quote": "The FTMO Swing account type is available exclusively within the 2-Step FTMO Challenge product.",
+    "url": "https://ftmo.com/en/faq/what-is-the-swing-account-type-and-how-does-it-work/"
+   }
+  ],
+  "differencesVsCatalog": [
+   "Sem diferenças materiais. Detalhe a acrescentar: não há Minimum Trading Days na FTMO Account (2-Step)."
+  ],
+  "notFound": [
+   "Tamanhos de conta (não listados nas páginas consultadas)"
+  ],
+  "firmSlug": "ftmo",
+  "programSlug": "ftmo-challenge-2-step-2026",
+  "programName": "FTMO Challenge 2-Step",
+  "embeddability": "Trading Objectives: resposta sem X-Frame-Options/CSP frame-ancestors (provável embutível). PDF de T&C (application/pdf) já é exibido pela FTMO em iframe."
+ },
+ {
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "EOD Evaluations (403 ao buscar)",
+    "url": "https://apextraderfunding.com/help-center/eod-trailing-drawdown-accounts/eod-evaluations/",
+    "kind": "help_center"
+   },
+   {
+    "label": "EOD Payouts (403)",
+    "url": "https://apextraderfunding.com/help-center/eod-trailing-drawdown-accounts/eod-payouts/",
+    "kind": "help_center"
+   },
+   {
+    "label": "EOD Performance Accounts (PA) (403)",
+    "url": "https://apextraderfunding.com/help-center/eod-trailing-drawdown-accounts/eod-performance-accounts-pa/",
+    "kind": "help_center"
+   },
+   {
+    "label": "Prohibited Activities (lido; banner 'INTRADAY • EOD • LEGACY')",
+    "url": "https://apextraderfunding.com/help-center/getting-started/prohibited-activities/",
+    "kind": "help_center"
+   }
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "Evaluation",
+     "percent": 6,
+     "amounts": {
+      "25K": 1500,
+      "50K": 3000,
+      "100K": 6000,
+      "150K": 9000
+     }
+    }
+   ],
+   "quote": null,
+   "url": "https://apextraderfunding.com/help-center/eod-trailing-drawdown-accounts/eod-evaluations/",
+   "note": "NÃO VERIFICADO VERBATIM: todas as páginas do help center da Apex (e o Zendesk support.apextraderfunding.com) retornaram HTTP 403 (Cloudflare) ao WebFetch/curl em 2026-11-12. Valores e 'quotes' abaixo vêm do índice do buscador sobre páginas oficiais da Apex, não de leitura direta — reconferir manualmente no navegador antes de usar."
+  },
+  "dailyLoss": {
+   "percent": null,
+   "amounts": {
+    "25K": 500,
+    "50K": 1000,
+    "100K": 1500,
+    "150K": 2000
+   },
+   "measuredOn": "unknown",
+   "reset": "6 PM ET (via buscador)",
+   "quote": null,
+   "url": "https://apextraderfunding.com/help-center/eod-trailing-drawdown-accounts/eod-evaluations/",
+   "note": "Via buscador: atingir o DLL liquida e pausa até a próxima sessão, NÃO reprova. NÃO VERIFICADO VERBATIM: todas as páginas do help center da Apex (e o Zendesk support.apextraderfunding.com) retornaram HTTP 403 (Cloudflare) ao WebFetch/curl em 2026-11-12. Valores e 'quotes' abaixo vêm do índice do buscador sobre páginas oficiais da Apex, não de leitura direta — reconferir manualmente no navegador antes de usar."
+  },
+  "maxLoss": {
+   "percent": null,
+   "amounts": {
+    "25K": 1000,
+    "50K": 2000,
+    "100K": 3000,
+    "150K": 4000
+   },
+   "type": "EOD trailing (recalculado 4:59:59 PM ET; para de subir no saldo da meta em Rithmic/Wealthcharts; segue indefinidamente no Tradovate — via buscador)",
+   "quote": null,
+   "url": "https://apextraderfunding.com/help-center/eod-trailing-drawdown-accounts/eod-evaluations/",
+   "note": "NÃO VERIFICADO VERBATIM: todas as páginas do help center da Apex (e o Zendesk support.apextraderfunding.com) retornaram HTTP 403 (Cloudflare) ao WebFetch/curl em 2026-11-12. Valores e 'quotes' abaixo vêm do índice do buscador sobre páginas oficiais da Apex, não de leitura direta — reconferir manualmente no navegador antes de usar."
+  },
+  "minTradingDays": {
+   "days": null,
+   "perDayRequirement": null,
+   "quote": null,
+   "url": "https://apextraderfunding.com/help-center/eod-trailing-drawdown-accounts/eod-evaluations/",
+   "note": "Via buscador: sem mínimo de dias na avaliação; 30 dias corridos de acesso. PA: 5 dias qualificados com lucro mínimo diário ($100 no 25K, $250 no 50K; demais tamanhos não obtidos). NÃO VERIFICADO VERBATIM: todas as páginas do help center da Apex (e o Zendesk support.apextraderfunding.com) retornaram HTTP 403 (Cloudflare) ao WebFetch/curl em 2026-11-12. Valores e 'quotes' abaixo vêm do índice do buscador sobre páginas oficiais da Apex, não de leitura direta — reconferir manualmente no navegador antes de usar."
+  },
+  "consistency": [
+   {
+    "appliesTo": "evaluation",
+    "kind": "none",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": null,
+    "effect": null,
+    "condition": null,
+    "precise": false,
+    "quote": null,
+    "url": "https://apextraderfunding.com/help-center/eod-trailing-drawdown-accounts/eod-evaluations/",
+    "note": "Via buscador: tabela da avaliação EOD lista consistência 'Not Applied'. NÃO VERIFICADO VERBATIM: todas as páginas do help center da Apex (e o Zendesk support.apextraderfunding.com) retornaram HTTP 403 (Cloudflare) ao WebFetch/curl em 2026-11-12. Valores e 'quotes' abaixo vêm do índice do buscador sobre páginas oficiais da Apex, não de leitura direta — reconferir manualmente no navegador antes de usar."
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "best_day_vs_total_profit",
+    "percent": 50,
+    "amount": null,
+    "days": null,
+    "measuredOn": "unknown",
+    "effect": "blocks_payout",
+    "condition": "Performance Account (PA), apurado desde o último payout aprovado",
+    "precise": false,
+    "quote": "No single profitable trading day may account for 50% or more of total profit earned since your last approved payout.",
+    "url": "https://apextraderfunding.com/help-center/eod-trailing-drawdown-accounts/eod-payouts/",
+    "note": "Texto obtido via buscador (página 403). Exemplo oficial citado: dias de perda reduzem o lucro total (dia +$1.000 e dia −$200 → 125%). Artigos 'legacy'/compliance ainda citam 30% — conflito interno da Apex."
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Safety Net = drawdown + $100; só lucro acima é sacável; saque mínimo $500 (conflito: artigo de compliance diz que vale só até o 3º payout)",
+    "quote": null,
+    "url": "https://apextraderfunding.com/help-center/eod-trailing-drawdown-accounts/eod-performance-accounts-pa/"
+   }
+  ],
+  "differencesVsCatalog": [
+   "Números da avaliação (meta, DLL, drawdown, 30 dias, sem mínimo de dias) aparentam conferir, mas NÃO foi possível ler a página oficial (403).",
+   "Catálogo diz 'PA usa critérios próprios de payout' — índice oficial indica consistência de 50% (dia lucrativo < 50% do lucro desde o último payout), 5 dias qualificados com lucro mínimo, Safety Net e saque mínimo de $500.",
+   "Catálogo não registra que o EOD drawdown para de subir no nível da meta em Rithmic/Wealthcharts mas não no Tradovate (diferença por plataforma)."
+  ],
+  "notFound": [
+   "Texto verbatim de todas as regras (403)",
+   "Lucro mínimo diário do PA para 100K/150K",
+   "Duração do Safety Net (vitalícia vs até 3º payout — fontes oficiais conflitam)",
+   "PDF oficial"
+  ],
+  "firmSlug": "apex-trader-funding",
+  "programSlug": "apex-eod-evaluation-2026",
+  "programName": "EOD Trailing Drawdown Evaluation",
+  "embeddability": "Bloqueado por Cloudflare (403) com X-Frame-Options: SAMEORIGIN — não embutível."
+ },
+ {
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "Intraday Trailing Drawdown Evaluations (403)",
+    "url": "https://apextraderfunding.com/help-center/evaluation-accounts-ea/intraday-trailing-drawdown-evaluations/",
+    "kind": "help_center"
+   },
+   {
+    "label": "Intraday Trailing Drawdown Payouts (403)",
+    "url": "https://apextraderfunding.com/help-center/intraday-trailing-drawdown-accounts/intraday-trailing-drawdown-payouts/",
+    "kind": "help_center"
+   },
+   {
+    "label": "Intraday PA (403)",
+    "url": "https://apextraderfunding.com/help-center/intraday-trailing-drawdown-accounts/intraday-trailing-drawdown-performance-accounts-pa/",
+    "kind": "help_center"
+   },
+   {
+    "label": "Prohibited Activities (lido)",
+    "url": "https://apextraderfunding.com/help-center/getting-started/prohibited-activities/",
+    "kind": "help_center"
+   }
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "Evaluation",
+     "percent": 6,
+     "amounts": {
+      "25K": 1500,
+      "50K": 3000,
+      "100K": 6000,
+      "150K": 9000
+     }
+    }
+   ],
+   "quote": null,
+   "url": "https://apextraderfunding.com/help-center/evaluation-accounts-ea/intraday-trailing-drawdown-evaluations/",
+   "note": "NÃO VERIFICADO VERBATIM: todas as páginas do help center da Apex (e o Zendesk support.apextraderfunding.com) retornaram HTTP 403 (Cloudflare) ao WebFetch/curl em 2026-11-12. Valores e 'quotes' abaixo vêm do índice do buscador sobre páginas oficiais da Apex, não de leitura direta — reconferir manualmente no navegador antes de usar."
+  },
+  "dailyLoss": {
+   "percent": null,
+   "measuredOn": null,
+   "reset": null,
+   "quote": null,
+   "url": "https://apextraderfunding.com/help-center/evaluation-accounts-ea/intraday-trailing-drawdown-evaluations/",
+   "note": "Via buscador: produto Intraday não tem daily loss limit. NÃO VERIFICADO VERBATIM: todas as páginas do help center da Apex (e o Zendesk support.apextraderfunding.com) retornaram HTTP 403 (Cloudflare) ao WebFetch/curl em 2026-11-12. Valores e 'quotes' abaixo vêm do índice do buscador sobre páginas oficiais da Apex, não de leitura direta — reconferir manualmente no navegador antes de usar."
+  },
+  "maxLoss": {
+   "percent": null,
+   "amounts": {
+    "25K": 1000,
+    "50K": 2000,
+    "100K": 3000,
+    "150K": 4000
+   },
+   "type": "intraday trailing; no PA para de subir em saldo inicial + $100 (via buscador)",
+   "quote": null,
+   "url": "https://apextraderfunding.com/help-center/evaluation-accounts-ea/intraday-trailing-drawdown-evaluations/",
+   "note": "NÃO VERIFICADO VERBATIM: todas as páginas do help center da Apex (e o Zendesk support.apextraderfunding.com) retornaram HTTP 403 (Cloudflare) ao WebFetch/curl em 2026-11-12. Valores e 'quotes' abaixo vêm do índice do buscador sobre páginas oficiais da Apex, não de leitura direta — reconferir manualmente no navegador antes de usar."
+  },
+  "minTradingDays": {
+   "days": null,
+   "perDayRequirement": null,
+   "quote": null,
+   "url": "https://apextraderfunding.com/help-center/evaluation-accounts-ea/intraday-trailing-drawdown-evaluations/",
+   "note": "Via buscador: avaliação sem mínimo de dias. PA: 5 dias qualificados não consecutivos com lucro mínimo diário ($100 no 25K, $200 no 50K; demais não obtidos). NÃO VERIFICADO VERBATIM: todas as páginas do help center da Apex (e o Zendesk support.apextraderfunding.com) retornaram HTTP 403 (Cloudflare) ao WebFetch/curl em 2026-11-12. Valores e 'quotes' abaixo vêm do índice do buscador sobre páginas oficiais da Apex, não de leitura direta — reconferir manualmente no navegador antes de usar."
+  },
+  "consistency": [
+   {
+    "appliesTo": "evaluation",
+    "kind": "none",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": null,
+    "effect": null,
+    "condition": null,
+    "precise": false,
+    "quote": null,
+    "url": "https://apextraderfunding.com/help-center/evaluation-accounts-ea/intraday-trailing-drawdown-evaluations/",
+    "note": "NÃO VERIFICADO VERBATIM: todas as páginas do help center da Apex (e o Zendesk support.apextraderfunding.com) retornaram HTTP 403 (Cloudflare) ao WebFetch/curl em 2026-11-12. Valores e 'quotes' abaixo vêm do índice do buscador sobre páginas oficiais da Apex, não de leitura direta — reconferir manualmente no navegador antes de usar."
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "best_day_vs_total_profit",
+    "percent": 50,
+    "amount": null,
+    "days": null,
+    "measuredOn": "unknown",
+    "effect": "blocks_payout",
+    "condition": "Performance Account (PA), apurado desde o último payout aprovado",
+    "precise": false,
+    "quote": "No single profitable trading day may account for 50% or more of total profit earned since your last approved payout.",
+    "url": "https://apextraderfunding.com/help-center/intraday-trailing-drawdown-accounts/intraday-trailing-drawdown-payouts/",
+    "note": "Texto obtido via buscador (página 403). Exemplo oficial citado: dias de perda reduzem o lucro total (dia +$1.000 e dia −$200 → 125%). Artigos 'legacy'/compliance ainda citam 30% — conflito interno da Apex."
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "PA: saque mínimo $500, máximo de 6 payouts por PA, split 100%, Safety Net = drawdown + $100 (via buscador)",
+    "quote": null,
+    "url": "https://apextraderfunding.com/help-center/intraday-trailing-drawdown-accounts/intraday-trailing-drawdown-payouts/"
+   }
+  ],
+  "differencesVsCatalog": [
+   "Catálogo diz 'consistência inferior a 50%' — índice oficial confirma 50% medido sobre lucro desde o último payout aprovado (não verificado verbatim).",
+   "Catálogo não registra 5 dias qualificados com lucro mínimo diário, máximo de 6 payouts, saque mínimo $500, split 100%."
+  ],
+  "notFound": [
+   "Texto verbatim (403)",
+   "Lucro mínimo diário do PA para 100K/150K",
+   "PDF oficial"
+  ],
+  "firmSlug": "apex-trader-funding",
+  "programSlug": "apex-intraday-evaluation-2026",
+  "programName": "Intraday Trailing Drawdown Evaluation",
+  "embeddability": "Bloqueado por Cloudflare (403) com X-Frame-Options: SAMEORIGIN — não embutível."
+ },
+ {
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "Instant Funding (help center)",
+    "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470345-instant-funding",
+    "kind": "help_center"
+   },
+   {
+    "label": "Home RZR Funded (redirect 301 de htrader.hmarkets.com)",
+    "url": "https://rzrfunded.com/pt/",
+    "kind": "page"
+   },
+   {
+    "label": "Termos e Condições (HTML)",
+    "url": "https://rzrfunded.com/pt/terms-conditions/",
+    "kind": "terms"
+   }
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [],
+   "quote": "Profit Target - None",
+   "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470345-instant-funding"
+  },
+  "dailyLoss": {
+   "percent": 6,
+   "measuredOn": "higher of balance or equity at 00:00 server time",
+   "reset": "00:00 server time (fuso do servidor não informado no artigo)",
+   "quote": "At 00:00 Server time, your daily loss limit is calculated for the next day based on the higher of your balance or equity.",
+   "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470345-instant-funding"
+  },
+  "maxLoss": {
+   "percent": 6,
+   "type": "trailing on balance, locks at starting balance",
+   "quote": "Once the trailing maximum loss reaches your starting balance, it will lock and will no longer move higher.",
+   "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470345-instant-funding"
+  },
+  "minTradingDays": {
+   "days": null,
+   "perDayRequirement": null,
+   "quote": "There is no minimum required days in order to trade on Instant Funding.",
+   "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470345-instant-funding"
+  },
+  "consistency": [
+   {
+    "appliesTo": "funded",
+    "kind": "none",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": null,
+    "effect": null,
+    "condition": null,
+    "precise": false,
+    "quote": "Consistência | Não",
+    "url": "https://rzrfunded.com/pt/",
+    "note": "Card da home RZR (Instant Funding) mostra 'Consistência Não'; artigo do help center não menciona consistência."
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Funded: perda flutuante combinada máx. 3% do saldo inicial (hard breach)",
+    "quote": "must not exceed 3% of your starting balance at any time.",
+    "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470345-instant-funding"
+   },
+   {
+    "text": "Funded: proibido abrir/fechar 3 min antes/depois de notícias red folder (Forex Factory)",
+    "quote": "you cannot open or close trades 3 minutes before and after red folder news events as per Forex Factory.",
+    "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470345-instant-funding"
+   },
+   {
+    "text": "Inatividade 30 dias = hard breach",
+    "quote": "At least one trade should be placed every 30 days.",
+    "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470345-instant-funding"
+   },
+   {
+    "text": "Fim de semana proibido sem add-on: fechar até sexta 23:45 GMT+3",
+    "quote": "All trades must be closed on Friday by 23:45 GMT+3.",
+    "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470345-instant-funding"
+   },
+   {
+    "text": "EAs/robôs proibidos no Instant",
+    "quote": "We do not allow EA & Robots for Instant funding programs.",
+    "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470345-instant-funding"
+   },
+   {
+    "text": "No 1º saque o max loss trava no saldo inicial",
+    "quote": "When placing your first withdrawal, your maximum total loss will lock in at your starting balance",
+    "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470345-instant-funding"
+   }
+  ],
+  "differencesVsCatalog": [
+   "Hantec Trader (htrader.hmarkets.com) agora redireciona (301) para RZR Funded (rzrfunded.com); help center migrou para help.rzrfunded.com — URLs do catálogo (help.htrader... e programs/...) estão quebradas/redirecionadas.",
+   "Consistência: catálogo diz 'verificar no site'; oficial agora indica 'Consistência: Não'.",
+   "Catálogo não registra: risco aberto máx. 3% (hard breach), notícias 3 min, EAs proibidos, add-ons (+1% max loss, fim de semana/notícias, 95%, payout semanal), inatividade 30 dias.",
+   "Demais números conferem (6%/6% trailing com trava, sem mínimo de dias, fechar sexta 23:45 GMT+3)."
+  ],
+  "notFound": [
+   "Fuso horário do 'server time' no artigo",
+   "PDF oficial"
+  ],
+  "firmSlug": "hantec-trader",
+  "programSlug": "hantec-instant-funding-2026",
+  "programName": "Instant Funding",
+  "embeddability": "help.rzrfunded.com: resposta sem X-Frame-Options (provável embutível)."
+ },
+ {
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "Express (1-Step) (help center)",
+    "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470340-express-1-step-",
+    "kind": "help_center"
+   },
+   {
+    "label": "Home RZR Funded (redirect 301 de htrader.hmarkets.com)",
+    "url": "https://rzrfunded.com/pt/",
+    "kind": "page"
+   },
+   {
+    "label": "Termos e Condições (HTML)",
+    "url": "https://rzrfunded.com/pt/terms-conditions/",
+    "kind": "terms"
+   }
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "Express Challenge",
+     "percent": 10
+    }
+   ],
+   "quote": "Your balance must have a 10% increase over starting balance with no open positions.",
+   "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470340-express-1-step-"
+  },
+  "dailyLoss": {
+   "percent": 5,
+   "measuredOn": "higher of balance or equity at 00:00 server time",
+   "reset": "00:00 server time",
+   "quote": "At 00:00 Server time, your daily loss limit is calculated for the next day based on the higher of your balance or equity.",
+   "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470340-express-1-step-"
+  },
+  "maxLoss": {
+   "percent": 6,
+   "type": "trailing on closed balance, locks at starting balance after +6%",
+   "quote": "This is based on your starting balance and will trail your closed balance.",
+   "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470340-express-1-step-"
+  },
+  "minTradingDays": {
+   "days": null,
+   "perDayRequirement": null,
+   "quote": "There is no minimum required days in order to pass the Express Challenge.",
+   "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470340-express-1-step-"
+  },
+  "consistency": [
+   {
+    "appliesTo": "both",
+    "kind": "none",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": null,
+    "effect": null,
+    "condition": null,
+    "precise": false,
+    "quote": "Consistência | Não",
+    "url": "https://rzrfunded.com/pt/",
+    "note": "Card do Express na home RZR mostra 'Consistência Não'; artigo não menciona consistência."
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Funded: perda flutuante combinada máx. 3% do saldo inicial (hard breach)",
+    "quote": "must not exceed 3% of your starting balance at any time.",
+    "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470340-express-1-step-"
+   },
+   {
+    "text": "Funded: proibido abrir/fechar 3 min antes/depois de notícias red folder (Forex Factory)",
+    "quote": "you cannot open or close trades 3 minutes before and after red folder news events as per Forex Factory.",
+    "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470340-express-1-step-"
+   },
+   {
+    "text": "Inatividade 30 dias = hard breach",
+    "quote": "At least one trade should be placed every 30 days.",
+    "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470340-express-1-step-"
+   },
+   {
+    "text": "Fim de semana permitido (Challenge e Funded)",
+    "quote": "Holding over the weekend is permitted on both Challenge and RZR Funded Trader accounts.",
+    "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470340-express-1-step-"
+   }
+  ],
+  "differencesVsCatalog": [
+   "Hantec Trader (htrader.hmarkets.com) agora redireciona (301) para RZR Funded (rzrfunded.com); help center migrou para help.rzrfunded.com — URLs do catálogo (help.htrader... e programs/...) estão quebradas/redirecionadas.",
+   "Regras numéricas conferem.",
+   "Catálogo não registra regras da fase funded: risco aberto máx. 3%, notícias 3 min, add-ons (meta 8%, max loss 8%, payout sob demanda)."
+  ],
+  "notFound": [
+   "Fuso do 'server time'",
+   "PDF oficial"
+  ],
+  "firmSlug": "hantec-trader",
+  "programSlug": "hantec-express-2026",
+  "programName": "Express Challenge",
+  "embeddability": "help.rzrfunded.com: resposta sem X-Frame-Options (provável embutível)."
+ },
+ {
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "Enhanced (2-Step) (help center)",
+    "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470342-enhanced-2-step-",
+    "kind": "help_center"
+   },
+   {
+    "label": "Home RZR Funded (redirect 301 de htrader.hmarkets.com)",
+    "url": "https://rzrfunded.com/pt/",
+    "kind": "page"
+   },
+   {
+    "label": "Termos e Condições (HTML)",
+    "url": "https://rzrfunded.com/pt/terms-conditions/",
+    "kind": "terms"
+   }
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "Stage 1",
+     "percent": 10
+    },
+    {
+     "phase": "Stage 2",
+     "percent": 5
+    }
+   ],
+   "quote": "Your balance must have a 10% increase over starting balance with no open positions to pass Stage 1, to pass Stage 2 you need to achieve 5%.",
+   "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470342-enhanced-2-step-"
+  },
+  "dailyLoss": {
+   "percent": 5,
+   "measuredOn": "higher of balance or equity at 00:00 server time",
+   "reset": "00:00 server time",
+   "quote": "At 00:00 Server time, your daily loss limit is calculated for the next day based on the higher of your balance or equity.",
+   "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470342-enhanced-2-step-"
+  },
+  "maxLoss": {
+   "percent": 10,
+   "type": "static",
+   "quote": "This is based on your starting balance and will remain static.",
+   "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470342-enhanced-2-step-"
+  },
+  "minTradingDays": {
+   "days": 3,
+   "perDayRequirement": "3 dias lucrativos de 0,5% por etapa e por ciclo de saque no funded",
+   "quote": "Stage 1: Minimum of 3 profitable days (0.5% per day) required to pass.",
+   "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470342-enhanced-2-step-"
+  },
+  "consistency": [
+   {
+    "appliesTo": "both",
+    "kind": "profitable_days",
+    "percent": 0.5,
+    "amount": null,
+    "days": 3,
+    "measuredOn": "unknown",
+    "effect": "blocks_pass",
+    "condition": null,
+    "precise": false,
+    "quote": "A minimum of 3 profitable days is required at each stage to progress or become eligible for a payout.",
+    "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470342-enhanced-2-step-",
+    "note": "Também no funded: 'Minimum of 3 profitable days (0.5% per day) is required during each withdrawal cycle to be eligible for a payout' (efeito blocks_payout). Base do 0,5% (saldo inicial? saldo do dia?) não definida. Removível com add-on 'No Minimum Profitable Days'."
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Funded: perda flutuante combinada máx. 3% do saldo inicial (hard breach)",
+    "quote": "must not exceed 3% of your starting balance at any time.",
+    "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470342-enhanced-2-step-"
+   },
+   {
+    "text": "Funded: proibido abrir/fechar 3 min antes/depois de notícias red folder (Forex Factory)",
+    "quote": "you cannot open or close trades 3 minutes before and after red folder news events as per Forex Factory.",
+    "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470342-enhanced-2-step-"
+   },
+   {
+    "text": "Inatividade 30 dias = hard breach",
+    "quote": "At least one trade should be placed every 30 days.",
+    "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470342-enhanced-2-step-"
+   }
+  ],
+  "differencesVsCatalog": [
+   "Hantec Trader (htrader.hmarkets.com) agora redireciona (301) para RZR Funded (rzrfunded.com); help center migrou para help.rzrfunded.com — URLs do catálogo (help.htrader... e programs/...) estão quebradas/redirecionadas.",
+   "Catálogo não registra que os 3 dias lucrativos de 0,5% também valem para CADA ciclo de saque no funded, nem o add-on que remove a exigência.",
+   "Demais números conferem."
+  ],
+  "notFound": [
+   "Base do 0,5% por dia",
+   "Fuso do 'server time'",
+   "PDF oficial"
+  ],
+  "firmSlug": "hantec-trader",
+  "programSlug": "hantec-enhanced-2026",
+  "programName": "Enhanced Challenge",
+  "embeddability": "help.rzrfunded.com: resposta sem X-Frame-Options (provável embutível)."
+ },
+ {
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "EnhancedX (2-Step Consistency) (help center)",
+    "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470343-enhancedx-2-step-consistency-",
+    "kind": "help_center"
+   },
+   {
+    "label": "Home RZR Funded (redirect 301 de htrader.hmarkets.com)",
+    "url": "https://rzrfunded.com/pt/",
+    "kind": "page"
+   },
+   {
+    "label": "Termos e Condições (HTML)",
+    "url": "https://rzrfunded.com/pt/terms-conditions/",
+    "kind": "terms"
+   }
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "Stage 1",
+     "percent": 8
+    },
+    {
+     "phase": "Stage 2",
+     "percent": 4
+    }
+   ],
+   "quote": "Your balance must have a 8% increase over starting balance with no open positions to pass Stage 1, to pass Stage 2 you need to achieve 4%.",
+   "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470343-enhancedx-2-step-consistency-"
+  },
+  "dailyLoss": {
+   "percent": 4,
+   "measuredOn": "higher of balance or equity at 00:00 server time",
+   "reset": "00:00 server time",
+   "quote": "At 00:00 Server time, your daily loss limit is calculated for the next day based on the higher of your balance or equity.",
+   "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470343-enhancedx-2-step-consistency-"
+  },
+  "maxLoss": {
+   "percent": 8,
+   "type": "static",
+   "quote": "This is based on your starting balance and will remain static for the lifetime of the account.",
+   "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470343-enhancedx-2-step-consistency-"
+  },
+  "minTradingDays": {
+   "days": null,
+   "perDayRequirement": null,
+   "quote": "There is no minimum required days in order to pass the EnhancedX Challenge but consistency rules must be met.",
+   "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470343-enhancedx-2-step-consistency-"
+  },
+  "consistency": [
+   {
+    "appliesTo": "both",
+    "kind": "best_day_vs_total_profit",
+    "percent": 35,
+    "amount": null,
+    "days": null,
+    "measuredOn": "equity at end of day (00:00 server time)",
+    "effect": "soft",
+    "condition": "Na fase Challenge pode ser removida com add-on 'Remove Consistency Stage 1 & 2' (o add-on é 'CHALLENGE PHASE ONLY', o que implica que segue valendo no funded).",
+    "precise": false,
+    "quote": "The consistency requirement is 35% and is based on end of day (00:00 server time) equity.",
+    "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470343-enhancedx-2-step-consistency-",
+    "note": "Fórmula: '(Best Trading Day's Profit / Total Profit) *100'. Exceder: 'you will need to continue trading without increasing your best trading day until consistency is achieved.' 'Total Profit' não é definido (equity vs balance; dias negativos)."
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Funded: perda flutuante combinada máx. 3% do saldo inicial (hard breach)",
+    "quote": "must not exceed 3% of your starting balance at any time.",
+    "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470343-enhancedx-2-step-consistency-"
+   },
+   {
+    "text": "Funded: proibido abrir/fechar 3 min antes/depois de notícias red folder (Forex Factory)",
+    "quote": "you cannot open or close trades 3 minutes before and after red folder news events as per Forex Factory.",
+    "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470343-enhancedx-2-step-consistency-"
+   },
+   {
+    "text": "Inatividade 30 dias = hard breach",
+    "quote": "At least one trade should be placed every 30 days.",
+    "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470343-enhancedx-2-step-consistency-"
+   },
+   {
+    "text": "Saque mínimo 2% do saldo inicial; saque deve ser do lucro total",
+    "quote": "The minimum withdrawal amount is 2% of the starting balance.",
+    "url": "https://help.rzrfunded.com/en/support/solutions/articles/158000470343-enhancedx-2-step-consistency-"
+   }
+  ],
+  "differencesVsCatalog": [
+   "Hantec Trader (htrader.hmarkets.com) agora redireciona (301) para RZR Funded (rzrfunded.com); help center migrou para help.rzrfunded.com — URLs do catálogo (help.htrader... e programs/...) estão quebradas/redirecionadas.",
+   "Consistência 35% EOD equity confere; catálogo não registra o add-on que remove a regra só no Challenge nem a aplicação no funded.",
+   "Catálogo não registra saque mínimo de 2% e saque obrigatório do lucro total."
+  ],
+  "notFound": [
+   "Definição de 'Total Profit'",
+   "Fuso do 'server time'",
+   "PDF oficial"
+  ],
+  "firmSlug": "hantec-trader",
+  "programSlug": "hantec-enhancedx-2026",
+  "programName": "EnhancedX Challenge",
+  "embeddability": "help.rzrfunded.com: resposta sem X-Frame-Options (provável embutível)."
+ },
+ {
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "Consistency at Topstep (Sep 17, 2026)",
+    "url": "https://help.topstep.com/en/articles/8284208-consistency-at-topstep",
+    "kind": "help_center"
+   },
+   {
+    "label": "Trading Combine Parameters (Sep 24, 2026)",
+    "url": "https://help.topstep.com/en/articles/8284197-trading-combine-parameters",
+    "kind": "help_center"
+   },
+   {
+    "label": "What is the Maximum Loss Limit? (Sep 18, 2026)",
+    "url": "https://help.topstep.com/en/articles/8284204-what-is-the-maximum-loss-limit",
+    "kind": "help_center"
+   },
+   {
+    "label": "Daily Loss Limit in the TC and XFA (Jun 30, 2026)",
+    "url": "https://help.topstep.com/en/articles/10490293-daily-loss-limit-in-the-trading-combine-and-express-funded-account",
+    "kind": "help_center"
+   },
+   {
+    "label": "Topstep Program Overview (Sep 10, 2026)",
+    "url": "https://help.topstep.com/en/articles/8284099-topstep-program-overview",
+    "kind": "help_center"
+   },
+   {
+    "label": "Topstep Payout Policy",
+    "url": "https://help.topstep.com/en/articles/8284233-topstep-payout-policy",
+    "kind": "help_center"
+   }
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "Trading Combine",
+     "percent": 6,
+     "amounts": {
+      "50K": 3000,
+      "100K": 6000,
+      "150K": 9000
+     }
+    }
+   ],
+   "quote": "Reach and maintain your Profit Target",
+   "url": "https://help.topstep.com/en/articles/8284197-trading-combine-parameters",
+   "note": "Valores em US$ da tabela do artigo Consistency at Topstep."
+  },
+  "dailyLoss": {
+   "percent": null,
+   "amounts": {
+    "50K": 1000,
+    "100K": 2000,
+    "150K": 3000
+   },
+   "measuredOn": "Net P&L (realizado + não realizado) no dia de trading",
+   "reset": "5:00 PM CT (dia de trading 5 PM CT – 3:10 PM CT)",
+   "quote": "The Daily Loss Limit (DLL) is optional in the Trading Combine® and Express Funded Account® (XFA).",
+   "url": "https://help.topstep.com/en/articles/10490293-daily-loss-limit-in-the-trading-combine-and-express-funded-account",
+   "note": "'Triggering it is not a rule violation — it's a forced break for the rest of that session.' Se escolhido no checkout, é fixo e segue para a XFA."
+  },
+  "maxLoss": {
+   "percent": null,
+   "amounts": {
+    "50K": 2000,
+    "100K": 3000,
+    "150K": 4500
+   },
+   "type": "EOD trailing, locks at starting balance",
+   "quote": "It rises as your end-of-day balance grows, but never moves down. Once it reaches your starting balance, it locks permanently.",
+   "url": "https://help.topstep.com/en/articles/8284204-what-is-the-maximum-loss-limit"
+  },
+  "minTradingDays": {
+   "days": 2,
+   "perDayRequirement": null,
+   "quote": "You can pass in as few as 2 days, as long as no single day exceeds 55% of your total profit and your Profit Target is met.",
+   "url": "https://help.topstep.com/en/articles/8284208-consistency-at-topstep",
+   "note": "Mínimo prático decorrente da consistência; não há regra explícita de dias mínimos."
+  },
+  "consistency": [
+   {
+    "appliesTo": "evaluation",
+    "kind": "best_day_vs_profit_target",
+    "percent": 55,
+    "amount": null,
+    "days": null,
+    "measuredOn": "P&L do dia de trading; best day trava às 3:10 PM CT",
+    "effect": "raises_target",
+    "condition": null,
+    "precise": false,
+    "quote": "Your single best day of profit must stay at or below 55% of your Profit Target. If it exceeds that, your Profit Target increases.",
+    "url": "https://help.topstep.com/en/articles/8284208-consistency-at-topstep",
+    "note": "Imprecisão oficial: mesma página dá a fórmula 'Best Day Profit ÷ Total Profit = Best Day %' e o Program Overview diz 'best trading day must stay below 55% of total profits'. Nova meta = Best Day ÷ 0,55. 'Losses do not reset your best day.' Sem buffer: '55% is a hard line.'"
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "best_day_vs_total_profit",
+    "percent": 40,
+    "amount": null,
+    "days": 3,
+    "measuredOn": "net P&L (largest single-day net profit / total net profit)",
+    "effect": "blocks_payout",
+    "condition": "Somente na XFA se o trader escolher o caminho de payout 'Consistency' na ativação (o caminho 'Standard' exige 5 winning days de $150+).",
+    "precise": true,
+    "quote": "Your Consistency % must be 40% or below to be Payout eligible.",
+    "url": "https://help.topstep.com/en/articles/8284208-consistency-at-topstep",
+    "note": "'Formula: Largest Single-Day Net Profit ÷ Total Net Profit = Consistency %'; mínimo de 3 dias com ao menos 1 trade; reinicia no dia seguinte a cada pedido de payout."
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Violação do MLL na Combine: liquida e torna inelegível até Reset; monitorado em tempo real com P&L não realizado",
+    "quote": "If your balance hits it at any point during the trading day, including on unrealized P&L, your account is liquidated immediately.",
+    "url": "https://help.topstep.com/en/articles/8284204-what-is-the-maximum-loss-limit"
+   },
+   {
+    "text": "Dia de trading 5:00 PM CT → 3:10 PM CT",
+    "quote": "The trading day runs from 5:00 PM CT through 3:10 PM CT the next calendar day.",
+    "url": "https://help.topstep.com/en/articles/8284197-trading-combine-parameters"
+   }
+  ],
+  "differencesVsCatalog": [
+   "Consistency Target mudou de 50% para 55% do Profit Target (sem buffer; 'hard line').",
+   "Definição oficial ambígua: '55% of your Profit Target' vs fórmula 'Best Day Profit ÷ Total Profit' vs 'below 55% of total profits' (Program Overview).",
+   "DLL: catálogo diz 'opcional; atingir pausa a sessão' — confere; valores oficiais $1.000/$2.000/$3.000; se definido no checkout é fixo e vale também na XFA.",
+   "Catálogo não registra consistência da XFA (caminho Consistency: 40%, 3 dias) nem o caminho Standard (5 winning days de $150).",
+   "Help center usa X-Frame-Options: DENY (não embutível)."
+  ],
+  "notFound": [
+   "PDF oficial das regras (Terms of Use só em HTML; único PDF encontrado é disclosure da Topstep Brokerage, irrelevante)"
+  ],
+  "firmSlug": "topstep",
+  "programSlug": "topstep-trading-combine-2026",
+  "programName": "Trading Combine",
+  "embeddability": "help.topstep.com: X-Frame-Options: DENY e CSP frame-ancestors restrito — NÃO embutível."
+ }
+]

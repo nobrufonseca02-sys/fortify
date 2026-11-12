@@ -27,7 +27,7 @@ const sharedSources: OfficialRuleSource[] = [
 ];
 
 const platforms = ['MT5', 'cTrader', 'DXtrade', 'TradeLocker'];
-const accountSizes = ['$5K', '$10K', '$25K', '$50K', '$100K', '$200K', '$300K'];
+const accountSizes = ['$5K', '$10K', '$25K', '$50K', '$100K', '$200K'];
 const standardLots = '2,5 / 5 / 10 / 20 / 40 / 80 / 120 lotes';
 const swingLots = '1,25 / 2,5 / 5 / 10 / 20 / 40 / 60 lotes';
 const prohibitedPractices = [
@@ -100,7 +100,7 @@ function proProgram(variant: '10' | '8' | '6'): PropFirmRuleProgram {
     id: `alpha-capital-pro-${variant}-2026`,
     programName: `Alpha Pro ${variant}%`,
     programType: '2-Step',
-    accountSizeRows: [{ label: '$5K a $300K', profitTarget: target, dailyLoss: daily, maxLoss: max, maxContracts: standardLots }],
+    accountSizeRows: [{ label: '$5K a $200K', profitTarget: target, dailyLoss: daily, maxLoss: max, maxContracts: standardLots }],
     profitTarget: variant === '10' ? '10% na Fase 1; 5% na Fase 2' : variant === '8' ? '8% na Fase 1; 5% na Fase 2' : '6% em cada fase',
     dailyLoss: isSix ? '3% sobre o maior entre balance/equity no fim do dia' : `${daily} balance-based`,
     maxLoss: max,
@@ -135,7 +135,7 @@ export const alphaCapitalGroupPrograms: PropFirmRuleProgram[] = [
     id: 'alpha-capital-swing-2026',
     programName: 'Alpha Swing',
     programType: '2-Step',
-    accountSizeRows: [{ label: '$5K a $300K', profitTarget: '10% / 5%', dailyLoss: '5%', maxLoss: '10% estático', maxContracts: swingLots }],
+    accountSizeRows: [{ label: '$5K a $200K', profitTarget: '10% / 5%', dailyLoss: '5%', maxLoss: '10% estático', maxContracts: swingLots }],
     profitTarget: '10% na Fase 1; 5% na Fase 2',
     dailyLoss: '5% balance-based',
     maxLoss: '10% estático',
@@ -164,7 +164,7 @@ export const alphaCapitalGroupPrograms: PropFirmRuleProgram[] = [
     id: 'alpha-capital-one-2026',
     programName: 'Alpha One',
     programType: '1-Step',
-    accountSizeRows: [{ label: '$5K a $300K', profitTarget: '10%', dailyLoss: '4%', maxLoss: '6% trailing', maxContracts: standardLots }],
+    accountSizeRows: [{ label: '$5K a $200K', profitTarget: '10%', dailyLoss: '4%', maxLoss: '6% trailing', maxContracts: standardLots }],
     profitTarget: '10%',
     dailyLoss: '4% sobre o maior entre balance/equity no fim do dia',
     maxLoss: '6% trailing',
@@ -193,7 +193,7 @@ export const alphaCapitalGroupPrograms: PropFirmRuleProgram[] = [
     id: 'alpha-capital-three-2026',
     programName: 'Alpha Three',
     programType: '3-Step',
-    accountSizeRows: [{ label: '$5K a $300K', profitTarget: '8% / 4% / 4%', dailyLoss: '4%', maxLoss: '6% estático', maxContracts: standardLots }],
+    accountSizeRows: [{ label: '$5K a $200K', profitTarget: '8% / 4% / 4%', dailyLoss: '4%', maxLoss: '6% estático', maxContracts: standardLots }],
     profitTarget: '8% na Fase 1; 4% nas Fases 2 e 3',
     dailyLoss: '4% sobre o maior entre balance/equity no fim do dia',
     maxLoss: '6% estático',

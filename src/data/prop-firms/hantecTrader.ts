@@ -1,12 +1,12 @@
 import type { OfficialRuleSource, PropFirmRuleProgram } from '../propFirmRules';
 
 const reviewedAt = '2026-07-15';
-const instantUrl = 'https://htrader.hmarkets.com/programs/instant-funding/';
-const expressUrl = 'https://htrader.hmarkets.com/programs/express-challenge/';
-const enhancedUrl = 'https://htrader.hmarkets.com/programs/enhanced-challenge/';
-const enhancedXUrl = 'https://help.htrader.hmarkets.com/en/support/solutions/articles/158000445799-enhancedx-2-step-consistency-';
-const rulesUrl = 'https://help.htrader.hmarkets.com/en/support/solutions/folders/158001038630';
-const currentRulesUrl = 'https://htrader.hmarkets.com/programs/rules/';
+const instantUrl = 'https://help.rzrfunded.com/en/support/solutions/articles/158000470345-instant-funding';
+const expressUrl = 'https://help.rzrfunded.com/en/support/solutions/articles/158000470340-express-1-step-';
+const enhancedUrl = 'https://help.rzrfunded.com/en/support/solutions/articles/158000470342-enhanced-2-step-';
+const enhancedXUrl = 'https://help.rzrfunded.com/en/support/solutions/articles/158000470343-enhancedx-2-step-consistency-';
+const rulesUrl = 'https://rzrfunded.com/pt/terms-conditions/';
+const currentRulesUrl = 'https://rzrfunded.com/pt/';
 
 const standardSizes = ['$2K', '$5K', '$10K', '$25K', '$50K', '$100K', '$200K'];
 const enhancedSizes = ['$5K', '$10K', '$25K', '$50K', '$100K', '$200K'];

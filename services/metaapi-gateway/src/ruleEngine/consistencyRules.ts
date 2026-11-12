@@ -58,6 +58,7 @@ function effectNote(clause: ConsistencyClause) {
     clause.effect === 'soft' ? 'Não reprova, mas obriga a seguir operando.' : '',
     clause.effect === 'raises_target' ? 'Se passar, a meta sobe.' : '',
     clause.effect === 'caps_counted_profit' ? 'O excesso não conta para a meta.' : '',
+    clause.effect === 'locks_trading' ? 'Passou disso, a conta trava até amanhã.' : '',
     clause.condition ?? '',
     clause.estimated ? 'Estimativa: a mesa não detalha a fórmula.' : '',
   ];
@@ -140,7 +141,7 @@ function dailyProfitCap(clause: ConsistencyClause, data: ConsistencyData): Consi
     required: null,
     currentValue: round2(Math.max(0, todayPnl)),
     limitValue: round2(cap),
-    message: `Lucro do dia acima de ${money(cap)} não conta. ${effectNote(clause)}`.trim(),
+    message: `${clause.effect === 'locks_trading' ? `Lucro do dia até ${money(cap)}.` : `Lucro do dia acima de ${money(cap)} não conta.`} ${effectNote(clause)}`.trim(),
   };
 }
 

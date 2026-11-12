@@ -77,8 +77,9 @@ describe('prop firm rules dataset', () => {
 
   it('publishes every Sprint 3 firm with unique ids and official evidence', () => {
     expect(new Set(sprint3Programs.map((program) => program.firm))).toEqual(new Set(sprint3Firms));
-    expect(sprint3Programs).toHaveLength(26);
-    expect(propFirmRulePrograms).toHaveLength(52);
+    // 4 programas da E8 saíram de venda (conferência de 12/11/2026).
+    expect(sprint3Programs).toHaveLength(22);
+    expect(propFirmRulePrograms).toHaveLength(48);
     expect(new Set(propFirmRulePrograms.map((program) => program.id)).size).toBe(propFirmRulePrograms.length);
 
     for (const program of sprint3Programs) {
@@ -138,8 +139,8 @@ describe('prop firm rules dataset', () => {
     );
     const accountRules = activePrograms.flatMap((program) => program.accountLevelRules);
 
-    expect(activePrograms).toHaveLength(52);
-    expect(accountRules).toHaveLength(255);
+    expect(activePrograms).toHaveLength(48);
+    expect(accountRules).toHaveLength(239);
     expect(new Set(accountRules.map((account) => account.id)).size).toBe(accountRules.length);
 
     for (const program of activePrograms) {

@@ -32,6 +32,7 @@ const EFFECT: Record<ConsistencyClause['effect'], string> = {
   raises_target: 'se passar, a meta sobe',
   soft: 'não reprova, obriga a seguir operando',
   caps_counted_profit: 'o excesso não conta',
+  locks_trading: 'passou, a conta trava até amanhã',
 };
 
 export function describeConsistencyClause(clause: ConsistencyClause, base: number | null, currency: string) {
@@ -40,7 +41,7 @@ export function describeConsistencyClause(clause: ConsistencyClause, base: numbe
     best_day_vs_total_profit: `Maior dia até ${pct(clause.percent)} do lucro total`,
     best_day_vs_profit_target: `Maior dia até ${pct(clause.percent)} da meta`,
     largest_trade_vs_net_profit: `Maior trade até ${pct(clause.percent)} do lucro líquido`,
-    daily_profit_cap: `Lucro do dia conta até ${clause.amount ? money(clause.amount, currency) : `${pct(clause.percent)}${amount ? ` (${money(amount, currency)})` : ''}`}`,
+    daily_profit_cap: `${clause.effect === 'locks_trading' ? 'Lucro do dia até' : 'Lucro do dia conta até'} ${clause.amount ? money(clause.amount, currency) : `${pct(clause.percent)}${amount ? ` (${money(amount, currency)})` : ''}`}`,
     profitable_days: `${clause.days ?? 0} dias lucrativos${clause.minDayProfitPercent ? ` de ${pct(clause.minDayProfitPercent)} ou mais` : ''}`,
   }[clause.kind];
   return [main, EFFECT[clause.effect], clause.condition].filter(Boolean).join(' · ');

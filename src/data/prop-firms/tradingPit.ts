@@ -29,7 +29,7 @@ export const tradingPitPrograms: PropFirmRuleProgram[] = [
     dailyLoss: 'Daily Pause $1,000 / $2,000 / $3,000',
     maxLoss: '$2,000 / $3,000 / $4,500',
     drawdownType: 'EOD',
-    trailingDescription: 'Trails pelo saldo EOD até alcançar o saldo inicial; depois permanece fixo.',
+    trailingDescription: 'Segue o saldo EOD fechado e trava no saldo inicial ao alcançá-lo.',
     minTradingDays: 'Sem mínimo publicado para aprovação; duração da Challenge de 30 dias',
     consistencyRule: '40% conforme comparação oficial; validar a métrica exibida no dashboard',
     newsRule: 'Permitido no Prime Futures',

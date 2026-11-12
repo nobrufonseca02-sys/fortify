@@ -1,0 +1,1147 @@
+[
+ {
+  "firmSlug": "the-trading-pit",
+  "programSlug": "trading-pit-prime-futures-2026",
+  "programName": "Prime Futures Challenge",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {"label": "Futures product page (Prime table)", "url": "https://www.thetradingpit.com/futures", "kind": "page"},
+   {"label": "Trading Rules", "url": "https://www.thetradingpit.com/trading-rules", "kind": "page"},
+   {"label": "How does the 40% Consistency Rule work for your Futures Challenges? (help center, full Futures Prime rule set)", "url": "https://support.thetradingpit.com/what-is-the-40-consistency-rule-for-your-challenges-0", "kind": "help_center"},
+   {"label": "Prime Futures vs Classic Futures comparison (table)", "url": "https://support.thetradingpit.com/prime-futures-challenges-compared-classic-futures-challenges", "kind": "help_center"},
+   {"label": "Max Trailing Drawdown explainer (May 2026)", "url": "https://www.thetradingpit.com/blog/max-trailing-dd-may-2026", "kind": "page"},
+   {"label": "General Terms and Conditions", "url": "https://www.thetradingpit.com/general-terms-and-conditions", "kind": "terms"}
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [{"phase": "challenge", "percent": null, "amounts": {"50K": 3000, "100K": 6000, "150K": 9000}}],
+   "quote": "your Account Balance must reach the requested Profit Target, and you must be flat on positions.",
+   "url": "https://www.thetradingpit.com/trading-rules",
+   "note": "Dollar targets from the /futures table ($3,000 / $6,000 / $9,000). Target can be raised by the 40% consistency rule (see consistency)."
+  },
+  "dailyLoss": {
+   "percent": null,
+   "amounts": {"50K": 1000, "100K": 2000, "150K": 3000},
+   "measuredOn": "not stated as balance/equity; on breach system closes positions and pauses trading (soft pause, not account failure)",
+   "reset": "16:15 CT",
+   "appliesTo": "challenge only (removed from Futures Prime Earning accounts on 14 July 2026)",
+   "quote": "The Daily Pause is your maximum daily loss (see the table). ... The limit updates daily at 16:15 CT and is shown on your dashboard. ... Applies during the Challenge phase only. ... It was removed from Futures Prime Earning accounts on 14 July 2026.",
+   "url": "https://support.thetradingpit.com/what-is-the-40-consistency-rule-for-your-challenges-0"
+  },
+  "maxLoss": {
+   "percent": null,
+   "amounts": {"50K": 2000, "100K": 3000, "150K": 4500},
+   "type": "eod_trailing_locks_at_initial_balance (closed P&L)",
+   "quote": "Your Max Drawdown (see the table) trails your end-of-day balance ... based on closed P&L, not intraday peaks ... until it reaches your starting balance, then locks. If your balance falls to the drawdown level, the account is breached.",
+   "url": "https://support.thetradingpit.com/what-is-the-40-consistency-rule-for-your-challenges-0"
+  },
+  "minTradingDays": {
+   "days": 3,
+   "perDayRequirement": "at least one trade per unique trading day; holding overnight does not count as a new day",
+   "quote": "For the Challenge to register as passed you must place a trade on at least 3 unique trading days.",
+   "url": "https://support.thetradingpit.com/what-is-the-40-consistency-rule-for-your-challenges-0"
+  },
+  "consistency": [
+   {
+    "appliesTo": "evaluation",
+    "kind": "best_day_vs_profit_target",
+    "percent": 40,
+    "amount": null,
+    "days": null,
+    "measuredOn": "unknown (trading day not defined on the page; Daily Pause day boundary is 16:15 CT)",
+    "effect": "raises_target",
+    "condition": "Accounts created on/after 14 July 2026: new target = Highest Day / 0.40. Accounts created before 14 July 2026: amount over the 40% cap is added to the target. Never applies to Futures Earning accounts.",
+    "precise": false,
+    "quote": "Your highest trading day is capped at 40% of your Profit Target; going over simply raises the target. ... Applies to the Challenge only — never to a Futures Earning Account — and it never fails your account. ... the target is recalculated so your highest day equals 40% of it (Highest Day ÷ 0.40 = new target)",
+    "url": "https://support.thetradingpit.com/what-is-the-40-consistency-rule-for-your-challenges-0"
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "none",
+    "percent": null, "amount": null, "days": null, "measuredOn": null, "effect": null, "condition": null,
+    "precise": true,
+    "quote": "Applies to the Challenge only — never to a Futures Earning Account",
+    "url": "https://support.thetradingpit.com/what-is-the-40-consistency-rule-for-your-challenges-0"
+   }
+  ],
+  "otherBreachRules": [
+   {"text": "No overnight holding; positions open at 14:55 CT are force-closed (Trading Rules page still says 15:55 CT — conflict).", "quote": "Any position still open 5 minutes before the market close (14:55 CT) is force-closed by our Risk Team. ... Holding positions overnight is not allowed on Futures Prime.", "url": "https://support.thetradingpit.com/what-is-the-40-consistency-rule-for-your-challenges-0"},
+   {"text": "Challenge duration 30 days.", "quote": "reaching the Profit Target within the rules and the 30-day Challenge period", "url": "https://support.thetradingpit.com/prime-futures-challenges-compared-classic-futures-challenges"},
+   {"text": "Max 5 active Earning accounts.", "quote": "In the Earning Phase you can hold a maximum of 5 active Earning accounts;", "url": "https://support.thetradingpit.com/what-is-the-40-consistency-rule-for-your-challenges-0"}
+  ],
+  "differencesVsCatalog": [
+   "minTradingDays: catalog says 'sem mínimo publicado'; official help center now requires trades on at least 3 unique trading days in the Challenge.",
+   "consistency: catalog says '40% conforme comparação oficial; validar'. Official text now defines it: best day capped at 40% of PROFIT TARGET, soft (raises target, never fails), Challenge only, not on Earning; formula changed for accounts created on/after 14 July 2026 (new target = best day / 0.40) vs before (excess added to target).",
+   "drawdownType: catalog 'EOD' -> more precise: EOD trailing on closed P&L, locks at starting balance.",
+   "dailyLoss: Daily Pause is a pause (positions closed, trading paused until next day at 16:15 CT), not a breach; applies to Challenge only and was removed from Earning accounts on 14 July 2026.",
+   "weekendRule: overnight not allowed confirmed; force-close time is 14:55 CT on help center (Trading Rules page says 15:55 CT — official sources conflict)."
+  ],
+  "notFound": [
+   "Daily Pause percent/basis (balance vs equity) not stated; only dollar amounts.",
+   "Definition of 'trading day' for the 40% consistency calculation (closed P&L vs. equity, session boundary) not stated.",
+   "No official PDF of rules; T&C defer numeric rules to website."
+  ]
+ },
+ {
+  "firmSlug": "the-trading-pit",
+  "programSlug": "trading-pit-prime-cfd-one-step-2026",
+  "programName": "CFD Prime 1-Phase",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {"label": "Quick checkout CFD (shows 1-Phase $50K rules)", "url": "http://client-area.thetradingpit.com/quick-checkout/challenge/cfd?country=BR", "kind": "page"},
+   {"label": "CFD prop trading page (rewards policy)", "url": "https://www.thetradingpit.com/cfds-prop-trading", "kind": "page"},
+   {"label": "Help center: CFD Prime rules (daily DD, min profitable days, 50% consistency) — article 835084", "url": "https://support.thetradingpit.com/en/articles/835084", "kind": "help_center"},
+   {"label": "Help center: Static Max Drawdown on CFDs Prime", "url": "https://support.thetradingpit.com/how-does-your-max-drawdown-static", "kind": "help_center"},
+   {"label": "Help center: CFD Prime Reward Policy — article 835093", "url": "https://support.thetradingpit.com/en/articles/835093", "kind": "help_center"},
+   {"label": "Trading Rules", "url": "https://www.thetradingpit.com/trading-rules", "kind": "page"},
+   {"label": "General Terms and Conditions", "url": "https://www.thetradingpit.com/general-terms-and-conditions", "kind": "terms"}
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [{"phase": "challenge", "percent": 10}],
+   "quote": "Profit target: 10% ($5,000) [checkout, $50,000 1-Phase]",
+   "url": "http://client-area.thetradingpit.com/quick-checkout/challenge/cfd?country=BR",
+   "note": "Checkout values seen only for $50K; help center says exact values are in the Client Area."
+  },
+  "dailyLoss": {
+   "percent": 3,
+   "measuredOn": "closed balance (Closed P&L, commissions included) at 16:15 CT; breach tested on equity",
+   "reset": "16:15 CT",
+   "quote": "It's measured on your closed balance (Closed P&L, commissions included) and updated at the end of each day (16:15 CT). ... If your equity drops below the limit, the account is breached and permanently disabled.",
+   "url": "https://support.thetradingpit.com/en/articles/835084"
+  },
+  "maxLoss": {
+   "percent": 6,
+   "type": "static (all sizes except $100K/$200K purchased on/after 29 April 2026, which are EOD trailing locking at starting balance)",
+   "quote": "A fixed limit based on your initial balance that never moves. ... Trailing applies to CFD Prime 1-Phase $100K and $200K, and 2-Phase $100K accounts purchased on or after 29 April 2026.",
+   "url": "https://support.thetradingpit.com/how-does-your-max-drawdown-static"
+  },
+  "minTradingDays": {
+   "days": 3,
+   "perDayRequirement": "profitable day = gain >= 0.5% of initial balance at 16:15 CT cut-off, using lower of balance or equity vs previous day balance (accounts purchased/upgraded on/after 2 June 2025; earlier: 5). For $100K/$200K created on/after 6 July 2026 in Earning: 3 trading days profitable or not.",
+   "quote": "A profitable day is when your account shows a gain of at least 0.5% of the initial balance.",
+   "url": "https://www.thetradingpit.com/trading-rules"
+  },
+  "consistency": [
+   {
+    "appliesTo": "both",
+    "kind": "best_day_vs_total_profit",
+    "percent": 50,
+    "amount": null,
+    "days": null,
+    "measuredOn": "day closed at 16:15 CT end-of-day cut-off; total = sum of positive days only (losing days excluded)",
+    "effect": "soft",
+    "condition": "Only 1-Phase $100K and $200K accounts created on/after 6 July 2026 (reward policy page says 'after 5 July 2026' — official date conflict). Other sizes: no consistency rule.",
+    "precise": true,
+    "quote": "The consistency rule requires that your Best Day does not represent more than 50% of your Positive Days' Profit. ... Going over 50% does not fail your account.",
+    "url": "https://support.thetradingpit.com/en/articles/835084"
+   }
+  ],
+  "otherBreachRules": [
+   {"text": "Must be flat on positions to pass.", "quote": "your Account Balance must reach the requested Profit Target and you must be flat on positions.", "url": "https://www.thetradingpit.com/trading-rules"},
+   {"text": "Weekend holding labelled 'Limited' in checkout; max allocation 2 accounts.", "quote": "Weekend Holding (Limited)", "url": "https://www.thetradingpit.com/cfds-prop-trading"},
+   {"text": "Risk Team may decline reward if most profit came on first day and approach changes.", "quote": null, "url": "https://support.thetradingpit.com/en/articles/835093"}
+  ],
+  "differencesVsCatalog": [
+   "consistencyRule: catalog 'Sem consistência publicada'. Official now: 50% best day vs Positive Days' Profit for 1-Phase $100K/$200K created on/after 6 July 2026, in both phases, soft.",
+   "maxLoss/drawdownType: catalog 'Static' for all sizes. Official: $100K and $200K purchased on/after 29 April 2026 use trailing (EOD, locks at starting balance) max drawdown.",
+   "dailyLoss: catalog '3% baseado no balance de fechamento' — confirmed, add: Closed P&L incl. commissions at 16:15 CT, breach on equity.",
+   "minTradingDays: catalog '3 dias lucrativos >=0,5%' — confirmed for accounts from 2 June 2025; profitable-day measured on lower of balance/equity at 16:15 CT. New: $100K/$200K accounts created on/after 6 July 2026 need 3 trading days (profitable or not) in Earning instead.",
+   "weekendRule: catalog 'verificar' -> checkout shows 'Weekend Holding (Limited)' (details not stated)."
+  ],
+  "notFound": [
+   "Profit target / DD values for sizes other than $50K not visible on static pages (help center refers to Client Area).",
+   "Trailing max-drawdown percent for $100K/$200K not stated (blog example: $8,000 on a 100k CFD account, plan not named).",
+   "Meaning of 'Weekend Holding (Limited)' not defined.",
+   "No official rules PDF."
+  ]
+ },
+ {
+  "firmSlug": "fundingpips",
+  "programSlug": "fundingpips-one-step-2026",
+  "programName": "1 Step Model",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {"label": "Help center: 1 Step Model (NEW article id; old id 34501697434385 now = '1 Step Flex')", "url": "https://help.fundingpips.com/hc/en-us/articles/48982278587665-1-Step-Model", "kind": "help_center"},
+   {"label": "Help center: 1 Step Flex (old catalog URL — different product)", "url": "https://help.fundingpips.com/hc/en-us/articles/34501697434385-1-Step-Flex", "kind": "help_center"},
+   {"label": "Help center: FundingPips Legacy Rules", "url": "https://help.fundingpips.com/hc/en-us/articles/51307058233361-FundingPips-Legacy-Rules", "kind": "help_center"},
+   {"label": "Blog: Three Rules. Gone (Multi-Model Update)", "url": "https://fundingpips.com/blog/cfds-glory-days-are-back-three-rules-gone-fundingpips-updates", "kind": "page"},
+   {"label": "News Trading & Weekend Holding", "url": "https://help.fundingpips.com/hc/en-us/articles/34504137479441-News-Trading-Weekend-Holding", "kind": "help_center"},
+   {"label": "Trading Objectives", "url": "https://fundingpips.com/trading-objectives", "kind": "page"},
+   {"label": "Terms and Conditions", "url": "https://fundingpips.com/terms-and-conditions", "kind": "terms"}
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [{"phase": "phase1", "percent": 10}],
+   "quote": "One Evaluation Phase with a 10% profit target and minimum 3 trading days",
+   "url": "https://help.fundingpips.com/hc/en-us/articles/48982278587665-1-Step-Model",
+   "note": "Quote obtained from search-engine snippet; WebFetch of help.fundingpips.com returned 403 and fundingpips.com returned 429 during this check."
+  },
+  "dailyLoss": {
+   "percent": 3,
+   "measuredOn": "higher of opening balance or opening equity",
+   "reset": "00:00 Platform Time (UTC+3 stated)",
+   "quote": null,
+   "url": "https://help.fundingpips.com/hc/en-us/articles/48982278587665-1-Step-Model"
+  },
+  "maxLoss": {
+   "percent": 6,
+   "type": "static (from starting account size)",
+   "quote": null,
+   "url": "https://help.fundingpips.com/hc/en-us/articles/48982278587665-1-Step-Model"
+  },
+  "minTradingDays": {
+   "days": 3,
+   "perDayRequirement": null,
+   "quote": "One Evaluation Phase with a 10% profit target and minimum 3 trading days",
+   "url": "https://help.fundingpips.com/hc/en-us/articles/48982278587665-1-Step-Model"
+  },
+  "consistency": [
+   {
+    "appliesTo": "evaluation",
+    "kind": "none",
+    "percent": null, "amount": null, "days": null, "measuredOn": null, "effect": null, "condition": null,
+    "precise": false,
+    "quote": null,
+    "url": "https://help.fundingpips.com/hc/en-us/articles/48982278587665-1-Step-Model"
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "best_day_vs_total_profit",
+    "percent": 35,
+    "amount": null,
+    "days": null,
+    "measuredOn": "unknown",
+    "effect": "blocks_payout",
+    "condition": "Only for the On Demand (90%) reward cycle; resets after each reward; min On Demand reward 2% of Master Account Size.",
+    "precise": false,
+    "quote": "A 35% consistency score must be achieved: no single trading day can account for more than 35% of total profit.",
+    "url": "https://help.fundingpips.com/hc/en-us/articles/48982278587665-1-Step-Model"
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "other",
+    "percent": 60,
+    "amount": null,
+    "days": 4,
+    "measuredOn": "net realized profit per day (profitable day = >= 0.5% of initial balance)",
+    "effect": "blocks_payout",
+    "condition": "Profit Concentration Policy: if a single trade idea delivered >60% of the evaluation phase profit target, the Master Account needs 4 profitable days before each reward request. Stated for new $25,000+ evaluation accounts created on/after 27 June 2026. The Sept-2026 Multi-Model Update blog says Profit Concentration was removed on 1 Step Flex, 2 Step Standard, 2 Step Flex and 2 Step Pro — '1 Step Model' is not in that list, so status for this model is UNCONFIRMED.",
+    "precise": false,
+    "quote": null,
+    "url": "https://help.fundingpips.com/hc/en-us/articles/48982278587665-1-Step-Model"
+   }
+  ],
+  "otherBreachRules": [
+   {"text": "Reward options listed: Weekly 60%, Bi-Weekly 80%, Monthly 100%, On Demand 90%.", "quote": null, "url": "https://help.fundingpips.com/hc/en-us/articles/48982278587665-1-Step-Model"}
+  ],
+  "differencesVsCatalog": [
+   "SOURCE URL: catalog source https://help.fundingpips.com/hc/en-us/articles/34501697434385-1-Step-Model now resolves to '1 Step Flex' (different product: 12% target/12% max loss, no min days). The 1 Step Model lives at article 48982278587665.",
+   "consistencyRule: catalog 'Sem consistência na avaliação; Profit Concentration pode impor 4 dias lucrativos no Master'. Add: On Demand reward cycle requires 35% consistency score (best day <= 35% of total profit), resets after each reward. Profit Concentration status is uncertain (help center still describes it; Sept-2026 blog removed it from other models, not explicitly from 1 Step Model).",
+   "dailyLoss reset: 00:00 platform time (UTC+3) — catalog omitted the reset time.",
+   "Core numbers (10% / 3% higher of balance-equity / 6% static / 3 days) unchanged vs catalog."
+  ],
+  "notFound": [
+   "Help center page body could not be fetched (HTTP 403) and fundingpips.com rate-limited (HTTP 429); figures come from search-engine snippets of the official pages and must be re-verified by direct page view.",
+   "Account sizes for 1 Step Model not confirmed.",
+   "Weekend holding rule for 1 Step Model Master not confirmed.",
+   "Definition of 'trading day' for the 35% score not found.",
+   "No official PDF found."
+  ]
+ },
+ {
+  "firmSlug": "fundingpips",
+  "programSlug": "fundingpips-two-step-standard-2026",
+  "programName": "2 Step Standard",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {"label": "Help center: 2 Step Standard", "url": "https://help.fundingpips.com/hc/en-us/articles/34501809112081-2-Step-Standard", "kind": "help_center"},
+   {"label": "Product page: 2 Step Standard", "url": "https://fundingpips.com/2-step-standard", "kind": "page"},
+   {"label": "Blog: Three Rules. Gone (Multi-Model Update)", "url": "https://fundingpips.com/blog/cfds-glory-days-are-back-three-rules-gone-fundingpips-updates", "kind": "page"},
+   {"label": "Help center: FundingPips Legacy Rules", "url": "https://help.fundingpips.com/hc/en-us/articles/51307058233361-FundingPips-Legacy-Rules", "kind": "help_center"},
+   {"label": "Terms and Conditions", "url": "https://fundingpips.com/terms-and-conditions", "kind": "terms"}
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [{"phase": "phase1", "percent": 8}, {"phase": "phase2", "percent": 5}],
+   "quote": null,
+   "url": "https://help.fundingpips.com/hc/en-us/articles/34501809112081-2-Step-Standard",
+   "note": "Help center (via search snippet) states the 10% Phase 1 option is no longer offered effective 24 July 2026 06:00 server time (UTC+2). Target must be reached with all trades closed."
+  },
+  "dailyLoss": {
+   "percent": 5,
+   "measuredOn": "higher of balance or equity at start of day; equity (incl. floating) may not fall more than the % below that baseline",
+   "reset": "00:00 Platform Time",
+   "quote": null,
+   "url": "https://help.fundingpips.com/hc/en-us/articles/34501809112081-2-Step-Standard",
+   "note": "A 3% daily-loss variant exists (add-on); with it, no minimum trading days apply."
+  },
+  "maxLoss": {
+   "percent": 10,
+   "type": "static (floor 10% below starting account size)",
+   "quote": null,
+   "url": "https://help.fundingpips.com/hc/en-us/articles/34501809112081-2-Step-Standard"
+  },
+  "minTradingDays": {
+   "days": 3,
+   "perDayRequirement": null,
+   "quote": null,
+   "url": "https://help.fundingpips.com/hc/en-us/articles/34501809112081-2-Step-Standard",
+   "note": "Snippet confirms 3 days for Phase 1; Phase 2 minimum not confirmed in this check. None with 3% daily-loss option."
+  },
+  "consistency": [
+   {
+    "appliesTo": "evaluation",
+    "kind": "none",
+    "percent": null, "amount": null, "days": null, "measuredOn": null, "effect": null, "condition": null,
+    "precise": false, "quote": null,
+    "url": "https://help.fundingpips.com/hc/en-us/articles/34501809112081-2-Step-Standard"
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "best_day_vs_total_profit",
+    "percent": 35,
+    "amount": null, "days": null,
+    "measuredOn": "unknown",
+    "effect": "blocks_payout",
+    "condition": "Only On Demand (100%) reward cycle; Weekly and Bi-Weekly not subject; resets after each processed reward.",
+    "precise": false,
+    "quote": "no single trading day can account for more than 35% of total profit",
+    "url": "https://help.fundingpips.com/hc/en-us/articles/34501809112081-2-Step-Standard"
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "profitable_days",
+    "percent": 0.5,
+    "amount": null,
+    "days": 7,
+    "measuredOn": "profit >= 0.5% of starting Master Account Size per day",
+    "effect": "blocks_payout",
+    "condition": "On Demand reward cycle eligibility; resets after each processed reward.",
+    "precise": false,
+    "quote": "You need at least 7 profitable days to qualify for a reward, each with 0.5% or more profit of the starting Master Account Size.",
+    "url": "https://help.fundingpips.com/hc/en-us/articles/34501809112081-2-Step-Standard"
+   }
+  ],
+  "otherBreachRules": [
+   {"text": "Profit Concentration, Risk Per Trade Idea and Striking System removed on 2 Step Standard (evaluation and Master) for new accounts bought after the Multi-Model Update go-live (date not stated, blog ~late Sept 2026).", "quote": null, "url": "https://fundingpips.com/blog/cfds-glory-days-are-back-three-rules-gone-fundingpips-updates"},
+   {"text": "Reward cycles: Weekly 60%, Bi-Weekly 80%, On Demand 100% (help center); product page describes biweekly 80% / monthly 100% — official conflict.", "quote": null, "url": "https://help.fundingpips.com/hc/en-us/articles/34501809112081-2-Step-Standard"}
+  ],
+  "differencesVsCatalog": [
+   "profitTarget: catalog 'Fase 1: opção de 8% ou 10%'. Official: 10% option discontinued 24 July 2026; Phase 1 is 8% only.",
+   "dailyLoss: a 3% daily-loss option exists (removes minimum trading days); default remains 5% of higher of balance/equity, reset 00:00 platform time.",
+   "consistencyRule: catalog 'políticas de concentração/Reward podem ser aplicáveis'. Official: Profit Concentration removed by Multi-Model Update; On Demand cycle requires 35% consistency score + 7 profitable days >= 0.5%.",
+   "sizes: not re-verified."
+  ],
+  "notFound": [
+   "Help center returned 403 and fundingpips.com 429; values from search snippets of official pages — re-verify by direct view.",
+   "Go-live date of the Multi-Model Update.",
+   "Phase 2 minimum trading days not confirmed.",
+   "Day definition for the 35% score.",
+   "No official PDF."
+  ]
+ },
+ {
+  "firmSlug": "fundednext",
+  "programSlug": "fundednext-stellar-one-step-2026",
+  "programName": "Stellar 1-Step",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {"label": "Product page Stellar 1-Step", "url": "https://fundednext.com/cfds/stellar-1-step", "kind": "page"},
+   {"label": "Trading objectives (CFDs)", "url": "https://fundednext.com/general-rules/cfds/trading-objectives", "kind": "page"},
+   {"label": "Help: rules for Stellar 1-Step", "url": "https://help.fundednext.com/en/articles/8021061-what-are-the-rules-for-the-stellar-1-step-challenge-at-fundednext", "kind": "help_center"},
+   {"label": "Help: profit target Stellar 1-Step", "url": "https://help.fundednext.com/en/articles/8030875-what-is-the-profit-target-of-the-stellar-1-step-challenge", "kind": "help_center"},
+   {"label": "Help: DLL vs MLL", "url": "https://help.fundednext.com/en/articles/9941519-daily-loss-limit-vs-maximum-loss-limit", "kind": "help_center"},
+   {"label": "Help: reward frequency", "url": "https://help.fundednext.com/en/articles/10701585-how-often-will-i-receive-my-performance-reward", "kind": "help_center"},
+   {"label": "Help: add-ons", "url": "https://help.fundednext.com/en/articles/8592191-how-does-the-add-on-feature-work-with-the-fundednext-new-challenge-purchase", "kind": "help_center"},
+   {"label": "Help: On-Demand Performance Rewards", "url": "https://help.fundednext.com/en/articles/15586820-does-fundednext-cfds-offer-on-demand-performance-rewards", "kind": "help_center"},
+   {"label": "Blog: New payout structures (24 Sep 2026)", "url": "https://fundednext.com/blog/fundednext-new-payout-structures", "kind": "page"}
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [{"phase": "challenge", "percent": 10}],
+   "quote": "The Stellar 1-Step Challenge requires traders to reach a 10% profit target to pass the Challenge Phase.",
+   "url": "https://help.fundednext.com/en/articles/8030875-what-is-the-profit-target-of-the-stellar-1-step-challenge"
+  },
+  "dailyLoss": {
+   "percent": 3,
+   "measuredOn": "initial balance; includes realized and unrealized P&L, swap and commission",
+   "reset": "00:00 server time (GMT+3 during DST, GMT+2 otherwise)",
+   "quote": "Set as a percentage of your initial balance based on your account model. ... Resets daily at 0:00 server time. ... 3% of initial balance.",
+   "url": "https://fundednext.com/general-rules/cfds/trading-objectives"
+  },
+  "maxLoss": {
+   "percent": 6,
+   "type": "static",
+   "quote": "Stellar 1-Step: 6% (Static). ... Static means the loss limit is set from your starting balance and remains unchanged throughout.",
+   "url": "https://fundednext.com/general-rules/cfds/trading-objectives"
+  },
+  "minTradingDays": {
+   "days": 2,
+   "perDayRequirement": "at least one trade with non-zero P&L",
+   "quote": "Stellar 1-Step: 2 trading days. ... A trading day counts when you place at least one trade with non-zero P&L.",
+   "url": "https://fundednext.com/general-rules/cfds/trading-objectives"
+  },
+  "consistency": [
+   {
+    "appliesTo": "both",
+    "kind": "none",
+    "percent": null, "amount": null, "days": null, "measuredOn": null, "effect": null,
+    "condition": "Product page rules table: 'Consistency: N/A' and 'Reward Condition: N/A'. 1-Step rewards every 5 business days. The stand-alone On-Demand add-on was 'turned off globally' (blog 24 Sep 2026) and the built-in On-Demand option is offered only on Stellar 2-Step and Lite.",
+    "precise": true,
+    "quote": "Consistency: N/A",
+    "url": "https://fundednext.com/cfds/stellar-1-step"
+   }
+  ],
+  "otherBreachRules": [
+   {"text": "No time limit.", "quote": "There is no time restriction, so you can take as long as needed to achieve this goal.", "url": "https://help.fundednext.com/en/articles/8030875-what-is-the-profit-target-of-the-stellar-1-step-challenge"},
+   {"text": "Reward cycle every 5 business days.", "quote": "Starting from the first trading cycle, you will receive Performance Rewards every 5 business days.", "url": "https://help.fundednext.com/en/articles/10701585-how-often-will-i-receive-my-performance-reward"}
+  ],
+  "differencesVsCatalog": [
+   "consistencyRule: catalog 'add-on on-demand aplica 40% na conta funded'. Official now: the On-Demand add-on was turned off globally (blog 24 Sep 2026); built-in On-Demand exists only for Stellar 2-Step and Lite; Stellar 1-Step lists 'Consistency: N/A'. Remove the 40% clause from 1-Step (legacy accounts that bought the add-on may still have it).",
+   "minTradingDays: catalog '2 dias separados' — confirmed; add definition: day counts with >=1 trade with non-zero P&L.",
+   "dailyLoss: confirmed 3% of initial balance, reset 00:00 server time; add: includes unrealized P&L, swap, commission.",
+   "Help article 8021061 heading says '2 Days, 2 Trades' while body says 1 trade per day — internal inconsistency."
+  ],
+  "notFound": [
+   "Weekend/news rule for Stellar 1-Step not re-verified.",
+   "No official PDF."
+  ]
+ },
+ {
+  "firmSlug": "fundednext",
+  "programSlug": "fundednext-stellar-two-step-2026",
+  "programName": "Stellar 2-Step",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {"label": "Product page Stellar 2-Step", "url": "https://fundednext.com/cfds/stellar-2-step", "kind": "page"},
+   {"label": "Trading objectives (CFDs)", "url": "https://fundednext.com/general-rules/cfds/trading-objectives", "kind": "page"},
+   {"label": "Help: rules for Stellar 2-Step", "url": "https://help.fundednext.com/en/articles/8021076-what-rules-do-i-need-to-follow-in-the-stellar-2-step-challenge", "kind": "help_center"},
+   {"label": "Help: profit target Stellar 2-Step", "url": "https://help.fundednext.com/en/articles/8021071-what-is-the-profit-target-of-the-stellar-2-step-challenge", "kind": "help_center"},
+   {"label": "Help: DLL vs MLL", "url": "https://help.fundednext.com/en/articles/9941519-daily-loss-limit-vs-maximum-loss-limit", "kind": "help_center"},
+   {"label": "Help: reward frequency", "url": "https://help.fundednext.com/en/articles/10701585-how-often-will-i-receive-my-performance-reward", "kind": "help_center"},
+   {"label": "Help: On-Demand Performance Rewards", "url": "https://help.fundednext.com/en/articles/15586820-does-fundednext-cfds-offer-on-demand-performance-rewards", "kind": "help_center"},
+   {"label": "Blog: New payout structures (24 Sep 2026)", "url": "https://fundednext.com/blog/fundednext-new-payout-structures", "kind": "page"}
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [{"phase": "phase1", "percent": 8}, {"phase": "phase2", "percent": 5}],
+   "quote": "You must achieve 8% growth on your starting balance. ... After completing Phase 1, you must achieve 5% growth in Phase 2.",
+   "url": "https://help.fundednext.com/en/articles/8021071-what-is-the-profit-target-of-the-stellar-2-step-challenge"
+  },
+  "dailyLoss": {
+   "percent": 5,
+   "measuredOn": "initial balance; includes realized and unrealized P&L, swap and commission",
+   "reset": "00:00 server time (GMT+3 during DST, GMT+2 otherwise)",
+   "quote": "2-Step is \"5% of initial balance.\" ... Resets daily at 0:00 server time.",
+   "url": "https://fundednext.com/general-rules/cfds/trading-objectives"
+  },
+  "maxLoss": {
+   "percent": 10,
+   "type": "static",
+   "quote": "Stellar 2-Step: 10% (Static).",
+   "url": "https://fundednext.com/general-rules/cfds/trading-objectives"
+  },
+  "minTradingDays": {
+   "days": 5,
+   "perDayRequirement": "per phase; day counts with at least one trade with non-zero P&L",
+   "quote": "You must place trades on at least 5 separate trading days, with a minimum of 1 trade per day in each phase.",
+   "url": "https://help.fundednext.com/en/articles/8021076-what-rules-do-i-need-to-follow-in-the-stellar-2-step-challenge"
+  },
+  "consistency": [
+   {
+    "appliesTo": "evaluation",
+    "kind": "none",
+    "percent": null, "amount": null, "days": null, "measuredOn": null, "effect": null, "condition": null,
+    "precise": true,
+    "quote": "Consistency: N/A",
+    "url": "https://fundednext.com/cfds/stellar-2-step"
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "best_day_vs_total_profit",
+    "percent": 40,
+    "amount": null, "days": null,
+    "measuredOn": "unknown (day definition not stated); total = total generated profit at time of request",
+    "effect": "blocks_payout",
+    "condition": "Only if trader selects the built-in On-Demand Performance Reward option (90% share); also requires >= 2% account growth; evaluated only when an on-demand request is submitted. Standard option: no condition.",
+    "precise": false,
+    "quote": "Highest Profit Contribution = (Highest Profit Day / Total Profit) × 100% ... best trading day's profit should not exceed 40% of your total generated profit ... it is only evaluated when you submit an on-demand request.",
+    "url": "https://help.fundednext.com/en/articles/15586820-does-fundednext-cfds-offer-on-demand-performance-rewards"
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "profitable_days",
+    "percent": 1,
+    "amount": null,
+    "days": 3,
+    "measuredOn": "unknown",
+    "effect": "blocks_payout",
+    "condition": "Only if trader selects the '3 Day Performance Reward' option (60% share): at least 3 profitable trading days per 3-day cycle, each >= 1% profit.",
+    "precise": false,
+    "quote": null,
+    "url": "https://help.fundednext.com/en/articles/10701585-how-often-will-i-receive-my-performance-reward"
+   }
+  ],
+  "otherBreachRules": [
+   {"text": "No time limit per phase.", "quote": "There is no time restriction, so you can trade at your own pace.", "url": "https://help.fundednext.com/en/articles/8021071-what-is-the-profit-target-of-the-stellar-2-step-challenge"},
+   {"text": "Standard reward: first after 21 days, then every 14 days.", "quote": "subsequent Performance Rewards occurring every 14 days thereafter", "url": "https://help.fundednext.com/en/articles/10701585-how-often-will-i-receive-my-performance-reward"}
+  ],
+  "differencesVsCatalog": [
+   "consistencyRule: catalog 'add-on on-demand aplica 40% na conta funded'. Official: On-Demand is no longer an add-on; it is a built-in payout option chosen at checkout (stand-alone add-on turned off globally). 40% = best day / total profit at request time, plus 2% growth. New third option '3 Day Performance Reward' requires 3 profitable days >=1% per cycle.",
+   "Blog (24 Sep 2026) words the rule as '40% of total profit target' while help center formula uses total profit — official wording conflict; help center formula is the precise one.",
+   "Core numbers (8%/5%, 5% DLL of initial balance, 10% static, 5 days/phase) unchanged."
+  ],
+  "notFound": [
+   "Definition of 'profit day' for On-Demand 40% (closed vs equity, server day) not stated.",
+   "No official PDF."
+  ]
+ },
+ {
+  "firmSlug": "the5ers",
+  "programSlug": "the5ers-high-stakes-new-2026",
+  "programName": "High Stakes New",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {"label": "High Stakes page", "url": "https://the5ers.com/high-stakes/", "kind": "page"},
+   {"label": "FAQ: drawdown rule for High Stakes (updated 15 Sep 2026)", "url": "https://the5ers.com/faqs/what-is-the-drawdown-rule-for-high-stakes/", "kind": "help_center"},
+   {"label": "FAQ: general rules High Stakes (updated 3 Nov 2026)", "url": "https://the5ers.com/faqs/what-are-the-general-rules-for-the-high-stakes-program/", "kind": "help_center"},
+   {"label": "FAQ: payout policy High Stakes (updated 3 Nov 2026)", "url": "https://the5ers.com/faqs/payout-policy-and-hub-credit-in-the-high-stakes-program/", "kind": "help_center"},
+   {"label": "Terms & Conditions", "url": "https://the5ers.com/terms-and-conditions/", "kind": "terms"}
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [{"phase": "step1", "percent": 10}, {"phase": "step2", "percent": 5}],
+   "quote": "Step 1 is 10%, Step 2 is 5% [High Stakes page table]",
+   "url": "https://the5ers.com/high-stakes/"
+  },
+  "dailyLoss": {
+   "percent": 5,
+   "measuredOn": "higher of previous day's closing equity or balance",
+   "reset": "00:00 server time (timezone not stated on this page)",
+   "quote": "5% daily drawdown that is taken from the closing equity or balance of your previous day (the highest between them). This is taken at 00:00 server time.",
+   "url": "https://the5ers.com/faqs/what-is-the-drawdown-rule-for-high-stakes/"
+  },
+  "maxLoss": {
+   "percent": 10,
+   "type": "static (absolute from initial balance)",
+   "quote": "The max loss on the account is 10% from your initial balance (absolute drawdown).",
+   "url": "https://the5ers.com/faqs/what-is-the-drawdown-rule-for-high-stakes/"
+  },
+  "minTradingDays": {
+   "days": 3,
+   "perDayRequirement": "profitable day: closed positions positive and >= 0.5% of initial balance; profit = min(midnight balance, midnight equity) - previous day balance",
+   "quote": "A profitable day is a day on which the closed positions made a positive profit ... Minimum (Midnight Balance or Midnight Equity- whichever is the lowest) – Previous Day Balance",
+   "url": "https://the5ers.com/high-stakes/"
+  },
+  "consistency": [
+   {
+    "appliesTo": "both",
+    "kind": "none",
+    "percent": null, "amount": null, "days": null, "measuredOn": null, "effect": null,
+    "condition": "No consistency rule on the High Stakes page or its payout FAQ. NOTE: The5ers' separate 'Summer Plan' / '2-Step Plan' FAQ (updated 2 Nov 2026, $100K/$200K, also labelled New/Classic) has 3% daily loss and a 50% consistency rule on the Pro account — that is a different, limited-time product.",
+    "precise": false,
+    "quote": null,
+    "url": "https://the5ers.com/faqs/payout-policy-and-hub-credit-in-the-high-stakes-program/"
+   },
+   {
+    "appliesTo": "evaluation",
+    "kind": "profitable_days",
+    "percent": 0.5,
+    "amount": null,
+    "days": 3,
+    "measuredOn": "min(midnight balance, midnight equity) minus previous day balance",
+    "effect": "blocks_pass",
+    "condition": "Each step (and for Pro scaling).",
+    "precise": true,
+    "quote": "Minimum (Midnight Balance or Midnight Equity- whichever is the lowest) – Previous Day Balance",
+    "url": "https://the5ers.com/high-stakes/"
+   }
+  ],
+  "otherBreachRules": [
+   {"text": "Inactivity: 30 consecutive days for evaluation accounts, 60 for Pro.", "quote": "The inactivity limit is 30 consecutive days for evaluation accounts", "url": "https://the5ers.com/faqs/what-are-the-general-rules-for-the-high-stakes-program/"},
+   {"text": "News: no orders from 2 min before to 2 min after high-impact news; profits deducted.", "quote": "Performing moves 2 minutes before or after high-impact news events is not allowed.", "url": "https://the5ers.com/high-stakes/"},
+   {"text": "Payout: bi-weekly; min P&L $300 (50K) / $500 (100K); cap $3,000 / $4,000.", "quote": null, "url": "https://the5ers.com/faqs/payout-policy-and-hub-credit-in-the-high-stakes-program/"},
+   {"text": "Max active accounts New: 3x 2.5K, 3x 5K, 3x 10K, 1x 25K, 1x 50K or 100K.", "quote": null, "url": "https://the5ers.com/high-stakes/"}
+  ],
+  "differencesVsCatalog": [
+   "dailyLoss: catalog '5% do maior entre balance/equity no rollover diário' — confirmed; official specifies previous day's CLOSING equity/balance taken at 00:00 server time.",
+   "maxLoss: confirmed 10% absolute from initial balance.",
+   "minTradingDays: confirmed 3 profitable days >= 0.5%; formula uses the LOWER of midnight balance/equity.",
+   "New: payout caps per cycle ($3,000 for 50K, $4,000 for 100K) and minimum P&L for payout; inactivity 30 days (eval)/60 days (Pro).",
+   "Catalog sources help.the5ers.com/* now return 404; FAQ moved to the5ers.com/faqs/."
+  ],
+  "notFound": [
+   "Server timezone not stated on High Stakes FAQ (the Daily Pause FAQ for Hyper Growth/Bootcamp uses GMT+3).",
+   "No official PDF."
+  ]
+ },
+ {
+  "firmSlug": "the5ers",
+  "programSlug": "the5ers-high-stakes-classic-2026",
+  "programName": "High Stakes Classic",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": null,
+  "sources": [
+   {"label": "High Stakes page (New/Classic toggle)", "url": "https://the5ers.com/high-stakes/", "kind": "page"},
+   {"label": "FAQ: drawdown rule for High Stakes", "url": "https://the5ers.com/faqs/what-is-the-drawdown-rule-for-high-stakes/", "kind": "help_center"},
+   {"label": "FAQ: general rules High Stakes", "url": "https://the5ers.com/faqs/what-are-the-general-rules-for-the-high-stakes-program/", "kind": "help_center"},
+   {"label": "FAQ: payout policy High Stakes", "url": "https://the5ers.com/faqs/payout-policy-and-hub-credit-in-the-high-stakes-program/", "kind": "help_center"}
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [{"phase": "step1", "percent": null}, {"phase": "step2", "percent": 5}],
+   "quote": null,
+   "url": "https://the5ers.com/high-stakes/",
+   "note": "The static text of the official High Stakes page contains no '8%' (only 10%/5%); the Classic toggle visibly changes only account caps. 8% Step 1 for Classic is reported by third parties only — not confirmed officially in this check."
+  },
+  "dailyLoss": {
+   "percent": 5,
+   "measuredOn": "higher of previous day's closing equity or balance",
+   "reset": "00:00 server time",
+   "quote": "5% daily drawdown that is taken from the closing equity or balance of your previous day (the highest between them). This is taken at 00:00 server time.",
+   "url": "https://the5ers.com/faqs/what-is-the-drawdown-rule-for-high-stakes/"
+  },
+  "maxLoss": {
+   "percent": 10,
+   "type": "static (absolute from initial balance)",
+   "quote": "The max loss on the account is 10% from your initial balance (absolute drawdown).",
+   "url": "https://the5ers.com/faqs/what-is-the-drawdown-rule-for-high-stakes/"
+  },
+  "minTradingDays": {
+   "days": 3,
+   "perDayRequirement": ">= 0.5% of initial balance on closed positions; profit = min(midnight balance, midnight equity) - previous day balance",
+   "quote": "Minimum (Midnight Balance or Midnight Equity- whichever is the lowest) – Previous Day Balance",
+   "url": "https://the5ers.com/high-stakes/"
+  },
+  "consistency": [
+   {
+    "appliesTo": "both",
+    "kind": "none",
+    "percent": null, "amount": null, "days": null, "measuredOn": null, "effect": null,
+    "condition": "No consistency rule published for High Stakes (do not confuse with Summer/2-Step Plan 50% Pro rule).",
+    "precise": false, "quote": null,
+    "url": "https://the5ers.com/faqs/payout-policy-and-hub-credit-in-the-high-stakes-program/"
+   },
+   {
+    "appliesTo": "evaluation",
+    "kind": "profitable_days",
+    "percent": 0.5, "amount": null, "days": 3,
+    "measuredOn": "min(midnight balance, midnight equity) minus previous day balance",
+    "effect": "blocks_pass",
+    "condition": "Each step.",
+    "precise": true,
+    "quote": "Minimum (Midnight Balance or Midnight Equity- whichever is the lowest) – Previous Day Balance",
+    "url": "https://the5ers.com/high-stakes/"
+   }
+  ],
+  "otherBreachRules": [
+   {"text": "Max active accounts Classic: 1x 2.5K, 1x 5K, 1x 10K or 25K, 1x 50K or 100K.", "quote": null, "url": "https://the5ers.com/high-stakes/"},
+   {"text": "Payout caps $3,000 (50K) / $4,000 (100K); min P&L $300 / $500.", "quote": null, "url": "https://the5ers.com/faqs/payout-policy-and-hub-credit-in-the-high-stakes-program/"}
+  ],
+  "differencesVsCatalog": [
+   "profitTarget: catalog 'Fase 1 8%' could NOT be confirmed from official static page text (only 10%/5% present); needs manual check of the Classic toggle/checkout.",
+   "programStillSold: Classic toggle exists on the page (account caps listed), but whether it is a separately purchasable variant with 8% target is unconfirmed -> null.",
+   "Other rules same as High Stakes New (5% DLL at 00:00 server time, 10% absolute, 3 profitable days >=0.5%)."
+  ],
+  "notFound": [
+   "Official statement of Classic Step 1 target (8%).",
+   "Server timezone.",
+   "No official PDF."
+  ]
+ },
+ {
+  "firmSlug": "fxify",
+  "programSlug": "fxify-one-phase-2026",
+  "programName": "One Phase",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {"label": "FAQ: rules for the assessment account", "url": "https://fxify.com/faqs/all-faqs/what-are-the-rules-for-the-assessment-account/", "kind": "help_center"},
+   {"label": "Blog: Drawdown rules (4 Sep 2026)", "url": "https://fxify.com/blog/drawdown-rules-choosing-a-prop-firm/", "kind": "page"},
+   {"label": "Blog: Lightning vs One Phase (16 Aug 2026)", "url": "https://fxify.com/blog/lightning-challenge-vs-one-phase/", "kind": "page"},
+   {"label": "Blog: Why most traders never get a payout (22 Sep 2026)", "url": "https://fxify.com/blog/why-most-traders-never-get-a-payout/", "kind": "page"},
+   {"label": "Program page (JS-rendered, rules not in static HTML)", "url": "https://fxify.com/programs/one-phase/", "kind": "page"}
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [{"phase": "phase1", "percent": 10}],
+   "quote": "Phase 1 is 10% [FAQ table]",
+   "url": "https://fxify.com/faqs/all-faqs/what-are-the-rules-for-the-assessment-account/"
+  },
+  "dailyLoss": {
+   "percent": 3,
+   "measuredOn": "previous day's closing balance at 5 PM EST; breach on real-time equity",
+   "reset": "17:00 EST",
+   "quote": "Calculated from the previous day’s closing balance at 5 PM EST. ... either rule breaches on real-time equity crossing the line, not on where the trade eventually settles.",
+   "url": "https://fxify.com/blog/drawdown-rules-choosing-a-prop-firm/"
+  },
+  "maxLoss": {
+   "percent": 6,
+   "type": "trailing (high water mark / highest closed balance) locking at starting balance once profit reaches the DD % or at first payout",
+   "quote": "the floor stops moving permanently and locks at your starting balance. ... It also locks the moment a payout is processed.",
+   "url": "https://fxify.com/blog/drawdown-rules-choosing-a-prop-firm/"
+  },
+  "minTradingDays": {
+   "days": 5,
+   "perDayRequirement": null,
+   "quote": "5 days, which the page says applies to all accounts [FAQ table: Min trading days]",
+   "url": "https://fxify.com/faqs/all-faqs/what-are-the-rules-for-the-assessment-account/"
+  },
+  "consistency": [
+   {
+    "appliesTo": "both",
+    "kind": "none",
+    "percent": null, "amount": null, "days": null, "measuredOn": null, "effect": null, "condition": null,
+    "precise": true,
+    "quote": "Consistency: None [One Phase column]",
+    "url": "https://fxify.com/blog/lightning-challenge-vs-one-phase/"
+   }
+  ],
+  "otherBreachRules": [
+   {"text": "Inactivity: trade once every 60 days, else hard breach.", "quote": "Must place a trade once in 60 days to avoid inactivity. If not, this would be considered a hard breach.", "url": "https://fxify.com/faqs/all-faqs/what-are-the-rules-for-the-assessment-account/"},
+   {"text": "Weekend holding: Yes.", "quote": null, "url": "https://fxify.com/blog/lightning-challenge-vs-one-phase/"}
+  ],
+  "differencesVsCatalog": [
+   "dailyLoss: confirmed 3% of previous day balance at 17:00 EST; add: breach on real-time equity.",
+   "maxLoss: catalog '6% trailing' -> trailing on high-water mark that locks at starting balance (when profit = 6% or at first payout).",
+   "sizes: blog (16 Aug 2026) says One Phase runs $5,000 to $400,000; catalog lists $10K–$250K. Product page shows a $5k option at $250.",
+   "Other values unchanged."
+  ],
+  "notFound": [
+   "Program page is JS-rendered; per-size values not verifiable from static HTML.",
+   "No official rules PDF (only privacy-policy PDFs on site)."
+  ]
+ },
+ {
+  "firmSlug": "fxify",
+  "programSlug": "fxify-two-phase-standard-2026",
+  "programName": "Two Phase Standard",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {"label": "FAQ: rules for the assessment account", "url": "https://fxify.com/faqs/all-faqs/what-are-the-rules-for-the-assessment-account/", "kind": "help_center"},
+   {"label": "Blog: Introducing 2-Phase Pro (29 Apr 2026; Classic vs Standard table)", "url": "https://fxify.com/blog/introducing-fxify-2-phase-pro/", "kind": "page"},
+   {"label": "Blog: Drawdown rules (4 Sep 2026)", "url": "https://fxify.com/blog/drawdown-rules-choosing-a-prop-firm/", "kind": "page"},
+   {"label": "Blog: Why most traders never get a payout (22 Sep 2026)", "url": "https://fxify.com/blog/why-most-traders-never-get-a-payout/", "kind": "page"}
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [{"phase": "phase1", "percent": 10}, {"phase": "phase2", "percent": 5}],
+   "quote": "Phase 1 is 10%, and Phase 2 is 5% [FAQ Two Phase]",
+   "url": "https://fxify.com/faqs/all-faqs/what-are-the-rules-for-the-assessment-account/"
+  },
+  "dailyLoss": {
+   "percent": 4,
+   "measuredOn": "previous day's closing balance at 5 PM EST; breach on real-time equity",
+   "reset": "17:00 EST",
+   "quote": "Calculated from the previous day’s closing balance at 5 PM EST.",
+   "url": "https://fxify.com/blog/drawdown-rules-choosing-a-prop-firm/"
+  },
+  "maxLoss": {
+   "percent": 10,
+   "type": "trailing, locks at starting balance (breakeven) when profit reaches 10% or at first payout",
+   "quote": "the floor stops moving permanently and locks at your starting balance. ... a $100,000 Two Phase Standard account locks at $110,000",
+   "url": "https://fxify.com/blog/drawdown-rules-choosing-a-prop-firm/"
+  },
+  "minTradingDays": {
+   "days": 5,
+   "perDayRequirement": "per phase",
+   "quote": "Min trading days per phase: 5 [Standard column]",
+   "url": "https://fxify.com/blog/introducing-fxify-2-phase-pro/"
+  },
+  "consistency": [
+   {
+    "appliesTo": "both",
+    "kind": "none",
+    "percent": null, "amount": null, "days": null, "measuredOn": null, "effect": null, "condition": null,
+    "precise": true,
+    "quote": "Consistency rule: None [2-Phase Standard column]",
+    "url": "https://fxify.com/blog/introducing-fxify-2-phase-pro/"
+   }
+  ],
+  "otherBreachRules": [
+   {"text": "Inactivity 60 days = hard breach.", "quote": "Must place a trade once in 60 days to avoid inactivity.", "url": "https://fxify.com/faqs/all-faqs/what-are-the-rules-for-the-assessment-account/"}
+  ],
+  "differencesVsCatalog": [
+   "maxLoss: catalog '10% trailing' -> trailing locking at starting balance when profit = 10% or at first payout.",
+   "dailyLoss: add breach on real-time equity.",
+   "No change in targets/days/consistency."
+  ],
+  "notFound": [
+   "Program page JS-rendered; size list not re-verified.",
+   "No official rules PDF."
+  ]
+ },
+ {
+  "firmSlug": "fxify",
+  "programSlug": "fxify-two-phase-classic-2026",
+  "programName": "Two Phase Classic",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {"label": "Blog: Introducing 2-Phase Pro (Classic vs Standard table, 29 Apr 2026)", "url": "https://fxify.com/blog/introducing-fxify-2-phase-pro/", "kind": "page"},
+   {"label": "Blog: Drawdown rules (4 Sep 2026)", "url": "https://fxify.com/blog/drawdown-rules-choosing-a-prop-firm/", "kind": "page"},
+   {"label": "Blog: Why most traders never get a payout (22 Sep 2026)", "url": "https://fxify.com/blog/why-most-traders-never-get-a-payout/", "kind": "page"}
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [{"phase": "phase1", "percent": 5}, {"phase": "phase2", "percent": 10}],
+   "quote": "Phase 1 target 5% / Phase 2 target 10% [2-Phase Classic column]",
+   "url": "https://fxify.com/blog/introducing-fxify-2-phase-pro/"
+  },
+  "dailyLoss": {
+   "percent": 4,
+   "measuredOn": "previous day's closing balance at 5 PM EST; breach on real-time equity",
+   "reset": "17:00 EST",
+   "quote": "Calculated from the previous day’s closing balance at 5 PM EST.",
+   "url": "https://fxify.com/blog/drawdown-rules-choosing-a-prop-firm/"
+  },
+  "maxLoss": {
+   "percent": 10,
+   "type": "static",
+   "quote": "Two Phase Classic, Two Phase Pro, and Three Phase Challenge use static drawdown.",
+   "url": "https://fxify.com/blog/drawdown-rules-choosing-a-prop-firm/"
+  },
+  "minTradingDays": {
+   "days": 4,
+   "perDayRequirement": "per phase",
+   "quote": "Min trading days per phase: 4 [Classic column]",
+   "url": "https://fxify.com/blog/introducing-fxify-2-phase-pro/"
+  },
+  "consistency": [
+   {
+    "appliesTo": "evaluation",
+    "kind": "none",
+    "percent": null, "amount": null, "days": null, "measuredOn": null, "effect": null, "condition": null,
+    "precise": true,
+    "quote": "None in evaluation; 25% in funded stage",
+    "url": "https://fxify.com/blog/introducing-fxify-2-phase-pro/"
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "best_day_vs_total_profit",
+    "percent": 25,
+    "amount": null, "days": null,
+    "measuredOn": "unknown ('largest profit recorded on any single trading day')",
+    "effect": "blocks_payout",
+    "condition": "Required total profit = Highest Daily Profit / 0.25; Highest Daily Profit does NOT reset after a withdrawal.",
+    "precise": false,
+    "quote": "The Highest Daily Profit divided by the consistency percentage equals the total profit required. ... the Highest Daily Profit does not reset after a withdrawal on the programmes that carry a consistency rule. ... The consistency rule does not breach the account. It delays the payout until the profit distribution qualifies.",
+    "url": "https://fxify.com/blog/why-most-traders-never-get-a-payout/"
+   }
+  ],
+  "otherBreachRules": [
+   {"text": "Inactivity 60 days = hard breach.", "quote": "Must place a trade once in 60 days to avoid inactivity.", "url": "https://fxify.com/faqs/all-faqs/what-are-the-rules-for-the-assessment-account/"}
+  ],
+  "differencesVsCatalog": [
+   "consistency funded 25%: confirmed; add precision: required total = best day / 0.25, best day does not reset after withdrawal, delays payout (no breach).",
+   "dailyLoss basis confirmed (prev day balance 17:00 EST, equity breach).",
+   "sizes: catalog '$5K a $100K' not re-verified (FXIFY blog of 29 Jun 2026 says standard programs run $10,000 to $250,000)."
+  ],
+  "notFound": [
+   "Only blog/FAQ sources (official domain); no dedicated Classic rules page or PDF found.",
+   "Definition of trading day for consistency (server day 17:00 EST? closed P&L?)."
+  ]
+ },
+ {
+  "firmSlug": "fxify",
+  "programSlug": "fxify-two-phase-pro-2026",
+  "programName": "Two Phase Pro",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {"label": "Blog: Introducing FXIFY 2-Phase Pro (29 Apr 2026)", "url": "https://fxify.com/blog/introducing-fxify-2-phase-pro/", "kind": "page"},
+   {"label": "Blog: Drawdown rules (4 Sep 2026)", "url": "https://fxify.com/blog/drawdown-rules-choosing-a-prop-firm/", "kind": "page"}
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [{"phase": "phase1", "percent": 4}, {"phase": "phase2", "percent": 8}],
+   "quote": "Profit targets and loss limits are calculated from the starting balance of each phase.",
+   "url": "https://fxify.com/blog/introducing-fxify-2-phase-pro/"
+  },
+  "dailyLoss": {
+   "percent": 4,
+   "measuredOn": "previous day's closing balance at 5 PM EST (FXIFY general definition); breach on real-time equity",
+   "reset": "17:00 EST",
+   "quote": "Calculated from the previous day’s closing balance at 5 PM EST.",
+   "url": "https://fxify.com/blog/drawdown-rules-choosing-a-prop-firm/"
+  },
+  "maxLoss": {
+   "percent": 8,
+   "type": "static",
+   "quote": "The maximum loss level is fixed at the start of the evaluation and remains unchanged.",
+   "url": "https://fxify.com/blog/introducing-fxify-2-phase-pro/"
+  },
+  "minTradingDays": {
+   "days": 3,
+   "perDayRequirement": "a day counts only if it closes at least +0.5% (applies to evaluation and funded)",
+   "quote": "A trading day only counts if the account closes the day in at least +0.5% profit.",
+   "url": "https://fxify.com/blog/introducing-fxify-2-phase-pro/"
+  },
+  "consistency": [
+   {
+    "appliesTo": "both",
+    "kind": "none",
+    "percent": null, "amount": null, "days": null, "measuredOn": null, "effect": null, "condition": null,
+    "precise": true,
+    "quote": "No consistency rules.",
+    "url": "https://fxify.com/blog/introducing-fxify-2-phase-pro/"
+   },
+   {
+    "appliesTo": "both",
+    "kind": "other",
+    "percent": null,
+    "amount": 4000,
+    "days": null,
+    "measuredOn": "total daily profit (basis not stated)",
+    "effect": "other: account becomes read-only for the rest of that trading day; resumes next session (not a breach)",
+    "condition": "Daily profit cap of $4,000. Official text does NOT say profit above the cap is excluded from the target — it is a trading lock, not a counted-profit cap.",
+    "precise": false,
+    "quote": "If total daily profit goes above $4,000, the account moves into read-only mode for the rest of that trading day.",
+    "url": "https://fxify.com/blog/introducing-fxify-2-phase-pro/"
+   },
+   {
+    "appliesTo": "both",
+    "kind": "profitable_days",
+    "percent": 0.5, "amount": null, "days": 3,
+    "measuredOn": "day close",
+    "effect": "blocks_pass",
+    "condition": "Per phase; also applies in funded stage.",
+    "precise": false,
+    "quote": "A trading day only counts if the account closes the day in at least +0.5% profit.",
+    "url": "https://fxify.com/blog/introducing-fxify-2-phase-pro/"
+   }
+  ],
+  "otherBreachRules": [],
+  "differencesVsCatalog": [
+   "consistencyRule: catalog 'lucro diário contado é limitado a $4.000' is WRONG in mechanism: official says exceeding $4,000 daily profit puts the account in read-only mode for the rest of the day; it does not say excess profit is uncounted. Classify as 'other' (daily profit lock), not daily_profit_cap/caps_counted_profit.",
+   "minTradingDays: confirmed 3 days >= +0.5%; official says it applies to evaluation AND funded stages.",
+   "dailyLoss: catalog '4%' -> add basis (prev day closing balance 17:00 EST, equity breach)."
+  ],
+  "notFound": [
+   "Whether the $4,000 cap scales by account size (blog states flat $4,000).",
+   "Weekend holding rule for 2-Phase Pro.",
+   "No official PDF."
+  ]
+ },
+ {
+  "firmSlug": "fxify",
+  "programSlug": "fxify-three-phase-2026",
+  "programName": "Three Phase",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {"label": "FAQ: rules for the assessment account", "url": "https://fxify.com/faqs/all-faqs/what-are-the-rules-for-the-assessment-account/", "kind": "help_center"},
+   {"label": "Blog: Drawdown rules (4 Sep 2026)", "url": "https://fxify.com/blog/drawdown-rules-choosing-a-prop-firm/", "kind": "page"},
+   {"label": "Blog: Why most traders never get a payout (22 Sep 2026)", "url": "https://fxify.com/blog/why-most-traders-never-get-a-payout/", "kind": "page"}
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [{"phase": "phase1", "percent": 5}, {"phase": "phase2", "percent": 5}, {"phase": "phase3", "percent": 5}],
+   "quote": "5% for each of Phases 1, 2, and 3 [FAQ table]",
+   "url": "https://fxify.com/faqs/all-faqs/what-are-the-rules-for-the-assessment-account/"
+  },
+  "dailyLoss": {
+   "percent": 5,
+   "measuredOn": "previous day balance (17:00 EST per FXIFY definition); breach on real-time equity",
+   "reset": "17:00 EST",
+   "quote": "Based on previous day balance.",
+   "url": "https://fxify.com/faqs/all-faqs/what-are-the-rules-for-the-assessment-account/"
+  },
+  "maxLoss": {
+   "percent": 5,
+   "type": "static (initial balance)",
+   "quote": "Based on initial balance.",
+   "url": "https://fxify.com/faqs/all-faqs/what-are-the-rules-for-the-assessment-account/"
+  },
+  "minTradingDays": {
+   "days": 5,
+   "perDayRequirement": "per phase",
+   "quote": null,
+   "url": "https://fxify.com/faqs/all-faqs/what-are-the-rules-for-the-assessment-account/"
+  },
+  "consistency": [
+   {
+    "appliesTo": "both",
+    "kind": "none",
+    "percent": null, "amount": null, "days": null, "measuredOn": null, "effect": null,
+    "condition": "FXIFY lists only Two Phase Classic, Lightning and Instant Funding Lite as programmes with a consistency rule.",
+    "precise": true, "quote": null,
+    "url": "https://fxify.com/blog/why-most-traders-never-get-a-payout/"
+   }
+  ],
+  "otherBreachRules": [
+   {"text": "Inactivity 60 days = hard breach.", "quote": "Must place a trade once in 60 days to avoid inactivity.", "url": "https://fxify.com/faqs/all-faqs/what-are-the-rules-for-the-assessment-account/"}
+  ],
+  "differencesVsCatalog": ["No differences found in targets, DD, days, consistency."],
+  "notFound": ["Sizes not re-verified.", "No official PDF."]
+ },
+ {
+  "firmSlug": "fxify",
+  "programSlug": "fxify-instant-funding-2026",
+  "programName": "Instant Funding",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {"label": "Instant Funded FAQ", "url": "https://fxify.com/faqs/instant-funded-faq/", "kind": "help_center"},
+   {"label": "FAQ: Instant Funding min/max trading days", "url": "https://fxify.com/faqs/all-faqs/instant-funded-faq/whats-the-max-and-minimum-trading-days-is-there-a-specific-time-window-to-complete-the-profit-targets/", "kind": "help_center"},
+   {"label": "Blog: Drawdown rules (4 Sep 2026)", "url": "https://fxify.com/blog/drawdown-rules-choosing-a-prop-firm/", "kind": "page"},
+   {"label": "Blog: Why most traders never get a payout (22 Sep 2026)", "url": "https://fxify.com/blog/why-most-traders-never-get-a-payout/", "kind": "page"}
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {"perPhase": [], "quote": "There isn't any profit target.", "url": "https://fxify.com/faqs/instant-funded-faq/"},
+  "dailyLoss": {
+   "percent": 8,
+   "measuredOn": "balance at end of previous day",
+   "reset": "17:00 EST (FXIFY general definition)",
+   "quote": "The daily drawdown on all Instant Funded programs is 8%, based on the balance at the end of the previous day.",
+   "url": "https://fxify.com/faqs/instant-funded-faq/"
+  },
+  "maxLoss": {
+   "percent": 8,
+   "type": "trailing, locks at starting balance when a payout is processed (or at 8% profit)",
+   "quote": "The Instant funded program has an 8% Max Trailing Drawdown. ... When a payout gets processed, the Max Drawdown locks at your starting balance, regardless of profits made.",
+   "url": "https://fxify.com/faqs/instant-funded-faq/"
+  },
+  "minTradingDays": {"days": null, "perDayRequirement": null, "quote": null, "url": "https://fxify.com/faqs/all-faqs/instant-funded-faq/whats-the-max-and-minimum-trading-days-is-there-a-specific-time-window-to-complete-the-profit-targets/", "note": "Search snippet of official FAQ: no minimum or maximum days; 60 calendar days inactivity = hard breach."},
+  "consistency": [
+   {
+    "appliesTo": "funded",
+    "kind": "none",
+    "percent": null, "amount": null, "days": null, "measuredOn": null, "effect": null,
+    "condition": "Not among FXIFY programmes with a consistency rule (only Classic, Lightning, Instant Lite).",
+    "precise": true, "quote": null,
+    "url": "https://fxify.com/blog/why-most-traders-never-get-a-payout/"
+   }
+  ],
+  "otherBreachRules": [
+   {"text": "Weekend holding: official FXIFY pages conflict (Friday force-close vs. weekend allowed).", "quote": null, "url": "https://fxify.com/faqs/instant-funded-faq/"}
+  ],
+  "differencesVsCatalog": [
+   "maxLoss: catalog '8% trailing' -> trailing that locks at starting balance at first payout (or 8% profit).",
+   "weekendRule: catalog 'Não permitido' — official FXIFY pages conflict; unconfirmed."
+  ],
+  "notFound": ["Account sizes.", "Definitive weekend rule.", "No official PDF."]
+ },
+ {
+  "firmSlug": "fxify",
+  "programSlug": "fxify-instant-funding-lite-2026",
+  "programName": "Instant Funding Lite",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {"label": "Blog: Introducing Instant Funding Lite (5 Feb 2026)", "url": "https://fxify.com/blog/introducing-fxify-instant-funding-lite/", "kind": "page"},
+   {"label": "Blog: Why most traders never get a payout (22 Sep 2026)", "url": "https://fxify.com/blog/why-most-traders-never-get-a-payout/", "kind": "page"},
+   {"label": "FAQ: Instant Funding Lite min/max days", "url": "https://fxify.com/faqs/all-faqs/instant-funding-lite-faq/instant-funding-lite-whats-the-max-and-minimum-trading-days-is-there-a-specific-time-window-to-complete-the-profit-targets/", "kind": "help_center"}
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {"perPhase": [], "quote": null, "url": "https://fxify.com/blog/introducing-fxify-instant-funding-lite/"},
+  "dailyLoss": {
+   "percent": 3,
+   "measuredOn": "not stated on Lite page (FXIFY general definition: previous day closing balance at 5 PM EST)",
+   "reset": "17:00 EST (general)",
+   "quote": "3% daily drawdown ... Maximum loss allowed within a single trading day.",
+   "url": "https://fxify.com/blog/introducing-fxify-instant-funding-lite/"
+  },
+  "maxLoss": {
+   "percent": 4,
+   "type": "trailing; stops at 4% net profit or after first payout and locks at starting capital",
+   "quote": "4% maximum trailing drawdown",
+   "url": "https://fxify.com/blog/introducing-fxify-instant-funding-lite/"
+  },
+  "minTradingDays": {
+   "days": 5,
+   "perDayRequirement": "payout after 10 completed trading days, trading on at least 5 of them",
+   "quote": "Payouts can be requested after 10 completed trading days",
+   "url": "https://fxify.com/blog/introducing-fxify-instant-funding-lite/"
+  },
+  "consistency": [
+   {
+    "appliesTo": "funded",
+    "kind": "best_day_vs_total_profit",
+    "percent": 20,
+    "amount": null, "days": null,
+    "measuredOn": "closed P&L per day (daily closed profits)",
+    "effect": "blocks_payout",
+    "condition": "Required total = best day / 0.20; Highest Daily Profit does not reset after withdrawal (Sept 2026 blog).",
+    "precise": false,
+    "quote": "No single trading day can account for more than 20% of total realised gains. ... based on daily closed profits, not individual trades.",
+    "url": "https://fxify.com/blog/introducing-fxify-instant-funding-lite/"
+   }
+  ],
+  "otherBreachRules": [
+   {"text": "No weekend holding; flattened end of Friday server time.", "quote": "Positions cannot be held over the weekend.", "url": "https://fxify.com/blog/introducing-fxify-instant-funding-lite/"}
+  ],
+  "differencesVsCatalog": [
+   "consistency: 20% confirmed; add measuredOn = daily closed profits; best day does not reset after withdrawal; delays payout.",
+   "No other differences."
+  ],
+  "notFound": ["Daily-loss basis specific to Lite.", "Trading-day boundary definition.", "No official PDF."]
+ },
+ {
+  "firmSlug": "fxify",
+  "programSlug": "fxify-lightning-2026",
+  "programName": "Lightning Challenge",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {"label": "FAQ: [Lightning Plan] What's the consistency rule?", "url": "https://fxify.com/faqs/all-faqs/lightning-plan/lighting-plan-whats-the-consistency-rule/", "kind": "help_center"},
+   {"label": "Lightning FAQ index", "url": "https://fxify.com/faqs/lightning-plan/", "kind": "help_center"},
+   {"label": "Blog: Lightning vs One Phase (16 Aug 2026)", "url": "https://fxify.com/blog/lightning-challenge-vs-one-phase/", "kind": "page"},
+   {"label": "Blog: Why most traders never get a payout (22 Sep 2026)", "url": "https://fxify.com/blog/why-most-traders-never-get-a-payout/", "kind": "page"}
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {"perPhase": [{"phase": "challenge", "percent": 5}], "quote": "100k account, 5% target ... The target is $5,000.", "url": "https://fxify.com/faqs/all-faqs/lightning-plan/lighting-plan-whats-the-consistency-rule/"},
+  "dailyLoss": {
+   "percent": 3,
+   "measuredOn": "previous day's closing balance at 5 PM EST",
+   "reset": "17:00 EST",
+   "quote": "The Lightning Plan has a daily drawdown limit of 3%.",
+   "url": "https://fxify.com/faqs/lightning-plan/"
+  },
+  "maxLoss": {
+   "percent": 4,
+   "type": "trailing on highest closed balance",
+   "quote": "The Lightning Plan has a maximum trailing drawdown limit of 4%.",
+   "url": "https://fxify.com/faqs/lightning-plan/"
+  },
+  "minTradingDays": {
+   "days": null,
+   "perDayRequirement": "max window of 5 trading days to pass (blog body says 5-calendar-day window — official conflict)",
+   "quote": "It features a 5 trading days limit to…",
+   "url": "https://fxify.com/faqs/lightning-plan/"
+  },
+  "consistency": [
+   {
+    "appliesTo": "both",
+    "kind": "best_day_vs_total_profit",
+    "percent": 30,
+    "amount": null, "days": null,
+    "measuredOn": "unknown",
+    "effect": "soft",
+    "condition": "Applies in Challenge (blocks pass until met within the 5-day window) and Live stage (delays payout). Required total = best day / 0.30; does not reset after withdrawal.",
+    "precise": false,
+    "quote": "Profits from any single trading day cannot exceed 30% of the total profits made. ... This rule applies to both the Challenge and Live stages.",
+    "url": "https://fxify.com/faqs/all-faqs/lightning-plan/lighting-plan-whats-the-consistency-rule/"
+   }
+  ],
+  "otherBreachRules": [
+   {"text": "Weekend holding: Yes (per blog table).", "quote": null, "url": "https://fxify.com/blog/lightning-challenge-vs-one-phase/"}
+  ],
+  "differencesVsCatalog": [
+   "sizes: catalog 'Confirmar' -> $10,000 to $100,000 (blog 16 Aug 2026).",
+   "weekendRule: catalog 'Não informado' -> 'Yes' per FXIFY blog table.",
+   "consistency 30% confirmed; add effect (keep trading; no breach) and that best day doesn't reset after withdrawal.",
+   "time limit: official sources conflict between 5 trading days and 5 calendar days."
+  ],
+  "notFound": ["Trading-day definition for consistency.", "Min trading days (if any).", "No official PDF."]
+ }
+]

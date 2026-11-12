@@ -90,7 +90,7 @@ export function OfficialRulesDialog({
           ))}
         </dl>
 
-        {documentUrl && (
+        {documentUrl && program.officialDocumentEmbeddable && (
           <div className="overflow-hidden rounded-lg border border-border">
             <iframe
               title={`Documento oficial ${program.firm}`}

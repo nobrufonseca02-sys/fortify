@@ -14,6 +14,7 @@ import { topstepPrograms } from './prop-firms/topstep';
 import { tradingPitPrograms } from './prop-firms/tradingPit';
 import { fxifyPrograms } from './prop-firms/fxify';
 import { normalizeAccountLevelPrograms } from './prop-firms/accountLevelRules';
+import { verifiedProgramRules } from './prop-firms/verifiedRules';
 
 export type PropFirmName =
   | 'FTMO'
@@ -168,6 +169,8 @@ export interface PropFirmRuleProgram {
   officialSourceUrl: string;
   /** PDF ou página oficial com as regras do programa, aberto no pop-up do "Usar este modelo". */
   officialDocumentUrl?: string;
+  /** A mesa deixa abrir o documento embutido (sem X-Frame-Options/CSP bloqueando). */
+  officialDocumentEmbeddable?: boolean;
   officialSourceUrls?: string[];
   sourceLabel: string;
   lastReviewedAt: string;
@@ -553,7 +556,28 @@ const sourcePropFirmRulePrograms: PropFirmRuleProgram[] = [
   ...alphaCapitalGroupPrograms,
 ];
 
-export const propFirmRulePrograms = normalizeAccountLevelPrograms(sourcePropFirmRulePrograms);
+/**
+ * Aplica a conferência nas fontes oficiais (verifiedRules.ts): consistência
+ * estruturada por fase e documento oficial. Programa que a mesa deixou de vender
+ * sai da Biblioteca (vínculos já feitos seguem pelo snapshot gravado).
+ */
+function applyVerifiedRules(programs: PropFirmRuleProgram[]): PropFirmRuleProgram[] {
+  return programs
+    .filter((program) => verifiedProgramRules[program.programSlug ?? program.id]?.stillSold !== false)
+    .map((program) => {
+      const verified = verifiedProgramRules[program.programSlug ?? program.id];
+      if (!verified) return program;
+      return {
+        ...program,
+        consistency: verified.consistency.map((clause) => ({ ...clause })),
+        officialDocumentUrl: verified.officialDocumentUrl ?? program.officialDocumentUrl,
+        officialDocumentEmbeddable: verified.embeddable,
+        lastReviewedAt: verified.verifiedAt,
+      };
+    });
+}
+
+export const propFirmRulePrograms = normalizeAccountLevelPrograms(applyVerifiedRules(sourcePropFirmRulePrograms));
 
 export const propFirmFilterOptions = {
   firms: [

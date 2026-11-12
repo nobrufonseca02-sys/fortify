@@ -29,7 +29,14 @@ export type ConsistencyKind =
   | 'daily_profit_cap'
   | 'profitable_days';
 
-export type ConsistencyEffect = 'blocks_pass' | 'blocks_payout' | 'raises_target' | 'soft' | 'caps_counted_profit';
+export type ConsistencyEffect =
+  | 'blocks_pass'
+  | 'blocks_payout'
+  | 'raises_target'
+  | 'soft'
+  | 'caps_counted_profit'
+  /** Passou do teto, a mesa trava as operações até o dia seguinte. */
+  | 'locks_trading';
 
 export interface ConsistencyClause {
   appliesTo: 'evaluation' | 'funded' | 'both';

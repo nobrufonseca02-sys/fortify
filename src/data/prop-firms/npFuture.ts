@@ -148,7 +148,7 @@ function standardProgram(platform: NPPlatform): PropFirmRuleProgram {
     maxLoss: '$1,000 / $2,000 / $3,000 / $4,500 / $6,000',
     drawdownType: 'Static',
     trailingDescription: 'A avaliação usa Max Loss por plano e não usa a trava EOD de saldo inicial + $100 aplicada à Funded.',
-    minTradingDays: '2 dias; operações válidas devem permanecer abertas por pelo menos 30 segundos',
+    minTradingDays: '3 dias; operações válidas devem permanecer abertas por pelo menos 60 segundos',
     consistencyRule: 'Maior dia de lucro até 50% do lucro total acumulado',
     newsRule: 'Permitido, sem abuso de latência, HFT ou exploração de spread/liquidez',
     weekendRule: weekendRule(platform),

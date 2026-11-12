@@ -1,0 +1,3108 @@
+[
+ {
+  "firmSlug": "e8-markets",
+  "programSlug": "e8-one-forex-2026",
+  "programName": "E8 One Forex",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "E8 One (product article)",
+    "url": "https://help.e8markets.com/en/articles/11775980-e8-one",
+    "kind": "help_center"
+   },
+   {
+    "label": "All product overviews",
+    "url": "https://help.e8markets.com/en/articles/13106558-all-product-overviews-e8-one-vs-e8-zero-vs-e8-pro-vs-e8-signature",
+    "kind": "help_center"
+   },
+   {
+    "label": "Daily Drawdown",
+    "url": "https://help.e8markets.com/en/articles/11769446-daily-drawdown",
+    "kind": "help_center"
+   },
+   {
+    "label": "Dynamic Drawdown",
+    "url": "https://help.e8markets.com/en/articles/11782996-dynamic-drawdown",
+    "kind": "help_center"
+   },
+   {
+    "label": "40% Best Day rule",
+    "url": "https://help.e8markets.com/en/articles/10450125-40-best-day-rule",
+    "kind": "help_center"
+   },
+   {
+    "label": "Server time",
+    "url": "https://help.e8markets.com/en/articles/10305202-server-time",
+    "kind": "help_center"
+   },
+   {
+    "label": "Trading policies and prohibited strategies",
+    "url": "https://help.e8markets.com/en/articles/6929927-trading-policies-and-prohibited-trading-strategies",
+    "kind": "help_center"
+   },
+   {
+    "label": "Terms and Conditions (HTML)",
+    "url": "https://e8markets.com/e8-markets-terms-and-conditions",
+    "kind": "terms"
+   }
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "SimFi Challenge (single phase)",
+     "percent": 6
+    }
+   ],
+   "quote": "6% Profit Target – Closed profit in your simulated trading account.",
+   "url": "https://help.e8markets.com/en/articles/11775980-e8-one",
+   "notes": "Preset value; article says 'You can still customize some of the parameters at checkout.'"
+  },
+  "dailyLoss": {
+   "percent": 3,
+   "measuredOn": "fixed $ amount = 3% of initial balance, subtracted from the balance at the start of the day (balance at rollover); breach if equity OR balance touches the level",
+   "reset": "00:00 server time (server = UTC+2 from beginning of November, UTC+3 from end of March)",
+   "quote": "3% Daily Drawdown – Your account must not lose more than x% of your initial balance in a single day. The limit you can not exceed is calculated from your starting balance of the day. | Every new day at 00:00 Server Time, we set your loss level = Starting Balance of the new day − that fixed $ amount. | A permanent violation occurs if your account’s equity or balance reaches/falls below this calculated level at any point during the day. | The Server time is being changed to UTC + 2 at the beginning of November and to UTC + 3 at the end of March",
+   "url": "https://help.e8markets.com/en/articles/11775980-e8-one",
+   "urls": [
+    "https://help.e8markets.com/en/articles/11775980-e8-one",
+    "https://help.e8markets.com/en/articles/11769446-daily-drawdown",
+    "https://help.e8markets.com/en/articles/10305202-server-time"
+   ]
+  },
+  "maxLoss": {
+   "percent": 4,
+   "type": "trailing on highest CLOSED balance (moves only when profit is closed, not on floating equity); locks permanently at initial balance",
+   "quote": "4% Dynamic Drawdown – A moving loss limit based on your highest closed balance. It rises each time you close a profit, then locks at that level until you close more profits. It locks permanently at the initial balance level.",
+   "url": "https://help.e8markets.com/en/articles/11775980-e8-one",
+   "breachOn": "equity or balance (Dynamic Drawdown article)"
+  },
+  "minTradingDays": {
+   "days": null,
+   "perDayRequirement": null,
+   "quote": "Unlimited Trading Days – There is no time limit, but you need to place and close at least one trade every 60 days.",
+   "url": "https://help.e8markets.com/en/articles/11775980-e8-one",
+   "notes": "No minimum trading days stated; inactivity: at least one trade opened and closed every 60 days."
+  },
+  "consistency": [
+   {
+    "appliesTo": "evaluation",
+    "kind": "none",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": null,
+    "effect": null,
+    "condition": null,
+    "precise": true,
+    "quote": "During the SimFI™ challenge stage, there is no consistency rule",
+    "url": "https://help.e8markets.com/en/articles/11775980-e8-one"
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "best_day_vs_total_profit",
+    "percent": 40,
+    "amount": null,
+    "days": null,
+    "measuredOn": "unknown",
+    "effect": "blocks_payout",
+    "condition": "Performance (funded) stage; profit window = current payout cycle only (resets after each payout; profit left from previous cycle excluded)",
+    "precise": false,
+    "quote": "With a 40% best-day rule, you must ensure that no single trading day exceeds more than 40% of your total generated profits. | If one day exceeds this limit, you don't lose your account; you simply need to continue trading to increase your total profit.",
+    "url": "https://help.e8markets.com/en/articles/10450125-40-best-day-rule",
+    "notes": "Not a breach (soft: keep trading). 'Total profit' = profit of the current payout cycle. The article does not define the day boundary nor whether the daily figure is closed P&L or equity; anti-bypass text (partial closes may be consolidated into one day) implies closed-position profit. Dashboard shows the requirement.",
+    "urls": [
+     "https://help.e8markets.com/en/articles/11775980-e8-one",
+     "https://help.e8markets.com/en/articles/10450125-40-best-day-rule"
+    ]
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Payout requirement: net profit (payout) must be greater than 50% of the daily drawdown.",
+    "quote": "Your net profit (payout) must be greater than 50% of your daily drawdown.",
+    "url": "https://help.e8markets.com/en/articles/11775980-e8-one"
+   },
+   {
+    "text": "News trading prohibited on Performance account from 5 min before to 5 min after high-impact news (profits may be removed).",
+    "quote": "In the SimFI™ Performance account, trading is strictly prohibited during high-impact news events. This prohibition period begins 5 minutes before the scheduled news release and ends 5 minutes after the release.",
+    "url": "https://help.e8markets.com/en/articles/11775980-e8-one"
+   },
+   {
+    "text": "All-or-nothing: risking the entire daily drawdown on a single trade is not permitted.",
+    "quote": "Risking your entire daily drawdown on a single trade is not permitted.",
+    "url": "https://help.e8markets.com/en/articles/6929927-trading-policies-and-prohibited-trading-strategies"
+   },
+   {
+    "text": "Drawdown/Daily percentages are checkout-customizable; preset is 3% daily / 4% dynamic.",
+    "quote": "This information is for the preset account. You can still customize some of the parameters at checkout.",
+    "url": "https://help.e8markets.com/en/articles/11775980-e8-one"
+   }
+  ],
+  "differencesVsCatalog": [
+   "Program is no longer split into 'Forex'/'Crypto': E8 One is one product with market chosen at checkout ('Classic Markets' or 'Perpetual Futures'); rules identical across markets.",
+   "dailyLoss: catalog says '3% do saldo inicial'; official mechanics = fixed $ (3% of initial balance) subtracted from the START-OF-DAY balance (00:00 server time, UTC+2/UTC+3), breach on equity or balance. Catalog wording omits the start-of-day reference.",
+   "maxLoss: catalog '4% dynamic / Trailing' is correct but should specify trailing on highest CLOSED balance (not equity) and locks permanently at initial balance.",
+   "Consistency matches catalog (none in challenge; 40% best day in Performance), but it is a payout gate only (not a breach) and computed per payout cycle (resets after each payout).",
+   "Missing in catalog: payout minimum = net profit > 50% of daily drawdown; News trading prohibited ±5 min on Performance; all-or-nothing rule; parameters customizable at checkout."
+  ],
+  "notFound": [
+   "Account sizes ($5K-$500K in catalog) not confirmed on any official help article fetched.",
+   "Day boundary and closed-vs-equity basis of the 'best day' not defined in official text."
+  ]
+ },
+ {
+  "firmSlug": "e8-markets",
+  "programSlug": "e8-one-crypto-2026",
+  "programName": "E8 One Crypto",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": false,
+  "sources": [
+   {
+    "label": "E8 One (product article)",
+    "url": "https://help.e8markets.com/en/articles/11775980-e8-one",
+    "kind": "help_center"
+   },
+   {
+    "label": "All product overviews",
+    "url": "https://help.e8markets.com/en/articles/13106558-all-product-overviews-e8-one-vs-e8-zero-vs-e8-pro-vs-e8-signature",
+    "kind": "help_center"
+   },
+   {
+    "label": "Daily Drawdown",
+    "url": "https://help.e8markets.com/en/articles/11769446-daily-drawdown",
+    "kind": "help_center"
+   },
+   {
+    "label": "Dynamic Drawdown",
+    "url": "https://help.e8markets.com/en/articles/11782996-dynamic-drawdown",
+    "kind": "help_center"
+   },
+   {
+    "label": "40% Best Day rule",
+    "url": "https://help.e8markets.com/en/articles/10450125-40-best-day-rule",
+    "kind": "help_center"
+   },
+   {
+    "label": "Server time",
+    "url": "https://help.e8markets.com/en/articles/10305202-server-time",
+    "kind": "help_center"
+   },
+   {
+    "label": "Trading policies and prohibited strategies",
+    "url": "https://help.e8markets.com/en/articles/6929927-trading-policies-and-prohibited-trading-strategies",
+    "kind": "help_center"
+   },
+   {
+    "label": "Terms and Conditions (HTML)",
+    "url": "https://e8markets.com/e8-markets-terms-and-conditions",
+    "kind": "terms"
+   }
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "SimFi Challenge (single phase)",
+     "percent": 6
+    }
+   ],
+   "quote": "6% Profit Target – Closed profit in your simulated trading account.",
+   "url": "https://help.e8markets.com/en/articles/11775980-e8-one",
+   "notes": "Preset value; article says 'You can still customize some of the parameters at checkout.'"
+  },
+  "dailyLoss": {
+   "percent": 3,
+   "measuredOn": "fixed $ amount = 3% of initial balance, subtracted from the balance at the start of the day (balance at rollover); breach if equity OR balance touches the level",
+   "reset": "00:00 server time (server = UTC+2 from beginning of November, UTC+3 from end of March)",
+   "quote": "3% Daily Drawdown – Your account must not lose more than x% of your initial balance in a single day. The limit you can not exceed is calculated from your starting balance of the day. | Every new day at 00:00 Server Time, we set your loss level = Starting Balance of the new day − that fixed $ amount. | A permanent violation occurs if your account’s equity or balance reaches/falls below this calculated level at any point during the day. | The Server time is being changed to UTC + 2 at the beginning of November and to UTC + 3 at the end of March",
+   "url": "https://help.e8markets.com/en/articles/11775980-e8-one",
+   "urls": [
+    "https://help.e8markets.com/en/articles/11775980-e8-one",
+    "https://help.e8markets.com/en/articles/11769446-daily-drawdown",
+    "https://help.e8markets.com/en/articles/10305202-server-time"
+   ]
+  },
+  "maxLoss": {
+   "percent": 4,
+   "type": "trailing on highest CLOSED balance (moves only when profit is closed, not on floating equity); locks permanently at initial balance",
+   "quote": "4% Dynamic Drawdown – A moving loss limit based on your highest closed balance. It rises each time you close a profit, then locks at that level until you close more profits. It locks permanently at the initial balance level.",
+   "url": "https://help.e8markets.com/en/articles/11775980-e8-one",
+   "breachOn": "equity or balance (Dynamic Drawdown article)"
+  },
+  "minTradingDays": {
+   "days": null,
+   "perDayRequirement": null,
+   "quote": "Unlimited Trading Days – There is no time limit, but you need to place and close at least one trade every 60 days.",
+   "url": "https://help.e8markets.com/en/articles/11775980-e8-one",
+   "notes": "No minimum trading days stated; inactivity: at least one trade opened and closed every 60 days."
+  },
+  "consistency": [
+   {
+    "appliesTo": "evaluation",
+    "kind": "none",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": null,
+    "effect": null,
+    "condition": null,
+    "precise": true,
+    "quote": "During the SimFI™ challenge stage, there is no consistency rule",
+    "url": "https://help.e8markets.com/en/articles/11775980-e8-one"
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "best_day_vs_total_profit",
+    "percent": 40,
+    "amount": null,
+    "days": null,
+    "measuredOn": "unknown",
+    "effect": "blocks_payout",
+    "condition": "Performance (funded) stage; profit window = current payout cycle only (resets after each payout; profit left from previous cycle excluded)",
+    "precise": false,
+    "quote": "With a 40% best-day rule, you must ensure that no single trading day exceeds more than 40% of your total generated profits. | If one day exceeds this limit, you don't lose your account; you simply need to continue trading to increase your total profit.",
+    "url": "https://help.e8markets.com/en/articles/10450125-40-best-day-rule",
+    "notes": "Not a breach (soft: keep trading). 'Total profit' = profit of the current payout cycle. The article does not define the day boundary nor whether the daily figure is closed P&L or equity; anti-bypass text (partial closes may be consolidated into one day) implies closed-position profit. Dashboard shows the requirement.",
+    "urls": [
+     "https://help.e8markets.com/en/articles/11775980-e8-one",
+     "https://help.e8markets.com/en/articles/10450125-40-best-day-rule"
+    ]
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Payout requirement: net profit (payout) must be greater than 50% of the daily drawdown.",
+    "quote": "Your net profit (payout) must be greater than 50% of your daily drawdown.",
+    "url": "https://help.e8markets.com/en/articles/11775980-e8-one"
+   },
+   {
+    "text": "News trading prohibited on Performance account from 5 min before to 5 min after high-impact news (profits may be removed).",
+    "quote": "In the SimFI™ Performance account, trading is strictly prohibited during high-impact news events. This prohibition period begins 5 minutes before the scheduled news release and ends 5 minutes after the release.",
+    "url": "https://help.e8markets.com/en/articles/11775980-e8-one"
+   },
+   {
+    "text": "All-or-nothing: risking the entire daily drawdown on a single trade is not permitted.",
+    "quote": "Risking your entire daily drawdown on a single trade is not permitted.",
+    "url": "https://help.e8markets.com/en/articles/6929927-trading-policies-and-prohibited-trading-strategies"
+   },
+   {
+    "text": "Drawdown/Daily percentages are checkout-customizable; preset is 3% daily / 4% dynamic.",
+    "quote": "This information is for the preset account. You can still customize some of the parameters at checkout.",
+    "url": "https://help.e8markets.com/en/articles/11775980-e8-one"
+   }
+  ],
+  "differencesVsCatalog": [
+   "Program no longer exists as a separate product: catalog source https://help.e8markets.com/en/articles/13429922-e8-one-crypto returns 404; E8 One article now lists 'Available markets: Classic Markets, Perpetual Futures' with identical rules. Crypto is traded via the E8 One 'Perpetual Futures' market (or Classic Markets crypto at 1:1). Recommend mapping existing bindings to E8 One.",
+   "Rules otherwise identical to E8 One (6% target, 3% daily from start-of-day balance, 4% dynamic on closed balance locking at initial balance, 40% best day on Performance only)."
+  ],
+  "notFound": [
+   "Official confirmation of what happened to legacy 'E8 One Crypto' accounts (migration) not found."
+  ]
+ },
+ {
+  "firmSlug": "e8-markets",
+  "programSlug": "e8-pro-forex-2026",
+  "programName": "E8 Pro Forex",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "E8 Pro (product article)",
+    "url": "https://help.e8markets.com/en/articles/15274219-e8-pro",
+    "kind": "help_center"
+   },
+   {
+    "label": "All product overviews",
+    "url": "https://help.e8markets.com/en/articles/13106558-all-product-overviews-e8-one-vs-e8-zero-vs-e8-pro-vs-e8-signature",
+    "kind": "help_center"
+   },
+   {
+    "label": "Daily Drawdown",
+    "url": "https://help.e8markets.com/en/articles/11769446-daily-drawdown",
+    "kind": "help_center"
+   },
+   {
+    "label": "Static Drawdown",
+    "url": "https://intercom.help/e8/en/articles/13653031-static-drawdown",
+    "kind": "help_center"
+   },
+   {
+    "label": "Daily profit cap",
+    "url": "https://intercom.help/e8/en/articles/15319043-daily-profit-cap",
+    "kind": "help_center"
+   },
+   {
+    "label": "Server time",
+    "url": "https://help.e8markets.com/en/articles/10305202-server-time",
+    "kind": "help_center"
+   },
+   {
+    "label": "Trading policies and prohibited strategies",
+    "url": "https://help.e8markets.com/en/articles/6929927-trading-policies-and-prohibited-trading-strategies",
+    "kind": "help_center"
+   },
+   {
+    "label": "Terms and Conditions (HTML)",
+    "url": "https://e8markets.com/e8-markets-terms-and-conditions",
+    "kind": "terms"
+   }
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "SimFi Challenge (single phase)",
+     "percent": 8
+    }
+   ],
+   "quote": "8% Profit Target - Closed profit in your simulated trading account.",
+   "url": "https://help.e8markets.com/en/articles/15274219-e8-pro"
+  },
+  "dailyLoss": {
+   "percent": 2.5,
+   "measuredOn": "fixed $ = 2.5% of initial balance subtracted from the balance at the start of the day; breach if equity or balance touches the level",
+   "reset": "00:00 server time (server = UTC+2 from beginning of November, UTC+3 from end of March)",
+   "quote": "2.5% Daily Drawdown – Your account must not lose more than 2.5% of your initial balance in a single day. The limit you can not exceed is calculated from your starting balance. | Every new day at 00:00 Server Time, we set your loss level = Starting Balance of the new day − that fixed $ amount.",
+   "url": "https://help.e8markets.com/en/articles/15274219-e8-pro",
+   "urls": [
+    "https://help.e8markets.com/en/articles/15274219-e8-pro",
+    "https://help.e8markets.com/en/articles/11769446-daily-drawdown"
+   ]
+  },
+  "maxLoss": {
+   "percent": 8,
+   "type": "static from initial balance; moves up to the initial balance when the first payout is processed and stays there",
+   "quote": "8% Static drawdown – A fixed loss limit based on your initial balance. It never moves, except when a first payout is processed. | When you request a first payout, the loss level will move to the initial balance level, and it stays there forever.",
+   "url": "https://help.e8markets.com/en/articles/15274219-e8-pro",
+   "urls": [
+    "https://help.e8markets.com/en/articles/15274219-e8-pro",
+    "https://intercom.help/e8/en/articles/13653031-static-drawdown"
+   ],
+   "breachOn": "equity or balance"
+  },
+  "minTradingDays": {
+   "days": null,
+   "perDayRequirement": null,
+   "quote": "Unlimited Trading Days - There is no time limit but you need to place and close at least one trade each 60 days.",
+   "url": "https://help.e8markets.com/en/articles/15274219-e8-pro",
+   "notes": "No minimum trading days; but because of the 2% daily profit cap the challenge cannot be passed in fewer than 4 days ('the possible minimum is 4 days')."
+  },
+  "consistency": [
+   {
+    "appliesTo": "both",
+    "kind": "none",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": null,
+    "effect": null,
+    "condition": null,
+    "precise": true,
+    "quote": "No consistency rule or minimum profitable days.",
+    "url": "https://help.e8markets.com/en/articles/15274219-e8-pro",
+    "notes": "No best-day / consistency rule in either stage (the daily profit cap below is the only per-day limiter)."
+   },
+   {
+    "appliesTo": "both",
+    "kind": "daily_profit_cap",
+    "percent": 2,
+    "amount": null,
+    "days": null,
+    "measuredOn": "balance (cap level = start-of-day balance + 2% of initial balance)",
+    "effect": "caps_counted_profit",
+    "condition": "Applies in Challenge and Performance stages",
+    "precise": true,
+    "quote": "2% Daily Profit cap - In each day, only 2% counts toward the target or profit. You can make more than 2% in a day, but only 2% of the initial balance per day counts toward the profit target or profit. | It sets a ceiling on how much profit counts toward your targets within any given trading day (00:00–23:59 Server Time). | Every day between 00:00 and 01:00 Server Time, any profits earned above the daily cap are automatically removed from your account balance.",
+    "url": "https://intercom.help/e8/en/articles/15319043-daily-profit-cap",
+    "notes": "Excess above the cap is physically REMOVED from the balance at rollover (00:00-01:00 server time), so the monitored balance drops the next day. Splitting a winning position across days to bypass may be consolidated.",
+    "urls": [
+     "https://help.e8markets.com/en/articles/15274219-e8-pro",
+     "https://intercom.help/e8/en/articles/15319043-daily-profit-cap"
+    ]
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Payout: minimum profit 1% of initial balance; 50% of total profit is requestable, remainder stays as buffer; payouts any day.",
+    "quote": "Minimum profit for first and additional payouts: 1% of your initial balance",
+    "url": "https://help.e8markets.com/en/articles/15274219-e8-pro"
+   },
+   {
+    "text": "All-or-nothing: risking the entire daily drawdown on a single trade is not permitted.",
+    "quote": "Risking your entire daily drawdown on a single trade is not permitted.",
+    "url": "https://help.e8markets.com/en/articles/6929927-trading-policies-and-prohibited-trading-strategies"
+   }
+  ],
+  "differencesVsCatalog": [
+   "Program renamed: catalog URL .../15274219-e8-pro-forex now redirects to 'E8 Pro' (product article). Market is chosen at checkout: 'Classic Markets' or 'Perpetual Futures'; rules identical. Product code on site is 'e8pro_v2' (E8 PRO v2).",
+   "maxLoss: catalog '8% estático' is correct but omits that the loss level moves up to the initial balance once the first payout is processed.",
+   "Daily profit cap (2% of initial balance) confirmed for both stages; catalog should note excess profit is removed from the balance at rollover (00:00-01:00 server time), not merely 'not counted'.",
+   "dailyLoss: catalog '2,5% do saldo inicial' — official mechanics measure from the start-of-day balance (fixed $ = 2.5% of initial).",
+   "Missing in catalog: payout min 1% of initial balance, only 50% of profits requestable per payout; minimum 4 days to pass due to cap."
+  ],
+  "notFound": [
+   "Account sizes not listed in any fetched official help article (catalog already says 'Confirmar tamanhos')."
+  ]
+ },
+ {
+  "firmSlug": "e8-markets",
+  "programSlug": "e8-pro-crypto-2026",
+  "programName": "E8 Pro Crypto",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": false,
+  "sources": [
+   {
+    "label": "E8 Pro (product article)",
+    "url": "https://help.e8markets.com/en/articles/15274219-e8-pro",
+    "kind": "help_center"
+   },
+   {
+    "label": "All product overviews",
+    "url": "https://help.e8markets.com/en/articles/13106558-all-product-overviews-e8-one-vs-e8-zero-vs-e8-pro-vs-e8-signature",
+    "kind": "help_center"
+   },
+   {
+    "label": "Daily Drawdown",
+    "url": "https://help.e8markets.com/en/articles/11769446-daily-drawdown",
+    "kind": "help_center"
+   },
+   {
+    "label": "Static Drawdown",
+    "url": "https://intercom.help/e8/en/articles/13653031-static-drawdown",
+    "kind": "help_center"
+   },
+   {
+    "label": "Daily profit cap",
+    "url": "https://intercom.help/e8/en/articles/15319043-daily-profit-cap",
+    "kind": "help_center"
+   },
+   {
+    "label": "Server time",
+    "url": "https://help.e8markets.com/en/articles/10305202-server-time",
+    "kind": "help_center"
+   },
+   {
+    "label": "Trading policies and prohibited strategies",
+    "url": "https://help.e8markets.com/en/articles/6929927-trading-policies-and-prohibited-trading-strategies",
+    "kind": "help_center"
+   },
+   {
+    "label": "Terms and Conditions (HTML)",
+    "url": "https://e8markets.com/e8-markets-terms-and-conditions",
+    "kind": "terms"
+   }
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "SimFi Challenge (single phase)",
+     "percent": 8
+    }
+   ],
+   "quote": "8% Profit Target - Closed profit in your simulated trading account.",
+   "url": "https://help.e8markets.com/en/articles/15274219-e8-pro"
+  },
+  "dailyLoss": {
+   "percent": 2.5,
+   "measuredOn": "fixed $ = 2.5% of initial balance subtracted from the balance at the start of the day; breach if equity or balance touches the level",
+   "reset": "00:00 server time (server = UTC+2 from beginning of November, UTC+3 from end of March)",
+   "quote": "2.5% Daily Drawdown – Your account must not lose more than 2.5% of your initial balance in a single day. The limit you can not exceed is calculated from your starting balance. | Every new day at 00:00 Server Time, we set your loss level = Starting Balance of the new day − that fixed $ amount.",
+   "url": "https://help.e8markets.com/en/articles/15274219-e8-pro",
+   "urls": [
+    "https://help.e8markets.com/en/articles/15274219-e8-pro",
+    "https://help.e8markets.com/en/articles/11769446-daily-drawdown"
+   ]
+  },
+  "maxLoss": {
+   "percent": 8,
+   "type": "static from initial balance; moves up to the initial balance when the first payout is processed and stays there",
+   "quote": "8% Static drawdown – A fixed loss limit based on your initial balance. It never moves, except when a first payout is processed. | When you request a first payout, the loss level will move to the initial balance level, and it stays there forever.",
+   "url": "https://help.e8markets.com/en/articles/15274219-e8-pro",
+   "urls": [
+    "https://help.e8markets.com/en/articles/15274219-e8-pro",
+    "https://intercom.help/e8/en/articles/13653031-static-drawdown"
+   ],
+   "breachOn": "equity or balance"
+  },
+  "minTradingDays": {
+   "days": null,
+   "perDayRequirement": null,
+   "quote": "Unlimited Trading Days - There is no time limit but you need to place and close at least one trade each 60 days.",
+   "url": "https://help.e8markets.com/en/articles/15274219-e8-pro",
+   "notes": "No minimum trading days; but because of the 2% daily profit cap the challenge cannot be passed in fewer than 4 days ('the possible minimum is 4 days')."
+  },
+  "consistency": [
+   {
+    "appliesTo": "both",
+    "kind": "none",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": null,
+    "effect": null,
+    "condition": null,
+    "precise": true,
+    "quote": "No consistency rule or minimum profitable days.",
+    "url": "https://help.e8markets.com/en/articles/15274219-e8-pro",
+    "notes": "No best-day / consistency rule in either stage (the daily profit cap below is the only per-day limiter)."
+   },
+   {
+    "appliesTo": "both",
+    "kind": "daily_profit_cap",
+    "percent": 2,
+    "amount": null,
+    "days": null,
+    "measuredOn": "balance (cap level = start-of-day balance + 2% of initial balance)",
+    "effect": "caps_counted_profit",
+    "condition": "Applies in Challenge and Performance stages",
+    "precise": true,
+    "quote": "2% Daily Profit cap - In each day, only 2% counts toward the target or profit. You can make more than 2% in a day, but only 2% of the initial balance per day counts toward the profit target or profit. | It sets a ceiling on how much profit counts toward your targets within any given trading day (00:00–23:59 Server Time). | Every day between 00:00 and 01:00 Server Time, any profits earned above the daily cap are automatically removed from your account balance.",
+    "url": "https://intercom.help/e8/en/articles/15319043-daily-profit-cap",
+    "notes": "Excess above the cap is physically REMOVED from the balance at rollover (00:00-01:00 server time), so the monitored balance drops the next day. Splitting a winning position across days to bypass may be consolidated.",
+    "urls": [
+     "https://help.e8markets.com/en/articles/15274219-e8-pro",
+     "https://intercom.help/e8/en/articles/15319043-daily-profit-cap"
+    ]
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Payout: minimum profit 1% of initial balance; 50% of total profit is requestable, remainder stays as buffer; payouts any day.",
+    "quote": "Minimum profit for first and additional payouts: 1% of your initial balance",
+    "url": "https://help.e8markets.com/en/articles/15274219-e8-pro"
+   },
+   {
+    "text": "All-or-nothing: risking the entire daily drawdown on a single trade is not permitted.",
+    "quote": "Risking your entire daily drawdown on a single trade is not permitted.",
+    "url": "https://help.e8markets.com/en/articles/6929927-trading-policies-and-prohibited-trading-strategies"
+   }
+  ],
+  "differencesVsCatalog": [
+   "Program no longer exists as a separate product: catalog URL https://help.e8markets.com/en/articles/15323777-e8-pro-crypto returns 404. E8 Pro article lists 'Classic Markets, Perpetual Futures' (crypto via Perpetual Futures) with identical rules. Map bindings to E8 Pro.",
+   "Rules otherwise identical to E8 Pro (8% target, 2.5% daily, 8% static moving to initial balance after first payout, 2% daily profit cap, no consistency)."
+  ],
+  "notFound": [
+   "Migration statement for legacy 'E8 Pro Crypto' accounts not found."
+  ]
+ },
+ {
+  "firmSlug": "e8-markets",
+  "programSlug": "e8-signature-forex-2026",
+  "programName": "E8 Signature Forex",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": false,
+  "sources": [
+   {
+    "label": "E8 Signature (product article)",
+    "url": "https://help.e8markets.com/en/articles/11755943-e8-signature",
+    "kind": "help_center"
+   },
+   {
+    "label": "All product overviews",
+    "url": "https://help.e8markets.com/en/articles/13106558-all-product-overviews-e8-one-vs-e8-zero-vs-e8-pro-vs-e8-signature",
+    "kind": "help_center"
+   },
+   {
+    "label": "EOD Dynamic Drawdown",
+    "url": "https://helpfutures.e8markets.com/en/articles/11864596-eod-dynamic-drawdown",
+    "kind": "help_center"
+   },
+   {
+    "label": "Daily Pause",
+    "url": "https://help.e8markets.com/en/articles/11969807-daily-pause",
+    "kind": "help_center"
+   },
+   {
+    "label": "35% Best Day rule",
+    "url": "https://help.e8markets.com/en/articles/11865587-35-best-day-rule",
+    "kind": "help_center"
+   },
+   {
+    "label": "Payout caps and buffers for E8 Signature",
+    "url": "https://help.e8markets.com/en/articles/11940573-payout-caps-and-buffers-for-e8-signature-explained",
+    "kind": "help_center"
+   },
+   {
+    "label": "Server time",
+    "url": "https://help.e8markets.com/en/articles/10305202-server-time",
+    "kind": "help_center"
+   },
+   {
+    "label": "Futures trading policies",
+    "url": "https://helpfutures.e8markets.com/en/articles/10209270-trading-policies-and-prohibited-trading-strategies",
+    "kind": "help_center"
+   },
+   {
+    "label": "Terms and Conditions (HTML)",
+    "url": "https://e8markets.com/e8-markets-terms-and-conditions",
+    "kind": "terms"
+   }
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "SimFi Challenge (single phase)",
+     "percent": 6,
+     "amounts": {
+      "25000": 1500,
+      "50000": 3000,
+      "100000": 6000,
+      "150000": 9000
+     }
+    }
+   ],
+   "quote": "6% Profit Target - Closed profit in your simulated trading account. | $9,000 Profit Target - $150,000 account",
+   "url": "https://help.e8markets.com/en/articles/11755943-e8-signature"
+  },
+  "dailyLoss": {
+   "percent": 2,
+   "measuredOn": "Performance stage only (no daily limit in Challenge). SOFT 'Daily Pause': fixed $ = 2% of initial balance subtracted from balance at start of day; if equity or balance falls below, trading paused until 00:00 server time (account NOT breached). $500/$1,000/$2,000/$3,000 for 25K/50K/100K/150K",
+   "reset": "00:00 server time (UTC+2 / UTC+3 DST)",
+   "quote": "2% Daily pause - A soft daily loss limit based on your starting balance of the day. If your floating or closed loss reaches 2%, trading stops until the next day. Your account is not breached. | If equity or balance falls below that line, we pause trading until 00:00 (server time)",
+   "url": "https://help.e8markets.com/en/articles/11755943-e8-signature",
+   "urls": [
+    "https://help.e8markets.com/en/articles/11755943-e8-signature",
+    "https://help.e8markets.com/en/articles/11969807-daily-pause"
+   ]
+  },
+  "maxLoss": {
+   "percent": null,
+   "type": "EOD trailing on highest end-of-day balance (updates once per day at market close; closed profits only); locks permanently at initial balance once closed profit = DD amount or after first payout. $1,000 / $2,000 / $3,000 / $4,000 for $25K / $50K / $100K / $150K",
+   "amounts": {
+    "25000": 1000,
+    "50000": 2000,
+    "100000": 3000,
+    "150000": 4000
+   },
+   "quote": "EOD Dynamic drawdown – A moving loss limit based on your highest end-of-day balance. It only updates once per day at market close (intraday equity swings do not move it). It locks permanently at the initial balance level. | $4,000 EOD - $150,000 account",
+   "url": "https://help.e8markets.com/en/articles/11755943-e8-signature",
+   "breachOn": "equity or balance (EOD Dynamic Drawdown article)"
+  },
+  "minTradingDays": {
+   "days": null,
+   "perDayRequirement": null,
+   "quote": "Unlimited Trading Days - There is no time limit but you need to place and close at least one trade each 60 days.",
+   "url": "https://help.e8markets.com/en/articles/11755943-e8-signature",
+   "notes": "No minimum trading days. NOTE: the Signature article states 60-day inactivity, whereas the futures E8 Zero article states 7 days; catalog had 7 days for Signature Futures."
+  },
+  "consistency": [
+   {
+    "appliesTo": "evaluation",
+    "kind": "none",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": null,
+    "effect": null,
+    "condition": null,
+    "precise": true,
+    "quote": "Challenge account - No",
+    "url": "https://help.e8markets.com/en/articles/13106558-all-product-overviews-e8-one-vs-e8-zero-vs-e8-pro-vs-e8-signature",
+    "notes": "From the comparison table in the product overview (Consistency row, E8 Signature column)."
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "best_day_vs_total_profit",
+    "percent": 35,
+    "amount": null,
+    "days": null,
+    "measuredOn": "unknown",
+    "effect": "blocks_payout",
+    "condition": "Performance stage; computed on profits of the current payout cycle only (resets after each payout)",
+    "precise": false,
+    "quote": "35% Best Day rule - With a 35% best-day rule, you must ensure that no single trading day exceeds more than 35% of your total generated profits. | If one day exceeds this limit, you don't lose your account; you simply need to continue trading to increase your total profit.",
+    "url": "https://help.e8markets.com/en/articles/11755943-e8-signature",
+    "notes": "Soft (no breach). Day boundary / closed-vs-equity basis not defined in the article. Note the 35% article's example table contains a typo ('35% of Total profit ($1,900 × 0.40)').",
+    "urls": [
+     "https://help.e8markets.com/en/articles/11755943-e8-signature",
+     "https://help.e8markets.com/en/articles/11865587-35-best-day-rule"
+    ]
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "profitable_days",
+    "percent": 0.3,
+    "amount": {
+     "25000": 75,
+     "50000": 150,
+     "100000": 300,
+     "150000": 450
+    },
+    "days": 5,
+    "measuredOn": "closed P&L (realized)",
+    "effect": "blocks_payout",
+    "condition": "Between payouts only; not required for the first payout",
+    "precise": false,
+    "quote": "Minimum profitable days between each payout: 5 (does not apply for first payout) | A profitable day is considered as a day where the realized closed PnL equals to 0.3% or more. | You have to achieve profitable days between each payout cycle. After requesting a payout, your previously achieved profitable days will reset to 0.",
+    "url": "https://help.e8markets.com/en/articles/11755943-e8-signature",
+    "notes": "0.3% is of initial balance (dollar table: $75/$150/$300/$450). Day boundary not explicitly defined in the rule text."
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Payout buffer equal to EOD drawdown must stay in the account; per-payout caps apply; max 4 payouts per account, then account deactivated and replaced by a free Challenge.",
+    "quote": "Maximum amount of payouts per account: 4",
+    "url": "https://help.e8markets.com/en/articles/11755943-e8-signature"
+   },
+   {
+    "text": "Minimum payout $100 (gross $125 at 80% split).",
+    "quote": "Minimum payout is $100.",
+    "url": "https://help.e8markets.com/en/articles/11755943-e8-signature"
+   },
+   {
+    "text": "All positions are closed by 23:00 server time; trading reopens 00:15 server time.",
+    "quote": "Please note that on E8 Signature accounts, all positions are closed by 23:00 Server time, and trading re-opens at 00:15 Server time.",
+    "url": "https://help.e8markets.com/en/articles/11755943-e8-signature"
+   },
+   {
+    "text": "Only profit of the current cycle is eligible for payout (no carry-over).",
+    "quote": "On E8 Signature (futures market), for your current payout, only profit earned during the current cycle is eligible.",
+    "url": "https://help.e8markets.com/en/articles/11755943-e8-signature"
+   },
+   {
+    "text": "Max contracts: 2 / 4 / 8 / 12 for $25K / $50K / $100K / $150K.",
+    "quote": "12 Contracts ($120,000 margin)",
+    "url": "https://help.e8markets.com/en/articles/11755943-e8-signature"
+   }
+  ],
+  "differencesVsCatalog": [
+   "Program appears discontinued: the E8 Signature help article (updated this week) lists 'Available Markets: Futures.' only, the overview table lists Signature markets as 'Futures', and the site's product list contains only 'e8signature_v_fu'. (Older EOD/Daily Pause articles still mention 'Classic Markets', and e8markets.com/e8-signature is a stale template showing '0%' placeholders.) Do not offer for new bindings without manual confirmation.",
+   "Catalog source URL .../11755943-e8-signature-forex now redirects to '.../11755943-e8-signature' (Futures).",
+   "maxLoss for $150K: catalog says $4,500 EOD; product article says '$4,000 EOD - $150,000 account' (but the payout-caps article still lists a $4,500 buffer for $150K, i.e. official sources conflict).",
+   "Consistency: catalog is right (35% best day on Performance + 5 profitable days between payouts after the first) but omits that a profitable day = realized closed PnL >= 0.3% of initial balance ($75/$150/$300/$450), and that best day is a payout gate only (not a breach) computed per payout cycle.",
+   "Missing in catalog: payout buffer = EOD DD size, payout caps per cycle, max 4 payouts per account, min payout $100."
+  ],
+  "notFound": [
+   "No current official page describing a Forex/Classic-Markets version of E8 Signature."
+  ]
+ },
+ {
+  "firmSlug": "e8-markets",
+  "programSlug": "e8-signature-crypto-2026",
+  "programName": "E8 Signature Crypto",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": false,
+  "sources": [
+   {
+    "label": "E8 Signature (product article)",
+    "url": "https://help.e8markets.com/en/articles/11755943-e8-signature",
+    "kind": "help_center"
+   },
+   {
+    "label": "All product overviews",
+    "url": "https://help.e8markets.com/en/articles/13106558-all-product-overviews-e8-one-vs-e8-zero-vs-e8-pro-vs-e8-signature",
+    "kind": "help_center"
+   },
+   {
+    "label": "EOD Dynamic Drawdown",
+    "url": "https://helpfutures.e8markets.com/en/articles/11864596-eod-dynamic-drawdown",
+    "kind": "help_center"
+   },
+   {
+    "label": "Daily Pause",
+    "url": "https://help.e8markets.com/en/articles/11969807-daily-pause",
+    "kind": "help_center"
+   },
+   {
+    "label": "35% Best Day rule",
+    "url": "https://help.e8markets.com/en/articles/11865587-35-best-day-rule",
+    "kind": "help_center"
+   },
+   {
+    "label": "Payout caps and buffers for E8 Signature",
+    "url": "https://help.e8markets.com/en/articles/11940573-payout-caps-and-buffers-for-e8-signature-explained",
+    "kind": "help_center"
+   },
+   {
+    "label": "Server time",
+    "url": "https://help.e8markets.com/en/articles/10305202-server-time",
+    "kind": "help_center"
+   },
+   {
+    "label": "Futures trading policies",
+    "url": "https://helpfutures.e8markets.com/en/articles/10209270-trading-policies-and-prohibited-trading-strategies",
+    "kind": "help_center"
+   },
+   {
+    "label": "Terms and Conditions (HTML)",
+    "url": "https://e8markets.com/e8-markets-terms-and-conditions",
+    "kind": "terms"
+   }
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "SimFi Challenge (single phase)",
+     "percent": 6,
+     "amounts": {
+      "25000": 1500,
+      "50000": 3000,
+      "100000": 6000,
+      "150000": 9000
+     }
+    }
+   ],
+   "quote": "6% Profit Target - Closed profit in your simulated trading account. | $9,000 Profit Target - $150,000 account",
+   "url": "https://help.e8markets.com/en/articles/11755943-e8-signature"
+  },
+  "dailyLoss": {
+   "percent": 2,
+   "measuredOn": "Performance stage only (no daily limit in Challenge). SOFT 'Daily Pause': fixed $ = 2% of initial balance subtracted from balance at start of day; if equity or balance falls below, trading paused until 00:00 server time (account NOT breached). $500/$1,000/$2,000/$3,000 for 25K/50K/100K/150K",
+   "reset": "00:00 server time (UTC+2 / UTC+3 DST)",
+   "quote": "2% Daily pause - A soft daily loss limit based on your starting balance of the day. If your floating or closed loss reaches 2%, trading stops until the next day. Your account is not breached. | If equity or balance falls below that line, we pause trading until 00:00 (server time)",
+   "url": "https://help.e8markets.com/en/articles/11755943-e8-signature",
+   "urls": [
+    "https://help.e8markets.com/en/articles/11755943-e8-signature",
+    "https://help.e8markets.com/en/articles/11969807-daily-pause"
+   ]
+  },
+  "maxLoss": {
+   "percent": null,
+   "type": "EOD trailing on highest end-of-day balance (updates once per day at market close; closed profits only); locks permanently at initial balance once closed profit = DD amount or after first payout. $1,000 / $2,000 / $3,000 / $4,000 for $25K / $50K / $100K / $150K",
+   "amounts": {
+    "25000": 1000,
+    "50000": 2000,
+    "100000": 3000,
+    "150000": 4000
+   },
+   "quote": "EOD Dynamic drawdown – A moving loss limit based on your highest end-of-day balance. It only updates once per day at market close (intraday equity swings do not move it). It locks permanently at the initial balance level. | $4,000 EOD - $150,000 account",
+   "url": "https://help.e8markets.com/en/articles/11755943-e8-signature",
+   "breachOn": "equity or balance (EOD Dynamic Drawdown article)"
+  },
+  "minTradingDays": {
+   "days": null,
+   "perDayRequirement": null,
+   "quote": "Unlimited Trading Days - There is no time limit but you need to place and close at least one trade each 60 days.",
+   "url": "https://help.e8markets.com/en/articles/11755943-e8-signature",
+   "notes": "No minimum trading days. NOTE: the Signature article states 60-day inactivity, whereas the futures E8 Zero article states 7 days; catalog had 7 days for Signature Futures."
+  },
+  "consistency": [
+   {
+    "appliesTo": "evaluation",
+    "kind": "none",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": null,
+    "effect": null,
+    "condition": null,
+    "precise": true,
+    "quote": "Challenge account - No",
+    "url": "https://help.e8markets.com/en/articles/13106558-all-product-overviews-e8-one-vs-e8-zero-vs-e8-pro-vs-e8-signature",
+    "notes": "From the comparison table in the product overview (Consistency row, E8 Signature column)."
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "best_day_vs_total_profit",
+    "percent": 35,
+    "amount": null,
+    "days": null,
+    "measuredOn": "unknown",
+    "effect": "blocks_payout",
+    "condition": "Performance stage; computed on profits of the current payout cycle only (resets after each payout)",
+    "precise": false,
+    "quote": "35% Best Day rule - With a 35% best-day rule, you must ensure that no single trading day exceeds more than 35% of your total generated profits. | If one day exceeds this limit, you don't lose your account; you simply need to continue trading to increase your total profit.",
+    "url": "https://help.e8markets.com/en/articles/11755943-e8-signature",
+    "notes": "Soft (no breach). Day boundary / closed-vs-equity basis not defined in the article. Note the 35% article's example table contains a typo ('35% of Total profit ($1,900 × 0.40)').",
+    "urls": [
+     "https://help.e8markets.com/en/articles/11755943-e8-signature",
+     "https://help.e8markets.com/en/articles/11865587-35-best-day-rule"
+    ]
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "profitable_days",
+    "percent": 0.3,
+    "amount": {
+     "25000": 75,
+     "50000": 150,
+     "100000": 300,
+     "150000": 450
+    },
+    "days": 5,
+    "measuredOn": "closed P&L (realized)",
+    "effect": "blocks_payout",
+    "condition": "Between payouts only; not required for the first payout",
+    "precise": false,
+    "quote": "Minimum profitable days between each payout: 5 (does not apply for first payout) | A profitable day is considered as a day where the realized closed PnL equals to 0.3% or more. | You have to achieve profitable days between each payout cycle. After requesting a payout, your previously achieved profitable days will reset to 0.",
+    "url": "https://help.e8markets.com/en/articles/11755943-e8-signature",
+    "notes": "0.3% is of initial balance (dollar table: $75/$150/$300/$450). Day boundary not explicitly defined in the rule text."
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Payout buffer equal to EOD drawdown must stay in the account; per-payout caps apply; max 4 payouts per account, then account deactivated and replaced by a free Challenge.",
+    "quote": "Maximum amount of payouts per account: 4",
+    "url": "https://help.e8markets.com/en/articles/11755943-e8-signature"
+   },
+   {
+    "text": "Minimum payout $100 (gross $125 at 80% split).",
+    "quote": "Minimum payout is $100.",
+    "url": "https://help.e8markets.com/en/articles/11755943-e8-signature"
+   },
+   {
+    "text": "All positions are closed by 23:00 server time; trading reopens 00:15 server time.",
+    "quote": "Please note that on E8 Signature accounts, all positions are closed by 23:00 Server time, and trading re-opens at 00:15 Server time.",
+    "url": "https://help.e8markets.com/en/articles/11755943-e8-signature"
+   },
+   {
+    "text": "Only profit of the current cycle is eligible for payout (no carry-over).",
+    "quote": "On E8 Signature (futures market), for your current payout, only profit earned during the current cycle is eligible.",
+    "url": "https://help.e8markets.com/en/articles/11755943-e8-signature"
+   },
+   {
+    "text": "Max contracts: 2 / 4 / 8 / 12 for $25K / $50K / $100K / $150K.",
+    "quote": "12 Contracts ($120,000 margin)",
+    "url": "https://help.e8markets.com/en/articles/11755943-e8-signature"
+   }
+  ],
+  "differencesVsCatalog": [
+   "Program discontinued as separate product: catalog URL https://help.e8markets.com/en/articles/11864571-e8-signature-crypto returns 404; current E8 Signature article lists Futures only.",
+   "maxLoss for $150K: catalog says $4,500 EOD; product article says '$4,000 EOD - $150,000 account' (but the payout-caps article still lists a $4,500 buffer for $150K, i.e. official sources conflict).",
+   "Consistency: catalog is right (35% best day on Performance + 5 profitable days between payouts after the first) but omits that a profitable day = realized closed PnL >= 0.3% of initial balance ($75/$150/$300/$450), and that best day is a payout gate only (not a breach) computed per payout cycle.",
+   "Missing in catalog: payout buffer = EOD DD size, payout caps per cycle, max 4 payouts per account, min payout $100."
+  ],
+  "notFound": [
+   "No current official page for a Crypto version of E8 Signature."
+  ]
+ },
+ {
+  "firmSlug": "e8-markets",
+  "programSlug": "e8-signature-futures-2026",
+  "programName": "E8 Signature Futures",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "E8 Signature (product article)",
+    "url": "https://help.e8markets.com/en/articles/11755943-e8-signature",
+    "kind": "help_center"
+   },
+   {
+    "label": "All product overviews",
+    "url": "https://help.e8markets.com/en/articles/13106558-all-product-overviews-e8-one-vs-e8-zero-vs-e8-pro-vs-e8-signature",
+    "kind": "help_center"
+   },
+   {
+    "label": "EOD Dynamic Drawdown",
+    "url": "https://helpfutures.e8markets.com/en/articles/11864596-eod-dynamic-drawdown",
+    "kind": "help_center"
+   },
+   {
+    "label": "Daily Pause",
+    "url": "https://help.e8markets.com/en/articles/11969807-daily-pause",
+    "kind": "help_center"
+   },
+   {
+    "label": "35% Best Day rule",
+    "url": "https://help.e8markets.com/en/articles/11865587-35-best-day-rule",
+    "kind": "help_center"
+   },
+   {
+    "label": "Payout caps and buffers for E8 Signature",
+    "url": "https://help.e8markets.com/en/articles/11940573-payout-caps-and-buffers-for-e8-signature-explained",
+    "kind": "help_center"
+   },
+   {
+    "label": "Server time",
+    "url": "https://help.e8markets.com/en/articles/10305202-server-time",
+    "kind": "help_center"
+   },
+   {
+    "label": "Futures trading policies",
+    "url": "https://helpfutures.e8markets.com/en/articles/10209270-trading-policies-and-prohibited-trading-strategies",
+    "kind": "help_center"
+   },
+   {
+    "label": "Terms and Conditions (HTML)",
+    "url": "https://e8markets.com/e8-markets-terms-and-conditions",
+    "kind": "terms"
+   }
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "SimFi Challenge (single phase)",
+     "percent": 6,
+     "amounts": {
+      "25000": 1500,
+      "50000": 3000,
+      "100000": 6000,
+      "150000": 9000
+     }
+    }
+   ],
+   "quote": "6% Profit Target - Closed profit in your simulated trading account. | $9,000 Profit Target - $150,000 account",
+   "url": "https://help.e8markets.com/en/articles/11755943-e8-signature"
+  },
+  "dailyLoss": {
+   "percent": 2,
+   "measuredOn": "Performance stage only (no daily limit in Challenge). SOFT 'Daily Pause': fixed $ = 2% of initial balance subtracted from balance at start of day; if equity or balance falls below, trading paused until 00:00 server time (account NOT breached). $500/$1,000/$2,000/$3,000 for 25K/50K/100K/150K",
+   "reset": "00:00 server time (UTC+2 / UTC+3 DST)",
+   "quote": "2% Daily pause - A soft daily loss limit based on your starting balance of the day. If your floating or closed loss reaches 2%, trading stops until the next day. Your account is not breached. | If equity or balance falls below that line, we pause trading until 00:00 (server time)",
+   "url": "https://help.e8markets.com/en/articles/11755943-e8-signature",
+   "urls": [
+    "https://help.e8markets.com/en/articles/11755943-e8-signature",
+    "https://help.e8markets.com/en/articles/11969807-daily-pause"
+   ]
+  },
+  "maxLoss": {
+   "percent": null,
+   "type": "EOD trailing on highest end-of-day balance (updates once per day at market close; closed profits only); locks permanently at initial balance once closed profit = DD amount or after first payout. $1,000 / $2,000 / $3,000 / $4,000 for $25K / $50K / $100K / $150K",
+   "amounts": {
+    "25000": 1000,
+    "50000": 2000,
+    "100000": 3000,
+    "150000": 4000
+   },
+   "quote": "EOD Dynamic drawdown – A moving loss limit based on your highest end-of-day balance. It only updates once per day at market close (intraday equity swings do not move it). It locks permanently at the initial balance level. | $4,000 EOD - $150,000 account",
+   "url": "https://help.e8markets.com/en/articles/11755943-e8-signature",
+   "breachOn": "equity or balance (EOD Dynamic Drawdown article)"
+  },
+  "minTradingDays": {
+   "days": null,
+   "perDayRequirement": null,
+   "quote": "Unlimited Trading Days - There is no time limit but you need to place and close at least one trade each 60 days.",
+   "url": "https://help.e8markets.com/en/articles/11755943-e8-signature",
+   "notes": "No minimum trading days. NOTE: the Signature article states 60-day inactivity, whereas the futures E8 Zero article states 7 days; catalog had 7 days for Signature Futures."
+  },
+  "consistency": [
+   {
+    "appliesTo": "evaluation",
+    "kind": "none",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": null,
+    "effect": null,
+    "condition": null,
+    "precise": true,
+    "quote": "Challenge account - No",
+    "url": "https://help.e8markets.com/en/articles/13106558-all-product-overviews-e8-one-vs-e8-zero-vs-e8-pro-vs-e8-signature",
+    "notes": "From the comparison table in the product overview (Consistency row, E8 Signature column)."
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "best_day_vs_total_profit",
+    "percent": 35,
+    "amount": null,
+    "days": null,
+    "measuredOn": "unknown",
+    "effect": "blocks_payout",
+    "condition": "Performance stage; computed on profits of the current payout cycle only (resets after each payout)",
+    "precise": false,
+    "quote": "35% Best Day rule - With a 35% best-day rule, you must ensure that no single trading day exceeds more than 35% of your total generated profits. | If one day exceeds this limit, you don't lose your account; you simply need to continue trading to increase your total profit.",
+    "url": "https://help.e8markets.com/en/articles/11755943-e8-signature",
+    "notes": "Soft (no breach). Day boundary / closed-vs-equity basis not defined in the article. Note the 35% article's example table contains a typo ('35% of Total profit ($1,900 × 0.40)').",
+    "urls": [
+     "https://help.e8markets.com/en/articles/11755943-e8-signature",
+     "https://help.e8markets.com/en/articles/11865587-35-best-day-rule"
+    ]
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "profitable_days",
+    "percent": 0.3,
+    "amount": {
+     "25000": 75,
+     "50000": 150,
+     "100000": 300,
+     "150000": 450
+    },
+    "days": 5,
+    "measuredOn": "closed P&L (realized)",
+    "effect": "blocks_payout",
+    "condition": "Between payouts only; not required for the first payout",
+    "precise": false,
+    "quote": "Minimum profitable days between each payout: 5 (does not apply for first payout) | A profitable day is considered as a day where the realized closed PnL equals to 0.3% or more. | You have to achieve profitable days between each payout cycle. After requesting a payout, your previously achieved profitable days will reset to 0.",
+    "url": "https://help.e8markets.com/en/articles/11755943-e8-signature",
+    "notes": "0.3% is of initial balance (dollar table: $75/$150/$300/$450). Day boundary not explicitly defined in the rule text."
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Payout buffer equal to EOD drawdown must stay in the account; per-payout caps apply; max 4 payouts per account, then account deactivated and replaced by a free Challenge.",
+    "quote": "Maximum amount of payouts per account: 4",
+    "url": "https://help.e8markets.com/en/articles/11755943-e8-signature"
+   },
+   {
+    "text": "Minimum payout $100 (gross $125 at 80% split).",
+    "quote": "Minimum payout is $100.",
+    "url": "https://help.e8markets.com/en/articles/11755943-e8-signature"
+   },
+   {
+    "text": "All positions are closed by 23:00 server time; trading reopens 00:15 server time.",
+    "quote": "Please note that on E8 Signature accounts, all positions are closed by 23:00 Server time, and trading re-opens at 00:15 Server time.",
+    "url": "https://help.e8markets.com/en/articles/11755943-e8-signature"
+   },
+   {
+    "text": "Only profit of the current cycle is eligible for payout (no carry-over).",
+    "quote": "On E8 Signature (futures market), for your current payout, only profit earned during the current cycle is eligible.",
+    "url": "https://help.e8markets.com/en/articles/11755943-e8-signature"
+   },
+   {
+    "text": "Max contracts: 2 / 4 / 8 / 12 for $25K / $50K / $100K / $150K.",
+    "quote": "12 Contracts ($120,000 margin)",
+    "url": "https://help.e8markets.com/en/articles/11755943-e8-signature"
+   }
+  ],
+  "differencesVsCatalog": [
+   "Catalog source URL https://helpfutures.e8markets.com/en/articles/11864618-e8-signature-futures returns 404; the product is now documented at https://help.e8markets.com/en/articles/11755943-e8-signature.",
+   "Inactivity: catalog says 7 days without a trade; current Signature article says 'at least one trade each 60 days' (the 7-day rule is stated only for E8 Zero). Official sources may be inconsistent; current product article says 60.",
+   "Trading hours: catalog says forced close 15:10 CT (that is the E8 Zero rule); Signature article says all positions closed by 23:00 server time, reopening 00:15 server time.",
+   "maxLoss for $150K: catalog says $4,500 EOD; product article says '$4,000 EOD - $150,000 account' (but the payout-caps article still lists a $4,500 buffer for $150K, i.e. official sources conflict).",
+   "Consistency: catalog is right (35% best day on Performance + 5 profitable days between payouts after the first) but omits that a profitable day = realized closed PnL >= 0.3% of initial balance ($75/$150/$300/$450), and that best day is a payout gate only (not a breach) computed per payout cycle.",
+   "Missing in catalog: payout buffer = EOD DD size, payout caps per cycle, max 4 payouts per account, min payout $100."
+  ],
+  "notFound": []
+ },
+ {
+  "firmSlug": "e8-markets",
+  "programSlug": "e8-zero-futures-starter-2026",
+  "programName": "E8 Zero Futures Starter",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "E8 Zero Starter and Max (product article)",
+    "url": "https://helpfutures.e8markets.com/en/articles/15935817-e8-zero-starter-and-max",
+    "kind": "help_center"
+   },
+   {
+    "label": "All product overviews",
+    "url": "https://help.e8markets.com/en/articles/13106558-all-product-overviews-e8-one-vs-e8-zero-vs-e8-pro-vs-e8-signature",
+    "kind": "help_center"
+   },
+   {
+    "label": "40% Best Day rule (challenge)",
+    "url": "https://helpfutures.e8markets.com/en/articles/15936479-40-best-day-rule-challenge",
+    "kind": "help_center"
+   },
+   {
+    "label": "EOD Dynamic Drawdown",
+    "url": "https://helpfutures.e8markets.com/en/articles/11864596-eod-dynamic-drawdown",
+    "kind": "help_center"
+   },
+   {
+    "label": "Payout request from E8 Zero",
+    "url": "https://helpfutures.e8markets.com/en/articles/15692158-payout-request-from-e8-zero",
+    "kind": "help_center"
+   },
+   {
+    "label": "Futures trading policies",
+    "url": "https://helpfutures.e8markets.com/en/articles/10209270-trading-policies-and-prohibited-trading-strategies",
+    "kind": "help_center"
+   },
+   {
+    "label": "Terms and Conditions (HTML)",
+    "url": "https://e8markets.com/e8-markets-terms-and-conditions",
+    "kind": "terms"
+   }
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "SimFi Challenge (single phase)",
+     "percent": null,
+     "amounts": {
+      "25000": 1500,
+      "50000": 3000,
+      "100000": 6500,
+      "150000": 9000,
+      "200000": 13500
+     }
+    }
+   ],
+   "quote": "$25,000 - $1,500 | $50,000 - $3,000 | $100,000 - $6,500 | $150,000 - $9,000 | $200,000 - $13,500",
+   "url": "https://helpfutures.e8markets.com/en/articles/15935817-e8-zero-starter-and-max",
+   "notes": "E8 Zero Starter sizes per FAQ: $25,000, $50,000, $100,000, $150,000 (no $200,000)."
+  },
+  "dailyLoss": {
+   "percent": null,
+   "measuredOn": "No daily loss limit",
+   "reset": null,
+   "quote": "Daily limits | No",
+   "url": "https://help.e8markets.com/en/articles/13106558-all-product-overviews-e8-one-vs-e8-zero-vs-e8-pro-vs-e8-signature",
+   "notes": "Overview table 'Daily limits' row: E8 Zero = No."
+  },
+  "maxLoss": {
+   "percent": null,
+   "type": "EOD trailing on highest end-of-day balance (closed profits, updated at market close). CHALLENGE: never locks (keeps trailing with profit). PERFORMANCE: locks at initial balance once closed profit = DD amount or at first payout. $1,000 / $1,500 / $3,000 / $3,990 / $6,000 for $25K / $50K / $100K / $150K / $200K",
+   "amounts": {
+    "25000": 1000,
+    "50000": 1500,
+    "100000": 3000,
+    "150000": 3990,
+    "200000": 6000
+   },
+   "quote": "EOD-Dynamic Drawdown – A moving loss limit based on your highest end-of-day balance. It only updates once per day at market close (intraday equity swings do not move it). | In challange stage of E8 Zero, the Eod Drawdown scales with your profit, no matter what amount you make. Meaning that the loss level is not being locked at the initial balance and can go further.",
+   "url": "https://helpfutures.e8markets.com/en/articles/15935817-e8-zero-starter-and-max",
+   "urls": [
+    "https://helpfutures.e8markets.com/en/articles/15935817-e8-zero-starter-and-max",
+    "https://helpfutures.e8markets.com/en/articles/11864596-eod-dynamic-drawdown"
+   ],
+   "breachOn": "equity or balance"
+  },
+  "minTradingDays": {
+   "days": null,
+   "perDayRequirement": null,
+   "quote": "No minimum Trading days. | Unlimited Trading Days – There is no time limit, but you need to place and close at least one trade every 7 days.",
+   "url": "https://helpfutures.e8markets.com/en/articles/15935817-e8-zero-starter-and-max",
+   "notes": "Inactivity 7 days. Earliest pass is 3 days only as a consequence of the 40% best-day rule."
+  },
+  "consistency": [
+   {
+    "appliesTo": "evaluation",
+    "kind": "best_day_vs_profit_target",
+    "percent": 40,
+    "amount": null,
+    "days": null,
+    "measuredOn": "unknown",
+    "effect": "raises_target",
+    "condition": "Challenge stage only",
+    "precise": false,
+    "quote": "Your profit should not exceed 40% of the total profit target in a single day. If it does, your profit target increases by the amount you made over that limit. | The new effective target becomes $2,500 ÷ 0.40 = $6,250.",
+    "url": "https://helpfutures.e8markets.com/en/articles/15936479-40-best-day-rule-challenge",
+    "notes": "Effective target = max(target, bestDay / 0.40). The product article phrases it as 'no single trading day exceeds more than 40% of your total generated profits' — mathematically equivalent at pass time. Note the article's prose ('increases by the amount you made over that limit') differs from its worked example (bestDay/0.40); the example/formula is the operative one. Day boundary / closed vs equity not defined."
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "none",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": null,
+    "effect": null,
+    "condition": null,
+    "precise": true,
+    "quote": "No consistency rules | No minimum profitable days | No Daily profit cap",
+    "url": "https://helpfutures.e8markets.com/en/articles/15935817-e8-zero-starter-and-max"
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Forced close: permitted trading 17:15-15:10 CT; all open positions force-closed daily at 15:10 CT (no overnight/weekend).",
+    "quote": "All open positions are being forced to close every day at 15:10 CT",
+    "url": "https://helpfutures.e8markets.com/en/articles/15935817-e8-zero-starter-and-max"
+   },
+   {
+    "text": "Max 4 payouts per account (5 for Zero accounts purchased before 1.10.2026 19:00 UTC+2); min payout $100; per-payout caps by size.",
+    "quote": "For Zero accounts purchased before 1.10.2026 19:00 UTC +2, the maximum number of payouts per account is 5.",
+    "url": "https://helpfutures.e8markets.com/en/articles/15935817-e8-zero-starter-and-max"
+   },
+   {
+    "text": "After first payout the EOD loss level locks at initial balance; requesting all profit can breach the account (leave buffer).",
+    "quote": "The moment your first payout is processed, the EOD loss level moves up to your initial balance and stays there permanently.",
+    "url": "https://helpfutures.e8markets.com/en/articles/15692158-payout-request-from-e8-zero"
+   },
+   {
+    "text": "Starter payout caps: $600 / $1,000 / $1,500 / $2,000 for $25K / $50K / $100K / $150K.",
+    "quote": "$150,000 - $2,000",
+    "url": "https://helpfutures.e8markets.com/en/articles/15935817-e8-zero-starter-and-max"
+   }
+  ],
+  "differencesVsCatalog": [
+   "Sizes: catalog lists $50K/$100K/$200K; official Starter sizes are $25K, $50K, $100K, $150K ($200K is Max-only).",
+   "Profit target list should be $1,500/$3,000/$6,500/$9,000 for 25K/50K/100K/150K (catalog '$3.000 / $6.500 / $13.500' includes 200K which Starter does not offer).",
+   "maxLoss: catalog '3% EOD dynamic' is only exact for $50K/$100K/$200K; official amounts are $1,000 (25K = 4%), $1,500 (50K), $3,000 (100K), $3,990 (150K = 2.66%), $6,000 (200K). In the CHALLENGE the EOD drawdown never locks (keeps trailing); it locks at initial balance only in Performance (closed profit = DD or first payout).",
+   "Consistency: catalog 'Best Day de 40% apenas no Challenge' is correct; official mechanic is best day vs PROFIT TARGET with target increase (effective target = bestDay/0.40), not a breach.",
+   "Payouts per account: now 4 (5 only for accounts bought before 1.10.2026)."
+  ],
+  "notFound": []
+ },
+ {
+  "firmSlug": "e8-markets",
+  "programSlug": "e8-zero-futures-max-2026",
+  "programName": "E8 Zero Futures Max",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "E8 Zero Starter and Max (product article)",
+    "url": "https://helpfutures.e8markets.com/en/articles/15935817-e8-zero-starter-and-max",
+    "kind": "help_center"
+   },
+   {
+    "label": "All product overviews",
+    "url": "https://help.e8markets.com/en/articles/13106558-all-product-overviews-e8-one-vs-e8-zero-vs-e8-pro-vs-e8-signature",
+    "kind": "help_center"
+   },
+   {
+    "label": "40% Best Day rule (challenge)",
+    "url": "https://helpfutures.e8markets.com/en/articles/15936479-40-best-day-rule-challenge",
+    "kind": "help_center"
+   },
+   {
+    "label": "EOD Dynamic Drawdown",
+    "url": "https://helpfutures.e8markets.com/en/articles/11864596-eod-dynamic-drawdown",
+    "kind": "help_center"
+   },
+   {
+    "label": "Payout request from E8 Zero",
+    "url": "https://helpfutures.e8markets.com/en/articles/15692158-payout-request-from-e8-zero",
+    "kind": "help_center"
+   },
+   {
+    "label": "Futures trading policies",
+    "url": "https://helpfutures.e8markets.com/en/articles/10209270-trading-policies-and-prohibited-trading-strategies",
+    "kind": "help_center"
+   },
+   {
+    "label": "Terms and Conditions (HTML)",
+    "url": "https://e8markets.com/e8-markets-terms-and-conditions",
+    "kind": "terms"
+   }
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "SimFi Challenge (single phase)",
+     "percent": null,
+     "amounts": {
+      "25000": 1500,
+      "50000": 3000,
+      "100000": 6500,
+      "150000": 9000,
+      "200000": 13500
+     }
+    }
+   ],
+   "quote": "$25,000 - $1,500 | $50,000 - $3,000 | $100,000 - $6,500 | $150,000 - $9,000 | $200,000 - $13,500",
+   "url": "https://helpfutures.e8markets.com/en/articles/15935817-e8-zero-starter-and-max",
+   "notes": "E8 Zero Max sizes per FAQ: $25,000, $50,000, $100,000, $200,000 (no $150,000)."
+  },
+  "dailyLoss": {
+   "percent": null,
+   "measuredOn": "No daily loss limit",
+   "reset": null,
+   "quote": "Daily limits | No",
+   "url": "https://help.e8markets.com/en/articles/13106558-all-product-overviews-e8-one-vs-e8-zero-vs-e8-pro-vs-e8-signature",
+   "notes": "Overview table 'Daily limits' row: E8 Zero = No."
+  },
+  "maxLoss": {
+   "percent": null,
+   "type": "EOD trailing on highest end-of-day balance (closed profits, updated at market close). CHALLENGE: never locks (keeps trailing with profit). PERFORMANCE: locks at initial balance once closed profit = DD amount or at first payout. $1,000 / $1,500 / $3,000 / $3,990 / $6,000 for $25K / $50K / $100K / $150K / $200K",
+   "amounts": {
+    "25000": 1000,
+    "50000": 1500,
+    "100000": 3000,
+    "150000": 3990,
+    "200000": 6000
+   },
+   "quote": "EOD-Dynamic Drawdown – A moving loss limit based on your highest end-of-day balance. It only updates once per day at market close (intraday equity swings do not move it). | In challange stage of E8 Zero, the Eod Drawdown scales with your profit, no matter what amount you make. Meaning that the loss level is not being locked at the initial balance and can go further.",
+   "url": "https://helpfutures.e8markets.com/en/articles/15935817-e8-zero-starter-and-max",
+   "urls": [
+    "https://helpfutures.e8markets.com/en/articles/15935817-e8-zero-starter-and-max",
+    "https://helpfutures.e8markets.com/en/articles/11864596-eod-dynamic-drawdown"
+   ],
+   "breachOn": "equity or balance"
+  },
+  "minTradingDays": {
+   "days": null,
+   "perDayRequirement": null,
+   "quote": "No minimum Trading days. | Unlimited Trading Days – There is no time limit, but you need to place and close at least one trade every 7 days.",
+   "url": "https://helpfutures.e8markets.com/en/articles/15935817-e8-zero-starter-and-max",
+   "notes": "Inactivity 7 days. Earliest pass is 3 days only as a consequence of the 40% best-day rule."
+  },
+  "consistency": [
+   {
+    "appliesTo": "evaluation",
+    "kind": "best_day_vs_profit_target",
+    "percent": 40,
+    "amount": null,
+    "days": null,
+    "measuredOn": "unknown",
+    "effect": "raises_target",
+    "condition": "Challenge stage only",
+    "precise": false,
+    "quote": "Your profit should not exceed 40% of the total profit target in a single day. If it does, your profit target increases by the amount you made over that limit. | The new effective target becomes $2,500 ÷ 0.40 = $6,250.",
+    "url": "https://helpfutures.e8markets.com/en/articles/15936479-40-best-day-rule-challenge",
+    "notes": "Effective target = max(target, bestDay / 0.40). The product article phrases it as 'no single trading day exceeds more than 40% of your total generated profits' — mathematically equivalent at pass time. Note the article's prose ('increases by the amount you made over that limit') differs from its worked example (bestDay/0.40); the example/formula is the operative one. Day boundary / closed vs equity not defined."
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "none",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": null,
+    "effect": null,
+    "condition": null,
+    "precise": true,
+    "quote": "No consistency rules | No minimum profitable days | No Daily profit cap",
+    "url": "https://helpfutures.e8markets.com/en/articles/15935817-e8-zero-starter-and-max"
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Forced close: permitted trading 17:15-15:10 CT; all open positions force-closed daily at 15:10 CT (no overnight/weekend).",
+    "quote": "All open positions are being forced to close every day at 15:10 CT",
+    "url": "https://helpfutures.e8markets.com/en/articles/15935817-e8-zero-starter-and-max"
+   },
+   {
+    "text": "Max 4 payouts per account (5 for Zero accounts purchased before 1.10.2026 19:00 UTC+2); min payout $100; per-payout caps by size.",
+    "quote": "For Zero accounts purchased before 1.10.2026 19:00 UTC +2, the maximum number of payouts per account is 5.",
+    "url": "https://helpfutures.e8markets.com/en/articles/15935817-e8-zero-starter-and-max"
+   },
+   {
+    "text": "After first payout the EOD loss level locks at initial balance; requesting all profit can breach the account (leave buffer).",
+    "quote": "The moment your first payout is processed, the EOD loss level moves up to your initial balance and stays there permanently.",
+    "url": "https://helpfutures.e8markets.com/en/articles/15692158-payout-request-from-e8-zero"
+   },
+   {
+    "text": "Max payout caps: $1,500 / $3,000 / $5,000 / $7,000 for $25K / $50K / $100K / $200K.",
+    "quote": "$100,000 - $5,000",
+    "url": "https://helpfutures.e8markets.com/en/articles/15935817-e8-zero-starter-and-max"
+   }
+  ],
+  "differencesVsCatalog": [
+   "Sizes: catalog lists $50K/$100K/$200K; official Max sizes are $25K, $50K, $100K, $200K ($25K missing in catalog).",
+   "maxLoss: catalog '3% EOD dynamic' is only exact for $50K/$100K/$200K; official amounts are $1,000 (25K = 4%), $1,500 (50K), $3,000 (100K), $3,990 (150K = 2.66%), $6,000 (200K). In the CHALLENGE the EOD drawdown never locks (keeps trailing); it locks at initial balance only in Performance (closed profit = DD or first payout).",
+   "Consistency: catalog 'Best Day de 40% apenas no Challenge' is correct; official mechanic is best day vs PROFIT TARGET with target increase (effective target = bestDay/0.40), not a breach.",
+   "Payouts per account: now 4 (5 only for accounts bought before 1.10.2026)."
+  ],
+  "notFound": []
+ },
+ {
+  "firmSlug": "brightfunded",
+  "programSlug": "brightfunded-two-step-bright-2026",
+  "programName": "2-Step Bright",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "Current rules for the evaluation process",
+    "url": "https://help.brightfunded.com/en/articles/9241611-what-are-the-current-rules-for-the-evaluation-process",
+    "kind": "help_center"
+   },
+   {
+    "label": "2-Step Bright (plan article)",
+    "url": "https://help.brightfunded.com/en/articles/14284817-brightfunded-2-step-bright",
+    "kind": "help_center"
+   },
+   {
+    "label": "How does my daily permitted loss work",
+    "url": "https://help.brightfunded.com/en/articles/12291765-how-does-my-daily-permitted-loss-work",
+    "kind": "help_center"
+   },
+   {
+    "label": "FAQ (consistency rule)",
+    "url": "https://help.brightfunded.com/en/articles/12000749-the-most-frequently-asked-general-questions",
+    "kind": "help_center"
+   },
+   {
+    "label": "News trading",
+    "url": "https://help.brightfunded.com/en/articles/9241694-can-i-trade-news",
+    "kind": "help_center"
+   },
+   {
+    "label": "Reward split",
+    "url": "https://help.brightfunded.com/en/articles/9268736-how-does-my-reward-split-work-on-my-funded-account",
+    "kind": "help_center"
+   },
+   {
+    "label": "Prohibited strategies",
+    "url": "https://help.brightfunded.com/en/articles/9241704-which-strategies-are-prohibited-at-brightfunded",
+    "kind": "help_center"
+   },
+   {
+    "label": "Website plan table",
+    "url": "https://brightfunded.com/",
+    "kind": "page"
+   },
+   {
+    "label": "Terms and Conditions (HTML)",
+    "url": "https://brightfunded.com/terms-and-conditions",
+    "kind": "terms"
+   }
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "Phase 1",
+     "percent": 8
+    },
+    {
+     "phase": "Phase 2",
+     "percent": 5
+    }
+   ],
+   "quote": "Phase 1 Target: 8% | Phase 2 Target: 5%",
+   "url": "https://help.brightfunded.com/en/articles/14284817-brightfunded-2-step-bright"
+  },
+  "dailyLoss": {
+   "percent": 4,
+   "measuredOn": "fixed $ = 4% of ORIGINAL challenge size, subtracted from the HIGHER of balance or equity recorded at rollover; breach if balance or equity touches it intraday (accounts purchased after 22 Sep 2025 11:00 CET)",
+   "reset": "Daily between 11:30 PM and 11:59 PM CET (rollover)",
+   "quote": "The daily loss limit is always calculated as a percentage of your original challenge size — it never changes regardless of your current balance. At rollover, we use the highest value between your balance and equity to determine your minimum level for the next day. | The daily limit resets every day between 11:30 PM – 11:59 PM CET (rollover). | If your balance or equity hits this level at any point during the day, your account will be considered breached and terminated.",
+   "url": "https://help.brightfunded.com/en/articles/12291765-how-does-my-daily-permitted-loss-work",
+   "urls": [
+    "https://help.brightfunded.com/en/articles/12291765-how-does-my-daily-permitted-loss-work",
+    "https://help.brightfunded.com/en/articles/9241611-what-are-the-current-rules-for-the-evaluation-process"
+   ]
+  },
+  "maxLoss": {
+   "percent": 8,
+   "type": "static from original balance (never moves)",
+   "quote": "Maximum Drawdown: 8% static | The maximum drawdown is static, meaning it is fixed from the start based on the original account balance and does not move.",
+   "url": "https://help.brightfunded.com/en/articles/14284817-brightfunded-2-step-bright"
+  },
+  "minTradingDays": {
+   "days": 5,
+   "perDayRequirement": "A day counts only if at least one trade stays open for >= 60 seconds (profit or loss irrelevant); days need not be consecutive",
+   "quote": "You must trade for at least 5 days per stage. These do not need to be consecutive. | A day counts as a trading day when at least one trade remains open for a minimum of 1 minute (60 seconds) — regardless of whether the trade closes in profit or loss.",
+   "url": "https://help.brightfunded.com/en/articles/9241611-what-are-the-current-rules-for-the-evaluation-process",
+   "notes": "Website lists 'No Minimum Trading Days' as a paid challenge add-on. No maximum time limit ('Unlimited Trading Period')."
+  },
+  "consistency": [
+   {
+    "appliesTo": "both",
+    "kind": "none",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": null,
+    "effect": null,
+    "condition": null,
+    "precise": true,
+    "quote": "At BrightFunded, we do not currently enforce a consistency rule.",
+    "url": "https://help.brightfunded.com/en/articles/12000749-the-most-frequently-asked-general-questions",
+    "notes": "Website also states 'No Consistency Rules' for CFD plans. No profit cap per payout cycle."
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Funded: trading within 5 min before/after high-impact news on the targeted instrument is prohibited; profit from that trade is deducted (SL/TP fill in window = soft breach). Trades >= 48h old exempt.",
+    "quote": "Trading within a 10-minute window surrounding significant news releases—defined as 5 minutes before and 5 minutes after the event—is prohibited.",
+    "url": "https://help.brightfunded.com/en/articles/9241694-can-i-trade-news"
+   },
+   {
+    "text": "Funded payouts: first Reward Split 30 days after first funded trade, then every 14 days (bi-weekly/weekly add-ons).",
+    "quote": "You can request your first Reward Split after 30 days after you place your first trade on your Funded Account.",
+    "url": "https://help.brightfunded.com/en/articles/9268736-how-does-my-reward-split-work-on-my-funded-account"
+   },
+   {
+    "text": "Prohibited: hedging, service-error exploitation, delayed feeds, multi-account manipulation, automated/AI/HFT tools, risk-abusive trading (overleverage, one-sided bets, account rolling), grid, arbitrage, tick scalping.",
+    "quote": "Abusive Strategy Types: Grid Trading, Arbitrage, Tick Scalping, High-Frequency Trading (HFT).",
+    "url": "https://help.brightfunded.com/en/articles/9241704-which-strategies-are-prohibited-at-brightfunded"
+   },
+   {
+    "text": "Max total funded capital $400,000 per trader.",
+    "quote": "However, please note that during the Funded Phase, the maximum total capital you can hold is $400,000.",
+    "url": "https://help.brightfunded.com/en/articles/12000749-the-most-frequently-asked-general-questions"
+   }
+  ],
+  "differencesVsCatalog": [
+   "No substantive rule change vs catalog (targets, daily %, max %, 5 min days with 60-second trade, no consistency all confirmed).",
+   "dailyLoss detail to add: rollover window is 11:30-11:59 PM CET; this 'higher of balance/equity' method applies to accounts purchased after 22 Sep 2025 11:00 CET (older 'Original' accounts used other rules).",
+   "Missing in catalog: funded news restriction (±5 min, profit deduction), first payout only 30 days after first funded trade, 'No Minimum Trading Days' add-on, $400K max funded capital."
+  ],
+  "notFound": [
+   "No official PDF of the rules / T&C found (T&C is an HTML page)."
+  ]
+ },
+ {
+  "firmSlug": "brightfunded",
+  "programSlug": "brightfunded-two-step-classic-2026",
+  "programName": "2-Step Classic",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "Current rules for the evaluation process",
+    "url": "https://help.brightfunded.com/en/articles/9241611-what-are-the-current-rules-for-the-evaluation-process",
+    "kind": "help_center"
+   },
+   {
+    "label": "2-Step Classic (plan article)",
+    "url": "https://help.brightfunded.com/en/articles/14284844-brightfunded-2-step-classic",
+    "kind": "help_center"
+   },
+   {
+    "label": "How does my daily permitted loss work",
+    "url": "https://help.brightfunded.com/en/articles/12291765-how-does-my-daily-permitted-loss-work",
+    "kind": "help_center"
+   },
+   {
+    "label": "FAQ (consistency rule)",
+    "url": "https://help.brightfunded.com/en/articles/12000749-the-most-frequently-asked-general-questions",
+    "kind": "help_center"
+   },
+   {
+    "label": "News trading",
+    "url": "https://help.brightfunded.com/en/articles/9241694-can-i-trade-news",
+    "kind": "help_center"
+   },
+   {
+    "label": "Reward split",
+    "url": "https://help.brightfunded.com/en/articles/9268736-how-does-my-reward-split-work-on-my-funded-account",
+    "kind": "help_center"
+   },
+   {
+    "label": "Prohibited strategies",
+    "url": "https://help.brightfunded.com/en/articles/9241704-which-strategies-are-prohibited-at-brightfunded",
+    "kind": "help_center"
+   },
+   {
+    "label": "Website plan table",
+    "url": "https://brightfunded.com/",
+    "kind": "page"
+   },
+   {
+    "label": "Terms and Conditions (HTML)",
+    "url": "https://brightfunded.com/terms-and-conditions",
+    "kind": "terms"
+   }
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "Phase 1",
+     "percent": 10
+    },
+    {
+     "phase": "Phase 2",
+     "percent": 5
+    }
+   ],
+   "quote": "Phase 1 Target: 10% | Phase 2 Target: 5%",
+   "url": "https://help.brightfunded.com/en/articles/14284844-brightfunded-2-step-classic"
+  },
+  "dailyLoss": {
+   "percent": 5,
+   "measuredOn": "fixed $ = 5% of ORIGINAL challenge size, subtracted from the HIGHER of balance or equity recorded at rollover; breach if balance or equity touches it intraday (accounts purchased after 22 Sep 2025 11:00 CET)",
+   "reset": "Daily between 11:30 PM and 11:59 PM CET (rollover)",
+   "quote": "The daily loss limit is always calculated as a percentage of your original challenge size — it never changes regardless of your current balance. At rollover, we use the highest value between your balance and equity to determine your minimum level for the next day. | The daily limit resets every day between 11:30 PM – 11:59 PM CET (rollover). | If your balance or equity hits this level at any point during the day, your account will be considered breached and terminated.",
+   "url": "https://help.brightfunded.com/en/articles/12291765-how-does-my-daily-permitted-loss-work",
+   "urls": [
+    "https://help.brightfunded.com/en/articles/12291765-how-does-my-daily-permitted-loss-work",
+    "https://help.brightfunded.com/en/articles/9241611-what-are-the-current-rules-for-the-evaluation-process"
+   ]
+  },
+  "maxLoss": {
+   "percent": 10,
+   "type": "static from original balance (never moves)",
+   "quote": "Maximum Drawdown: 10% static | The maximum drawdown is static: it is fixed from the account's initial balance and does not change throughout the evaluation.",
+   "url": "https://help.brightfunded.com/en/articles/14284844-brightfunded-2-step-classic"
+  },
+  "minTradingDays": {
+   "days": 5,
+   "perDayRequirement": "A day counts only if at least one trade stays open for >= 60 seconds (profit or loss irrelevant); days need not be consecutive",
+   "quote": "You must trade for at least 5 days per stage. These do not need to be consecutive. | A day counts as a trading day when at least one trade remains open for a minimum of 1 minute (60 seconds) — regardless of whether the trade closes in profit or loss.",
+   "url": "https://help.brightfunded.com/en/articles/9241611-what-are-the-current-rules-for-the-evaluation-process",
+   "notes": "Website lists 'No Minimum Trading Days' as a paid challenge add-on. No maximum time limit ('Unlimited Trading Period')."
+  },
+  "consistency": [
+   {
+    "appliesTo": "both",
+    "kind": "none",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": null,
+    "effect": null,
+    "condition": null,
+    "precise": true,
+    "quote": "At BrightFunded, we do not currently enforce a consistency rule.",
+    "url": "https://help.brightfunded.com/en/articles/12000749-the-most-frequently-asked-general-questions",
+    "notes": "Website also states 'No Consistency Rules' for CFD plans. No profit cap per payout cycle."
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Funded: trading within 5 min before/after high-impact news on the targeted instrument is prohibited; profit from that trade is deducted (SL/TP fill in window = soft breach). Trades >= 48h old exempt.",
+    "quote": "Trading within a 10-minute window surrounding significant news releases—defined as 5 minutes before and 5 minutes after the event—is prohibited.",
+    "url": "https://help.brightfunded.com/en/articles/9241694-can-i-trade-news"
+   },
+   {
+    "text": "Funded payouts: first Reward Split 30 days after first funded trade, then every 14 days (bi-weekly/weekly add-ons).",
+    "quote": "You can request your first Reward Split after 30 days after you place your first trade on your Funded Account.",
+    "url": "https://help.brightfunded.com/en/articles/9268736-how-does-my-reward-split-work-on-my-funded-account"
+   },
+   {
+    "text": "Prohibited: hedging, service-error exploitation, delayed feeds, multi-account manipulation, automated/AI/HFT tools, risk-abusive trading (overleverage, one-sided bets, account rolling), grid, arbitrage, tick scalping.",
+    "quote": "Abusive Strategy Types: Grid Trading, Arbitrage, Tick Scalping, High-Frequency Trading (HFT).",
+    "url": "https://help.brightfunded.com/en/articles/9241704-which-strategies-are-prohibited-at-brightfunded"
+   },
+   {
+    "text": "Max total funded capital $400,000 per trader.",
+    "quote": "However, please note that during the Funded Phase, the maximum total capital you can hold is $400,000.",
+    "url": "https://help.brightfunded.com/en/articles/12000749-the-most-frequently-asked-general-questions"
+   }
+  ],
+  "differencesVsCatalog": [
+   "No substantive rule change vs catalog (targets, daily %, max %, 5 min days with 60-second trade, no consistency all confirmed).",
+   "dailyLoss detail to add: rollover window is 11:30-11:59 PM CET; this 'higher of balance/equity' method applies to accounts purchased after 22 Sep 2025 11:00 CET (older 'Original' accounts used other rules).",
+   "Missing in catalog: funded news restriction (±5 min, profit deduction), first payout only 30 days after first funded trade, 'No Minimum Trading Days' add-on, $400K max funded capital."
+  ],
+  "notFound": [
+   "No official PDF of the rules / T&C found (T&C is an HTML page)."
+  ]
+ },
+ {
+  "firmSlug": "brightfunded",
+  "programSlug": "brightfunded-one-step-2026",
+  "programName": "1-Step",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "Current rules for the evaluation process",
+    "url": "https://help.brightfunded.com/en/articles/9241611-what-are-the-current-rules-for-the-evaluation-process",
+    "kind": "help_center"
+   },
+   {
+    "label": "1-Step (plan article)",
+    "url": "https://help.brightfunded.com/en/articles/14284743-brightfunded-1-step",
+    "kind": "help_center"
+   },
+   {
+    "label": "How does my daily permitted loss work",
+    "url": "https://help.brightfunded.com/en/articles/12291765-how-does-my-daily-permitted-loss-work",
+    "kind": "help_center"
+   },
+   {
+    "label": "FAQ (consistency rule)",
+    "url": "https://help.brightfunded.com/en/articles/12000749-the-most-frequently-asked-general-questions",
+    "kind": "help_center"
+   },
+   {
+    "label": "News trading",
+    "url": "https://help.brightfunded.com/en/articles/9241694-can-i-trade-news",
+    "kind": "help_center"
+   },
+   {
+    "label": "Reward split",
+    "url": "https://help.brightfunded.com/en/articles/9268736-how-does-my-reward-split-work-on-my-funded-account",
+    "kind": "help_center"
+   },
+   {
+    "label": "Prohibited strategies",
+    "url": "https://help.brightfunded.com/en/articles/9241704-which-strategies-are-prohibited-at-brightfunded",
+    "kind": "help_center"
+   },
+   {
+    "label": "Website plan table",
+    "url": "https://brightfunded.com/",
+    "kind": "page"
+   },
+   {
+    "label": "Terms and Conditions (HTML)",
+    "url": "https://brightfunded.com/terms-and-conditions",
+    "kind": "terms"
+   }
+  ],
+  "officialPdfUrl": null,
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "Phase 1 (single)",
+     "percent": 10
+    }
+   ],
+   "quote": "Phase 1 Target: 10%",
+   "url": "https://help.brightfunded.com/en/articles/14284743-brightfunded-1-step"
+  },
+  "dailyLoss": {
+   "percent": 3,
+   "measuredOn": "fixed $ = 3% of ORIGINAL challenge size, subtracted from the HIGHER of balance or equity recorded at rollover; breach if balance or equity touches it intraday (accounts purchased after 22 Sep 2025 11:00 CET)",
+   "reset": "Daily between 11:30 PM and 11:59 PM CET (rollover)",
+   "quote": "The daily loss limit is always calculated as a percentage of your original challenge size — it never changes regardless of your current balance. At rollover, we use the highest value between your balance and equity to determine your minimum level for the next day. | The daily limit resets every day between 11:30 PM – 11:59 PM CET (rollover). | If your balance or equity hits this level at any point during the day, your account will be considered breached and terminated.",
+   "url": "https://help.brightfunded.com/en/articles/12291765-how-does-my-daily-permitted-loss-work",
+   "urls": [
+    "https://help.brightfunded.com/en/articles/12291765-how-does-my-daily-permitted-loss-work",
+    "https://help.brightfunded.com/en/articles/9241611-what-are-the-current-rules-for-the-evaluation-process"
+   ]
+  },
+  "maxLoss": {
+   "percent": 6,
+   "type": "intraday trailing on EQUITY high-water mark (real time, includes floating profit); locks at initial balance once equity reaches +6%; after a payout the new funded account restarts the trailing DD from scratch",
+   "quote": "The trailing maximum drawdown updates in real time (high-water mark). Every time your equity reaches a new high during the trading day, the allowed minimum equity level is automatically recalculated from that new peak — not only at the end of the day. | However, once the equity reaches 6% above the initial balance, the limit locks in place and stops moving.",
+   "url": "https://help.brightfunded.com/en/articles/14284743-brightfunded-1-step"
+  },
+  "minTradingDays": {
+   "days": 5,
+   "perDayRequirement": "A day counts only if at least one trade stays open for >= 60 seconds (profit or loss irrelevant); days need not be consecutive",
+   "quote": "You must trade for at least 5 days per stage. These do not need to be consecutive. | A day counts as a trading day when at least one trade remains open for a minimum of 1 minute (60 seconds) — regardless of whether the trade closes in profit or loss.",
+   "url": "https://help.brightfunded.com/en/articles/9241611-what-are-the-current-rules-for-the-evaluation-process",
+   "notes": "Website lists 'No Minimum Trading Days' as a paid challenge add-on. No maximum time limit ('Unlimited Trading Period')."
+  },
+  "consistency": [
+   {
+    "appliesTo": "both",
+    "kind": "none",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": null,
+    "effect": null,
+    "condition": null,
+    "precise": true,
+    "quote": "At BrightFunded, we do not currently enforce a consistency rule.",
+    "url": "https://help.brightfunded.com/en/articles/12000749-the-most-frequently-asked-general-questions",
+    "notes": "Website also states 'No Consistency Rules' for CFD plans. No profit cap per payout cycle."
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Funded: trading within 5 min before/after high-impact news on the targeted instrument is prohibited; profit from that trade is deducted (SL/TP fill in window = soft breach). Trades >= 48h old exempt.",
+    "quote": "Trading within a 10-minute window surrounding significant news releases—defined as 5 minutes before and 5 minutes after the event—is prohibited.",
+    "url": "https://help.brightfunded.com/en/articles/9241694-can-i-trade-news"
+   },
+   {
+    "text": "Funded payouts: first Reward Split 30 days after first funded trade, then every 14 days (bi-weekly/weekly add-ons).",
+    "quote": "You can request your first Reward Split after 30 days after you place your first trade on your Funded Account.",
+    "url": "https://help.brightfunded.com/en/articles/9268736-how-does-my-reward-split-work-on-my-funded-account"
+   },
+   {
+    "text": "Prohibited: hedging, service-error exploitation, delayed feeds, multi-account manipulation, automated/AI/HFT tools, risk-abusive trading (overleverage, one-sided bets, account rolling), grid, arbitrage, tick scalping.",
+    "quote": "Abusive Strategy Types: Grid Trading, Arbitrage, Tick Scalping, High-Frequency Trading (HFT).",
+    "url": "https://help.brightfunded.com/en/articles/9241704-which-strategies-are-prohibited-at-brightfunded"
+   },
+   {
+    "text": "Max total funded capital $400,000 per trader.",
+    "quote": "However, please note that during the Funded Phase, the maximum total capital you can hold is $400,000.",
+    "url": "https://help.brightfunded.com/en/articles/12000749-the-most-frequently-asked-general-questions"
+   },
+   {
+    "text": "After a payout the new account starts a fresh trailing maximum drawdown (HWM not carried over).",
+    "quote": "Once you request a payout, your new account starts with its own Maximum Drawdown, exactly as if it were a brand new account.",
+    "url": "https://help.brightfunded.com/en/articles/14284743-brightfunded-1-step"
+   }
+  ],
+  "differencesVsCatalog": [
+   "No substantive rule change vs catalog (targets, daily %, max %, 5 min days with 60-second trade, no consistency all confirmed).",
+   "dailyLoss detail to add: rollover window is 11:30-11:59 PM CET; this 'higher of balance/equity' method applies to accounts purchased after 22 Sep 2025 11:00 CET (older 'Original' accounts used other rules).",
+   "Missing in catalog: funded news restriction (±5 min, profit deduction), first payout only 30 days after first funded trade, 'No Minimum Trading Days' add-on, $400K max funded capital.",
+   "maxLoss: catalog '6% trailing em tempo real' correct; add: trails EQUITY (floating profit moves it), locks at initial balance at +6% equity, and resets from scratch on the new account after each payout."
+  ],
+  "notFound": [
+   "No official PDF of the rules / T&C found (T&C is an HTML page)."
+  ]
+ },
+ {
+  "firmSlug": "alpha-capital-group",
+  "programSlug": "alpha-capital-pro-10-2026",
+  "programName": "Alpha Pro 10%",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "Alpha Pro 10% (plan article)",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/8420429-alpha-pro-8-10",
+    "kind": "help_center"
+   },
+   {
+    "label": "Daily risk limits",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6934210-what-are-the-daily-risk-limits-and-how-do-they-work",
+    "kind": "help_center"
+   },
+   {
+    "label": "Maximum total loss",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6934220-what-is-the-maximum-total-loss",
+    "kind": "help_center"
+   },
+   {
+    "label": "Minimum/maximum trading days",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6934224-what-are-the-minimum-and-maximum-trading-days-for-the-evaluation",
+    "kind": "help_center"
+   },
+   {
+    "label": "Trading day definition (pass before min days)",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6933908-if-i-pass-before-the-minimum-trading-days-what-is-required-for-the-remaining-days",
+    "kind": "help_center"
+   },
+   {
+    "label": "Inactivity",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/8420080-inactivity",
+    "kind": "help_center"
+   },
+   {
+    "label": "On-demand performance fee (Best Day Rule)",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10102634-on-demand-performance-fee",
+    "kind": "help_center"
+   },
+   {
+    "label": "Bi-weekly performance fee",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10570531-bi-weekly-performance-fee",
+    "kind": "help_center"
+   },
+   {
+    "label": "Max Risk Rule",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/15888623-what-is-the-max-risk-rule-and-how-does-it-work",
+    "kind": "help_center"
+   },
+   {
+    "label": "2-minute average trade duration",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/8447268-what-is-the-2-minute-average-trade-duration-rule",
+    "kind": "help_center"
+   },
+   {
+    "label": "Gambling policy",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/7060909-what-is-alpha-capital-group-s-policy-against-gambling-in-trading",
+    "kind": "help_center"
+   },
+   {
+    "label": "Weekend holding",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6934247-can-i-hold-trades-over-the-weekend",
+    "kind": "help_center"
+   },
+   {
+    "label": "Terms and Conditions of Service and Trading (PDF)",
+    "url": "https://alphacapitalgroup.uk/assets/terms-and-conditions.pdf",
+    "kind": "pdf"
+   },
+   {
+    "label": "Website (title: 'Evaluation up to $200K')",
+    "url": "https://alphacapitalgroup.uk/",
+    "kind": "page"
+   }
+  ],
+  "officialPdfUrl": "https://alphacapitalgroup.uk/assets/terms-and-conditions.pdf",
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "Phase 1",
+     "percent": 10
+    },
+    {
+     "phase": "Phase 2",
+     "percent": 5
+    }
+   ],
+   "quote": "Phase 1 profit target: 10% | Phase 2 profit target: 5%",
+   "url": "https://help.alphacapitalgroup.uk/en/articles/8420429-alpha-pro-8-10"
+  },
+  "dailyLoss": {
+   "percent": 5,
+   "measuredOn": "balance-based: 5% of the balance at start of day (00:00 GMT+2); floating P&L carried over is not added; breach measured on current equity",
+   "reset": "00:00 broker time (GMT+2; GMT+3 during US daylight saving per T&C)",
+   "quote": "Alpha Pro 10% - Balance-based: 5% | The starting balance and equity refer to the account balance and equity at the end of the trading day/beginning of the daily candle (broker time), which is 00:00 GMT+2. | Regardless of whether balance or equity is used for the daily drawdown calculation, breaches are always applied based on open trades (unrealised losses) and, therefore, on the account's current equity value.",
+   "url": "https://help.alphacapitalgroup.uk/en/articles/6934210-what-are-the-daily-risk-limits-and-how-do-they-work"
+  },
+  "maxLoss": {
+   "percent": 10,
+   "type": "static from initial balance",
+   "quote": "If the balance or equity drops below $90,000, the account is breached, and all trades will be closed automatically. Even if the balance grows to $110,000, the maximum loss limit remains at $90,000.",
+   "url": "https://help.alphacapitalgroup.uk/en/articles/6934220-what-is-the-maximum-total-loss"
+  },
+  "minTradingDays": {
+   "days": 3,
+   "perDayRequirement": "Trading day = a day on which a trade is both opened and closed; a trade opened one day and closed another counts as one trading day",
+   "quote": "Minimum trading days (for each phase): 3 | Please note that we define a trading day as a day on which you open and close a trade on the same day. A trade opened on one day and closed on a different day will count as a single trading day.",
+   "url": "https://help.alphacapitalgroup.uk/en/articles/6934224-what-are-the-minimum-and-maximum-trading-days-for-the-evaluation",
+   "urls": [
+    "https://help.alphacapitalgroup.uk/en/articles/6934224-what-are-the-minimum-and-maximum-trading-days-for-the-evaluation",
+    "https://help.alphacapitalgroup.uk/en/articles/6933908-if-i-pass-before-the-minimum-trading-days-what-is-required-for-the-remaining-days"
+   ],
+   "notes": "No maximum trading days; 30-day (consecutive calendar days) inactivity deactivates the account."
+  },
+  "consistency": [
+   {
+    "appliesTo": "evaluation",
+    "kind": "none",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": null,
+    "effect": null,
+    "condition": null,
+    "precise": false,
+    "quote": null,
+    "url": "https://alphacapitalgroup.uk/assets/terms-and-conditions.pdf",
+    "notes": "No consistency/best-day rule appears in evaluation rules (plan articles, T&C Schedule 1). No explicit sentence 'no consistency in evaluation' found."
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "best_day_vs_total_profit",
+    "percent": 40,
+    "amount": null,
+    "days": null,
+    "measuredOn": "net profit per day (closed vs floating not specified)",
+    "effect": "blocks_payout",
+    "condition": "Only with the On-Demand performance fee option (not with Bi-weekly)",
+    "precise": false,
+    "quote": "Alpha Pro, Swing, One, and Three: 40% | The consistency score is a simple calculation: the net profits generated on your best day are divided by the total net profits on the account. | If the result is greater than 0.40 (40%), the trader is not complying with the consistency rule.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10102634-on-demand-performance-fee",
+    "notes": "Total = net profits of the current payout window (partial withdrawal resets; a new trade opens a new window; leftover from the previous window is excluded). Day boundary not stated in this article (broker day 00:00 GMT+2 is defined only for daily DD). Also requires min 2% gross profit."
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "other",
+    "percent": null,
+    "amount": 100,
+    "days": 5,
+    "measuredOn": "trading days (open and close on same day)",
+    "effect": "blocks_payout",
+    "condition": "Only with the Bi-weekly payout option; requests every 14 days from first QA trade",
+    "precise": true,
+    "quote": "For your first performance fee request, a minimum of 5 trading days using the same trading strategy is required. | The minimum performance fee amount is $100 ($100 gross, $80 net).",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10570531-bi-weekly-performance-fee",
+    "notes": "Bi-weekly option: no best-day rule; min 5 trading days before the FIRST payout + $100 min profit; minimal lot sizes to farm days not allowed."
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Payout (On-Demand): min 2% gross profit on Pro/Swing/One/Three.",
+    "quote": "Alpha Pro, Swing, One, and Three: a minimum of 2% of gross profits on the account balance.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10102634-on-demand-performance-fee"
+   },
+   {
+    "text": "Max Risk Rule (Qualified accounts purchased after 21/07/2026): open (floating) loss per asset, losing positions combined, same-direction re-entries within 10 min chained; 3% for $5K-$25K, 2% for $50K-$200K. Hard breach (account closed).",
+    "quote": "This rule applies to Qualified Accounts only. It takes effect for accounts purchased after the announcement date of 21/07/2026; accounts acquired before this date are not subject to it.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/15888623-what-is-the-max-risk-rule-and-how-does-it-work"
+   },
+   {
+    "text": "Inactivity: >30 consecutive calendar days without trading deactivates the account (irreversible).",
+    "quote": "This means that if an Alpha Capital Group Analyst does not trade their account for more than 30 consecutive days, the account will be deactivated.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/8420080-inactivity"
+   },
+   {
+    "text": "2-minute rule: average trade duration > 2 min and >= 50% of profits from trades > 2 min; breach = restart evaluation / QA profits removed.",
+    "quote": "We require the average duration of all your trades to be greater than 2 minutes.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/8447268-what-is-the-2-minute-average-trade-duration-rule"
+   },
+   {
+    "text": "Gambling / all-or-nothing: profits removed, possible termination.",
+    "quote": "Activity of this nature will result in the removal of profits and may include termination of the contract and closure of your Qualified Account.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/7060909-what-is-alpha-capital-group-s-policy-against-gambling-in-trading"
+   },
+   {
+    "text": "Qualified (Pro): holding over the weekend not allowed — soft breach (profits from those trades removed, account kept if above max DD).",
+    "quote": "Doing so with a Pro Qualified account will incur a soft breach, meaning the profits from those trades are removed, but the trader keeps the account active, provided the updated balance does not fall below the maximum allowed drawdown.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6934247-can-i-hold-trades-over-the-weekend"
+   }
+  ],
+  "differencesVsCatalog": [
+   "No change in targets/daily/max/min-days vs catalog.",
+   "Sizes: catalog lists up to $300K; official site title says 'Evaluation up to $200K' and help articles refer to 'Qualified Accounts of up to $200,000' ($300K appears only in stale lot-size tables). Treat $300K as not currently sold unless confirmed.",
+   "Missing in catalog: Max Risk Rule (new hard-breach rule on QA accounts bought after 21/07/2026: 2-3% floating loss per asset), 2-minute average trade duration rule, 30-day inactivity, Bi-weekly payout path (5 trading days before first payout, $100 min).",
+   "Consistency: catalog correct for On-Demand (40% best day + 2% min profit); add that the Bi-weekly option has NO best-day rule but needs 5 trading days before the first payout and $100 min."
+  ],
+  "notFound": [
+   "T&C PDF revision date not printed in the extracted text."
+  ]
+ },
+ {
+  "firmSlug": "alpha-capital-group",
+  "programSlug": "alpha-capital-pro-8-2026",
+  "programName": "Alpha Pro 8%",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "Alpha Pro 8% (plan article)",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/8420429-alpha-pro-8-10",
+    "kind": "help_center"
+   },
+   {
+    "label": "Daily risk limits",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6934210-what-are-the-daily-risk-limits-and-how-do-they-work",
+    "kind": "help_center"
+   },
+   {
+    "label": "Maximum total loss",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6934220-what-is-the-maximum-total-loss",
+    "kind": "help_center"
+   },
+   {
+    "label": "Minimum/maximum trading days",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6934224-what-are-the-minimum-and-maximum-trading-days-for-the-evaluation",
+    "kind": "help_center"
+   },
+   {
+    "label": "Trading day definition (pass before min days)",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6933908-if-i-pass-before-the-minimum-trading-days-what-is-required-for-the-remaining-days",
+    "kind": "help_center"
+   },
+   {
+    "label": "Inactivity",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/8420080-inactivity",
+    "kind": "help_center"
+   },
+   {
+    "label": "On-demand performance fee (Best Day Rule)",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10102634-on-demand-performance-fee",
+    "kind": "help_center"
+   },
+   {
+    "label": "Bi-weekly performance fee",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10570531-bi-weekly-performance-fee",
+    "kind": "help_center"
+   },
+   {
+    "label": "Max Risk Rule",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/15888623-what-is-the-max-risk-rule-and-how-does-it-work",
+    "kind": "help_center"
+   },
+   {
+    "label": "2-minute average trade duration",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/8447268-what-is-the-2-minute-average-trade-duration-rule",
+    "kind": "help_center"
+   },
+   {
+    "label": "Gambling policy",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/7060909-what-is-alpha-capital-group-s-policy-against-gambling-in-trading",
+    "kind": "help_center"
+   },
+   {
+    "label": "Weekend holding",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6934247-can-i-hold-trades-over-the-weekend",
+    "kind": "help_center"
+   },
+   {
+    "label": "Terms and Conditions of Service and Trading (PDF)",
+    "url": "https://alphacapitalgroup.uk/assets/terms-and-conditions.pdf",
+    "kind": "pdf"
+   },
+   {
+    "label": "Website (title: 'Evaluation up to $200K')",
+    "url": "https://alphacapitalgroup.uk/",
+    "kind": "page"
+   }
+  ],
+  "officialPdfUrl": "https://alphacapitalgroup.uk/assets/terms-and-conditions.pdf",
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "Phase 1",
+     "percent": 8
+    },
+    {
+     "phase": "Phase 2",
+     "percent": 5
+    }
+   ],
+   "quote": "Phase 1 profit target: 8% | Phase 2 profit target: 5%",
+   "url": "https://help.alphacapitalgroup.uk/en/articles/8420429-alpha-pro-8-10"
+  },
+  "dailyLoss": {
+   "percent": 4,
+   "measuredOn": "balance-based: 4% of the balance at start of day (00:00 GMT+2); breach measured on current equity",
+   "reset": "00:00 broker time (GMT+2; GMT+3 during US daylight saving per T&C)",
+   "quote": "Alpha Pro 8% - Balance-based: 4% | The starting balance and equity refer to the account balance and equity at the end of the trading day/beginning of the daily candle (broker time), which is 00:00 GMT+2. | Regardless of whether balance or equity is used for the daily drawdown calculation, breaches are always applied based on open trades (unrealised losses) and, therefore, on the account's current equity value.",
+   "url": "https://help.alphacapitalgroup.uk/en/articles/6934210-what-are-the-daily-risk-limits-and-how-do-they-work"
+  },
+  "maxLoss": {
+   "percent": 8,
+   "type": "static from initial balance",
+   "quote": "Pro 8%: 8%",
+   "url": "https://help.alphacapitalgroup.uk/en/articles/6934220-what-is-the-maximum-total-loss"
+  },
+  "minTradingDays": {
+   "days": 3,
+   "perDayRequirement": "Trading day = a day on which a trade is both opened and closed; a trade opened one day and closed another counts as one trading day",
+   "quote": "Minimum trading days (for each phase): 3 | Please note that we define a trading day as a day on which you open and close a trade on the same day. A trade opened on one day and closed on a different day will count as a single trading day.",
+   "url": "https://help.alphacapitalgroup.uk/en/articles/6934224-what-are-the-minimum-and-maximum-trading-days-for-the-evaluation",
+   "urls": [
+    "https://help.alphacapitalgroup.uk/en/articles/6934224-what-are-the-minimum-and-maximum-trading-days-for-the-evaluation",
+    "https://help.alphacapitalgroup.uk/en/articles/6933908-if-i-pass-before-the-minimum-trading-days-what-is-required-for-the-remaining-days"
+   ],
+   "notes": "No maximum trading days; 30-day (consecutive calendar days) inactivity deactivates the account."
+  },
+  "consistency": [
+   {
+    "appliesTo": "evaluation",
+    "kind": "none",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": null,
+    "effect": null,
+    "condition": null,
+    "precise": false,
+    "quote": null,
+    "url": "https://alphacapitalgroup.uk/assets/terms-and-conditions.pdf",
+    "notes": "No consistency/best-day rule appears in evaluation rules (plan articles, T&C Schedule 1). No explicit sentence 'no consistency in evaluation' found."
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "best_day_vs_total_profit",
+    "percent": 40,
+    "amount": null,
+    "days": null,
+    "measuredOn": "net profit per day (closed vs floating not specified)",
+    "effect": "blocks_payout",
+    "condition": "Only with the On-Demand performance fee option (not with Bi-weekly)",
+    "precise": false,
+    "quote": "Alpha Pro, Swing, One, and Three: 40% | The consistency score is a simple calculation: the net profits generated on your best day are divided by the total net profits on the account. | If the result is greater than 0.40 (40%), the trader is not complying with the consistency rule.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10102634-on-demand-performance-fee",
+    "notes": "Total = net profits of the current payout window (partial withdrawal resets; a new trade opens a new window; leftover from the previous window is excluded). Day boundary not stated in this article (broker day 00:00 GMT+2 is defined only for daily DD). Also requires min 2% gross profit."
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "other",
+    "percent": null,
+    "amount": 100,
+    "days": 5,
+    "measuredOn": "trading days (open and close on same day)",
+    "effect": "blocks_payout",
+    "condition": "Only with the Bi-weekly payout option; requests every 14 days from first QA trade",
+    "precise": true,
+    "quote": "For your first performance fee request, a minimum of 5 trading days using the same trading strategy is required. | The minimum performance fee amount is $100 ($100 gross, $80 net).",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10570531-bi-weekly-performance-fee",
+    "notes": "Bi-weekly option: no best-day rule; min 5 trading days before the FIRST payout + $100 min profit; minimal lot sizes to farm days not allowed."
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Payout (On-Demand): min 2% gross profit on Pro/Swing/One/Three.",
+    "quote": "Alpha Pro, Swing, One, and Three: a minimum of 2% of gross profits on the account balance.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10102634-on-demand-performance-fee"
+   },
+   {
+    "text": "Max Risk Rule (Qualified accounts purchased after 21/07/2026): open (floating) loss per asset, losing positions combined, same-direction re-entries within 10 min chained; 3% for $5K-$25K, 2% for $50K-$200K. Hard breach (account closed).",
+    "quote": "This rule applies to Qualified Accounts only. It takes effect for accounts purchased after the announcement date of 21/07/2026; accounts acquired before this date are not subject to it.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/15888623-what-is-the-max-risk-rule-and-how-does-it-work"
+   },
+   {
+    "text": "Inactivity: >30 consecutive calendar days without trading deactivates the account (irreversible).",
+    "quote": "This means that if an Alpha Capital Group Analyst does not trade their account for more than 30 consecutive days, the account will be deactivated.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/8420080-inactivity"
+   },
+   {
+    "text": "2-minute rule: average trade duration > 2 min and >= 50% of profits from trades > 2 min; breach = restart evaluation / QA profits removed.",
+    "quote": "We require the average duration of all your trades to be greater than 2 minutes.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/8447268-what-is-the-2-minute-average-trade-duration-rule"
+   },
+   {
+    "text": "Gambling / all-or-nothing: profits removed, possible termination.",
+    "quote": "Activity of this nature will result in the removal of profits and may include termination of the contract and closure of your Qualified Account.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/7060909-what-is-alpha-capital-group-s-policy-against-gambling-in-trading"
+   },
+   {
+    "text": "Qualified (Pro): holding over the weekend not allowed — soft breach (profits from those trades removed, account kept if above max DD).",
+    "quote": "Doing so with a Pro Qualified account will incur a soft breach, meaning the profits from those trades are removed, but the trader keeps the account active, provided the updated balance does not fall below the maximum allowed drawdown.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6934247-can-i-hold-trades-over-the-weekend"
+   }
+  ],
+  "differencesVsCatalog": [
+   "No change in targets/daily/max/min-days vs catalog.",
+   "Sizes: catalog lists up to $300K; official site title says 'Evaluation up to $200K' and help articles refer to 'Qualified Accounts of up to $200,000' ($300K appears only in stale lot-size tables). Treat $300K as not currently sold unless confirmed.",
+   "Missing in catalog: Max Risk Rule (new hard-breach rule on QA accounts bought after 21/07/2026: 2-3% floating loss per asset), 2-minute average trade duration rule, 30-day inactivity, Bi-weekly payout path (5 trading days before first payout, $100 min).",
+   "Consistency: catalog correct for On-Demand; add Bi-weekly path (no best day; 5 trading days before first payout; $100 min)."
+  ],
+  "notFound": [
+   "T&C PDF revision date not printed in the extracted text."
+  ]
+ },
+ {
+  "firmSlug": "alpha-capital-group",
+  "programSlug": "alpha-capital-pro-6-2026",
+  "programName": "Alpha Pro 6%",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "Alpha Pro 6% (plan article)",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/11378706-alpha-pro-6",
+    "kind": "help_center"
+   },
+   {
+    "label": "Daily risk limits",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6934210-what-are-the-daily-risk-limits-and-how-do-they-work",
+    "kind": "help_center"
+   },
+   {
+    "label": "Maximum total loss",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6934220-what-is-the-maximum-total-loss",
+    "kind": "help_center"
+   },
+   {
+    "label": "Minimum/maximum trading days",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6934224-what-are-the-minimum-and-maximum-trading-days-for-the-evaluation",
+    "kind": "help_center"
+   },
+   {
+    "label": "Trading day definition (pass before min days)",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6933908-if-i-pass-before-the-minimum-trading-days-what-is-required-for-the-remaining-days",
+    "kind": "help_center"
+   },
+   {
+    "label": "Inactivity",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/8420080-inactivity",
+    "kind": "help_center"
+   },
+   {
+    "label": "On-demand performance fee (Best Day Rule)",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10102634-on-demand-performance-fee",
+    "kind": "help_center"
+   },
+   {
+    "label": "Bi-weekly performance fee",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10570531-bi-weekly-performance-fee",
+    "kind": "help_center"
+   },
+   {
+    "label": "Max Risk Rule",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/15888623-what-is-the-max-risk-rule-and-how-does-it-work",
+    "kind": "help_center"
+   },
+   {
+    "label": "2-minute average trade duration",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/8447268-what-is-the-2-minute-average-trade-duration-rule",
+    "kind": "help_center"
+   },
+   {
+    "label": "Gambling policy",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/7060909-what-is-alpha-capital-group-s-policy-against-gambling-in-trading",
+    "kind": "help_center"
+   },
+   {
+    "label": "Weekend holding",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6934247-can-i-hold-trades-over-the-weekend",
+    "kind": "help_center"
+   },
+   {
+    "label": "Terms and Conditions of Service and Trading (PDF)",
+    "url": "https://alphacapitalgroup.uk/assets/terms-and-conditions.pdf",
+    "kind": "pdf"
+   },
+   {
+    "label": "Website (title: 'Evaluation up to $200K')",
+    "url": "https://alphacapitalgroup.uk/",
+    "kind": "page"
+   }
+  ],
+  "officialPdfUrl": "https://alphacapitalgroup.uk/assets/terms-and-conditions.pdf",
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "Phase 1",
+     "percent": 6
+    },
+    {
+     "phase": "Phase 2",
+     "percent": 6
+    }
+   ],
+   "quote": "Phase 1 profit target: 6% | Phase 2 profit target: 6%",
+   "url": "https://help.alphacapitalgroup.uk/en/articles/11378706-alpha-pro-6"
+  },
+  "dailyLoss": {
+   "percent": 3,
+   "measuredOn": "higher of balance or equity at start of day (00:00 GMT+2) x 3%; breach measured on current equity",
+   "reset": "00:00 broker time (GMT+2; GMT+3 during US daylight saving per T&C)",
+   "quote": "Alpha Pro 6% - Based on balance or equity, whichever is greater: 3% | The starting balance and equity refer to the account balance and equity at the end of the trading day/beginning of the daily candle (broker time), which is 00:00 GMT+2. | Regardless of whether balance or equity is used for the daily drawdown calculation, breaches are always applied based on open trades (unrealised losses) and, therefore, on the account's current equity value.",
+   "url": "https://help.alphacapitalgroup.uk/en/articles/6934210-what-are-the-daily-risk-limits-and-how-do-they-work"
+  },
+  "maxLoss": {
+   "percent": 6,
+   "type": "static from initial balance",
+   "quote": "Max Drawdown (static): 6%",
+   "url": "https://help.alphacapitalgroup.uk/en/articles/11378706-alpha-pro-6"
+  },
+  "minTradingDays": {
+   "days": 3,
+   "perDayRequirement": "Trading day = a day on which a trade is both opened and closed; a trade opened one day and closed another counts as one trading day",
+   "quote": "Minimum trading days (for each phase): 3 | Please note that we define a trading day as a day on which you open and close a trade on the same day. A trade opened on one day and closed on a different day will count as a single trading day.",
+   "url": "https://help.alphacapitalgroup.uk/en/articles/6934224-what-are-the-minimum-and-maximum-trading-days-for-the-evaluation",
+   "urls": [
+    "https://help.alphacapitalgroup.uk/en/articles/6934224-what-are-the-minimum-and-maximum-trading-days-for-the-evaluation",
+    "https://help.alphacapitalgroup.uk/en/articles/6933908-if-i-pass-before-the-minimum-trading-days-what-is-required-for-the-remaining-days"
+   ],
+   "notes": "No maximum trading days; 30-day (consecutive calendar days) inactivity deactivates the account."
+  },
+  "consistency": [
+   {
+    "appliesTo": "evaluation",
+    "kind": "none",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": null,
+    "effect": null,
+    "condition": null,
+    "precise": false,
+    "quote": null,
+    "url": "https://alphacapitalgroup.uk/assets/terms-and-conditions.pdf",
+    "notes": "No consistency/best-day rule appears in evaluation rules (plan articles, T&C Schedule 1). No explicit sentence 'no consistency in evaluation' found."
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "best_day_vs_total_profit",
+    "percent": 40,
+    "amount": null,
+    "days": null,
+    "measuredOn": "net profit per day (closed vs floating not specified)",
+    "effect": "blocks_payout",
+    "condition": "Only with the On-Demand performance fee option (not with Bi-weekly)",
+    "precise": false,
+    "quote": "Alpha Pro, Swing, One, and Three: 40% | The consistency score is a simple calculation: the net profits generated on your best day are divided by the total net profits on the account. | If the result is greater than 0.40 (40%), the trader is not complying with the consistency rule.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10102634-on-demand-performance-fee",
+    "notes": "Total = net profits of the current payout window (partial withdrawal resets; a new trade opens a new window; leftover from the previous window is excluded). Day boundary not stated in this article (broker day 00:00 GMT+2 is defined only for daily DD). Also requires min 2% gross profit."
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "other",
+    "percent": null,
+    "amount": 100,
+    "days": 5,
+    "measuredOn": "trading days (open and close on same day)",
+    "effect": "blocks_payout",
+    "condition": "Only with the Bi-weekly payout option; requests every 14 days from first QA trade",
+    "precise": true,
+    "quote": "For your first performance fee request, a minimum of 5 trading days using the same trading strategy is required. | The minimum performance fee amount is $100 ($100 gross, $80 net).",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10570531-bi-weekly-performance-fee",
+    "notes": "Bi-weekly option: no best-day rule; min 5 trading days before the FIRST payout + $100 min profit; minimal lot sizes to farm days not allowed."
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Payout (On-Demand): min 2% gross profit on Pro/Swing/One/Three.",
+    "quote": "Alpha Pro, Swing, One, and Three: a minimum of 2% of gross profits on the account balance.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10102634-on-demand-performance-fee"
+   },
+   {
+    "text": "Max Risk Rule (Qualified accounts purchased after 21/07/2026): open (floating) loss per asset, losing positions combined, same-direction re-entries within 10 min chained; 3% for $5K-$25K, 2% for $50K-$200K. Hard breach (account closed).",
+    "quote": "This rule applies to Qualified Accounts only. It takes effect for accounts purchased after the announcement date of 21/07/2026; accounts acquired before this date are not subject to it.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/15888623-what-is-the-max-risk-rule-and-how-does-it-work"
+   },
+   {
+    "text": "Inactivity: >30 consecutive calendar days without trading deactivates the account (irreversible).",
+    "quote": "This means that if an Alpha Capital Group Analyst does not trade their account for more than 30 consecutive days, the account will be deactivated.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/8420080-inactivity"
+   },
+   {
+    "text": "2-minute rule: average trade duration > 2 min and >= 50% of profits from trades > 2 min; breach = restart evaluation / QA profits removed.",
+    "quote": "We require the average duration of all your trades to be greater than 2 minutes.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/8447268-what-is-the-2-minute-average-trade-duration-rule"
+   },
+   {
+    "text": "Gambling / all-or-nothing: profits removed, possible termination.",
+    "quote": "Activity of this nature will result in the removal of profits and may include termination of the contract and closure of your Qualified Account.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/7060909-what-is-alpha-capital-group-s-policy-against-gambling-in-trading"
+   },
+   {
+    "text": "Qualified (Pro): holding over the weekend not allowed — soft breach (profits from those trades removed, account kept if above max DD).",
+    "quote": "Doing so with a Pro Qualified account will incur a soft breach, meaning the profits from those trades are removed, but the trader keeps the account active, provided the updated balance does not fall below the maximum allowed drawdown.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6934247-can-i-hold-trades-over-the-weekend"
+   }
+  ],
+  "differencesVsCatalog": [
+   "No change in targets/daily/max/min-days vs catalog.",
+   "dailyLoss nuance: official daily article computes the 3% on the higher of balance/equity at the START of the day (00:00 GMT+2), so the $ amount floats (e.g. 3% of $101,000) — not a fixed % of initial balance.",
+   "Sizes: catalog lists up to $300K; official site title says 'Evaluation up to $200K' and help articles refer to 'Qualified Accounts of up to $200,000' ($300K appears only in stale lot-size tables). Treat $300K as not currently sold unless confirmed.",
+   "Missing in catalog: Max Risk Rule (new hard-breach rule on QA accounts bought after 21/07/2026: 2-3% floating loss per asset), 2-minute average trade duration rule, 30-day inactivity, Bi-weekly payout path (5 trading days before first payout, $100 min)."
+  ],
+  "notFound": [
+   "T&C PDF revision date not printed in the extracted text."
+  ]
+ },
+ {
+  "firmSlug": "alpha-capital-group",
+  "programSlug": "alpha-capital-swing-2026",
+  "programName": "Alpha Swing",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "Alpha Swing (plan article)",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/9789907-alpha-swing",
+    "kind": "help_center"
+   },
+   {
+    "label": "Daily risk limits",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6934210-what-are-the-daily-risk-limits-and-how-do-they-work",
+    "kind": "help_center"
+   },
+   {
+    "label": "Maximum total loss",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6934220-what-is-the-maximum-total-loss",
+    "kind": "help_center"
+   },
+   {
+    "label": "Minimum/maximum trading days",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6934224-what-are-the-minimum-and-maximum-trading-days-for-the-evaluation",
+    "kind": "help_center"
+   },
+   {
+    "label": "Trading day definition (pass before min days)",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6933908-if-i-pass-before-the-minimum-trading-days-what-is-required-for-the-remaining-days",
+    "kind": "help_center"
+   },
+   {
+    "label": "Inactivity",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/8420080-inactivity",
+    "kind": "help_center"
+   },
+   {
+    "label": "On-demand performance fee (Best Day Rule)",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10102634-on-demand-performance-fee",
+    "kind": "help_center"
+   },
+   {
+    "label": "Bi-weekly performance fee",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10570531-bi-weekly-performance-fee",
+    "kind": "help_center"
+   },
+   {
+    "label": "Max Risk Rule",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/15888623-what-is-the-max-risk-rule-and-how-does-it-work",
+    "kind": "help_center"
+   },
+   {
+    "label": "2-minute average trade duration",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/8447268-what-is-the-2-minute-average-trade-duration-rule",
+    "kind": "help_center"
+   },
+   {
+    "label": "Gambling policy",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/7060909-what-is-alpha-capital-group-s-policy-against-gambling-in-trading",
+    "kind": "help_center"
+   },
+   {
+    "label": "Weekend holding",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6934247-can-i-hold-trades-over-the-weekend",
+    "kind": "help_center"
+   },
+   {
+    "label": "Terms and Conditions of Service and Trading (PDF)",
+    "url": "https://alphacapitalgroup.uk/assets/terms-and-conditions.pdf",
+    "kind": "pdf"
+   },
+   {
+    "label": "Website (title: 'Evaluation up to $200K')",
+    "url": "https://alphacapitalgroup.uk/",
+    "kind": "page"
+   }
+  ],
+  "officialPdfUrl": "https://alphacapitalgroup.uk/assets/terms-and-conditions.pdf",
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "Phase 1",
+     "percent": 10
+    },
+    {
+     "phase": "Phase 2",
+     "percent": 5
+    }
+   ],
+   "quote": "Phase 1 profit target: 10% | Phase 2 profit target: 5%",
+   "url": "https://help.alphacapitalgroup.uk/en/articles/9789907-alpha-swing"
+  },
+  "dailyLoss": {
+   "percent": 5,
+   "measuredOn": "balance-based: 5% of the balance at start of day (00:00 GMT+2); breach measured on current equity",
+   "reset": "00:00 broker time (GMT+2; GMT+3 during US daylight saving per T&C)",
+   "quote": "Alpha Swing - Balance-based: 5% | The starting balance and equity refer to the account balance and equity at the end of the trading day/beginning of the daily candle (broker time), which is 00:00 GMT+2. | Regardless of whether balance or equity is used for the daily drawdown calculation, breaches are always applied based on open trades (unrealised losses) and, therefore, on the account's current equity value.",
+   "url": "https://help.alphacapitalgroup.uk/en/articles/6934210-what-are-the-daily-risk-limits-and-how-do-they-work"
+  },
+  "maxLoss": {
+   "percent": 10,
+   "type": "static from initial balance",
+   "quote": "Alpha Swing: 10% static maximum drawdown",
+   "url": "https://help.alphacapitalgroup.uk/en/articles/6934220-what-is-the-maximum-total-loss"
+  },
+  "minTradingDays": {
+   "days": 3,
+   "perDayRequirement": "Trading day = a day on which a trade is both opened and closed; a trade opened one day and closed another counts as one trading day",
+   "quote": "Minimum trading days (for each phase): 3 | Please note that we define a trading day as a day on which you open and close a trade on the same day. A trade opened on one day and closed on a different day will count as a single trading day.",
+   "url": "https://help.alphacapitalgroup.uk/en/articles/6934224-what-are-the-minimum-and-maximum-trading-days-for-the-evaluation",
+   "urls": [
+    "https://help.alphacapitalgroup.uk/en/articles/6934224-what-are-the-minimum-and-maximum-trading-days-for-the-evaluation",
+    "https://help.alphacapitalgroup.uk/en/articles/6933908-if-i-pass-before-the-minimum-trading-days-what-is-required-for-the-remaining-days"
+   ],
+   "notes": "No maximum trading days; 30-day (consecutive calendar days) inactivity deactivates the account."
+  },
+  "consistency": [
+   {
+    "appliesTo": "evaluation",
+    "kind": "none",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": null,
+    "effect": null,
+    "condition": null,
+    "precise": false,
+    "quote": null,
+    "url": "https://alphacapitalgroup.uk/assets/terms-and-conditions.pdf",
+    "notes": "No consistency/best-day rule appears in evaluation rules (plan articles, T&C Schedule 1). No explicit sentence 'no consistency in evaluation' found."
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "best_day_vs_total_profit",
+    "percent": 40,
+    "amount": null,
+    "days": null,
+    "measuredOn": "net profit per day (closed vs floating not specified)",
+    "effect": "blocks_payout",
+    "condition": "Always on this plan (Swing is available only with the On-Demand payout type)",
+    "precise": false,
+    "quote": "Alpha Pro, Swing, One, and Three: 40% | The consistency score is a simple calculation: the net profits generated on your best day are divided by the total net profits on the account. | If the result is greater than 0.40 (40%), the trader is not complying with the consistency rule.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10102634-on-demand-performance-fee",
+    "notes": "Total = net profits of the current payout window (partial withdrawal resets; a new trade opens a new window; leftover from the previous window is excluded). Day boundary not stated in this article (broker day 00:00 GMT+2 is defined only for daily DD). Also requires min 2% gross profit."
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Payout (On-Demand): min 2% gross profit on Pro/Swing/One/Three.",
+    "quote": "Alpha Pro, Swing, One, and Three: a minimum of 2% of gross profits on the account balance.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10102634-on-demand-performance-fee"
+   },
+   {
+    "text": "Max Risk Rule (Qualified accounts purchased after 21/07/2026): open (floating) loss per asset, losing positions combined, same-direction re-entries within 10 min chained; 3% for $5K-$25K, 2% for $50K-$200K. Hard breach (account closed).",
+    "quote": "This rule applies to Qualified Accounts only. It takes effect for accounts purchased after the announcement date of 21/07/2026; accounts acquired before this date are not subject to it.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/15888623-what-is-the-max-risk-rule-and-how-does-it-work"
+   },
+   {
+    "text": "Inactivity: >30 consecutive calendar days without trading deactivates the account (irreversible).",
+    "quote": "This means that if an Alpha Capital Group Analyst does not trade their account for more than 30 consecutive days, the account will be deactivated.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/8420080-inactivity"
+   },
+   {
+    "text": "2-minute rule: average trade duration > 2 min and >= 50% of profits from trades > 2 min; breach = restart evaluation / QA profits removed.",
+    "quote": "We require the average duration of all your trades to be greater than 2 minutes.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/8447268-what-is-the-2-minute-average-trade-duration-rule"
+   },
+   {
+    "text": "Gambling / all-or-nothing: profits removed, possible termination.",
+    "quote": "Activity of this nature will result in the removal of profits and may include termination of the contract and closure of your Qualified Account.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/7060909-what-is-alpha-capital-group-s-policy-against-gambling-in-trading"
+   },
+   {
+    "text": "Weekend holding allowed at all stages on Swing/One/Three.",
+    "quote": "Holding trades over the weekend is allowed at all stages.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6934247-can-i-hold-trades-over-the-weekend"
+   },
+   {
+    "text": "Swing is On-Demand only and subject to gambling rules and the Focused Trader Group; news: trades opened within ±2 min of news must last > 2 min.",
+    "quote": "Swing accounts are only available with the On-Demand payout type.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/9789907-alpha-swing"
+   }
+  ],
+  "differencesVsCatalog": [
+   "No change in targets/daily/max/min-days vs catalog.",
+   "Consistency: Swing is available ONLY with On-Demand payouts, so the 40% best day + 2% min profit always applies on the funded account (catalog presents it as conditional).",
+   "Sizes: catalog lists up to $300K; official site title says 'Evaluation up to $200K' and help articles refer to 'Qualified Accounts of up to $200,000' ($300K appears only in stale lot-size tables). Treat $300K as not currently sold unless confirmed.",
+   "Missing in catalog: Max Risk Rule (new hard-breach rule on QA accounts bought after 21/07/2026: 2-3% floating loss per asset), 2-minute average trade duration rule, 30-day inactivity."
+  ],
+  "notFound": [
+   "T&C PDF revision date not printed in the extracted text."
+  ]
+ },
+ {
+  "firmSlug": "alpha-capital-group",
+  "programSlug": "alpha-capital-one-2026",
+  "programName": "Alpha One",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "Alpha One (plan article)",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10097421-alpha-one-6-10-12",
+    "kind": "help_center"
+   },
+   {
+    "label": "Daily risk limits",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6934210-what-are-the-daily-risk-limits-and-how-do-they-work",
+    "kind": "help_center"
+   },
+   {
+    "label": "Maximum total loss",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6934220-what-is-the-maximum-total-loss",
+    "kind": "help_center"
+   },
+   {
+    "label": "Minimum/maximum trading days",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6934224-what-are-the-minimum-and-maximum-trading-days-for-the-evaluation",
+    "kind": "help_center"
+   },
+   {
+    "label": "Trading day definition (pass before min days)",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6933908-if-i-pass-before-the-minimum-trading-days-what-is-required-for-the-remaining-days",
+    "kind": "help_center"
+   },
+   {
+    "label": "Inactivity",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/8420080-inactivity",
+    "kind": "help_center"
+   },
+   {
+    "label": "On-demand performance fee (Best Day Rule)",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10102634-on-demand-performance-fee",
+    "kind": "help_center"
+   },
+   {
+    "label": "Bi-weekly performance fee",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10570531-bi-weekly-performance-fee",
+    "kind": "help_center"
+   },
+   {
+    "label": "Max Risk Rule",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/15888623-what-is-the-max-risk-rule-and-how-does-it-work",
+    "kind": "help_center"
+   },
+   {
+    "label": "2-minute average trade duration",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/8447268-what-is-the-2-minute-average-trade-duration-rule",
+    "kind": "help_center"
+   },
+   {
+    "label": "Gambling policy",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/7060909-what-is-alpha-capital-group-s-policy-against-gambling-in-trading",
+    "kind": "help_center"
+   },
+   {
+    "label": "Weekend holding",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6934247-can-i-hold-trades-over-the-weekend",
+    "kind": "help_center"
+   },
+   {
+    "label": "Terms and Conditions of Service and Trading (PDF)",
+    "url": "https://alphacapitalgroup.uk/assets/terms-and-conditions.pdf",
+    "kind": "pdf"
+   },
+   {
+    "label": "Website (title: 'Evaluation up to $200K')",
+    "url": "https://alphacapitalgroup.uk/",
+    "kind": "page"
+   }
+  ],
+  "officialPdfUrl": "https://alphacapitalgroup.uk/assets/terms-and-conditions.pdf",
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "Phase 1 (single) — One 10% variant",
+     "percent": 10
+    }
+   ],
+   "quote": "One 10% plan: | Phase 1 profit target: 10%",
+   "url": "https://help.alphacapitalgroup.uk/en/articles/10097421-alpha-one-6-10-12"
+  },
+  "dailyLoss": {
+   "percent": 4,
+   "measuredOn": "higher of balance or equity at start of day (00:00 GMT+2) x 4%; breach measured on current equity",
+   "reset": "00:00 broker time (GMT+2; GMT+3 during US daylight saving per T&C)",
+   "quote": "Alpha One 10% - Based on balance or equity, whichever is greater: 4% | The starting balance and equity refer to the account balance and equity at the end of the trading day/beginning of the daily candle (broker time), which is 00:00 GMT+2. | Regardless of whether balance or equity is used for the daily drawdown calculation, breaches are always applied based on open trades (unrealised losses) and, therefore, on the account's current equity value.",
+   "url": "https://help.alphacapitalgroup.uk/en/articles/6934210-what-are-the-daily-risk-limits-and-how-do-they-work"
+  },
+  "maxLoss": {
+   "percent": 6,
+   "type": "trailing on BALANCE high-water mark (maximum account balance achieved); locks at initial balance once balance reaches +6%; breach on balance or equity",
+   "quote": "*Definition of high water-mark: maximum account balance achieved on the account. | In other words, once the balance reaches $106,000, the trailing drawdown will remain fixed at the initial balance of $100,000 and will not be moved any further.",
+   "url": "https://help.alphacapitalgroup.uk/en/articles/10097421-alpha-one-6-10-12"
+  },
+  "minTradingDays": {
+   "days": 3,
+   "perDayRequirement": "Trading day = a day on which a trade is both opened and closed; a trade opened one day and closed another counts as one trading day",
+   "quote": "Minimum trading days (for each phase): 3 | Please note that we define a trading day as a day on which you open and close a trade on the same day. A trade opened on one day and closed on a different day will count as a single trading day.",
+   "url": "https://help.alphacapitalgroup.uk/en/articles/6934224-what-are-the-minimum-and-maximum-trading-days-for-the-evaluation",
+   "urls": [
+    "https://help.alphacapitalgroup.uk/en/articles/6934224-what-are-the-minimum-and-maximum-trading-days-for-the-evaluation",
+    "https://help.alphacapitalgroup.uk/en/articles/6933908-if-i-pass-before-the-minimum-trading-days-what-is-required-for-the-remaining-days"
+   ],
+   "notes": "No maximum trading days; 30-day (consecutive calendar days) inactivity deactivates the account."
+  },
+  "consistency": [
+   {
+    "appliesTo": "evaluation",
+    "kind": "none",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": null,
+    "effect": null,
+    "condition": null,
+    "precise": false,
+    "quote": null,
+    "url": "https://alphacapitalgroup.uk/assets/terms-and-conditions.pdf",
+    "notes": "No consistency/best-day rule appears in evaluation rules (plan articles, T&C Schedule 1). No explicit sentence 'no consistency in evaluation' found."
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "best_day_vs_total_profit",
+    "percent": 40,
+    "amount": null,
+    "days": null,
+    "measuredOn": "net profit per day (closed vs floating not specified)",
+    "effect": "blocks_payout",
+    "condition": "Only with the On-Demand performance fee option (not with Bi-weekly)",
+    "precise": false,
+    "quote": "Alpha Pro, Swing, One, and Three: 40% | The consistency score is a simple calculation: the net profits generated on your best day are divided by the total net profits on the account. | If the result is greater than 0.40 (40%), the trader is not complying with the consistency rule.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10102634-on-demand-performance-fee",
+    "notes": "Total = net profits of the current payout window (partial withdrawal resets; a new trade opens a new window; leftover from the previous window is excluded). Day boundary not stated in this article (broker day 00:00 GMT+2 is defined only for daily DD). Also requires min 2% gross profit."
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "other",
+    "percent": null,
+    "amount": 100,
+    "days": 5,
+    "measuredOn": "trading days (open and close on same day)",
+    "effect": "blocks_payout",
+    "condition": "Only with the Bi-weekly payout option; requests every 14 days from first QA trade",
+    "precise": true,
+    "quote": "For your first performance fee request, a minimum of 5 trading days using the same trading strategy is required. | The minimum performance fee amount is $100 ($100 gross, $80 net).",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10570531-bi-weekly-performance-fee",
+    "notes": "Help article lists Bi-weekly only for Alpha Pro/Three; the T&C PDF Schedule 2 table for Alpha One shows '5 trading days for the first payout' under Bi-weekly — official sources conflict on whether One offers Bi-weekly."
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Payout (On-Demand): min 2% gross profit on Pro/Swing/One/Three.",
+    "quote": "Alpha Pro, Swing, One, and Three: a minimum of 2% of gross profits on the account balance.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10102634-on-demand-performance-fee"
+   },
+   {
+    "text": "Max Risk Rule (Qualified accounts purchased after 21/07/2026): open (floating) loss per asset, losing positions combined, same-direction re-entries within 10 min chained; 3% for $5K-$25K, 2% for $50K-$200K. Hard breach (account closed).",
+    "quote": "This rule applies to Qualified Accounts only. It takes effect for accounts purchased after the announcement date of 21/07/2026; accounts acquired before this date are not subject to it.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/15888623-what-is-the-max-risk-rule-and-how-does-it-work"
+   },
+   {
+    "text": "Inactivity: >30 consecutive calendar days without trading deactivates the account (irreversible).",
+    "quote": "This means that if an Alpha Capital Group Analyst does not trade their account for more than 30 consecutive days, the account will be deactivated.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/8420080-inactivity"
+   },
+   {
+    "text": "2-minute rule: average trade duration > 2 min and >= 50% of profits from trades > 2 min; breach = restart evaluation / QA profits removed.",
+    "quote": "We require the average duration of all your trades to be greater than 2 minutes.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/8447268-what-is-the-2-minute-average-trade-duration-rule"
+   },
+   {
+    "text": "Gambling / all-or-nothing: profits removed, possible termination.",
+    "quote": "Activity of this nature will result in the removal of profits and may include termination of the contract and closure of your Qualified Account.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/7060909-what-is-alpha-capital-group-s-policy-against-gambling-in-trading"
+   },
+   {
+    "text": "Weekend holding allowed at all stages on Swing/One/Three.",
+    "quote": "Holding trades over the weekend is allowed at all stages.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6934247-can-i-hold-trades-over-the-weekend"
+   },
+   {
+    "text": "If the trailing DD has locked at initial balance, withdrawing all profits closes the account (leave a buffer).",
+    "quote": "In this scenario, if all profits are requested, they will be withdrawn and paid; however, this will result in the closure of the account.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10097421-alpha-one-6-10-12"
+   }
+  ],
+  "differencesVsCatalog": [
+   "Alpha One now has three variants: One 6% (6% target, 4% trailing, 3% daily in Evaluation / 4% on Qualified), One 10% (catalog entry), One 12% (12% target, 8% trailing, 5% daily). Consider adding One 6% and One 12% as separate programs.",
+   "Catalog source URL .../10097421-alpha-one now redirects to '.../10097421-alpha-one-6-10-12'.",
+   "maxLoss: catalog '6% trailing' — specify it trails the BALANCE high-water mark (not equity) and locks at initial balance at +6%.",
+   "Sizes: all Alpha One plans up to $200K (One 12% only up to $100K); catalog lists $300K.",
+   "Missing in catalog: Max Risk Rule (new hard-breach rule on QA accounts bought after 21/07/2026: 2-3% floating loss per asset), 2-minute average trade duration rule, 30-day inactivity, Bi-weekly payout path (5 trading days before first payout, $100 min)."
+  ],
+  "notFound": [
+   "T&C PDF revision date not printed in the extracted text."
+  ]
+ },
+ {
+  "firmSlug": "alpha-capital-group",
+  "programSlug": "alpha-capital-three-2026",
+  "programName": "Alpha Three",
+  "verifiedAt": "2026-11-12",
+  "programStillSold": true,
+  "sources": [
+   {
+    "label": "Alpha Three (plan article)",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10192958-alpha-three",
+    "kind": "help_center"
+   },
+   {
+    "label": "Daily risk limits",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6934210-what-are-the-daily-risk-limits-and-how-do-they-work",
+    "kind": "help_center"
+   },
+   {
+    "label": "Maximum total loss",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6934220-what-is-the-maximum-total-loss",
+    "kind": "help_center"
+   },
+   {
+    "label": "Minimum/maximum trading days",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6934224-what-are-the-minimum-and-maximum-trading-days-for-the-evaluation",
+    "kind": "help_center"
+   },
+   {
+    "label": "Trading day definition (pass before min days)",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6933908-if-i-pass-before-the-minimum-trading-days-what-is-required-for-the-remaining-days",
+    "kind": "help_center"
+   },
+   {
+    "label": "Inactivity",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/8420080-inactivity",
+    "kind": "help_center"
+   },
+   {
+    "label": "On-demand performance fee (Best Day Rule)",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10102634-on-demand-performance-fee",
+    "kind": "help_center"
+   },
+   {
+    "label": "Bi-weekly performance fee",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10570531-bi-weekly-performance-fee",
+    "kind": "help_center"
+   },
+   {
+    "label": "Max Risk Rule",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/15888623-what-is-the-max-risk-rule-and-how-does-it-work",
+    "kind": "help_center"
+   },
+   {
+    "label": "2-minute average trade duration",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/8447268-what-is-the-2-minute-average-trade-duration-rule",
+    "kind": "help_center"
+   },
+   {
+    "label": "Gambling policy",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/7060909-what-is-alpha-capital-group-s-policy-against-gambling-in-trading",
+    "kind": "help_center"
+   },
+   {
+    "label": "Weekend holding",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6934247-can-i-hold-trades-over-the-weekend",
+    "kind": "help_center"
+   },
+   {
+    "label": "Terms and Conditions of Service and Trading (PDF)",
+    "url": "https://alphacapitalgroup.uk/assets/terms-and-conditions.pdf",
+    "kind": "pdf"
+   },
+   {
+    "label": "Website (title: 'Evaluation up to $200K')",
+    "url": "https://alphacapitalgroup.uk/",
+    "kind": "page"
+   }
+  ],
+  "officialPdfUrl": "https://alphacapitalgroup.uk/assets/terms-and-conditions.pdf",
+  "profitTarget": {
+   "perPhase": [
+    {
+     "phase": "Phase 1",
+     "percent": 8
+    },
+    {
+     "phase": "Phase 2",
+     "percent": 4
+    },
+    {
+     "phase": "Phase 3",
+     "percent": 4
+    }
+   ],
+   "quote": "Phase 1 profit target: 8% | Phase 2 profit target: 4% | Phase 3 profit target: 4%",
+   "url": "https://help.alphacapitalgroup.uk/en/articles/10192958-alpha-three"
+  },
+  "dailyLoss": {
+   "percent": 4,
+   "measuredOn": "higher of balance or equity at start of day (00:00 GMT+2) x 4%; breach measured on current equity",
+   "reset": "00:00 broker time (GMT+2; GMT+3 during US daylight saving per T&C)",
+   "quote": "Alpha Three - Based on balance or equity, whichever is greater: 4% | The starting balance and equity refer to the account balance and equity at the end of the trading day/beginning of the daily candle (broker time), which is 00:00 GMT+2. | Regardless of whether balance or equity is used for the daily drawdown calculation, breaches are always applied based on open trades (unrealised losses) and, therefore, on the account's current equity value.",
+   "url": "https://help.alphacapitalgroup.uk/en/articles/6934210-what-are-the-daily-risk-limits-and-how-do-they-work"
+  },
+  "maxLoss": {
+   "percent": 6,
+   "type": "static from initial balance",
+   "quote": "Alpha Three: 6% static maximum drawdown",
+   "url": "https://help.alphacapitalgroup.uk/en/articles/6934220-what-is-the-maximum-total-loss"
+  },
+  "minTradingDays": {
+   "days": 3,
+   "perDayRequirement": "Trading day = a day on which a trade is both opened and closed; a trade opened one day and closed another counts as one trading day",
+   "quote": "Minimum trading days (for each phase): 3 | Please note that we define a trading day as a day on which you open and close a trade on the same day. A trade opened on one day and closed on a different day will count as a single trading day.",
+   "url": "https://help.alphacapitalgroup.uk/en/articles/6934224-what-are-the-minimum-and-maximum-trading-days-for-the-evaluation",
+   "urls": [
+    "https://help.alphacapitalgroup.uk/en/articles/6934224-what-are-the-minimum-and-maximum-trading-days-for-the-evaluation",
+    "https://help.alphacapitalgroup.uk/en/articles/6933908-if-i-pass-before-the-minimum-trading-days-what-is-required-for-the-remaining-days"
+   ],
+   "notes": "No maximum trading days; 30-day (consecutive calendar days) inactivity deactivates the account."
+  },
+  "consistency": [
+   {
+    "appliesTo": "evaluation",
+    "kind": "none",
+    "percent": null,
+    "amount": null,
+    "days": null,
+    "measuredOn": null,
+    "effect": null,
+    "condition": null,
+    "precise": false,
+    "quote": null,
+    "url": "https://alphacapitalgroup.uk/assets/terms-and-conditions.pdf",
+    "notes": "No consistency/best-day rule appears in evaluation rules (plan articles, T&C Schedule 1). No explicit sentence 'no consistency in evaluation' found."
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "best_day_vs_total_profit",
+    "percent": 40,
+    "amount": null,
+    "days": null,
+    "measuredOn": "net profit per day (closed vs floating not specified)",
+    "effect": "blocks_payout",
+    "condition": "Only with the On-Demand performance fee option (not with Bi-weekly)",
+    "precise": false,
+    "quote": "Alpha Pro, Swing, One, and Three: 40% | The consistency score is a simple calculation: the net profits generated on your best day are divided by the total net profits on the account. | If the result is greater than 0.40 (40%), the trader is not complying with the consistency rule.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10102634-on-demand-performance-fee",
+    "notes": "Total = net profits of the current payout window (partial withdrawal resets; a new trade opens a new window; leftover from the previous window is excluded). Day boundary not stated in this article (broker day 00:00 GMT+2 is defined only for daily DD). Also requires min 2% gross profit."
+   },
+   {
+    "appliesTo": "funded",
+    "kind": "other",
+    "percent": null,
+    "amount": 100,
+    "days": 5,
+    "measuredOn": "trading days (open and close on same day)",
+    "effect": "blocks_payout",
+    "condition": "Only with the Bi-weekly payout option; requests every 14 days from first QA trade",
+    "precise": true,
+    "quote": "For your first performance fee request, a minimum of 5 trading days using the same trading strategy is required. | The minimum performance fee amount is $100 ($100 gross, $80 net).",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10570531-bi-weekly-performance-fee",
+    "notes": "Bi-weekly option: no best-day rule; min 5 trading days before the FIRST payout + $100 min profit; minimal lot sizes to farm days not allowed."
+   }
+  ],
+  "otherBreachRules": [
+   {
+    "text": "Payout (On-Demand): min 2% gross profit on Pro/Swing/One/Three.",
+    "quote": "Alpha Pro, Swing, One, and Three: a minimum of 2% of gross profits on the account balance.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/10102634-on-demand-performance-fee"
+   },
+   {
+    "text": "Max Risk Rule (Qualified accounts purchased after 21/07/2026): open (floating) loss per asset, losing positions combined, same-direction re-entries within 10 min chained; 3% for $5K-$25K, 2% for $50K-$200K. Hard breach (account closed).",
+    "quote": "This rule applies to Qualified Accounts only. It takes effect for accounts purchased after the announcement date of 21/07/2026; accounts acquired before this date are not subject to it.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/15888623-what-is-the-max-risk-rule-and-how-does-it-work"
+   },
+   {
+    "text": "Inactivity: >30 consecutive calendar days without trading deactivates the account (irreversible).",
+    "quote": "This means that if an Alpha Capital Group Analyst does not trade their account for more than 30 consecutive days, the account will be deactivated.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/8420080-inactivity"
+   },
+   {
+    "text": "2-minute rule: average trade duration > 2 min and >= 50% of profits from trades > 2 min; breach = restart evaluation / QA profits removed.",
+    "quote": "We require the average duration of all your trades to be greater than 2 minutes.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/8447268-what-is-the-2-minute-average-trade-duration-rule"
+   },
+   {
+    "text": "Gambling / all-or-nothing: profits removed, possible termination.",
+    "quote": "Activity of this nature will result in the removal of profits and may include termination of the contract and closure of your Qualified Account.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/7060909-what-is-alpha-capital-group-s-policy-against-gambling-in-trading"
+   },
+   {
+    "text": "Weekend holding allowed at all stages on Swing/One/Three.",
+    "quote": "Holding trades over the weekend is allowed at all stages.",
+    "url": "https://help.alphacapitalgroup.uk/en/articles/6934247-can-i-hold-trades-over-the-weekend"
+   }
+  ],
+  "differencesVsCatalog": [
+   "No change in targets/daily/max/min-days vs catalog.",
+   "Sizes: catalog lists up to $300K; official site title says 'Evaluation up to $200K' and help articles refer to 'Qualified Accounts of up to $200,000' ($300K appears only in stale lot-size tables). Treat $300K as not currently sold unless confirmed.",
+   "Missing in catalog: Max Risk Rule (new hard-breach rule on QA accounts bought after 21/07/2026: 2-3% floating loss per asset), 2-minute average trade duration rule, 30-day inactivity, Bi-weekly payout path (5 trading days before first payout, $100 min).",
+   "Alpha Three does not appear in the T&C PDF Schedule 1/2 tables (only in Schedule 3 text); help-center plan article is the operative source."
+  ],
+  "notFound": [
+   "T&C PDF revision date not printed in the extracted text."
+  ]
+ }
+]
