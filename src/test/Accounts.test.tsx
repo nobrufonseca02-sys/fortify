@@ -5,6 +5,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import Accounts from '../pages/Accounts';
 import { getOperationalRulePrograms, initialBalanceValue } from '../lib/ruleBinding';
 
+// Estes testes cobrem a conexão por MetaApi, escondida por padrão desde 12/11/2026.
+vi.mock('@/lib/featureFlags', () => ({ METAAPI_ENABLED: true }));
+
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
     user: { id: 'user-1' },

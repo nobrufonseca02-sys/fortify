@@ -4,6 +4,9 @@ import { describe, expect, it } from 'vitest';
 import PropFirmLibrary, { accountConnectionPath, accountConnectionPathAutoDetect } from '../pages/PropFirmLibrary';
 import type { PropFirmRuleProgram, RuleAccountSize } from '../data/propFirmRules';
 
+// Estes testes cobrem a conexão por MetaApi, escondida por padrão desde 12/11/2026.
+vi.mock('@/lib/featureFlags', () => ({ METAAPI_ENABLED: true }));
+
 function LocationProbe() {
   const location = useLocation();
   return <div data-testid="location">{location.pathname}{location.search}</div>;

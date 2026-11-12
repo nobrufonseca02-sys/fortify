@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import { FortifyGuardCard } from '@/components/rules/FortifyGuardCard';
 import { binding } from '../../services/metaapi-gateway/src/testFixtures';
 
@@ -22,6 +23,14 @@ vi.mock('@/integrations/supabase/client', () => {
 
 afterEach(() => upsert.mockClear());
 
+function renderCard() {
+  return render(
+    <MemoryRouter>
+      <FortifyGuardCard accountId="account-a" binding={alphaLikeBinding()} />
+    </MemoryRouter>,
+  );
+}
+
 function alphaLikeBinding() {
   const row = binding();
   const rules = row.rule_snapshot.criticalRules;
@@ -34,7 +43,7 @@ function alphaLikeBinding() {
 
 describe('Fortify Guard: escolha das regras', () => {
   it('separa as regras em "zeram a conta", "saque e metas" e "lembretes", com a consequência de cada uma', async () => {
-    render(<FortifyGuardCard accountId="account-a" binding={alphaLikeBinding()} />);
+    renderCard();
     await waitFor(() => expect(screen.getByText('Zeram a conta')).toBeInTheDocument());
     expect(screen.getByText('Saque e metas')).toBeInTheDocument();
     expect(screen.getByText('Lembretes')).toBeInTheDocument();
@@ -43,21 +52,21 @@ describe('Fortify Guard: escolha das regras', () => {
     expect(screen.getAllByText('Zera a conta').length).toBeGreaterThan(0);
   });
 
-  it('ainda não oferece o download do EA', async () => {
-    render(<FortifyGuardCard accountId="account-a" binding={alphaLikeBinding()} />);
-    await waitFor(() => expect(screen.getByText(/download do EA será liberado em breve/i)).toBeInTheDocument());
-    expect(screen.queryByRole('link', { name: /Baixar FortifyGuard/ })).not.toBeInTheDocument();
+  it('manda instalar o EA pela página Fortify Guard, sem chave nem download por conta', async () => {
+    renderCard();
+    await waitFor(() => expect(screen.getByRole('link', { name: 'Abrir Fortify Guard' })).toHaveAttribute('href', '/fortify-guard'));
+    expect(screen.queryByRole('button', { name: /Gerar chave/ })).not.toBeInTheDocument();
   });
 
   it('liga por padrão o que zera a conta e deixa os lembretes desligados', async () => {
-    render(<FortifyGuardCard accountId="account-a" binding={alphaLikeBinding()} />);
+    renderCard();
     await waitFor(() => expect(screen.getByLabelText('Mostrar Inatividade no EA')).not.toBeDisabled());
     expect(screen.getByLabelText('Mostrar Inatividade no EA')).toHaveAttribute('data-state', 'checked');
     expect(screen.getByLabelText('Mostrar Notícias no EA')).toHaveAttribute('data-state', 'unchecked');
   });
 
   it('na fase funded a consistência do saque aparece e a meta de lucro sai', async () => {
-    render(<FortifyGuardCard accountId="account-a" binding={alphaLikeBinding()} />);
+    renderCard();
     await waitFor(() => expect(screen.getByRole('radio', { name: 'Funded' })).not.toBeDisabled());
     expect(screen.getByText('Meta de lucro')).toBeInTheDocument();
     expect(screen.queryByText('Trava o saque')).not.toBeInTheDocument();
@@ -70,7 +79,7 @@ describe('Fortify Guard: escolha das regras', () => {
   });
 
   it('desligar uma regra salva a lista escolhida', async () => {
-    render(<FortifyGuardCard accountId="account-a" binding={alphaLikeBinding()} />);
+    renderCard();
     await waitFor(() => expect(screen.getByLabelText('Mostrar Lote máximo no EA')).not.toBeDisabled());
     fireEvent.click(screen.getByLabelText('Mostrar Lote máximo no EA'));
     const saved = upsert.mock.calls.at(-1)?.[0] as { rule_keys: string[] };

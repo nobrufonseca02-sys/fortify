@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, Copy, Download, KeyRound, MonitorSmartphone, RefreshCw, ShieldCheck } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { MonitorSmartphone, ShieldCheck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
-import { Button } from '@/components/ui/button';
-import { gatewayBaseUrl, gatewayJsonHeaders } from '@/lib/gateway';
+import { eaAccountStatus } from '@/lib/guardStatus';
 import {
   defaultGuardRuleKeys,
   guardRuleOptions,
@@ -21,9 +21,6 @@ import type { AccountRuleBindingRow } from '@/lib/ruleBinding';
 // Aqui o trader informa a fase da conta, escolhe quais regras da mesa aparecem
 // no EA, gera a chave e baixa o EA. As opções e os padrões vêm do mesmo módulo
 // que o gateway usa (services/metaapi-gateway/src/ruleEngine/guardRules.ts).
-
-// Download do EA ainda não liberado para os traders (decisão de produto, 12/11/2026).
-const EA_DOWNLOAD_ENABLED = false;
 
 const GROUPS: Array<{ id: GuardGroup; title: string; hint: string; chip: string }> = [
   {
@@ -51,11 +48,9 @@ const STAGES: Array<{ id: AccountStage; label: string }> = [
   { id: 'funded', label: 'Funded' },
 ];
 
-interface TokenRow {
-  token_prefix: string;
-  created_at: string;
-  last_used_at: string | null;
-  bound_mt5_login: string | null;
+interface EaAccountRow {
+  ea_status: string | null;
+  ea_last_seen_at: string | null;
 }
 
 function timeAgo(iso: string | null) {
@@ -76,7 +71,7 @@ const THRESHOLDS = [
 ];
 
 export function FortifyGuardCard({ accountId, binding }: { accountId: string; binding: AccountRuleBindingRow }) {
-  const { user, session } = useAuth();
+  const { user } = useAuth();
   // null = ainda sem escolha salva: fase deduzida pelo programa e regras no padrão.
   const [stage, setStage] = useState<AccountStage | null>(null);
   const [explicitKeys, setExplicitKeys] = useState<Set<GuardRuleKey> | null>(null);
@@ -87,33 +82,29 @@ export function FortifyGuardCard({ accountId, binding }: { accountId: string; bi
     [explicitKeys, options],
   );
   const [thresholds, setThresholds] = useState(THRESHOLDS[1]);
-  const [token, setToken] = useState<TokenRow | null>(null);
-  const [freshToken, setFreshToken] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [eaAccount, setEaAccount] = useState<EaAccountRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [generating, setGenerating] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const [prefRes, tokenRes] = await Promise.all([
+      const [prefRes, accountRes] = await Promise.all([
         supabase
           .from('ea_rule_preferences' as any)
           .select('rule_keys, warning_pct, critical_pct, account_stage')
           .eq('trading_account_id', accountId)
           .maybeSingle() as any,
         supabase
-          .from('ea_access_tokens' as any)
-          .select('token_prefix, created_at, last_used_at, bound_mt5_login')
-          .eq('trading_account_id', accountId)
-          .is('revoked_at', null)
+          .from('trading_accounts' as any)
+          .select('ea_status, ea_last_seen_at')
+          .eq('id', accountId)
           .maybeSingle() as any,
       ]);
       if (cancelled) return;
-      if (prefRes.error || tokenRes.error) {
+      if (prefRes.error) {
         // Tabelas ainda não criadas neste ambiente: o cartão explica em vez de quebrar.
         setUnavailable(true);
         setLoading(false);
@@ -131,7 +122,7 @@ export function FortifyGuardCard({ accountId, binding }: { accountId: string; bi
         );
         if (match) setThresholds(match);
       }
-      setToken(tokenRes.data?.token_prefix ? (tokenRes.data as TokenRow) : null);
+      setEaAccount(accountRes.data && 'ea_status' in accountRes.data ? (accountRes.data as EaAccountRow) : null);
       setLoading(false);
     })().catch(() => {
       if (cancelled) return;
@@ -187,40 +178,8 @@ export function FortifyGuardCard({ accountId, binding }: { accountId: string; bi
 
   const selectedCount = options.filter((option) => selected.has(option.key)).length;
 
-  const generateToken = async () => {
-    if (!session?.access_token) return;
-    if (token && !window.confirm('Gerar uma chave nova desliga a chave atual. O EA vai precisar da chave nova. Continuar?')) return;
-    setGenerating(true);
-    try {
-      const response = await fetch(`${gatewayBaseUrl()}/ea/token`, {
-        method: 'POST',
-        headers: gatewayJsonHeaders(session.access_token),
-        body: JSON.stringify({ tradingAccountId: accountId }),
-      });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body?.error || 'Não foi possível gerar a chave.');
-      setFreshToken(body.token);
-      setCopied(false);
-      setToken({ token_prefix: body.prefix, created_at: new Date().toISOString(), last_used_at: null, bound_mt5_login: null });
-    } catch (error: any) {
-      toast({ title: 'Chave não gerada', description: error?.message, variant: 'destructive' });
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  const copyToken = async () => {
-    if (!freshToken) return;
-    try {
-      await navigator.clipboard.writeText(freshToken);
-      setCopied(true);
-    } catch {
-      toast({ title: 'Copie manualmente', description: 'Selecione a chave e copie com Ctrl+C.' });
-    }
-  };
-
-  const connectedAgo = timeAgo(token?.last_used_at ?? null);
-  const gatewayUrl = gatewayBaseUrl();
+  const eaStatus = eaAccount?.ea_status ? eaAccountStatus(eaAccount) : null;
+  const eaLastSeen = timeAgo(eaAccount?.ea_last_seen_at ?? null);
 
   return (
     <section className="rounded-xl border border-primary/30 bg-card p-5 space-y-5" aria-labelledby="fortify-guard-title">
@@ -239,14 +198,15 @@ export function FortifyGuardCard({ accountId, binding }: { accountId: string; bi
             </p>
           </div>
         </div>
-        {token && (
+        {eaStatus && (
           <span
             className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-              connectedAgo ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
+              eaStatus.tone === 'ok' ? 'bg-success/10 text-success' : eaStatus.tone === 'wait' ? 'bg-warning/10 text-warning' : 'bg-muted text-muted-foreground'
             }`}
           >
-            <span className={`h-1.5 w-1.5 rounded-full ${connectedAgo ? 'bg-success' : 'bg-muted-foreground'}`} />
-            {connectedAgo ? `EA conectado ${connectedAgo}` : 'EA ainda não conectado'}
+            <span className={`h-1.5 w-1.5 rounded-full ${eaStatus.tone === 'ok' ? 'bg-success' : eaStatus.tone === 'wait' ? 'bg-warning' : 'bg-muted-foreground'}`} />
+            {eaStatus.label}
+            {eaStatus.tone === 'ok' && eaLastSeen ? ` · ${eaLastSeen}` : ''}
           </span>
         )}
       </div>
@@ -346,66 +306,15 @@ export function FortifyGuardCard({ accountId, binding }: { accountId: string; bi
             </div>
           </div>
 
-          {EA_DOWNLOAD_ENABLED ? (
-          <div className="space-y-3 rounded-lg border border-border bg-background/60 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Instalar em 4 passos</p>
-            <ol className="space-y-3 text-xs text-muted-foreground">
-              <li>
-                <span className="font-semibold text-foreground">1. Baixe o EA</span> e, no MT5, abra Arquivo &gt; Abrir pasta de dados &gt;
-                MQL5 &gt; Experts e cole o arquivo lá.
-                <div className="mt-2">
-                  <Button asChild size="sm" variant="outline" className="gap-2">
-                    <a href="/downloads/FortifyGuard.ex5" download>
-                      <Download className="h-3.5 w-3.5" />
-                      Baixar FortifyGuard.ex5
-                    </a>
-                  </Button>
-                </div>
-              </li>
-              <li>
-                <span className="font-semibold text-foreground">2. Libere o Fortify no MT5:</span> Ferramentas &gt; Opções &gt; Expert
-                Advisors, marque "Permitir WebRequest para as URLs listadas" e adicione{' '}
-                <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-foreground">{gatewayUrl}</code>
-              </li>
-              <li>
-                <span className="font-semibold text-foreground">3. Gere a chave desta conta</span> e copie.
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <Button size="sm" onClick={generateToken} disabled={generating || loading} className="gap-2">
-                    {generating ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <KeyRound className="h-3.5 w-3.5" />}
-                    {token ? 'Gerar chave nova' : 'Gerar chave do EA'}
-                  </Button>
-                  {token && !freshToken && (
-                    <span className="text-[11px] text-muted-foreground">
-                      Chave ativa {token.token_prefix}... {token.bound_mt5_login ? `· presa à conta MT5 ${token.bound_mt5_login}` : ''}
-                    </span>
-                  )}
-                </div>
-                {freshToken && (
-                  <div className="mt-3 rounded-lg border border-primary/40 bg-primary/5 p-3">
-                    <div className="flex items-center gap-2">
-                      <code className="min-w-0 flex-1 break-all font-mono text-xs text-foreground">{freshToken}</code>
-                      <Button size="sm" variant="outline" onClick={copyToken} className="shrink-0 gap-1.5">
-                        {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                        {copied ? 'Copiada' : 'Copiar'}
-                      </Button>
-                    </div>
-                    <p className="mt-2 text-[11px] text-muted-foreground">
-                      Esta chave aparece só agora. Ela só lê as regras desta conta e fica presa à primeira conta MT5 que usar.
-                    </p>
-                  </div>
-                )}
-              </li>
-              <li>
-                <span className="font-semibold text-foreground">4. Arraste o FortifyGuard para o gráfico</span>, cole a chave no campo "Chave
-                do EA" e confirme. O painel aparece no canto do gráfico.
-              </li>
-            </ol>
-          </div>
-          ) : (
-            <p className="rounded-lg border border-border bg-background/60 p-4 text-xs text-muted-foreground">
-              O download do EA será liberado em breve. Você já pode deixar escolhidas a fase e as regras desta conta.
+          <div className="flex flex-col gap-3 rounded-lg border border-border bg-background/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-muted-foreground">
+              O download do EA, a chave e o passo a passo de instalação ficam na página Fortify Guard. Uma instalação serve para todas as
+              suas contas.
             </p>
-          )}
+            <Link to="/fortify-guard" className="pill-btn shrink-0 text-xs">
+              Abrir Fortify Guard
+            </Link>
+          </div>
 
           <p className="flex items-start gap-2 text-[11px] text-muted-foreground">
             <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />

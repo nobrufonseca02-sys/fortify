@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
+import { METAAPI_ENABLED } from '@/lib/featureFlags';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
@@ -117,7 +118,7 @@ const Accounts = () => {
   const [ruleBindings, setRuleBindings] = useState<Record<string, AccountRuleBindingRow>>({});
 
   // Connect form state
-  const [showConnectForm, setShowConnectForm] = useState(() => librarySelection.status !== 'none');
+  const [showConnectForm, setShowConnectForm] = useState(() => METAAPI_ENABLED && librarySelection.status !== 'none');
   const [saving, setSaving] = useState(false);
   const [accountName, setAccountName] = useState(() => {
     if (libraryResolved) return `${libraryResolved.program.firm} ${libraryResolved.accountSize.label}`;
@@ -490,7 +491,9 @@ const Accounts = () => {
           <span className="eyebrow">Monitoramento MT5</span>
           <h1 className="display-editorial-sm text-foreground mt-1">Contas</h1>
           <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-            Conecte sua conta MT5 para acompanhar sincronização, regras e limites.
+            {METAAPI_ENABLED
+              ? 'Conecte sua conta MT5 para acompanhar sincronização, regras e limites.'
+              : 'Suas contas são alimentadas pelo Fortify Guard, o EA que roda no seu MT5. Para adicionar uma conta, escolha a mesa e o modelo na Biblioteca.'}
           </p>
           {accounts.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 mt-4">
@@ -531,21 +534,28 @@ const Accounts = () => {
         </div>
         <div className="flex flex-col items-start md:items-end gap-3 shrink-0">
           <button
-            onClick={openConnectForm}
+            onClick={METAAPI_ENABLED ? openConnectForm : () => navigate('/')}
             className="pill-btn pill-btn-primary"
           >
             <Plus className="w-4 h-4" aria-hidden="true" />
-            Conectar conta
+            {METAAPI_ENABLED ? 'Conectar conta' : 'Adicionar conta'}
           </button>
           <div className="flex items-center gap-4 text-xs">
             <button onClick={() => navigate('/library')} className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
               <BookOpen className="w-3.5 h-3.5" aria-hidden="true" />
               Biblioteca de mesas
             </button>
-            <button onClick={() => navigate('/accounts/new')} className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
-              <Settings2 className="w-3.5 h-3.5" aria-hidden="true" />
-              Cadastro com detalhes
-            </button>
+            {METAAPI_ENABLED ? (
+              <button onClick={() => navigate('/accounts/new')} className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
+                <Settings2 className="w-3.5 h-3.5" aria-hidden="true" />
+                Cadastro com detalhes
+              </button>
+            ) : (
+              <button onClick={() => navigate('/fortify-guard')} className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
+                <Settings2 className="w-3.5 h-3.5" aria-hidden="true" />
+                Fortify Guard
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -863,9 +873,11 @@ const Accounts = () => {
         <GuidedEmptyState
           icon={Wallet}
           title="Nenhuma conta cadastrada"
-          description="Conecte uma conta MT5 para começar. Depois da primeira sincronização, a mesa vinculada e a saúde da conta aparecem aqui."
-          actionLabel="Conectar conta"
-          onAction={openConnectForm}
+          description={METAAPI_ENABLED
+            ? 'Conecte uma conta MT5 para começar. Depois da primeira sincronização, a mesa vinculada e a saúde da conta aparecem aqui.'
+            : 'Escolha a mesa e o modelo da sua conta na Biblioteca. Depois abra o MT5 com o Fortify Guard: a saúde da conta aparece aqui.'}
+          actionLabel={METAAPI_ENABLED ? 'Conectar conta' : 'Ir para a Biblioteca'}
+          onAction={METAAPI_ENABLED ? openConnectForm : () => navigate('/')}
         />
       )}
 

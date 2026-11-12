@@ -9,6 +9,7 @@ import cors from '@fastify/cors';
 import Anthropic from '@anthropic-ai/sdk';
 import {
   CanonicalStoreUnavailableError,
+  buildCanonicalEvaluationInsert,
   createSupabaseCanonicalEvaluationStore,
   runCanonicalEvaluation,
   type CanonicalEvaluationOutcome,
@@ -40,6 +41,9 @@ import {
   type EaPreferences,
 } from './eaFeed';
 import { verifyBindingSnapshot } from './ruleEngine/snapshotIntegrity';
+import { parseInitialBalance } from './ruleEngine/ruleEngineTypes';
+import { positionRows, sanitizeEaPositions, sanitizeEaTrades, snapshotRowsSince, tradeRowsSince } from './eaSync';
+import { readFile } from 'node:fs/promises';
 
 const gatewayEnvPath = path.resolve(__dirname, '../.env');
 const gatewayEnvResult = dotenv.config({ path: gatewayEnvPath, override: false });
@@ -6057,23 +6061,20 @@ fastify.post('/internal/whatsapp/create-checkout-session', async (request, reply
 });
 
 // ---- Fortify Guard: EA do MetaTrader 5 ----
-// A chave do EA nao e a sessao do usuario: e um segredo proprio, por conta, que so
-// le as regras daquela conta. Guardamos so o hash; o texto aparece uma unica vez.
+// O EA é a fonte de dados das contas (a MetaApi está escondida por enquanto).
+// A chave do EA é UMA por trader e só serve para o EA: lê as regras e grava os
+// dados das contas daquele trader. Guardamos só o hash; o texto aparece uma vez.
+// O EA reconhece cada conta pelo login MT5: na primeira conexão de um login
+// novo, ele se liga à conta mais antiga que o trader criou pela Biblioteca e que
+// ainda está aguardando o EA.
 
 function hashEaToken(token: string) {
   return createHash('sha256').update(token).digest('hex');
 }
 
-async function ownedTradingAccount(userId: string, tradingAccountId: string) {
-  if (!isUuid(tradingAccountId)) return null;
-  const { data } = await (supabase
-    .from('trading_accounts' as any)
-    .select('id, user_id, nickname, mt5_login, start_balance, highest_equity, phase')
-    .eq('id', tradingAccountId)
-    .eq('user_id', userId)
-    .maybeSingle() as any);
-  return data ?? null;
-}
+const EA_FILE_PATH = process.env.EA_FILE_PATH || path.resolve(process.cwd(), 'ea', 'FortifyGuard.ex5');
+const EA_EVALUATION_INTERVAL_MS = 5 * 60_000;
+const eaLastEvaluation = new Map<string, { at: number; status: string }>();
 
 fastify.post('/ea/token', async (request, reply) => {
   try {
@@ -6083,33 +6084,27 @@ fastify.post('/ea/token', async (request, reply) => {
     const authResult = await verifyBearerUser(request);
     if ('error' in authResult) return reply.status(authResult.status).send(authResult.error);
 
-    const tradingAccountId = String((request.body as JsonRecord | undefined)?.tradingAccountId || '').trim();
-    const account = await ownedTradingAccount(authResult.id, tradingAccountId);
-    if (!account) return reply.status(404).send({ error: 'Conta não encontrada.', code: 'trading_account_not_found' });
-
     const entitlement = await getUserEntitlement(authResult.id);
     if (!entitlement.hasActivePaidPlan) {
-      return reply.status(402).send({ error: 'O Fortify Guard faz parte dos planos pagos.', code: 'plan_required' });
+      return reply.status(402).send({ error: 'O Fortify Guard faz parte dos planos pagos, a partir do Beginner.', code: 'plan_required' });
     }
 
-    // Uma chave ativa por conta: gerar de novo invalida a anterior.
-    const now = new Date().toISOString();
+    // Uma chave ativa por trader: gerar de novo invalida a anterior.
     await (supabase
       .from('ea_access_tokens' as any)
-      .update({ revoked_at: now })
-      .eq('trading_account_id', tradingAccountId)
+      .update({ revoked_at: new Date().toISOString() })
+      .eq('user_id', authResult.id)
       .is('revoked_at', null) as any);
 
     const token = `ftf_${randomBytes(24).toString('base64url')}`;
     const { error } = await (supabase.from('ea_access_tokens' as any).insert({
       user_id: authResult.id,
-      trading_account_id: tradingAccountId,
       token_hash: hashEaToken(token),
       token_prefix: token.slice(0, 10),
     }) as any);
     if (error) throw error;
 
-    fastify.log.info({ event: 'ea_token_created', userId: maskForLog(authResult.id), tradingAccountId: maskForLog(tradingAccountId) });
+    fastify.log.info({ event: 'ea_token_created', userId: maskForLog(authResult.id) });
     return reply.send({ token, prefix: token.slice(0, 10) });
   } catch (error: any) {
     fastify.log.error({ event: 'ea_token_create_failed', error: error?.message });
@@ -6117,27 +6112,218 @@ fastify.post('/ea/token', async (request, reply) => {
   }
 });
 
-fastify.post('/ea/token/revoke', async (request, reply) => {
+// Download do EA só para quem tem plano pago (Beginner ou acima).
+fastify.get('/ea/download', async (request, reply) => {
   try {
+    const limit = checkRateLimit(request, 'ea-download', 10, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
     const authResult = await verifyBearerUser(request);
     if ('error' in authResult) return reply.status(authResult.status).send(authResult.error);
 
-    const tradingAccountId = String((request.body as JsonRecord | undefined)?.tradingAccountId || '').trim();
-    const account = await ownedTradingAccount(authResult.id, tradingAccountId);
-    if (!account) return reply.status(404).send({ error: 'Conta não encontrada.', code: 'trading_account_not_found' });
+    const entitlement = await getUserEntitlement(authResult.id);
+    if (!entitlement.hasActivePaidPlan) {
+      return reply.status(402).send({ error: 'O download do Fortify Guard é liberado a partir do plano Beginner.', code: 'plan_required' });
+    }
+    if (!existsSync(EA_FILE_PATH)) {
+      fastify.log.error({ event: 'ea_download_file_missing' });
+      return reply.status(503).send({ error: 'O arquivo do EA não está disponível agora.', code: 'ea_file_missing' });
+    }
 
-    await (supabase
-      .from('ea_access_tokens' as any)
-      .update({ revoked_at: new Date().toISOString() })
-      .eq('trading_account_id', tradingAccountId)
-      .eq('user_id', authResult.id)
-      .is('revoked_at', null) as any);
-    return reply.send({ revoked: true });
+    const file = await readFile(EA_FILE_PATH);
+    fastify.log.info({ event: 'ea_downloaded', userId: maskForLog(authResult.id) });
+    return reply
+      .header('Content-Type', 'application/octet-stream')
+      .header('Content-Disposition', 'attachment; filename="FortifyGuard.ex5"')
+      .header('Cache-Control', 'no-store')
+      .send(file);
   } catch (error: any) {
-    fastify.log.error({ event: 'ea_token_revoke_failed', error: error?.message });
-    return reply.status(500).send({ error: 'Não foi possível revogar a chave.', code: 'ea_token_revoke_failed' });
+    fastify.log.error({ event: 'ea_download_failed', error: error?.message });
+    return reply.status(500).send({ error: 'Não foi possível baixar o EA agora.', code: 'ea_download_failed' });
   }
 });
+
+async function resolveEaAccount(userId: string, login: string, server: string) {
+  const columns = 'id, user_id, nickname, mt5_login, start_balance, highest_equity, phase, ea_status, ea_tracking_started_at';
+  const { data: linked } = await (supabase
+    .from('trading_accounts' as any)
+    .select(columns)
+    .eq('user_id', userId)
+    .eq('mt5_login', login)
+    .neq('status', 'archived')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle() as any);
+  if (linked) {
+    if (linked.ea_status !== 'linked' || !linked.ea_tracking_started_at) {
+      const now = new Date().toISOString();
+      const patch = {
+        ea_status: 'linked',
+        ea_linked_at: now,
+        ea_tracking_started_at: linked.ea_tracking_started_at ?? now,
+      };
+      await (supabase.from('trading_accounts' as any).update(patch).eq('id', linked.id) as any);
+      return { ...linked, ...patch, justLinked: false };
+    }
+    return { ...linked, justLinked: false };
+  }
+
+  const { data: pending } = await (supabase
+    .from('trading_accounts' as any)
+    .select(columns)
+    .eq('user_id', userId)
+    .eq('ea_status', 'pending')
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle() as any);
+  if (!pending) return null;
+
+  const now = new Date().toISOString();
+  const patch = {
+    mt5_login: login,
+    mt5_server: server || null,
+    ea_status: 'linked',
+    ea_linked_at: now,
+    ea_tracking_started_at: now,
+  };
+  // Só liga se ainda estiver aguardando (dois terminais ao mesmo tempo não pegam a mesma conta).
+  const { data: claimed } = await (supabase
+    .from('trading_accounts' as any)
+    .update(patch)
+    .eq('id', pending.id)
+    .eq('ea_status', 'pending')
+    .select(columns)
+    .maybeSingle() as any);
+  if (!claimed) return null;
+  fastify.log.info({ event: 'ea_account_linked', tradingAccountId: maskForLog(pending.id) });
+  return { ...claimed, justLinked: true };
+}
+
+async function persistEaData(input: {
+  userId: string;
+  account: JsonRecord;
+  login: string;
+  server: string;
+  broker: string;
+  live: { balance: number; equity: number; days: ReturnType<typeof sanitizeEaDays>; now: Date };
+  trades: ReturnType<typeof sanitizeEaTrades>;
+  positions: ReturnType<typeof sanitizeEaPositions>;
+  initialBalance: number | null;
+}) {
+  const { userId, account, login, server, broker, live } = input;
+  const nowIso = live.now.toISOString();
+  const trackingStart = new Date(account.ea_tracking_started_at || nowIso);
+
+  // Uma conexão por conta. Conta que já tinha MetaApi reaproveita a mesma linha.
+  const { data: existing } = await (supabase
+    .from('mt5_connections' as any)
+    .select('id')
+    .eq('trading_account_id', account.id)
+    .maybeSingle() as any);
+  let connectionId = existing?.id as string | undefined;
+  if (connectionId) {
+    await (supabase
+      .from('mt5_connections' as any)
+      .update({ connection_status: 'connected', last_sync_at: nowIso, sync_error: null })
+      .eq('id', connectionId) as any);
+  } else {
+    const { data: created, error } = await (supabase
+      .from('mt5_connections' as any)
+      .insert({
+        user_id: userId,
+        trading_account_id: account.id,
+        account_name: String(account.nickname || `Conta MT5 ${login}`),
+        mt5_login: login,
+        mt5_server: server || 'MT5',
+        broker_name: broker || server || 'MT5',
+        provider: 'fortify_guard',
+        provider_account_id: null,
+        connection_status: 'connected',
+        last_sync_at: nowIso,
+      })
+      .select('id')
+      .single() as any);
+    if (error) throw new Error(`conexão: ${error.message}`);
+    connectionId = created.id;
+  }
+
+  const snapshots = snapshotRowsSince(live.days, live, trackingStart);
+  if (snapshots.length > 0) {
+    const { error } = await (supabase
+      .from('mt5_account_snapshots' as any)
+      .upsert(
+        snapshots.map((row) => ({ connection_id: connectionId, ...row, created_at: nowIso })),
+        { onConflict: 'connection_id,date' },
+      ) as any);
+    if (error) throw new Error(`snapshots: ${error.message}`);
+  }
+
+  await (supabase.from('mt5_positions' as any).delete().eq('connection_id', connectionId) as any);
+  if (input.positions.length > 0) {
+    const { error } = await (supabase
+      .from('mt5_positions' as any)
+      .insert(positionRows(input.positions, live.now).map((row) => ({ connection_id: connectionId, ...row }))) as any);
+    if (error) throw new Error(`posições: ${error.message}`);
+  }
+
+  const tradeRows = tradeRowsSince(input.trades, trackingStart);
+  if (tradeRows.length > 0) {
+    const { data: known } = await (supabase
+      .from('mt5_trades' as any)
+      .select('ticket')
+      .eq('connection_id', connectionId)
+      .in('ticket', tradeRows.map((row) => row.ticket)) as any);
+    const knownTickets = new Set((known ?? []).map((row: any) => Number(row.ticket)));
+    const fresh = tradeRows.filter((row) => !knownTickets.has(row.ticket));
+    if (fresh.length > 0) {
+      const { error } = await (supabase
+        .from('mt5_trades' as any)
+        .insert(fresh.map((row) => ({ connection_id: connectionId, ...row }))) as any);
+      if (error) throw new Error(`operações: ${error.message}`);
+    }
+  }
+
+  const today = snapshots[snapshots.length - 1];
+  const startBalance = toNumber(account.start_balance, 0) > 0 ? toNumber(account.start_balance, 0) : input.initialBalance ?? live.balance;
+  const tradedDays = live.days.filter((day) => day.traded).map((day) => day.date).sort();
+  if (today) {
+    await (supabase.from('account_daily_snapshots' as any).upsert(
+      {
+        user_id: userId,
+        trading_account_id: account.id,
+        date: today.date,
+        balance: today.balance,
+        equity: today.equity,
+        daily_pnl: today.daily_pnl,
+        floating_pnl: today.floating_pnl,
+        drawdown: today.drawdown,
+        max_balance: today.max_balance,
+        created_at: nowIso,
+      },
+      { onConflict: 'trading_account_id,date' },
+    ) as any);
+  }
+
+  await (supabase
+    .from('trading_accounts' as any)
+    .update({
+      start_balance: startBalance,
+      current_balance: live.balance,
+      current_equity: live.equity,
+      highest_equity: Math.max(toNumber(account.highest_equity, 0), live.equity, today?.max_balance ?? 0),
+      daily_loss_used: Math.max(0, -(today?.daily_pnl ?? 0) - Math.min(0, today?.floating_pnl ?? 0)),
+      total_loss_used: Math.max(0, startBalance - live.equity),
+      trading_days_count: tradedDays.length,
+      last_trading_date: tradedDays.at(-1) ?? null,
+      mt5_connection_status: 'connected',
+      mt5_last_sync_at: nowIso,
+      mt5_sync_error: null,
+      ea_last_seen_at: nowIso,
+    })
+    .eq('id', account.id) as any);
+
+  return connectionId as string;
+}
 
 // Chamado pelo EA a cada ~15s. Responde em texto (ver serializeEaFeed), sempre 200
 // com linha ERR em caso de erro previsto: o EA mostra a mensagem no painel.
@@ -6145,42 +6331,32 @@ fastify.post('/ea/feed', async (request, reply) => {
   reply.header('Content-Type', 'text/plain; charset=utf-8');
   const fail = (code: string, message: string) => reply.send(serializeEaError(code, message));
   try {
-    const limit = checkRateLimit(request, 'ea-feed', 40, 60_000);
+    const limit = checkRateLimit(request, 'ea-feed', 60, 60_000);
     if (!limit.allowed) return fail('rate_limited', 'Muitas consultas seguidas. Aguarde alguns segundos.');
 
     const header = request.headers['x-fortify-ea-token'];
     const token = String(Array.isArray(header) ? header[0] : header || '').trim();
     if (!/^ftf_[A-Za-z0-9_-]{20,64}$/.test(token)) {
-      return fail('token_missing', 'Cole no EA a chave gerada na página da conta no Fortify.');
+      return fail('token_missing', 'Cole no EA a chave gerada na página Fortify Guard.');
     }
 
     const { data: tokenRow } = await (supabase
       .from('ea_access_tokens' as any)
-      .select('id, user_id, trading_account_id, bound_mt5_login, revoked_at, last_used_at')
+      .select('id, user_id, revoked_at, last_used_at')
       .eq('token_hash', hashEaToken(token))
       .maybeSingle() as any);
     if (!tokenRow || tokenRow.revoked_at) {
-      return fail('token_invalid', 'Chave inválida ou substituída. Gere uma nova na página da conta no Fortify.');
+      return fail('token_invalid', 'Chave inválida ou substituída. Gere uma nova na página Fortify Guard.');
     }
 
     const body = (request.body ?? {}) as JsonRecord;
     const login = String(body.login ?? '').trim();
+    const server = String(body.server ?? '').trim().slice(0, 120);
+    const broker = String(body.company ?? '').trim().slice(0, 120);
     const balance = Number(body.balance);
     const equity = Number(body.equity);
     if (!/^\d{3,20}$/.test(login) || !Number.isFinite(balance) || !Number.isFinite(equity)) {
       return fail('bad_request', 'O EA enviou dados incompletos da conta.');
-    }
-
-    const account = await ownedTradingAccount(tokenRow.user_id, tokenRow.trading_account_id);
-    if (!account) return fail('account_missing', 'A conta desta chave não existe mais no Fortify.');
-
-    // A chave fica presa ao primeiro login MT5 que a usou (ou ao login já salvo na conta).
-    const expectedLogin = String(tokenRow.bound_mt5_login || account.mt5_login || '').trim();
-    if (expectedLogin && expectedLogin !== login) {
-      return fail(
-        'account_mismatch',
-        `Esta chave é da conta ${expectedLogin}, mas o EA está na conta ${login}. Gere a chave na conta certa do Fortify.`,
-      );
     }
 
     const entitlement = await getUserEntitlement(tokenRow.user_id);
@@ -6188,19 +6364,27 @@ fastify.post('/ea/feed', async (request, reply) => {
       return fail('plan_inactive', 'Assinatura Fortify inativa. Renove para continuar vendo as regras no MT5.');
     }
 
-    const binding = await canonicalEvaluationStore.loadActiveBinding(tokenRow.trading_account_id, tokenRow.user_id);
+    const account = await resolveEaAccount(tokenRow.user_id, login, server);
+    if (!account) {
+      return fail(
+        'no_account',
+        `A conta MT5 ${login} ainda não está no Fortify. Na Biblioteca de Mesas, escolha a mesa e o modelo dela: o EA conecta sozinho.`,
+      );
+    }
+
+    const binding = await canonicalEvaluationStore.loadActiveBinding(account.id, tokenRow.user_id);
     if (!binding || binding.binding_status !== 'active') {
-      return fail('no_binding', 'Vincule a mesa e o programa desta conta no Fortify para o EA mostrar as regras.');
+      return fail('no_binding', 'Escolha a mesa e o modelo desta conta na Biblioteca de Mesas para o EA mostrar as regras.');
     }
     const integrity = verifyBindingSnapshot(binding);
     if (!integrity.ok) {
-      return fail('snapshot_invalid', 'As regras desta conta precisam ser revinculadas pela Biblioteca de Mesas.');
+      return fail('snapshot_invalid', 'As regras desta conta precisam ser escolhidas de novo na Biblioteca de Mesas.');
     }
 
     const { data: prefRow } = await (supabase
       .from('ea_rule_preferences' as any)
       .select('rule_keys, warning_pct, critical_pct, account_stage')
-      .eq('trading_account_id', tokenRow.trading_account_id)
+      .eq('trading_account_id', account.id)
       .maybeSingle() as any);
     const preferences: EaPreferences = {
       ruleKeys: Array.isArray(prefRow?.rule_keys) ? prefRow.rule_keys.filter(isEaRuleKey) : null,
@@ -6225,12 +6409,43 @@ fastify.post('/ea/feed', async (request, reply) => {
     const evaluation = evaluateForEa(binding, accountContext, live);
     const feed = buildEaFeed({ binding, evaluation, live, account: accountContext, preferences });
 
+    // Gravar os dados não pode atrasar nem derrubar o painel do trader.
+    const initialBalance = parseInitialBalance(binding.rule_snapshot.accountSize.initialBalance);
+    void persistEaData({
+      userId: tokenRow.user_id,
+      account,
+      login,
+      server,
+      broker,
+      live,
+      trades: sanitizeEaTrades(body.trades),
+      positions: sanitizeEaPositions(body.positions),
+      initialBalance,
+    })
+      .then(async (connectionId) => {
+        const last = eaLastEvaluation.get(account.id);
+        const due = !last || Date.now() - last.at >= EA_EVALUATION_INTERVAL_MS || last.status !== evaluation.overallStatus;
+        if (!due) return;
+        eaLastEvaluation.set(account.id, { at: Date.now(), status: evaluation.overallStatus });
+        await canonicalEvaluationStore.insertEvaluation(
+          buildCanonicalEvaluationInsert({
+            binding,
+            userId: tokenRow.user_id,
+            tradingAccountId: account.id,
+            connectionId,
+            evaluation,
+            evaluatedAt: live.now,
+            inputSummary: { source: 'fortify_guard', snapshotIntegrity: 'verified', dayCount: live.days.length },
+          }),
+        );
+      })
+      .catch((error: any) => {
+        fastify.log.error({ event: 'ea_persist_failed', tradingAccountId: maskForLog(account.id), error: error?.message });
+      });
+
     const lastUsed = tokenRow.last_used_at ? Date.parse(tokenRow.last_used_at) : 0;
-    if (!tokenRow.bound_mt5_login || Date.now() - lastUsed > 60_000) {
-      await (supabase
-        .from('ea_access_tokens' as any)
-        .update({ last_used_at: new Date().toISOString(), bound_mt5_login: tokenRow.bound_mt5_login || login })
-        .eq('id', tokenRow.id) as any);
+    if (Date.now() - lastUsed > 60_000) {
+      void (supabase.from('ea_access_tokens' as any).update({ last_used_at: new Date().toISOString() }).eq('id', tokenRow.id) as any);
     }
 
     return reply.send(serializeEaFeed(feed));

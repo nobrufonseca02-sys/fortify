@@ -1,4 +1,4 @@
-import { LayoutDashboard, PlusCircle, Settings, BarChart3, Shield, BookOpen, LogOut, Calculator, CreditCard } from "lucide-react";
+import { LayoutDashboard, PlusCircle, Settings, BarChart3, Shield, ShieldCheck, BookOpen, LogOut, Calculator, CreditCard } from "lucide-react";
 import { FortifyMark } from "@/components/brand/FortifyMark";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -23,6 +23,7 @@ const groups = [
       { title: "Biblioteca", url: "/", icon: BookOpen },
       { title: "Painel", url: "/dashboard", icon: LayoutDashboard },
       { title: "Calculadora de Risco", url: "/risk-calculator", icon: Calculator },
+      { title: "Fortify Guard", url: "/fortify-guard", icon: ShieldCheck, badge: "NOVO" },
 
     ],
   },
@@ -95,6 +96,11 @@ export function AppSidebar() {
                         >
                           <item.icon className="mr-2 h-4 w-4" />
                           {!collapsed && <span className="text-[12px] font-medium tracking-wide">{item.title}</span>}
+                          {!collapsed && "badge" in item && item.badge && (
+                            <span className="ml-auto rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-primary">
+                              {item.badge}
+                            </span>
+                          )}
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>

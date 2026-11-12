@@ -25,6 +25,8 @@ import {
   type RuleAccountSize,
 } from '@/data/propFirmRules';
 import { firmLogos } from '@/data/firmLogos';
+import { METAAPI_ENABLED } from '@/lib/featureFlags';
+import { GuardAccountSheet } from '@/components/library/GuardAccountSheet';
 import {
   classifyAccountMonitoring,
   MONITORING_LEVEL_LABEL,
@@ -405,12 +407,14 @@ function RulesView({ firm, program, account, onConnect, connectionUnavailable }:
         <div className="max-w-2xl">
           <p className="text-sm font-semibold text-foreground">Monitoramento desta conta</p>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            A Biblioteca é para consulta. O monitoramento começa após cadastrar e conectar a conta.
+            {METAAPI_ENABLED
+              ? 'A Biblioteca é para consulta. O monitoramento começa após cadastrar e conectar a conta.'
+              : 'Use este modelo para criar a sua conta. O Fortify Guard, no seu MT5, passa a acompanhar estas regras ao vivo.'}
           </p>
         </div>
         {onConnect ? (
           <button type="button" onClick={onConnect} className="pill-btn pill-btn-primary w-full shrink-0 sm:w-auto">
-            Conectar essa conta
+            {METAAPI_ENABLED ? 'Conectar essa conta' : 'Usar este modelo'}
             <ChevronRight className="ml-2 h-4 w-4" />
           </button>
         ) : connectionUnavailable ? (
@@ -434,6 +438,7 @@ export default function PropFirmLibrary() {
   const [selectedFirm, setSelectedFirm] = useState<PropFirmName | null>(null);
   const [selectedProgramId, setSelectedProgramId] = useState('');
   const [selectedAccountId, setSelectedAccountId] = useState('');
+  const [guardSheetOpen, setGuardSheetOpen] = useState(false);
   const [transitionDirection, setTransitionDirection] = useState<TransitionDirection>(1);
 
   const firms = useMemo(
@@ -651,10 +656,10 @@ export default function PropFirmLibrary() {
             <div data-library-reveal>
               <button
                 type="button"
-                onClick={() => navigate(autoDetectConnectionPath)}
+                onClick={() => (METAAPI_ENABLED ? navigate(autoDetectConnectionPath) : setGuardSheetOpen(true))}
                 className="pill-btn pill-btn-primary"
               >
-                Conectar conta
+                {METAAPI_ENABLED ? 'Conectar conta' : 'Usar este modelo'}
                 <ChevronRight className="ml-2 h-4 w-4" />
               </button>
             </div>
@@ -685,11 +690,19 @@ export default function PropFirmLibrary() {
             firm={selectedFirm}
             program={selectedProgram}
             account={selectedAccount}
-            onConnect={connectionPath ? () => navigate(connectionPath) : undefined}
+            onConnect={connectionPath ? () => (METAAPI_ENABLED ? navigate(connectionPath) : setGuardSheetOpen(true)) : undefined}
             connectionUnavailable={!connectionPath}
           />
         )}
       </LibraryStageMotion>
+      {selectedProgram && !METAAPI_ENABLED && (
+        <GuardAccountSheet
+          open={guardSheetOpen}
+          onOpenChange={setGuardSheetOpen}
+          program={selectedProgram}
+          initialAccount={selectedAccount}
+        />
+      )}
     </div>
   );
 }

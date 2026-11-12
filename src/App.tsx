@@ -14,6 +14,7 @@ import { isAppHost } from "@/lib/hostRouting";
 import { DatabaseZap, ExternalLink, Monitor, RefreshCw, Server } from "lucide-react";
 import { MotionConfig } from "motion/react";
 import { fortifyMotionConfig } from "@/lib/motion";
+import { METAAPI_ENABLED } from "@/lib/featureFlags";
 
 const AuthPage = lazy(() => import("./pages/AuthPage"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
@@ -46,6 +47,7 @@ const MT5Dashboard = lazy(() => import("./pages/MT5Dashboard"));
 const RiskCalculator = lazy(() => import("./pages/RiskCalculator"));
 const RuleEngineDemo = lazy(() => import("./pages/RuleEngineDemo"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const FortifyGuardPage = lazy(() => import("./pages/FortifyGuardPage"));
 
 const queryClient = new QueryClient();
 
@@ -161,9 +163,11 @@ const ROTAS_DO_PRODUTO = [
   { path: "/dashboard", element: <Dashboard /> },
   { path: "/calculator", element: <Navigate to="/risk-calculator" replace /> },
   { path: "/risk-calculator", element: <RiskCalculator /> },
+  { path: "/fortify-guard", element: <FortifyGuardPage /> },
   { path: "/coach", element: <Coach /> },
   { path: "/accounts", element: <Accounts /> },
-  { path: "/accounts/new", element: <CreateAccount /> },
+  // Cadastro com login e senha do MT5 (MetaApi): escondido enquanto o EA é a fonte de dados.
+  { path: "/accounts/new", element: METAAPI_ENABLED ? <CreateAccount /> : <Navigate to="/" replace /> },
   { path: "/accounts/:id", element: <AccountDashboard /> },
   { path: "/accounts/:id/checklist", element: <AccountChecklist /> },
   { path: "/accounts/:id/coach", element: <AccountCoach /> },

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { METAAPI_ENABLED } from '@/lib/featureFlags';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft, CheckCircle2, Pencil, Plus, Power, RefreshCw, Shield, SlidersHorizontal } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -604,10 +605,17 @@ export default function AccountRuleManagement() {
           <ArrowLeft className="w-4 h-4" />
           Conta
         </button>
-        <button className="pill-btn pill-btn-primary" onClick={syncNow} disabled={syncing || !connection?.id}>
-          <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-          Sincronizar agora
-        </button>
+        {METAAPI_ENABLED ? (
+          <button className="pill-btn pill-btn-primary" onClick={syncNow} disabled={syncing || !connection?.id}>
+            <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+            Sincronizar agora
+          </button>
+        ) : (
+          <button className="pill-btn" onClick={() => navigate('/fortify-guard')}>
+            <RefreshCw className="w-4 h-4" />
+            Dados pelo Fortify Guard
+          </button>
+        )}
       </div>
 
       <section className="rounded-xl border border-border bg-card p-5">

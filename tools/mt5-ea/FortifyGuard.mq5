@@ -16,7 +16,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Fortify"
 #property link      "https://fortify-delta.vercel.app"
-#property version   "1.10"
+#property version   "1.20"
 #property description "Fortify Guard: acompanhe ao vivo as regras da sua mesa proprietaria."
 
 #include <Trade\Trade.mqh>
@@ -33,7 +33,7 @@ input GuardCorner InpCorner     = GUARD_RIGHT;                         // Lado d
 input bool        InpPush       = false;                               // Avisar também no celular (MetaQuotes ID)
 input bool        InpPreview    = false;                               // Modo demonstração (dados de exemplo, sem chave)
 
-#define GUARD_VERSION "1.10"
+#define GUARD_VERSION "1.20"
 #define PFX           "FG_"
 #define PANEL_W       360
 #define PAD           14
@@ -102,6 +102,8 @@ double    g_peakEquity = 0.0;
 string    g_used[];
 bool      g_previewShot = false;
 uint      g_startTick = 0;
+datetime  g_lastTradesSent = 0;
+bool      g_tradesDirty = true;
 CTrade    g_trade;
 
 void ResetRule(GuardRule &r)
@@ -286,7 +288,16 @@ string BuildPayload()
               + ",\"eodBalance\":" + DoubleToString(dayEod[d] + drift, 2)
               + ",\"traded\":" + (dayTraded[d] ? "true" : "false") + "}";
      }
-   json += "]}";
+   json += "]";
+   json += ",\"positions\":[" + PositionsJson() + "]";
+   // Operacoes fechadas: a cada minuto ou logo depois que uma operacao fecha.
+   if(g_tradesDirty || TimeLocal() - g_lastTradesSent >= 60)
+     {
+      json += ",\"trades\":[" + TradesJson(offset) + "]";
+      g_lastTradesSent = TimeLocal();
+      g_tradesDirty = false;
+     }
+   json += "}";
    return json;
   }
 
@@ -307,6 +318,94 @@ string PreviewFeed()
    f += "R|news|Notícias|note|safe||||||||||||Avaliação livre; Qualified proíbe execução em ±2 minutos de eventos direcionados.|||reminder\n";
    f += "END\n";
    return f;
+  }
+
+//+------------------------------------------------------------------+
+//| Operacoes e posicoes enviadas ao Fortify                           |
+//+------------------------------------------------------------------+
+bool IsExitDeal(const ulong ticket)
+  {
+   long entry = HistoryDealGetInteger(ticket, DEAL_ENTRY);
+   long type  = HistoryDealGetInteger(ticket, DEAL_TYPE);
+   return (entry == DEAL_ENTRY_OUT || entry == DEAL_ENTRY_OUT_BY || entry == DEAL_ENTRY_INOUT)
+          && (type == DEAL_TYPE_BUY || type == DEAL_TYPE_SELL);
+  }
+
+// Ultimas operacoes fechadas (ate 100), com o historico ja selecionado.
+// Horarios em segundos UTC; o Fortify grava so as que fecharam depois que a
+// conta foi ligada ao EA.
+string TradesJson(const long offset)
+  {
+   string json = "";
+   int total = HistoryDealsTotal();
+   int found = 0;
+   for(int i = total - 1; i >= 0 && found < 100; i--)
+     {
+      ulong out = HistoryDealGetTicket(i);
+      if(out == 0 || !IsExitDeal(out))
+         continue;
+      long   positionId = HistoryDealGetInteger(out, DEAL_POSITION_ID);
+      double volume     = HistoryDealGetDouble(out, DEAL_VOLUME);
+      string side       = (HistoryDealGetInteger(out, DEAL_TYPE) == DEAL_TYPE_SELL) ? "buy" : "sell";
+      datetime openTime = (datetime)HistoryDealGetInteger(out, DEAL_TIME);
+      double openPrice  = HistoryDealGetDouble(out, DEAL_PRICE);
+      double commission = HistoryDealGetDouble(out, DEAL_COMMISSION) + HistoryDealGetDouble(out, DEAL_FEE);
+      // A entrada da mesma posicao vem antes no historico.
+      for(int j = i - 1; j >= 0; j--)
+        {
+         ulong in = HistoryDealGetTicket(j);
+         if(in == 0 || HistoryDealGetInteger(in, DEAL_POSITION_ID) != positionId)
+            continue;
+         if(HistoryDealGetInteger(in, DEAL_ENTRY) != DEAL_ENTRY_IN)
+            continue;
+         side      = (HistoryDealGetInteger(in, DEAL_TYPE) == DEAL_TYPE_BUY) ? "buy" : "sell";
+         openTime  = (datetime)HistoryDealGetInteger(in, DEAL_TIME);
+         openPrice = HistoryDealGetDouble(in, DEAL_PRICE);
+         double inVolume = HistoryDealGetDouble(in, DEAL_VOLUME);
+         if(inVolume > 0)
+            commission += HistoryDealGetDouble(in, DEAL_COMMISSION) * MathMin(1.0, volume / inVolume);
+         break;
+        }
+      if(found > 0)
+         json += ",";
+      json += "{\"ticket\":" + IntegerToString((long)out)
+              + ",\"symbol\":\"" + JsonSafe(HistoryDealGetString(out, DEAL_SYMBOL)) + "\""
+              + ",\"side\":\"" + side + "\""
+              + ",\"volume\":" + DoubleToString(volume, 2)
+              + ",\"openTime\":" + IntegerToString((long)openTime - offset)
+              + ",\"closeTime\":" + IntegerToString((long)HistoryDealGetInteger(out, DEAL_TIME) - offset)
+              + ",\"openPrice\":" + DoubleToString(openPrice, 5)
+              + ",\"closePrice\":" + DoubleToString(HistoryDealGetDouble(out, DEAL_PRICE), 5)
+              + ",\"profit\":" + DoubleToString(HistoryDealGetDouble(out, DEAL_PROFIT), 2)
+              + ",\"commission\":" + DoubleToString(commission, 2)
+              + ",\"swap\":" + DoubleToString(HistoryDealGetDouble(out, DEAL_SWAP), 2) + "}";
+      found++;
+     }
+   return json;
+  }
+
+string PositionsJson()
+  {
+   string json = "";
+   int count = 0;
+   for(int i = 0; i < PositionsTotal(); i++)
+     {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket == 0)
+         continue;
+      if(count > 0)
+         json += ",";
+      json += "{\"ticket\":" + IntegerToString((long)ticket)
+              + ",\"symbol\":\"" + JsonSafe(PositionGetString(POSITION_SYMBOL)) + "\""
+              + ",\"volume\":" + DoubleToString(PositionGetDouble(POSITION_VOLUME), 2)
+              + ",\"openPrice\":" + DoubleToString(PositionGetDouble(POSITION_PRICE_OPEN), 5)
+              + ",\"currentPrice\":" + DoubleToString(PositionGetDouble(POSITION_PRICE_CURRENT), 5)
+              + ",\"profit\":" + DoubleToString(PositionGetDouble(POSITION_PROFIT) + PositionGetDouble(POSITION_SWAP), 2)
+              + ",\"stopLoss\":" + DoubleToString(PositionGetDouble(POSITION_SL), 5)
+              + ",\"takeProfit\":" + DoubleToString(PositionGetDouble(POSITION_TP), 5) + "}";
+      count++;
+     }
+   return json;
   }
 
 //+------------------------------------------------------------------+
@@ -991,7 +1090,7 @@ void DrawPanelPass(const bool compact)
       subtitle = g_firm + "  ·  " + g_program + (g_size != "" ? "  ·  " + g_size : "")
                  + (g_stage == "funded" ? "  ·  Funded" : g_stage == "evaluation" ? "  ·  Avaliação" : "");
    Label("subtitle", x0 + PAD, y, subtitle, C_MUTED, 8);
-   y += 18;
+   y += 22;
 
    int worst = 0;
    for(int i = 0; i < ArraySize(g_rules); i++)
@@ -1183,7 +1282,10 @@ void OnTradeTransaction(const MqlTradeTransaction &trans, const MqlTradeRequest 
   {
    // Uma posicao fechada muda o P&L do dia: consulta de novo sem esperar o ciclo.
    if(trans.type == TRADE_TRANSACTION_DEAL_ADD)
+     {
       g_lastPoll = 0;
+      g_tradesDirty = true;
+     }
   }
 
 void OnChartEvent(const int id, const long &lparam, const double &dparam, const string &sparam)

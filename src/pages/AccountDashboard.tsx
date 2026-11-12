@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { METAAPI_ENABLED } from '@/lib/featureFlags';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAccountsStore } from '@/hooks/useAccountsStore';
 import { toast } from 'sonner';
@@ -318,6 +319,7 @@ const AccountDashboard = () => {
                     </div>
                   )}
 
+                  {METAAPI_ENABLED && (
                   <Button onClick={handleSyncNow} disabled={syncingNow}>
                     {syncingNow ? (
                       <>
@@ -331,14 +333,17 @@ const AccountDashboard = () => {
                       </>
                     )}
                   </Button>
+                  )}
                 </div>
               ) : (
                 <GuidedEmptyState
                   icon={Link2}
                   title="Nenhuma conexão MT5 encontrada"
-                  description="Conecte o MT5 para o Fortify buscar saldo, saldo com flutuação, posições e trades reais desta conta."
-                  actionLabel="Conectar MT5"
-                  onAction={() => navigate('/accounts')}
+                  description={METAAPI_ENABLED
+                    ? 'Conecte o MT5 para o Fortify buscar saldo, saldo com flutuação, posições e trades reais desta conta.'
+                    : 'Abra o MT5 com o Fortify Guard no gráfico desta conta. Ele conecta sozinho e os dados começam a chegar em até 15 segundos.'}
+                  actionLabel={METAAPI_ENABLED ? 'Conectar MT5' : 'Abrir Fortify Guard'}
+                  onAction={() => navigate(METAAPI_ENABLED ? '/accounts' : '/fortify-guard')}
                 />
               )}
             </CardContent>
