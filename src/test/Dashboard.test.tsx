@@ -235,7 +235,7 @@ describe('Dashboard daily risk budget', () => {
     expect(
       within(riskyCard).getByText((_, element) => {
         const text = element?.textContent || '';
-        return element?.tagName === 'P' && text.includes('Resta') && text.includes('800') && text.includes('Perda diária');
+        return element?.tagName === 'P' && text.includes('Pode perder') && text.includes('800') && text.includes('Perda diária');
       }),
     ).toBeInTheDocument();
 
@@ -244,7 +244,7 @@ describe('Dashboard daily risk budget', () => {
     expect(
       within(safeCard).getByText((_, element) => {
         const text = element?.textContent || '';
-        return element?.tagName === 'P' && text.includes('Resta') && text.includes('9.000') && text.includes('Perda diária');
+        return element?.tagName === 'P' && text.includes('Pode perder') && text.includes('9.000') && text.includes('Perda diária');
       }),
     ).toBeInTheDocument();
   });
@@ -313,17 +313,17 @@ describe('Dashboard account detail disclosure', () => {
   it('toggles open to reveal the heatmap, ETA projection and audit history sections', async () => {
     renderDashboard();
     const safeCard = (await screen.findByText('Conta Segura')).closest('div.rounded-xl') as HTMLElement;
-    const toggle = within(safeCard).getByRole('button', { name: /Ver detalhes/ });
+    const toggle = within(safeCard).getByRole('button', { name: /Mais detalhes/ });
     fireEvent.click(toggle);
 
     await within(safeCard).findByText('Dias operados (12 semanas)');
     // Sem conexão MT5 mockada: honesto em dizer que não dá pra calcular, em
     // vez de desenhar um heatmap vazio como se fosse dado real.
-    expect(within(safeCard).getByText('Sem conexão MT5 ativa para calcular dias operados.')).toBeInTheDocument();
+    expect(within(safeCard).getAllByText('Sem dados.')[0]).toBeInTheDocument();
     // Meta não atingida (2.000 de 10.000) e sem trades no mock: insuficiente
     // pra estimar, nunca um "~0 dias" fabricado.
-    expect(within(safeCard).getByText(/Histórico recente insuficiente para estimar/)).toBeInTheDocument();
+    expect(within(safeCard).getByText('Poucos dias para estimar.')).toBeInTheDocument();
     // Vinculada ao catálogo oficial, mas sem avaliação histórica no mock.
-    expect(within(safeCard).getByText('Nenhuma avaliação registrada ainda.')).toBeInTheDocument();
+    expect(within(safeCard).getByText('Nenhuma ainda.')).toBeInTheDocument();
   });
 });

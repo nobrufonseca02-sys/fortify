@@ -391,16 +391,16 @@ function buildHealthRow(
     const tightest = dailyRemainingValue <= drawdownRemainingValue
       ? { value: dailyRemainingValue, label: dailyLossLabel }
       : { value: drawdownRemainingValue, label: maxDrawdownLabel };
-    riskBudgetHeadline = `Resta ${money(tightest.value)} de perda antes de estourar a regra mais apertada (${tightest.label}).`;
+    riskBudgetHeadline = `Pode perder ${money(tightest.value)} (${tightest.label}).`;
   } else if (dailyRemainingValue !== null) {
-    riskBudgetHeadline = `Resta ${money(dailyRemainingValue)} de perda antes de estourar o limite de ${dailyLossLabel.toLowerCase()}.`;
+    riskBudgetHeadline = `Pode perder ${money(dailyRemainingValue)} hoje.`;
   } else if (drawdownRemainingValue !== null) {
-    riskBudgetHeadline = `Resta ${money(drawdownRemainingValue)} de perda antes de estourar o limite de ${maxDrawdownLabel.toLowerCase()}.`;
+    riskBudgetHeadline = `Pode perder ${money(drawdownRemainingValue)} no total.`;
   } else {
-    riskBudgetHeadline = 'Sem dados suficientes para montar o orçamento de risco de hoje.';
+    riskBudgetHeadline = 'Sem dados.';
   }
   const riskBudgetConsistencyNote = consistencyRemainingValue !== null
-    ? `Seu próximo trade não pode lucrar mais que ${money(consistencyRemainingValue)} sem comprometer a consistência.`
+    ? `Lucro máximo hoje: ${money(consistencyRemainingValue)}.`
     : null;
 
   return {
@@ -685,11 +685,11 @@ function Dashboard() {
   const mostExposedAsset = [...assetSummaries].sort((a, b) => b.openPositions - a.openPositions)[0] || null;
 
   const assetRiskMessages = useMemo(() => {
-    if (assetSummaries.length === 0) return ['Ainda não há dados suficientes para gerar análise.'];
+    if (assetSummaries.length === 0) return ['Sem dados.'];
     const messages: string[] = [];
     if (biggestAssetLoss) messages.push(`${biggestAssetLoss.symbol} concentra a maior parte do prejuízo aberto.`);
     if (mostExposedAsset && mostExposedAsset.openPositions >= 3) messages.push(`${mostExposedAsset.symbol} concentra muitas posições abertas. Atenção ao overtrade.`);
-    if (messages.length === 0) messages.push('Nenhum padrão crítico identificado nas posições abertas.');
+    if (messages.length === 0) messages.push('Nada crítico.');
     return messages;
   }, [assetSummaries.length, biggestAssetLoss, mostExposedAsset]);
 
@@ -845,7 +845,6 @@ function Dashboard() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <h2 className="text-sm font-bold text-foreground">Saldo consolidado</h2>
-              <p className="mt-1 text-xs text-muted-foreground">Soma diária de todas as contas sincronizadas.</p>
             </div>
             {equityDelta && (
               <span
@@ -902,7 +901,7 @@ function Dashboard() {
           </h2>
           {rows.length === 0 ? (
             <div className="mt-3 rounded-xl border border-border bg-card/60 p-5">
-              <p className="text-sm text-muted-foreground">Conecte uma conta MT5 para ver as métricas dela aqui.</p>
+              <p className="text-sm text-muted-foreground">Sem conta.</p>
               <button type="button" onClick={() => navigate('/accounts')} className="pill-btn pill-btn-primary mt-4">
                 Conectar conta MT5
               </button>
@@ -1055,11 +1054,10 @@ function Dashboard() {
         className="overflow-hidden rounded-xl border border-border bg-card/60"
       >
         <div className="border-b border-border/60 p-5">
-          <h2 className="text-sm font-bold text-foreground">Análise rápida por ativo</h2>
-          <p className="mt-1 text-xs text-muted-foreground">Exposição e prejuízo aberto usando as posições já sincronizadas.</p>
+          <h2 className="text-sm font-bold text-foreground">Por ativo</h2>
         </div>
         {assetSummaries.length === 0 ? (
-          <p className="p-5 text-sm text-muted-foreground">Conecte e sincronize uma conta MT5 para visualizar a análise por ativo.</p>
+          <p className="p-5 text-sm text-muted-foreground">Sem posições.</p>
         ) : (
           <div className="space-y-4 p-5">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -1337,7 +1335,7 @@ function AccountDetailDisclosure({
         onClick={() => setExpanded((value) => !value)}
         className="flex w-full items-center justify-between text-xs font-semibold text-muted-foreground hover:text-foreground"
       >
-        <span>Ver detalhes — dias operados, previsão de meta e histórico</span>
+        <span>Mais detalhes</span>
         <span aria-hidden="true">{expanded ? '−' : '+'}</span>
       </button>
       {expanded && (
@@ -1363,7 +1361,7 @@ function AccountDetailDisclosure({
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground">Sem conexão MT5 ativa para calcular dias operados.</p>
+                  <p className="text-xs text-muted-foreground">Sem dados.</p>
                 )}
               </div>
 
@@ -1371,15 +1369,15 @@ function AccountDetailDisclosure({
                 <div>
                   <p className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">Previsão de meta</p>
                   {remainingToTarget === 0 ? (
-                    <p className="text-xs text-success">Meta já atingida — nada a estimar.</p>
+                    <p className="text-xs text-success">Meta atingida.</p>
                   ) : eta ? (
                     <p className="text-xs leading-relaxed text-foreground">
                       No ritmo atual (~{money(eta.avgPerDay)}/dia operado), faltam{' '}
                       <span className="font-semibold">~{eta.days} {eta.days === 1 ? 'dia' : 'dias'} operados</span> para bater a meta.{' '}
-                      <span className="text-muted-foreground">Estimativa com base nos últimos 90 dias — não é garantia.</span>
+                      <span className="text-muted-foreground">Estimativa (90 dias).</span>
                     </p>
                   ) : (
-                    <p className="text-xs text-muted-foreground">Histórico recente insuficiente para estimar — precisa de ao menos 5 dias operados nos últimos 90 dias.</p>
+                    <p className="text-xs text-muted-foreground">Poucos dias para estimar.</p>
                   )}
                 </div>
               )}
@@ -1387,9 +1385,9 @@ function AccountDetailDisclosure({
               <div>
                 <p className="mb-2 text-[11px] uppercase tracking-wide text-muted-foreground">Histórico de avaliações</p>
                 {!hasActiveBinding ? (
-                  <p className="text-xs text-muted-foreground">Disponível apenas para contas vinculadas ao catálogo oficial.</p>
+                  <p className="text-xs text-muted-foreground">Só com modelo vinculado.</p>
                 ) : history.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">Nenhuma avaliação registrada ainda.</p>
+                  <p className="text-xs text-muted-foreground">Nenhuma ainda.</p>
                 ) : (
                   <ul className="space-y-2">
                     {history.map((item) => {
