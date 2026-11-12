@@ -16,7 +16,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Fortify"
 #property link      "https://fortify-delta.vercel.app"
-#property version   "1.40"
+#property version   "1.41"
 #property description "Fortify Guard: acompanhe ao vivo as regras da sua mesa proprietaria."
 
 #include <Trade\Trade.mqh>
@@ -45,7 +45,7 @@ input int         InpSimStopPoints = 200;                              // Simula
 input bool        InpSound      = true;                                // Som do Fortify no nível crítico
 input bool        InpPreviewStress = false;                            // Demonstração: mostrar um dia perto do limite
 
-#define GUARD_VERSION "1.40"
+#define GUARD_VERSION "1.41"
 #define PFX           "FG_"
 #define PANEL_W       360
 #define PAD           14
@@ -1143,7 +1143,7 @@ void DrawBreakLine(const bool has, const double budget, const string ruleLabel, 
       return;
    double price = (net > 0) ? ref - points * point : ref + points * point;
    color c = LevelColor(MathMax(1, level));
-   string text = "Fortify · " + ruleLabel + " quebra em " + DoubleToString(price, _Digits) + "  (folga " + Money(MathMax(0.0, budget)) + ")";
+   string text = ruleLabel + " quebra em " + DoubleToString(price, _Digits);
    string id = PFX + "break_line";
    if(ObjectFind(0, id) < 0)
      {
@@ -1246,12 +1246,10 @@ void DrawPanelPass(const int density)
       Label("demo", x0 + PANEL_W - PAD - 32, y + 2, "DEMONSTRAÇÃO", C_WARN, 7, "Segoe UI Semibold", ANCHOR_RIGHT_UPPER);
    Button("btn_min", x0 + PANEL_W - PAD - 24, y - 2, 24, 18, g_collapsed ? "+" : "-", C_TRACK, C_TEXT);
    y += 20;
-   string subtitle = "Regras da sua mesa, ao vivo";
-   if(g_hasFeed)
-      subtitle = g_firm + "  ·  " + g_program + (g_size != "" ? "  ·  " + g_size : "")
-                 + (g_stage == "funded" ? "  ·  Funded" : g_stage == "evaluation" ? "  ·  Avaliação" : "");
+   // So o essencial: programa e tamanho (a mesa vem no nome do programa).
+   string subtitle = g_hasFeed ? g_program + (g_size != "" ? "  ·  " + g_size : "") : "Conectando...";
    Label("subtitle", x0 + PAD, y, subtitle, C_MUTED, 8);
-   y += 22;
+   y += 24;
 
    // Regra mais perto do limite: maior nivel; no empate, maior percentual usado.
    int worst = 0, worstIdx = -1;
@@ -1288,40 +1286,26 @@ void DrawPanelPass(const int density)
       // Critico ou limite: a faixa pisca para chamar o olho do trader.
       if(worst >= 2 && (GetTickCount() / 500) % 2 == 0)
          tint = g_light ? C'250,196,196' : C'96,30,30';
+      // Faixa de status: o que importa (status) e o numero que decide (quanto ainda pode perder).
       string headline = "Dentro das regras";
-      string subline = "Todas as regras abaixo de " + DoubleToString(g_warnPct, 0) + "% do limite";
       if(worstIdx >= 0 && worst >= 1)
-        {
-         string prefix = (worst >= 3) ? "Limite atingido" : (worst == 2) ? "Perto do limite" : "Atenção";
-         headline = prefix + " · " + g_rules[worstIdx].label;
-         subline = DoubleToString(MathMin(999.0, g_rules[worstIdx].pct), 0) + "% usado  ·  " + g_rules[worstIdx].valueText;
-        }
-      Rect("hero_bg", x0 + PAD, y, inner, 44, tint, tone);
-      Rect("hero_bar", x0 + PAD, y, 3, 44, tone, tone);
-      Label("hero_title", x0 + PAD + 12, y + 6, headline, C_TEXT, 10, "Segoe UI Semibold");
-      Label("hero_sub", x0 + PAD + 12, y + 25, subline, C_MUTED, 8);
-      y += 54;
-
-      double today = g_todayClosed + (g_equityNow - g_balanceNow);
-      int col = inner / 3;
-      Label("m1_cap", x0 + PAD, y, "EQUITY", C_MUTED, 7, "Segoe UI Semibold");
-      Label("m1_val", x0 + PAD, y + 12, Money(g_equityNow), C_TEXT, 11, "Segoe UI Semibold");
-      Label("m2_cap", x0 + PAD + col, y, "RESULTADO HOJE", C_MUTED, 7, "Segoe UI Semibold");
-      Label("m2_val", x0 + PAD + col, y + 12, (today >= 0 ? "+" : "") + Money(today), today >= 0 ? C_OK : C_BREACH, 11, "Segoe UI Semibold");
-      Label("m3_cap", x0 + PAD + 2 * col, y, "PODE PERDER HOJE", C_MUTED, 7, "Segoe UI Semibold");
-      Label("m3_val", x0 + PAD + 2 * col, y + 12, hasCanLose ? Money(MathMax(0.0, canLose)) : "-", hasCanLose ? tone : C_MUTED, 11, "Segoe UI Semibold");
-      y += 40;
-      Rect("m_line", x0 + PAD, y, inner, 1, C_BORDER, C_BORDER);
-      y += 10;
+         headline = g_rules[worstIdx].label + " · " + DoubleToString(MathMin(999.0, g_rules[worstIdx].pct), 0) + "%";
+      Rect("hero_bg", x0 + PAD, y, inner, 50, tint, tone);
+      Rect("hero_bar", x0 + PAD, y, 3, 50, tone, tone);
+      Label("hero_title", x0 + PAD + 12, y + 8, headline, C_TEXT, 10, "Segoe UI Semibold");
+      Label("hero_sub", x0 + PAD + 12, y + 28, "pode perder hoje", C_MUTED, 8);
+      Label("hero_val", x0 + PANEL_W - PAD - 12, y + 13, hasCanLose ? Money(MathMax(0.0, canLose)) : "-",
+            hasCanLose ? tone : C_MUTED, 14, "Segoe UI Semibold", ANCHOR_RIGHT_UPPER);
+      y += 60;
 
       // Simulador: stop em pontos -> lote maximo que cabe na folga de hoje.
       double pointValue = PointValuePerLot(_Symbol);
-      Label("sim_cap", x0 + PAD, y + 4, "SIMULAR", C_MUTED, 7, "Segoe UI Semibold");
-      Edit("sim_stop", x0 + PAD + 50, y, 52, 20, IntegerToString(g_simStop));
-      string simText = "pts de stop: sem folga calculada";
+      Label("sim_cap", x0 + PAD, y + 3, "Stop", C_MUTED, 8);
+      Edit("sim_stop", x0 + PAD + 34, y, 52, 20, IntegerToString(g_simStop));
+      string simText = "pts";
       if(hasCanLose && pointValue > 0)
-         simText = "pts de stop  →  até " + FormatLots(SimLots(canLose, g_simStop, pointValue)) + " lotes hoje";
-      Label("sim_txt", x0 + PAD + 110, y + 3, simText, C_TEXT, 8);
+         simText = "pts  →  " + FormatLots(SimLots(canLose, g_simStop, pointValue)) + " lotes";
+      Label("sim_txt", x0 + PAD + 94, y + 3, simText, C_TEXT, 8, "Segoe UI Semibold");
       y += 30;
       DrawBreakLine(hasCanLose, canLose, canLoseLabel, worst);
      }
@@ -1387,10 +1371,10 @@ void DrawPanelPass(const int density)
             bool on = (g_tab == groupIds[g]);
             string title = groupTitles[g] + (alerting[g] ? "  ●" : "");
             color fg = on ? C_TEXT : (alerting[g] ? C_WARN : C_MUTED);
-            Button("tab_" + groupIds[g], tx, y, tabW, 22, title, on ? C_TABON : C_BG, fg);
+            Button("tab_" + groupIds[g], tx, y, tabW, 20, title, on ? C_TABON : C_BG, fg);
             tx += tabW + 6;
            }
-         y += 30;
+         y += 28;
         }
 
       for(int i = 0; i < ArraySize(g_rules); i++)
@@ -1409,6 +1393,8 @@ void DrawPanelPass(const int density)
 
          Rect(id + "dot", x0 + PAD, y + 5, 6, 6, accent, accent);
          Label(id + "label", x0 + PAD + 12, y, g_rules[i].label, C_TEXT, 9, "Segoe UI Semibold");
+         // A explicacao da regra fica no tooltip: passa o mouse em cima para ler.
+         ObjectSetString(0, PFX + id + "label", OBJPROP_TOOLTIP, g_rules[i].detailText != "" ? g_rules[i].detailText : g_rules[i].label);
          bool calm = (g_rules[i].level == 0 && kind != "target" && kind != "counter");
          if(g_rules[i].valueText != "")
             Label(id + "value", x0 + PANEL_W - PAD, y, g_rules[i].valueText, calm ? C_TEXT : accent, 9, "Segoe UI Semibold", ANCHOR_RIGHT_UPPER);
@@ -1419,29 +1405,13 @@ void DrawPanelPass(const int density)
             showBar = false;
          if(showBar)
            {
-            Rect(id + "track", x0 + PAD, y, inner, 5, C_TRACK, C_TRACK);
+            Rect(id + "track", x0 + PAD, y, inner, 4, C_TRACK, C_TRACK);
             int fill = (int)MathRound(inner * MathMin(100.0, g_rules[i].pct) / 100.0);
             if(fill > 0)
-               Rect(id + "fill", x0 + PAD, y, fill, 5, accent, accent);
-            if(kind == "floor" || kind == "daycap" || kind == "idle" || kind == "lots" || kind == "floating" || kind == "risk")
-              {
-               int warnX = (int)MathRound(inner * g_warnPct / 100.0);
-               int critX = (int)MathRound(inner * g_critPct / 100.0);
-               Rect(id + "mw", x0 + PAD + warnX, y - 1, 1, 7, C_MUTED, C_MUTED);
-               Rect(id + "mc", x0 + PAD + critX, y - 1, 1, 7, C_MUTED, C_MUTED);
-              }
-            y += 10;
+               Rect(id + "fill", x0 + PAD, y, fill, 4, accent, accent);
+            y += 4;
            }
-
-         if(g_rules[i].detailText != "" && (density == 0 || g_rules[i].level >= 1 || (kind == "note" && density < 2)))
-           {
-            string lines[];
-            int n = WrapText(g_rules[i].detailText, 56, kind == "note" ? 1 : 2, lines);
-            for(int l = 0; l < n; l++)
-               Label(id + "d" + IntegerToString(l), x0 + PAD + (kind == "note" ? 12 : 0), y + l * 13, lines[l], C_MUTED, 7);
-            y += n * 13;
-           }
-         y += (density >= 2) ? 4 : 10;
+         y += (density >= 2) ? 6 : 12;
         }
 
       if(ArraySize(g_rules) == 0 && g_error == "")
@@ -1459,12 +1429,16 @@ void DrawPanelPass(const int density)
          y += n * 13 + 6;
         }
 
-      int bw = (inner - 8) / 2;
-      Button("btn_close", x0 + PAD, y, bw, 24, "Fechar posições", worst >= 2 ? C_BREACH : C_TRACK, C_TEXT);
-      Button("btn_refresh", x0 + PAD + bw + 8, y, bw, 24, "Atualizar", C_TRACK, C_TEXT);
+      // "Atualizar" so aparece quando algo deu errado; no normal o EA atualiza sozinho.
+      if(g_error != "")
+        {
+         int bw = (inner - 8) / 2;
+         Button("btn_close", x0 + PAD, y, bw, 24, "Fechar posições", worst >= 2 ? C_BREACH : C_TRACK, C_TEXT);
+         Button("btn_refresh", x0 + PAD + bw + 8, y, bw, 24, "Tentar de novo", C_TRACK, C_TEXT);
+        }
+      else
+         Button("btn_close", x0 + PAD, y, inner, 24, "Fechar posições", worst >= 2 ? C_BREACH : C_TRACK, C_TEXT);
       y += 32;
-      Label("footer", x0 + PAD, y, Elapsed() + "  ·  avisos em " + DoubleToString(g_warnPct, 0) + "% e " + DoubleToString(g_critPct, 0) + "%", C_MUTED, 7);
-      y += 16;
      }
    else
      {
