@@ -191,7 +191,6 @@ const SettingsPage = () => {
           <SettingsIconChip icon={<User className="h-5 w-5 text-foreground" />} />
           <div>
             <h2 className="text-sm font-bold text-foreground">Dados da conta</h2>
-            <p className="text-xs text-muted-foreground">Atualize as informações usadas pelo Fortify.</p>
           </div>
         </div>
 
@@ -244,7 +243,6 @@ const SettingsPage = () => {
           <SettingsIconChip icon={<CreditCard className="h-5 w-5 text-foreground" />} />
           <div>
             <h2 className="text-sm font-bold text-foreground">Assinatura</h2>
-            <p className="text-xs text-muted-foreground">Plano, limite de contas e suporte.</p>
           </div>
         </div>
 

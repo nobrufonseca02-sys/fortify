@@ -346,7 +346,6 @@ export default function SubscriptionManagementPage() {
       </button>
       <div>
         <h1 className="text-lg font-bold text-foreground">Gerenciar assinatura</h1>
-        <p className="text-xs text-muted-foreground">Cancele, reative ou troque de plano quando quiser.</p>
       </div>
     </div>
   );
@@ -369,8 +368,7 @@ export default function SubscriptionManagementPage() {
         <div className="rounded-xl border border-border bg-card p-6 text-center space-y-4">
           <AlertTriangle className="w-8 h-8 text-warning mx-auto" />
           <div>
-            <p className="text-sm font-semibold text-foreground">Você ainda não tem um plano ativo.</p>
-            <p className="text-xs text-muted-foreground mt-1">Escolha um plano Fortify para começar a monitorar suas contas.</p>
+            <p className="text-sm font-semibold text-foreground">Sem plano ativo.</p>
           </div>
           <button type="button" onClick={() => navigate('/pricing')} className="pill-btn pill-btn-primary mx-auto">
             <CreditCard className="w-4 h-4" />
@@ -388,7 +386,7 @@ export default function SubscriptionManagementPage() {
         <div className="rounded-xl border border-border bg-card p-6 space-y-4">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-primary" />
-            <p className="text-sm font-semibold text-foreground">Acesso beta liberado pelo Fortify</p>
+            <p className="text-sm font-semibold text-foreground">Acesso beta</p>
           </div>
           <p className="text-xs text-muted-foreground">
             {status.activeAccountCount}/{status.accountLimit} contas MT5 em monitoramento.
@@ -510,10 +508,7 @@ export default function SubscriptionManagementPage() {
           <div className="rounded-lg border border-info/25 bg-info/5 p-4 flex items-start gap-3">
             <ShieldCheck className="h-4 w-4 text-info mt-0.5 shrink-0" />
             <p className="text-xs text-foreground/85 leading-relaxed">
-              Este plano foi ativado manualmente pela equipe Fortify. Escolha "Pagar agora" para migrar
-              para um checkout Stripe de verdade, ou agende um downgrade que entra em vigor
-              automaticamente em {periodEndLabel || 'a data de validade do seu plano'}. Para outras
-              alterações, fale com o suporte.
+              Plano ativado pela equipe. Válido até {periodEndLabel || 'a data de validade'}.
             </p>
           </div>
 
@@ -525,7 +520,7 @@ export default function SubscriptionManagementPage() {
                   <p className="text-sm font-medium text-foreground">
                     Downgrade para {pendingPlan.name || pendingPlan.plan_name} agendado{periodEndLabel ? ` para ${periodEndLabel}` : ''}.
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1">Seu plano muda automaticamente nessa data.</p>
+                  <p className="text-xs text-muted-foreground mt-1">Muda nessa data.</p>
                 </div>
               </div>
               <Button
@@ -547,7 +542,7 @@ export default function SubscriptionManagementPage() {
             className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             <Headphones className="w-3.5 h-3.5" />
-            Prefere falar com o suporte? Fale com a equipe Fortify
+            Suporte
           </a>
         </div>
 
@@ -678,7 +673,7 @@ export default function SubscriptionManagementPage() {
         {String(subscription.status).toLowerCase() === 'past_due' && (
           <div className="rounded-lg border border-warning/30 bg-warning/5 p-4">
             <p className="text-sm font-medium text-foreground">Pagamento pendente</p>
-            <p className="text-xs text-muted-foreground mt-1">Atualize sua forma de pagamento no portal acima para evitar a suspensão.</p>
+            <p className="text-xs text-muted-foreground mt-1">Atualize o pagamento para não suspender.</p>
           </div>
         )}
 
@@ -686,7 +681,7 @@ export default function SubscriptionManagementPage() {
           <div className="rounded-lg border border-warning/30 bg-warning/5 p-4 flex items-center justify-between gap-4 flex-wrap">
             <div>
               <p className="text-sm font-medium text-foreground">Sua assinatura será cancelada{periodEndLabel ? ` em ${periodEndLabel}` : ''}.</p>
-              <p className="text-xs text-muted-foreground mt-1">Você não será cobrado novamente. Pode reativar antes dessa data.</p>
+              <p className="text-xs text-muted-foreground mt-1">Sem nova cobrança. Dá para reativar até lá.</p>
             </div>
             <Button onClick={handleResume} disabled={busyAction === 'resume' || !billingEnabled} className="gap-2">
               {busyAction === 'resume' ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}

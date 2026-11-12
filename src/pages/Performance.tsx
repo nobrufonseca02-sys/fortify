@@ -150,7 +150,7 @@ function HeroStatCard({ className, totalPnl, returnPct, startBalance, sparklineD
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-muted-foreground">Lucro total</span>
         <div className="flex items-center gap-1.5">
-          <MetricHint label="Lucro Total" hint="Saldo atual menos o saldo inicial da conta. O gráfico mostra a curva de saldo dos últimos pontos sincronizados." />
+          <MetricHint label="Lucro Total" hint="Saldo atual menos o inicial." />
           <TrendIcon className="h-3.5 w-3.5 text-muted-foreground/60" />
         </div>
       </div>
@@ -218,7 +218,7 @@ function DayResultCard({ data, successColor, destructiveColor, mutedColor, toolt
           <h2 className="text-sm font-semibold text-foreground">Resultado por dia</h2>
           <MetricHint
             label="Resultado por Dia"
-            hint="Cada barra é o resultado (dailyPnl) de um dia com snapshot. Verde = dia positivo, vermelho = dia negativo."
+            hint="Resultado de cada dia."
           />
         </div>
         <div className="mt-2 flex items-baseline gap-2">
@@ -257,10 +257,7 @@ function RecentTradesTable({ trades }: { trades: MT5Trade[] }) {
   if (trades.length === 0) {
     return (
       <div className="rounded-lg border border-border bg-muted/20 p-4">
-        <p className="text-sm font-medium text-foreground">Nenhum trade recente sincronizado</p>
-        <p className="text-xs text-muted-foreground mt-1">
-          Os últimos trades desta conta aparecem aqui após o próximo sync MT5.
-        </p>
+        <p className="text-sm font-medium text-foreground">Nenhum trade ainda</p>
       </div>
     );
   }
@@ -524,7 +521,7 @@ const Performance = () => {
         <GuidedEmptyState
           icon={Wallet}
           title="Nenhuma conta para analisar"
-          description="Crie ou conecte uma conta MT5 primeiro. A página de performance precisa de snapshots reais para mostrar saldo, drawdown e histórico."
+          description="Crie uma conta primeiro."
         />
       </div>
     );
@@ -542,7 +539,7 @@ const Performance = () => {
         <GuidedEmptyState
           icon={RefreshCw}
           title="Performance ainda sem histórico"
-          description="Nenhum snapshot real foi encontrado para esta conta. Execute o primeiro sync MT5 para criar histórico de saldo e saldo com flutuação e liberar a análise."
+          description="Sem dados ainda. Abra o MT5 com o Fortify Guard."
         />
       </div>
     );
@@ -610,35 +607,32 @@ const Performance = () => {
           label="Drawdown Máx."
           value={fmt(maxDrawdownValue)}
           badge={<PillBadge tone={ddTone}>{ddUsagePct === null ? NO_RULE_LABEL : `${ddUsagePct.toFixed(0)}% do limite`}</PillBadge>}
-          hint="Maior drawdown já registrado nesta conta, comparado ao limite de perda máxima configurado nas regras."
+          hint="Maior drawdown da conta."
         />
         <StatCard
           icon={BarChart3}
           label="Trades Totais"
           value={String(totalTradesCount)}
-          hint="Total de trades sincronizados para esta conta. A tabela abaixo mostra os mais recentes."
+          hint="Trades fechados."
         />
         <StatCard
           icon={Calendar}
           label="Dias Operados"
           value={String(tradingDays)}
-          hint="Dias com pelo menos um resultado diário diferente de zero, com base nos snapshots sincronizados."
+          hint="Dias com resultado."
         />
         <StatCard
           icon={Target}
           label="Meta Restante"
           value={fmtLimit(profitRemaining)}
           badge={goalPct === null ? undefined : <PillBadge tone={goalTone}>{goalPct.toFixed(0)}% da meta</PillBadge>}
-          hint="Quanto falta, em dólares, para atingir a meta de lucro configurada para esta conta."
+          hint="Quanto falta para a meta."
         />
       </div>
 
       {totalTradesCount === 0 && (
         <div className="rounded-lg border border-warning/30 bg-warning/5 p-4">
-          <p className="text-sm font-medium text-foreground">Conta sincronizada, mas sem trades fechados</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            A curva de saldo já pode ser acompanhada, mas métricas de consistência e histórico de performance ficam limitadas até existirem trades.
-          </p>
+          <p className="text-sm font-medium text-foreground">Sem trades fechados</p>
         </div>
       )}
 
@@ -855,7 +849,7 @@ const Performance = () => {
                   ? 'Moderado'
                   : 'Baixo'}
             detail={maxLossLimit === null
-              ? 'Sem o limite de drawdown da regra vinculada, o risco da conta não é classificado.'
+              ? 'Sem limite de drawdown vinculado.'
               : `Usando ${fmt(currentDrawdown)} de ${fmt(maxLossLimit)} do limite de drawdown`}
             color={maxLossLimit === null
               ? 'text-muted-foreground'
@@ -874,7 +868,7 @@ const Performance = () => {
               ? `Lucro médio de ${fmt(Math.round(avgDailyResult))} por dia`
               : avgDailyResult < 0
                 ? `Perda média de ${fmt(Math.abs(Math.round(avgDailyResult)))} por dia`
-                : 'Ainda não há resultado diário suficiente para calcular uma média.'}
+                : 'Poucos dias para a média.'}
             color={avgDailyResult > 0 ? 'text-success' : avgDailyResult < 0 ? 'text-destructive' : 'text-muted-foreground'}
           />
           {/* Daily limit usage */}
@@ -896,8 +890,8 @@ const Performance = () => {
               ? profitTarget === null
                 ? 'Sem meta de lucro vinculada a esta conta.'
                 : avgDailyResult < 0
-                  ? 'A média diária está negativa. Não há projeção para a meta neste momento.'
-                  : 'Ainda não há resultado diário suficiente para estimar a meta.'
+                  ? 'Média diária negativa.'
+                  : 'Poucos dias para estimar.'
               : `Mantendo ${fmt(Math.round(avgDailyResult))}/dia, faltam ${daysToTarget} dias para atingir a meta de ${fmtLimit(profitTarget)}`}
             color={daysToTarget <= 15 ? 'text-success' : daysToTarget <= 30 ? 'text-warning' : 'text-muted-foreground'}
           />

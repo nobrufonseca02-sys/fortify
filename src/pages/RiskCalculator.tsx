@@ -449,12 +449,12 @@ const RiskCalculator = () => {
     maximumFractionDigits: lotDigits,
   });
   const advisoryText = !hasTradeInput
-    ? "Informe entrada e stop (ou a distância do stop) para calcular o lote."
+    ? "Informe entrada e stop."
     : result.status === "Seguro"
       ? "Risco dentro de uma faixa conservadora."
       : result.status === "Atenção"
-        ? "Opere com cautela. Este trade já pressiona seus limites de perda."
-        : "Risco alto para os limites informados. Reduza o lote ou reveja o stop.";
+        ? "Cuidado: perto do limite."
+        : "Risco alto. Reduza o lote."
 
   const riskPercentValue = Math.min(3, Math.max(0.1, toNumber(riskPercent) || 0.1));
 
@@ -462,11 +462,7 @@ const RiskCalculator = () => {
     <div className="mx-auto max-w-7xl space-y-6 p-4 md:p-6">
       <header className="flex flex-col gap-3 border-b border-border pb-5 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="eyebrow">Planejamento da operação</p>
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground md:text-3xl">Calculadora de Risco</h1>
-          <p className="mt-1.5 max-w-md text-xs text-muted-foreground">
-            Defina entrada e stop para calcular o lote e o impacto no limite diário e no drawdown.
-          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={reset} className="pill-btn">
@@ -708,7 +704,7 @@ const RiskCalculator = () => {
                 <div className="mt-4 space-y-3">
                   {accountSource !== "manual" && (
                     <p className="text-[11px] text-muted-foreground">
-                      Esta conta ainda não tem regras vinculadas. Informe os limites manualmente.
+                      Sem regras vinculadas. Informe os limites.
                     </p>
                   )}
                   <div className="grid gap-4 md:grid-cols-2">
