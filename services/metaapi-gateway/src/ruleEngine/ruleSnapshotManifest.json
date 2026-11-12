@@ -1427,27 +1427,33 @@
     ],
     "e8-markets:e8-zero-futures-max-2026:e8-zero-futures-max-2026-100k:tradovate:e8-zero-futures-max-2026-rules-regras-vigentes-na-revisao-sprint-4": [
       "sha256:2d0a83965af0cfa5923c370ede90998b52a71a97fa8a60d759c61749a282dced",
-      "sha256:662223d42aa40f57e7cacdec08b0454ec33df06d74392dbf9078b4676d71c026"
+      "sha256:662223d42aa40f57e7cacdec08b0454ec33df06d74392dbf9078b4676d71c026",
+      "sha256:c58ac94bf008e2ec2bda0a9f11bba9efbc224d5f08feb63fcad18350a2461b32"
     ],
     "e8-markets:e8-zero-futures-max-2026:e8-zero-futures-max-2026-200k:tradovate:e8-zero-futures-max-2026-rules-regras-vigentes-na-revisao-sprint-4": [
+      "sha256:498a691a964f8906bcb32356552228bc969375e7983e9b39aec72cc0fea5925a",
       "sha256:7bdef5873b3d07234b97b7db4ca0dc0efe1fe0fa9f4b12d7093707a896995952",
       "sha256:847cf65bb5466669bb353ad310410658703766941afdb6debf66d633554f7404"
     ],
     "e8-markets:e8-zero-futures-max-2026:e8-zero-futures-max-2026-50k:tradovate:e8-zero-futures-max-2026-rules-regras-vigentes-na-revisao-sprint-4": [
       "sha256:46d9b36bb0de1f5f732ac265d5d2efbd4532e732be63e665aeaf55a2f5c89ed3",
+      "sha256:608af9de745b71a6759ed1d0eb02ab478b539c301e23ff80a63b1928d1ffeb48",
       "sha256:77c7f1e0dc3c5baa186e1db4e935542337f1f0598028f7cb8d7ad58d5c0ab58e"
     ],
     "e8-markets:e8-zero-futures-starter-2026:e8-zero-futures-starter-2026-100k:tradovate:e8-zero-futures-starter-2026-rules-regras-vigentes-na-revisao-sprint-4": [
       "sha256:99310180af5fbeafaece4faea0848a69d0b12ed2a90fc383d711fcbe6ef3c618",
-      "sha256:fd9352a4932ab02d54c47a6ba764134e57aff07a016fa868cf77585168410c85"
+      "sha256:fd9352a4932ab02d54c47a6ba764134e57aff07a016fa868cf77585168410c85",
+      "sha256:ffa09ee0572daa84b218f8f844b648181b0e4a326c67df2a74d1a36aa2cfbb4e"
     ],
     "e8-markets:e8-zero-futures-starter-2026:e8-zero-futures-starter-2026-200k:tradovate:e8-zero-futures-starter-2026-rules-regras-vigentes-na-revisao-sprint-4": [
       "sha256:04457d9fdb04c070fc7bfd4c80e0a342d09e82bfc0c312034d40dabf128f71ee",
+      "sha256:b46cf9d51cd418fc9b330417869db7131a516e03d2483f6590adf2c45f0094ad",
       "sha256:df5c70bb58e58e0e513f54b162a0a35484e8a770b962b2f986e552739b6859a5"
     ],
     "e8-markets:e8-zero-futures-starter-2026:e8-zero-futures-starter-2026-50k:tradovate:e8-zero-futures-starter-2026-rules-regras-vigentes-na-revisao-sprint-4": [
       "sha256:5743a8212ce3a8380e29d51df236875c683d0c04050ef54d16939816bc518370",
-      "sha256:72b9151129b8765b14f5cf1ae9e7d7a3a9a1bd39178e9e72f240f2794949dab3"
+      "sha256:72b9151129b8765b14f5cf1ae9e7d7a3a9a1bd39178e9e72f240f2794949dab3",
+      "sha256:a8d9945c71b2ff60a0dbee9d25e18893f1c94eb8ae0996782735c1da7955d1e6"
     ],
     "ftmo:ftmo-challenge-1-step-2026:ftmo-challenge-1-step-2026-100k:ctrader:ftmo-challenge-1-step-2026-rules-regras-vigentes-na-revisao-sprint-4": [
       "sha256:3db2448b8ccfea7170b3892be8702b27a05bb1cc7e082d10cfb12a9c7b01472e",
@@ -3103,49 +3109,61 @@
     ],
     "topstep:topstep-trading-combine-2026:topstep-trading-combine-2026-100k:plataformassuportadaspelatopstep:topstep-trading-combine-2026-rules-dashboard-atual": [
       "sha256:26afcc884c67802d484616b35cb0758f65908fc0690b265d56f2bd14ca619f3d",
+      "sha256:5470231242750054a048efcc53f71f346213c21f9a8f8d335afd5342923d93c7",
       "sha256:cbb3b858d8a62e6c6a88c5b388985d74cec26bdff11b7b5c1c7cc6d45691529f"
     ],
     "topstep:topstep-trading-combine-2026:topstep-trading-combine-2026-100k:plataformassuportadaspelatopstep:topstep-trading-combine-2026-rules-regra-de-split-legada": [
       "sha256:2809962951d4cb9390e6830439e477f40dfe2bd929bdd33d7efe92615db10b66",
-      "sha256:b29dbd0d62d8810b2e926c64ca71fec4da77782ab59eee3ed27c669198c69659"
+      "sha256:b29dbd0d62d8810b2e926c64ca71fec4da77782ab59eee3ed27c669198c69659",
+      "sha256:cfde59433fb2826bec865aa4cb81beca4eb964983dbcf8e3a354172c03243895"
     ],
     "topstep:topstep-trading-combine-2026:topstep-trading-combine-2026-100k:topstepx:topstep-trading-combine-2026-rules-dashboard-atual": [
+      "sha256:47f96f63ae7c2e8034aa015a39fb12e4f496c2d20d2c8a5fe2398494504f9411",
       "sha256:5010f17e49e92b864f2c6448d7c2145c10a8b72a7535ec70b4b9ede1ade7a26d",
       "sha256:d690f06ffcef5ca3d4a9600244dbab0497fb4569306642144229abe55f7f177d"
     ],
     "topstep:topstep-trading-combine-2026:topstep-trading-combine-2026-100k:topstepx:topstep-trading-combine-2026-rules-regra-de-split-legada": [
       "sha256:03bbd8fa161a722b8268031a8a462d84e4aeb586905454115bf1981b50772df3",
+      "sha256:26845296039da87373eb8ffa42c23d3201499a666a64118265fc67071f198275",
       "sha256:e51cc8351c1b5efcfaa438fbd6ddaadc53db354dfd9e4f09df6f29a2934b5173"
     ],
     "topstep:topstep-trading-combine-2026:topstep-trading-combine-2026-150k:plataformassuportadaspelatopstep:topstep-trading-combine-2026-rules-dashboard-atual": [
+      "sha256:00ffaab24d0215c0477d4fae9d7d5f884a5cbf53007185b775f840e22be96a15",
       "sha256:1643a383365bb82c370bc7258ed6b2fd094cd5c9b921268709d5c9d5e8d357d8",
       "sha256:166af0e4070571873bd783876829a120b64abc81f4b3b600d7cc0fc653925714"
     ],
     "topstep:topstep-trading-combine-2026:topstep-trading-combine-2026-150k:plataformassuportadaspelatopstep:topstep-trading-combine-2026-rules-regra-de-split-legada": [
       "sha256:1e345dbf856031cc98a898d5a0b5437e32c275cc37e121ca683b69d9a6927260",
+      "sha256:804048650ad8349067bb160a38a47355e9de7c34ad17baebd351b0c80e3408d0",
       "sha256:b23116455fddf00456328ca6ff62fbcc8769a7dbdac4d84be6f031ace2342e7f"
     ],
     "topstep:topstep-trading-combine-2026:topstep-trading-combine-2026-150k:topstepx:topstep-trading-combine-2026-rules-dashboard-atual": [
       "sha256:b3ef38a3f56d207b7637d6aa5724d52389d76054819cd9e1b32dfae5351b03d3",
-      "sha256:c0bb7f635da8ce2ea63a39f6f1cc5aec04731359dacef30adc251e68ec4da195"
+      "sha256:c0bb7f635da8ce2ea63a39f6f1cc5aec04731359dacef30adc251e68ec4da195",
+      "sha256:c69cc52a4b1b6b7807a0b77c7190b4f25e8a36428b9aa29bc6d90662e68029cb"
     ],
     "topstep:topstep-trading-combine-2026:topstep-trading-combine-2026-150k:topstepx:topstep-trading-combine-2026-rules-regra-de-split-legada": [
       "sha256:59a3a5d6d1ae2b71d2ef36a6bfee3fc2c02412d65035a65a512b037c54be3433",
+      "sha256:b1226994db1adb9e7fb75ca01df11c1f71c2be4b6c3eee13088d555fe1d2e658",
       "sha256:e1d49324ef74aaad9c5aabafdcdb9d0973fa258fa4aaad46752f0f37264234d8"
     ],
     "topstep:topstep-trading-combine-2026:topstep-trading-combine-2026-50k:plataformassuportadaspelatopstep:topstep-trading-combine-2026-rules-dashboard-atual": [
       "sha256:05ff3f005147380dcef7dd46294dadb22eebc4cd78f2c6c9889c43c1a7645e0e",
+      "sha256:871f8ea106f0740c716ba6939bf6122b9fcfa10190688778b80bc729c25fa2e2",
       "sha256:8b9b7d0db33d42769dc4c875c6e495b2c6618f81439717b2f5df1dbd63408f7e"
     ],
     "topstep:topstep-trading-combine-2026:topstep-trading-combine-2026-50k:plataformassuportadaspelatopstep:topstep-trading-combine-2026-rules-regra-de-split-legada": [
       "sha256:208709d8c8674df7d4d98a74de9ed212f78f971d0486d42c663ce83dc2c01fa9",
+      "sha256:6a1f86fae0721848d5b660183b96210b70b9d811daead57d5261b4b60877d020",
       "sha256:7bd809191bef98bca7660940cb36a5a790149494a64360f76662f2df63d2242d"
     ],
     "topstep:topstep-trading-combine-2026:topstep-trading-combine-2026-50k:topstepx:topstep-trading-combine-2026-rules-dashboard-atual": [
       "sha256:2fed9ff2ed2e083ef72cc2e5ca94b237846bfb8bec3905693a86a7b70c9961d0",
-      "sha256:3467f7bf2ec963527e61838c163fbe45fe294c392b00aa02884ee45f39913374"
+      "sha256:3467f7bf2ec963527e61838c163fbe45fe294c392b00aa02884ee45f39913374",
+      "sha256:5a9b46cb76612af5e76207111f7be8374497e4b8427db2a1a898f55fbe34d144"
     ],
     "topstep:topstep-trading-combine-2026:topstep-trading-combine-2026-50k:topstepx:topstep-trading-combine-2026-rules-regra-de-split-legada": [
+      "sha256:5946e59c8eb15aa153f54d9763b65256affbe8ab3f4cdb00831b4e98517924db",
       "sha256:821a046037b96b0307b2d6e6ab53a8c01f261d7063ba408f914832db0c35c5f9",
       "sha256:9dd335351569a04880a5804f7e04b72cb156ec7e0ba9618f4d11cc49fefb9c91"
     ]

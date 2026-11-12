@@ -107,7 +107,7 @@ export const verifiedProgramRules: Record<string, VerifiedProgramRules> = {
     verifiedAt: '2026-11-12',
     stillSold: true,
     officialDocumentUrl: "https://cdn.ftmo.com/docs%2Fterms-and-conditions%2F118cdaed571a48529431ffa6ff28a91b",
-    embeddable: true,
+    embeddable: false,
     consistency: [
       // fonte: Contas de ordens criadas em/após 12 Oct 2026 (ou contas mescladas a partir dessa data). Aplica-se para passar no Challenge 1-Step e para elegibilidade
       { appliesTo: "both", kind: "best_day_vs_total_profit", percent: 50, amount: null, days: null, minDayProfitPercent: null, effect: "soft", condition: "Ordens de 12/10/2026 em diante. Lucro total inclui dias negativos.", estimated: false, officialText: "the Consistency rule requires that your Best Day does not represent more than 50% of your total profit.", sourceUrl: "https://ftmo.com/en/trading-objectives/" },
@@ -118,7 +118,7 @@ export const verifiedProgramRules: Record<string, VerifiedProgramRules> = {
     verifiedAt: '2026-11-12',
     stillSold: true,
     officialDocumentUrl: "https://cdn.ftmo.com/docs%2Fterms-and-conditions%2F118cdaed571a48529431ffa6ff28a91b",
-    embeddable: true,
+    embeddable: false,
     consistency: [
     ],
   },
@@ -190,7 +190,7 @@ export const verifiedProgramRules: Record<string, VerifiedProgramRules> = {
     officialDocumentUrl: "https://help.topstep.com/en/articles/8284208-consistency-at-topstep",
     embeddable: false,
     consistency: [
-      { appliesTo: "evaluation", kind: "best_day_vs_profit_target", percent: 55, amount: null, days: null, minDayProfitPercent: null, effect: "raises_target", condition: "No Combine. Passou, a meta sobe.", estimated: true, officialText: "Your single best day of profit must stay at or below 55% of your Profit Target. If it exceeds that, your Profit Target increases.", sourceUrl: "https://help.topstep.com/en/articles/8284208-consistency-at-topstep" },
+      { appliesTo: "evaluation", kind: "best_day_vs_profit_target", percent: 55, amount: null, days: null, minDayProfitPercent: null, effect: "raises_target", condition: "Só no Combine.", estimated: true, officialText: "Your single best day of profit must stay at or below 55% of your Profit Target. If it exceeds that, your Profit Target increases.", sourceUrl: "https://help.topstep.com/en/articles/8284208-consistency-at-topstep" },
       // fonte: Somente na XFA se o trader escolher o caminho de payout 'Consistency' na ativação (o caminho 'Standard' exige 5 winning days de $150+).
       { appliesTo: "funded", kind: "best_day_vs_total_profit", percent: 40, amount: null, days: null, minDayProfitPercent: null, effect: "blocks_payout", condition: "Só na XFA com o caminho de saque Consistency (3 dias).", estimated: false, officialText: "Your Consistency % must be 40% or below to be Payout eligible.", sourceUrl: "https://help.topstep.com/en/articles/8284208-consistency-at-topstep" },
     ],
@@ -458,7 +458,7 @@ export const verifiedProgramRules: Record<string, VerifiedProgramRules> = {
     embeddable: false,
     consistency: [
       // fonte: Challenge stage only
-      { appliesTo: "evaluation", kind: "best_day_vs_profit_target", percent: 40, amount: null, days: null, minDayProfitPercent: null, effect: "raises_target", condition: "Só no Challenge.", estimated: true, officialText: "Your profit should not exceed 40% of the total profit target in a single day. If it does, your profit target increases by the amount you made over that limit.", sourceUrl: "https://helpfutures.e8markets.com/en/articles/15936479-40-best-day-rule-challenge" },
+      { appliesTo: "evaluation", kind: "best_day_vs_profit_target", percent: 40, amount: null, days: null, minDayProfitPercent: null, effect: "raises_target", condition: "Só no Challenge. Meta = melhor dia ÷ 40%.", estimated: true, officialText: "Your profit should not exceed 40% of the total profit target in a single day. If it does, your profit target increases by the amount you made over that limit.", sourceUrl: "https://helpfutures.e8markets.com/en/articles/15936479-40-best-day-rule-challenge" },
     ],
   },
   // E8 Zero Futures Max
@@ -469,7 +469,7 @@ export const verifiedProgramRules: Record<string, VerifiedProgramRules> = {
     embeddable: false,
     consistency: [
       // fonte: Challenge stage only
-      { appliesTo: "evaluation", kind: "best_day_vs_profit_target", percent: 40, amount: null, days: null, minDayProfitPercent: null, effect: "raises_target", condition: "Só no Challenge.", estimated: true, officialText: "Your profit should not exceed 40% of the total profit target in a single day. If it does, your profit target increases by the amount you made over that limit.", sourceUrl: "https://helpfutures.e8markets.com/en/articles/15936479-40-best-day-rule-challenge" },
+      { appliesTo: "evaluation", kind: "best_day_vs_profit_target", percent: 40, amount: null, days: null, minDayProfitPercent: null, effect: "raises_target", condition: "Só no Challenge. Meta = melhor dia ÷ 40%.", estimated: true, officialText: "Your profit should not exceed 40% of the total profit target in a single day. If it does, your profit target increases by the amount you made over that limit.", sourceUrl: "https://helpfutures.e8markets.com/en/articles/15936479-40-best-day-rule-challenge" },
     ],
   },
   // 2-Step Bright

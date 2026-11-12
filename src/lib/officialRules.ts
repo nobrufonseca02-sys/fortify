@@ -57,7 +57,10 @@ const DRAWDOWN_LABEL: Record<string, string> = {
 
 export function officialRuleRows(program: PropFirmRuleProgram, account: RuleAccountSize, stage: AccountStage): OfficialRuleRow[] {
   const base = parseInitialBalance(account.initialBalance);
-  const currency = account.currency && account.currency.length === 3 ? account.currency : 'USD';
+  // O tamanho em "$" manda: o catálogo às vezes guarda a moeda da cobrança, não a da conta.
+  const currency = /^\$|US\$/.test(account.initialBalance) || /^\$/.test(account.label)
+    ? 'USD'
+    : account.currency && account.currency.length === 3 ? account.currency : 'USD';
   const rows: OfficialRuleRow[] = [];
   const add = (label: string, value: string | null | undefined, extra: Partial<OfficialRuleRow> = {}) => {
     if (value && isExplicitRuleValue(value)) rows.push({ label, value, ...extra });
@@ -72,7 +75,9 @@ export function officialRuleRows(program: PropFirmRuleProgram, account: RuleAcco
   }
   add('Perda diária', withAmount(account.dailyLoss, base, currency));
   const drawdownType = DRAWDOWN_LABEL[String(account.drawdownType)] ?? '';
-  add('Perda máxima', `${withAmount(account.maxLoss, base, currency)}${drawdownType ? ` · ${drawdownType}` : ''}`);
+  // Só acrescenta o tipo quando o texto oficial ainda não diz (evita "trailing · trailing").
+  const saysType = /trailing|est[aá]tic|static|fixo|eod|dynamic/i.test(account.maxLoss);
+  add('Perda máxima', `${withAmount(account.maxLoss, base, currency)}${drawdownType && !saysType ? ` · ${drawdownType}` : ''}`);
   add('Dias mínimos', account.minTradingDays);
 
   const clauses = (account.consistency ?? program.consistency)?.filter(

@@ -25,8 +25,8 @@ PT_COND = {
  'e8-signature-forex-2026|profitable_days': 'Entre saques; não vale para o primeiro.',
  'e8-signature-crypto-2026|profitable_days': 'Entre saques; não vale para o primeiro.',
  'e8-signature-futures-2026|profitable_days': 'Entre saques; não vale para o primeiro.',
- 'e8-zero-futures-starter-2026|best_day_vs_profit_target': 'Só no Challenge.',
- 'e8-zero-futures-max-2026|best_day_vs_profit_target': 'Só no Challenge.',
+ 'e8-zero-futures-starter-2026|best_day_vs_profit_target': 'Só no Challenge. Meta = melhor dia ÷ 40%.',
+ 'e8-zero-futures-max-2026|best_day_vs_profit_target': 'Só no Challenge. Meta = melhor dia ÷ 40%.',
  'alpha-capital-pro-10-2026|best_day_vs_total_profit': 'Só no saque On-Demand.',
  'alpha-capital-pro-8-2026|best_day_vs_total_profit': 'Só no saque On-Demand.',
  'alpha-capital-pro-6-2026|best_day_vs_total_profit': 'Só no saque On-Demand.',
@@ -47,7 +47,7 @@ PT_COND = {
  'apex-intraday-evaluation-2026|best_day_vs_total_profit': 'Na conta PA, desde o último saque.',
  'hantec-enhanced-2026|profitable_days': 'Na avaliação e em cada ciclo de saque.',
  'hantec-enhancedx-2026|best_day_vs_total_profit': 'No Challenge pode ser removida com add-on.',
- 'topstep-trading-combine-2026|best_day_vs_profit_target': 'No Combine. Passou, a meta sobe.',
+ 'topstep-trading-combine-2026|best_day_vs_profit_target': 'Só no Combine.',
  'topstep-trading-combine-2026|best_day_vs_total_profit': 'Só na XFA com o caminho de saque Consistency (3 dias).',
 }
 # 'other' que viram regra calculável
@@ -85,6 +85,8 @@ for p in programs:
     doc=p.get('officialPdfUrl') or (srcs[0] if srcs else None)
     emb=str(p.get('embeddability') or '').lower()
     embeddable = ('embut' in emb) and ('não emb' not in emb) and ('nao emb' not in emb)
+    # PDF em CDN costuma baixar em vez de abrir embutido: abre pelo botão.
+    if doc and ('.pdf' in doc.lower() or 'cdn.' in doc.lower()): embeddable = False
     entries.append((p['programSlug'], p.get('programName'), p.get('programStillSold'), doc, clauses, embeddable))
 lines=["// GERADO a partir da conferência nas fontes oficiais (pesquisa de 2026-11-12).",
 "// Consistência estruturada por programa + documento oficial. Revisar à mão as",

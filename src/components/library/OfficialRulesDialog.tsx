@@ -59,7 +59,7 @@ export function OfficialRulesDialog({
   const sources = (program.officialSources ?? [])
     .slice()
     .sort((a, b) => a.precedence - b.precedence)
-    .map((source) => ({ label: source.label, url: source.url, date: source.lastAccessedAt }));
+    .map((source) => ({ label: source.label, url: source.url, date: program.lastReviewedAt }));
   if (sources.length === 0 && program.officialSourceUrl) {
     sources.push({ label: program.sourceLabel || program.firm, url: program.officialSourceUrl, date: program.lastReviewedAt });
   }
@@ -107,7 +107,7 @@ export function OfficialRulesDialog({
 
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-[11px] text-muted-foreground">
-            Fonte: {sources[0]?.label ?? program.firm} · conferido em {sources[0]?.date ?? program.lastReviewedAt}
+            Conferido em {new Date(`${program.lastReviewedAt}T12:00:00`).toLocaleDateString('pt-BR')}
           </p>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => printRules(title, rows, sources)}>

@@ -83,7 +83,7 @@ export function GuardAccountSheet({
     setSaving(true);
     try {
       await createGuardAccount({ userId: user.id, program, account, stage, nickname, acknowledged, accountLimit });
-      toast({ title: 'Conta criada', description: 'Abra o MT5 com o Fortify Guard no gráfico desta conta: ele conecta sozinho.' });
+      toast({ title: 'Conta criada', description: 'Abra o MT5 com o Fortify Guard.' });
       onOpenChange(false);
       navigate('/fortify-guard');
     } catch (error: any) {
@@ -101,7 +101,7 @@ export function GuardAccountSheet({
           <SheetTitle>
             {program.firm} · {program.programName}
           </SheetTitle>
-          <SheetDescription>Confirme a sua conta. A partir daqui o Fortify Guard alimenta tudo o que você operar.</SheetDescription>
+          <SheetDescription className="sr-only">Criar a conta com as regras deste modelo.</SheetDescription>
         </SheetHeader>
 
         <div className="mt-6 space-y-5">
@@ -218,13 +218,7 @@ export function GuardAccountSheet({
             </>
           )}
 
-          <div className="rounded-lg border border-border bg-card p-4">
-            <p className="text-sm font-semibold text-foreground">Depois de criar</p>
-            <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-              Abra o MT5 com o Fortify Guard no gráfico desta conta. Ele se conecta sozinho e os dados começam a chegar em até 15
-              segundos. O Fortify registra as operações a partir desse momento.
-            </p>
-          </div>
+          <p className="text-center text-xs text-muted-foreground">Depois: abra o MT5 com o Fortify Guard.</p>
         </div>
       </SheetContent>
     </Sheet>
