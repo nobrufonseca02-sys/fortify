@@ -6,6 +6,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSubscriptionPlan } from '@/hooks/useSubscriptionPlan';
 import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { setPendingAccountLogin } from '@/lib/guardAccount';
 import { gatewayBaseUrl, gatewayJsonHeaders } from '@/lib/gateway';
 import { eaAccountStatus } from '@/lib/guardStatus';
 
@@ -73,6 +75,57 @@ function CopyField({ value, label }: { value: string; label: string }) {
         {copied ? 'Copiado' : 'Copiar'}
       </button>
     </div>
+  );
+}
+
+/**
+ * Conta aguardando o EA: o trader pode dizer qual login MT5 ela é. Necessário
+ * quando há mais de uma aguardando e o EA não consegue saber sozinho.
+ */
+function PendingLoginField({
+  userId,
+  account,
+  onSaved,
+}: {
+  userId: string;
+  account: GuardAccount;
+  onSaved: () => void;
+}) {
+  const [value, setValue] = useState(account.mt5_login ?? '');
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    setSaving(true);
+    try {
+      const login = await setPendingAccountLogin({ userId, tradingAccountId: account.id, login: value });
+      toast({ title: 'Login salvo', description: `O EA aberto na conta ${login} vai se ligar a "${account.nickname}".` });
+      onSaved();
+    } catch (error: any) {
+      toast({ title: 'Login não salvo', description: error?.message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <form
+      className="flex items-center gap-1.5"
+      onClick={(event) => event.stopPropagation()}
+      onSubmit={(event) => {
+        event.preventDefault();
+        void save();
+      }}
+    >
+      <Input
+        value={value}
+        onChange={(event) => setValue(event.target.value)}
+        inputMode="numeric"
+        placeholder="Login MT5"
+        aria-label={`Login MT5 da conta ${account.nickname}`}
+        className="h-8 w-32 font-mono text-xs"
+      />
+      <Button type="submit" size="sm" variant="outline" className="h-8" disabled={saving || !value.trim() || value.trim() === account.mt5_login}>
+        {saving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : 'Salvar'}
+      </Button>
+    </form>
   );
 }
 
@@ -280,6 +333,13 @@ export default function FortifyGuardPage() {
             </Button>
           </div>
         ) : (
+          <>
+          {accounts.filter((account) => account.ea_status === 'pending').length > 1 && (
+            <p className="mt-3 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs leading-relaxed text-foreground">
+              Mais de uma conta aguardando o EA. Informe o login MT5 de cada uma para o EA saber qual é qual. Sem isso, ele só
+              liga sozinho quando a mesa ou o tamanho da conta deixam claro.
+            </p>
+          )}
           <div className="mt-3 overflow-x-auto">
             <table className="w-full min-w-[640px] text-left text-sm">
               <thead>
@@ -302,7 +362,13 @@ export default function FortifyGuardPage() {
                     >
                       <td className="py-3 pr-3 font-medium text-foreground">{account.nickname}</td>
                       <td className="py-3 pr-3 text-foreground">{account.firm ? `${account.firm} · ${account.model}` : 'Mesa não escolhida'}</td>
-                      <td className="py-3 pr-3 text-muted-foreground">{account.mt5_login || 'aguardando'}</td>
+                      <td className="py-3 pr-3 text-muted-foreground">
+                        {account.ea_status === 'pending' && user?.id ? (
+                          <PendingLoginField userId={user.id} account={account} onSaved={() => void load()} />
+                        ) : (
+                          account.mt5_login || 'aguardando'
+                        )}
+                      </td>
                       <td className="py-3 pr-3">
                         <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${TONE_CLASSES[status.tone]}`}>
                           <span className={`h-1.5 w-1.5 rounded-full ${DOT_CLASSES[status.tone]}`} />
@@ -316,6 +382,7 @@ export default function FortifyGuardPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </section>
     </div>

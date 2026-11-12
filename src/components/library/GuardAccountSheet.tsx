@@ -9,7 +9,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import type { PropFirmRuleProgram, RuleAccountSize } from '@/data/propFirmRules';
 import { formatAccountLabel } from '@/lib/propFirmSummary';
-import { createGuardAccount, guardAccountSizes } from '@/lib/guardAccount';
+import { createGuardAccount, fetchUsedAccountSlots, guardAccountSizes, planFullMessage } from '@/lib/guardAccount';
+import { useSubscriptionPlan } from '@/hooks/useSubscriptionPlan';
 import { inferStage, type AccountStage } from '@/lib/ruleEngine/guardRules';
 
 // "Usar este modelo": cria a conta que o Fortify Guard vai alimentar. O aceite
@@ -33,6 +34,9 @@ export function GuardAccountSheet({
 }) {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { accountLimit, isLoading: planLoading } = useSubscriptionPlan();
+  const [usedSlots, setUsedSlots] = useState<number | null>(null);
+  const [slotsFailed, setSlotsFailed] = useState(false);
   const sizes = useMemo(() => guardAccountSizes(program), [program]);
   const [accountId, setAccountId] = useState<string>('');
   const [stage, setStage] = useState<AccountStage>('evaluation');
@@ -49,13 +53,29 @@ export function GuardAccountSheet({
     setAcknowledged(false);
   }, [open, initialAccount, program, sizes]);
 
+  useEffect(() => {
+    if (!open || !user?.id) return;
+    let active = true;
+    setUsedSlots(null);
+    setSlotsFailed(false);
+    fetchUsedAccountSlots(user.id)
+      .then((count) => active && setUsedSlots(count))
+      .catch(() => active && setSlotsFailed(true)); // a criação confere de novo
+    return () => {
+      active = false;
+    };
+  }, [open, user?.id]);
+
+  const slotsKnown = !planLoading && (usedSlots !== null || slotsFailed);
+  const planFull = !planLoading && usedSlots !== null && usedSlots >= accountLimit;
+
   const account = sizes.find((size) => size.id === accountId) ?? null;
 
   const submit = async () => {
     if (!user?.id || !account) return;
     setSaving(true);
     try {
-      await createGuardAccount({ userId: user.id, program, account, stage, nickname, acknowledged });
+      await createGuardAccount({ userId: user.id, program, account, stage, nickname, acknowledged, accountLimit });
       toast({ title: 'Conta criada', description: 'Abra o MT5 com o Fortify Guard no gráfico desta conta: ele conecta sozinho.' });
       onOpenChange(false);
       navigate('/fortify-guard');
@@ -135,10 +155,27 @@ export function GuardAccountSheet({
             <span>Li as regras oficiais desta mesa e confirmo que são as da minha conta.</span>
           </label>
 
-          <Button className="w-full gap-2" onClick={submit} disabled={!acknowledged || !account || saving}>
-            {saving && <RefreshCw className="h-4 w-4 animate-spin" />}
-            Criar conta e conectar pelo Fortify Guard
-          </Button>
+          {planFull ? (
+            <div className="rounded-lg border border-warning/40 bg-warning/10 p-4" role="alert">
+              <p className="text-sm font-semibold text-foreground">Plano cheio</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{planFullMessage(accountLimit)}</p>
+              <Button variant="outline" className="mt-3" onClick={() => navigate('/pricing')}>
+                Ver planos
+              </Button>
+            </div>
+          ) : (
+            <>
+              <Button className="w-full gap-2" onClick={submit} disabled={!acknowledged || !account || saving || !slotsKnown}>
+                {saving && <RefreshCw className="h-4 w-4 animate-spin" />}
+                Criar conta e conectar pelo Fortify Guard
+              </Button>
+              {!planLoading && usedSlots !== null && (
+                <p className="text-center text-xs text-muted-foreground">
+                  {usedSlots} de {accountLimit} {accountLimit === 1 ? 'conta' : 'contas'} do seu plano em uso
+                </p>
+              )}
+            </>
+          )}
 
           <div className="rounded-lg border border-border bg-card p-4">
             <p className="text-sm font-semibold text-foreground">Depois de criar</p>

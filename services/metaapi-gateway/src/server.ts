@@ -42,6 +42,14 @@ import {
 } from './eaFeed';
 import { verifyBindingSnapshot } from './ruleEngine/snapshotIntegrity';
 import { parseInitialBalance } from './ruleEngine/ruleEngineTypes';
+import {
+  accountLimitMessage,
+  ambiguousAccountMessage,
+  countAccountSlots,
+  pickPendingAccount,
+  type PendingCandidate,
+  type SlotAccount,
+} from './eaLinking';
 import { positionRows, sanitizeEaPositions, sanitizeEaTrades, snapshotRowsSince, tradeRowsSince } from './eaSync';
 import { readFile } from 'node:fs/promises';
 
@@ -6145,8 +6153,41 @@ fastify.get('/ea/download', async (request, reply) => {
   }
 });
 
-async function resolveEaAccount(userId: string, login: string, server: string) {
-  const columns = 'id, user_id, nickname, mt5_login, start_balance, highest_equity, phase, ea_status, ea_tracking_started_at';
+type EaAccountResolution =
+  | { kind: 'account'; account: JsonRecord }
+  | { kind: 'none' }
+  | { kind: 'ambiguous' }
+  | { kind: 'limit'; limit: number };
+
+/** Ligar mais esta conta ao EA cabe no plano? Conta as outras já monitoradas. */
+async function eaLinkFitsPlan(userId: string, accountId: string) {
+  const entitlement = await getUserEntitlement(userId);
+  const [accountsRes, connectionsRes] = await Promise.all([
+    supabase.from('trading_accounts' as any).select('id, status, ea_status').eq('user_id', userId) as any,
+    supabase
+      .from('mt5_connections')
+      .select('trading_account_id')
+      .eq('user_id', userId)
+      .in('connection_status', ['connected', 'connecting', 'syncing']) as any,
+  ]);
+  if (accountsRes.error) throw accountsRes.error;
+  if (connectionsRes.error) throw connectionsRes.error;
+  const connectionAccountIds = ((connectionsRes.data ?? []) as JsonRecord[])
+    .map((row) => String(row.trading_account_id ?? ''))
+    .filter(Boolean);
+  const used = countAccountSlots((accountsRes.data ?? []) as SlotAccount[], connectionAccountIds, {
+    includePending: false,
+    excludeId: accountId,
+  });
+  return { fits: used < entitlement.accountLimit, limit: entitlement.accountLimit };
+}
+
+async function resolveEaAccount(
+  userId: string,
+  login: string,
+  terminal: { server: string; broker: string; balance: number },
+): Promise<EaAccountResolution> {
+  const columns = 'id, user_id, nickname, mt5_login, start_balance, highest_equity, phase, ea_status, ea_linked_at, ea_tracking_started_at';
   const { data: linked } = await (supabase
     .from('trading_accounts' as any)
     .select(columns)
@@ -6157,33 +6198,48 @@ async function resolveEaAccount(userId: string, login: string, server: string) {
     .limit(1)
     .maybeSingle() as any);
   if (linked) {
-    if (linked.ea_status !== 'linked' || !linked.ea_tracking_started_at) {
-      const now = new Date().toISOString();
-      const patch = {
-        ea_status: 'linked',
-        ea_linked_at: now,
-        ea_tracking_started_at: linked.ea_tracking_started_at ?? now,
-      };
-      await (supabase.from('trading_accounts' as any).update(patch).eq('id', linked.id) as any);
-      return { ...linked, ...patch, justLinked: false };
-    }
-    return { ...linked, justLinked: false };
+    if (linked.ea_status === 'linked' && linked.ea_tracking_started_at) return { kind: 'account', account: linked };
+    // Conta com este login ainda não ligada (o trader informou o login no site):
+    // passa a ocupar vaga agora, então confere o plano.
+    const check = await eaLinkFitsPlan(userId, linked.id);
+    if (!check.fits) return { kind: 'limit', limit: check.limit };
+    const now = new Date().toISOString();
+    const patch: JsonRecord = {
+      ea_status: 'linked',
+      ea_linked_at: linked.ea_linked_at ?? now,
+      ea_tracking_started_at: linked.ea_tracking_started_at ?? now,
+    };
+    if (terminal.server) patch.mt5_server = terminal.server;
+    await (supabase.from('trading_accounts' as any).update(patch).eq('id', linked.id) as any);
+    fastify.log.info({ event: 'ea_account_linked', tradingAccountId: maskForLog(linked.id), by: 'login' });
+    return { kind: 'account', account: { ...linked, ...patch } };
   }
 
-  const { data: pending } = await (supabase
+  const { data: pendingRows } = await (supabase
     .from('trading_accounts' as any)
-    .select(columns)
+    .select(`${columns}, prop_firm, created_at`)
     .eq('user_id', userId)
     .eq('ea_status', 'pending')
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .maybeSingle() as any);
-  if (!pending) return null;
+    .neq('status', 'archived')
+    .order('created_at', { ascending: true }) as any);
+  const pending = (pendingRows ?? []) as JsonRecord[];
+  const pick = pickPendingAccount(pending as PendingCandidate[], terminal);
+  if (pick.kind === 'none') return { kind: 'none' };
+  if (pick.kind === 'ambiguous') {
+    fastify.log.info({ event: 'ea_account_ambiguous', userId: maskForLog(userId), pending: pick.count });
+    return { kind: 'ambiguous' };
+  }
+
+  const check = await eaLinkFitsPlan(userId, pick.id);
+  if (!check.fits) {
+    fastify.log.info({ event: 'ea_account_limit_reached', userId: maskForLog(userId), limit: check.limit });
+    return { kind: 'limit', limit: check.limit };
+  }
 
   const now = new Date().toISOString();
   const patch = {
     mt5_login: login,
-    mt5_server: server || null,
+    mt5_server: terminal.server || null,
     ea_status: 'linked',
     ea_linked_at: now,
     ea_tracking_started_at: now,
@@ -6192,13 +6248,13 @@ async function resolveEaAccount(userId: string, login: string, server: string) {
   const { data: claimed } = await (supabase
     .from('trading_accounts' as any)
     .update(patch)
-    .eq('id', pending.id)
+    .eq('id', pick.id)
     .eq('ea_status', 'pending')
     .select(columns)
     .maybeSingle() as any);
-  if (!claimed) return null;
-  fastify.log.info({ event: 'ea_account_linked', tradingAccountId: maskForLog(pending.id) });
-  return { ...claimed, justLinked: true };
+  if (!claimed) return { kind: 'none' };
+  fastify.log.info({ event: 'ea_account_linked', tradingAccountId: maskForLog(pick.id), by: 'match' });
+  return { kind: 'account', account: claimed };
 }
 
 async function persistEaData(input: {
@@ -6366,13 +6422,16 @@ fastify.post('/ea/feed', async (request, reply) => {
       return fail('plan_inactive', 'Assinatura Fortify inativa. Renove para continuar vendo as regras no MT5.');
     }
 
-    const account = await resolveEaAccount(tokenRow.user_id, login, server);
-    if (!account) {
+    const resolution = await resolveEaAccount(tokenRow.user_id, login, { server, broker, balance });
+    if (resolution.kind === 'limit') return fail('account_limit', accountLimitMessage(resolution.limit));
+    if (resolution.kind === 'ambiguous') return fail('choose_account', ambiguousAccountMessage(login));
+    if (resolution.kind === 'none') {
       return fail(
         'no_account',
         `A conta MT5 ${login} ainda não está no Fortify. Na Biblioteca de Mesas, escolha a mesa e o modelo dela: o EA conecta sozinho.`,
       );
     }
+    const account = resolution.account;
 
     const binding = await canonicalEvaluationStore.loadActiveBinding(account.id, tokenRow.user_id);
     if (!binding || binding.binding_status !== 'active') {

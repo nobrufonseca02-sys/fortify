@@ -7,6 +7,8 @@ import { eaAccountStatus } from '@/lib/guardStatus';
 import { propFirmRulePrograms } from '@/data/propFirmRules';
 
 let mockHasActivePlan = true;
+let mockAccountLimit = 3;
+const updates: Array<{ table: string; values: any }> = [];
 const createGuardAccount = vi.fn().mockResolvedValue({ tradingAccountId: 'account-new' });
 
 vi.mock('@/hooks/useAuth', () => ({
@@ -14,7 +16,7 @@ vi.mock('@/hooks/useAuth', () => ({
 }));
 
 vi.mock('@/hooks/useSubscriptionPlan', () => ({
-  useSubscriptionPlan: () => ({ hasActivePlan: mockHasActivePlan, isLoading: false }),
+  useSubscriptionPlan: () => ({ hasActivePlan: mockHasActivePlan, isLoading: false, accountLimit: mockAccountLimit }),
 }));
 
 vi.mock('@/lib/guardAccount', async (importOriginal) => {
@@ -34,6 +36,7 @@ const tables: Record<string, any> = {
     },
   ],
   ea_access_tokens: null,
+  mt5_connections: [],
 };
 
 vi.mock('@/integrations/supabase/client', () => {
@@ -42,10 +45,17 @@ vi.mock('@/integrations/supabase/client', () => {
     const chain: any = {
       select: () => chain,
       eq: () => chain,
+      neq: () => chain,
+      in: () => chain,
+      limit: () => chain,
+      update: (values: any) => {
+        updates.push({ table, values });
+        return chain;
+      },
       not: () => chain,
       is: () => chain,
       order: () => result(),
-      maybeSingle: () => result(),
+      maybeSingle: () => (table === 'trading_accounts' ? Promise.resolve({ data: null, error: null }) : result()),
       then: (resolve: any, reject: any) => result().then(resolve, reject),
     };
     return chain;
@@ -55,6 +65,8 @@ vi.mock('@/integrations/supabase/client', () => {
 
 afterEach(() => {
   mockHasActivePlan = true;
+  mockAccountLimit = 3;
+  updates.length = 0;
   createGuardAccount.mockClear();
 });
 
@@ -115,5 +127,46 @@ describe('Biblioteca: usar este modelo', () => {
     fireEvent.click(create);
     await waitFor(() => expect(createGuardAccount).toHaveBeenCalledTimes(1));
     expect(createGuardAccount.mock.calls[0][0]).toMatchObject({ userId: 'user-a', acknowledged: true });
+  });
+
+  it('mostra quantas contas do plano estão em uso, contando as que aguardam o EA', async () => {
+    render(
+      <MemoryRouter>
+        <GuardAccountSheet open onOpenChange={() => {}} program={ftmo!} />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText('2 de 3 contas do seu plano em uso')).toBeInTheDocument();
+  });
+
+  it('plano cheio: não deixa criar outra conta e manda ver os planos', async () => {
+    mockAccountLimit = 2;
+    render(
+      <MemoryRouter>
+        <GuardAccountSheet open onOpenChange={() => {}} program={ftmo!} />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText('Plano cheio')).toBeInTheDocument();
+    expect(screen.getByText(/Seu plano permite 2 contas/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Criar conta e conectar pelo Fortify Guard' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ver planos' })).toBeInTheDocument();
+  });
+});
+
+describe('Fortify Guard: qual login é cada conta', () => {
+  it('a conta aguardando o EA recebe o login MT5 que o trader digita', async () => {
+    renderPage();
+    const field = await screen.findByLabelText('Login MT5 da conta Conta funded');
+    fireEvent.change(field, { target: { value: ' 115532365 ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+    await waitFor(() => expect(updates).toContainEqual({ table: 'trading_accounts', values: { mt5_login: '115532365' } }));
+  });
+
+  it('login com letras não é salvo', async () => {
+    renderPage();
+    const field = await screen.findByLabelText('Login MT5 da conta Conta funded');
+    fireEvent.change(field, { target: { value: 'abc' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(updates).toHaveLength(0);
   });
 });
