@@ -17,6 +17,14 @@ import { eaAccountStatus } from '@/lib/guardStatus';
 
 const POLL_MS = 15_000;
 
+// Vídeo de instalação: bucket privado `fortify-guard` (migration
+// 20261116090000_fortify_guard_video.sql). A política do Storage só deixa
+// assinar a URL para quem tem plano pago em dia (mesma regra do gateway).
+const GUARD_VIDEO_BUCKET = 'fortify-guard';
+const GUARD_VIDEO_PATH = 'fortify-guard-instalar.mp4';
+const GUARD_VIDEO_POSTER = '/videos/fortify-guard-instalar.jpg';
+const GUARD_VIDEO_URL_TTL_S = 60 * 60;
+
 interface GuardAccount {
   id: string;
   nickname: string;
@@ -139,6 +147,7 @@ export default function FortifyGuardPage() {
   const [downloading, setDownloading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!user?.id) return;
@@ -187,6 +196,26 @@ export default function FortifyGuardPage() {
     const timer = window.setInterval(() => void load(), POLL_MS);
     return () => window.clearInterval(timer);
   }, [load]);
+
+  // URL assinada do vídeo: só é pedida com plano pago; o Storage confere de novo.
+  // Se o vídeo não estiver disponível, a seção some (sem mensagem de erro).
+  useEffect(() => {
+    if (planLoading || !hasActivePlan || !user?.id) {
+      setVideoUrl(null);
+      return;
+    }
+    let cancelled = false;
+    void supabase.storage
+      .from(GUARD_VIDEO_BUCKET)
+      .createSignedUrl(GUARD_VIDEO_PATH, GUARD_VIDEO_URL_TTL_S)
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        setVideoUrl(error || !data?.signedUrl ? null : data.signedUrl);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [planLoading, hasActivePlan, user?.id]);
 
   const download = async () => {
     if (!session?.access_token) return;
@@ -248,9 +277,30 @@ export default function FortifyGuardPage() {
 
       <div className="relative">
         <div
-          className={`grid gap-4 md:grid-cols-3 ${locked ? 'pointer-events-none select-none opacity-40 blur-[2px]' : ''}`}
+          className={`space-y-6 ${locked ? 'pointer-events-none select-none opacity-40 blur-[2px]' : ''}`}
           aria-hidden={locked}
         >
+          {(locked || videoUrl) && (
+            <section className="rounded-xl border border-border bg-card p-5">
+              <div className="flex items-baseline justify-between gap-3">
+                <h2 className="text-sm font-semibold text-foreground">Veja como instalar</h2>
+                <span className="text-xs text-muted-foreground">50 s</span>
+              </div>
+              {/* Vídeo em bucket privado: só quem tem plano pago recebe a URL assinada. */}
+              <video
+                key={videoUrl ?? 'sem-video'}
+                className="mt-4 aspect-video w-full rounded-lg border border-border bg-black"
+                src={locked ? undefined : videoUrl ?? undefined}
+                poster={GUARD_VIDEO_POSTER}
+                controls={!locked && Boolean(videoUrl)}
+                playsInline
+                preload="metadata"
+                aria-label="Vídeo: como instalar o Fortify Guard no MetaTrader 5"
+              />
+            </section>
+          )}
+
+        <div className="grid gap-4 md:grid-cols-3">
           <section className="rounded-xl border border-border bg-card p-5">
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary">1</span>
             <h2 className="mt-3 text-sm font-semibold text-foreground">Baixe</h2>
@@ -264,7 +314,7 @@ export default function FortifyGuardPage() {
           <section className="rounded-xl border border-border bg-card p-5">
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary">2</span>
             <h2 className="mt-3 text-sm font-semibold text-foreground">Libere</h2>
-            <p className="mt-1.5 text-xs text-muted-foreground">Opções &gt; Expert Advisors &gt; WebRequest:</p>
+            <p className="mt-1.5 text-xs text-muted-foreground">Opções &gt; Experts &gt; WebRequest:</p>
             <CopyField value={gatewayUrl} label="Copiar endereço do Fortify" />
           </section>
 
@@ -287,6 +337,7 @@ export default function FortifyGuardPage() {
               {token ? 'Gerar chave nova' : 'Gerar minha chave'}
             </Button>
           </section>
+        </div>
         </div>
 
         {locked && (

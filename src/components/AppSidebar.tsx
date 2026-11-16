@@ -1,4 +1,5 @@
-import { LayoutDashboard, PlusCircle, Settings, BarChart3, Shield, ShieldCheck, BookOpen, LogOut, Calculator, CreditCard } from "lucide-react";
+import { LayoutDashboard, PlusCircle, Settings, BarChart3, Shield, ShieldCheck, BookOpen, LogOut, Calculator, CreditCard, Lock } from "lucide-react";
+import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 import { FortifyMark } from "@/components/brand/FortifyMark";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -23,7 +24,8 @@ const groups = [
       { title: "Biblioteca", url: "/", icon: BookOpen },
       { title: "Painel", url: "/dashboard", icon: LayoutDashboard },
       { title: "Calculadora de Risco", url: "/risk-calculator", icon: Calculator },
-      { title: "Fortify Guard", url: "/fortify-guard", icon: ShieldCheck, badge: "NOVO" },
+      // Só com plano pago em dia (mesma regra do gateway para o EA e o download).
+      { title: "Fortify Guard", url: "/fortify-guard", icon: ShieldCheck, badge: "NOVO", requiresPaidPlan: true },
 
     ],
   },
@@ -48,6 +50,7 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const { isAdmin } = useUserRole();
   const { signOut, user } = useAuth();
+  const { hasActivePlan } = useSubscriptionPlan();
   const displayName =
     (user?.user_metadata?.full_name as string | undefined)?.trim() ||
     user?.email?.split("@")[0] ||
@@ -86,7 +89,21 @@ export function AppSidebar() {
               )}
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {group.items.map((item) => (
+                  {group.items.map((item) =>
+                    "requiresPaidPlan" in item && item.requiresPaidPlan && !hasActivePlan ? (
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton
+                          disabled
+                          aria-disabled="true"
+                          title="Liberado com a assinatura em dia"
+                          className="cursor-not-allowed opacity-50"
+                        >
+                          <item.icon className="mr-2 h-4 w-4" />
+                          {!collapsed && <span className="text-[12px] font-medium tracking-wide">{item.title}</span>}
+                          {!collapsed && <Lock className="ml-auto h-3.5 w-3.5" aria-hidden />}
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ) : (
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton asChild>
                         <NavLink
@@ -104,7 +121,8 @@ export function AppSidebar() {
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
-                  ))}
+                    ),
+                  )}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
