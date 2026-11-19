@@ -194,6 +194,31 @@ describe('PricingPage', () => {
     await waitFor(() => expect(createGuestCheckoutSession).toHaveBeenCalledWith('beginner_monthly', expect.any(Boolean), 'FORTIFY'));
   });
 
+  it('link de compra direta com cupom abre o checkout do plano com o desconto', async () => {
+    window.sessionStorage.clear();
+    createGuestCheckoutSession.mockReset();
+    createGuestCheckoutSession.mockReturnValue(new Promise(() => {}));
+    renderPricing({ variant: 'public' }, '/vendas/planos?plano=pro&cupom=FORTIFY');
+    await waitFor(() => expect(createGuestCheckoutSession).toHaveBeenCalledWith('pro_monthly', expect.any(Boolean), 'FORTIFY'));
+    expect(createGuestCheckoutSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('link de compra direta sem cupom abre o checkout sem desconto', async () => {
+    window.sessionStorage.clear();
+    createGuestCheckoutSession.mockReset();
+    createGuestCheckoutSession.mockReturnValue(new Promise(() => {}));
+    renderPricing({ variant: 'public' }, '/vendas/planos?plano=advanced');
+    await waitFor(() => expect(createGuestCheckoutSession).toHaveBeenCalledWith('advanced_monthly', expect.any(Boolean), null));
+  });
+
+  it('código de um plano só dá desconto só nele', () => {
+    window.sessionStorage.clear();
+    renderPricing({ variant: 'public' }, '/vendas/planos?cupom=FORTIFYBEGINNER');
+    expect(screen.getByText(/R\$\s?197/)).toBeInTheDocument();
+    expect(screen.getAllByText(/R\$\s?997/).every((el) => el.tagName !== 'S')).toBe(true);
+    window.sessionStorage.clear();
+  });
+
   it('cupom digitado errado avisa e não muda o preço', () => {
     window.sessionStorage.clear();
     renderPricing({ variant: 'public' });

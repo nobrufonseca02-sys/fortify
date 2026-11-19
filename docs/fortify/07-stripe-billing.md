@@ -28,11 +28,15 @@ Advanced e R$ 200 no Pro. Como o desconto em reais muda por plano, cada plano te
 na Stripe (`FORTIFY_BEGINNER`, `FORTIFY_ADVANCED`, `FORTIFY_PRO`: valor fixo em BRL, duração
 "para sempre", limitado ao produto do plano). O gateway recebe `coupon` em
 `create-checkout-session` e `guest-checkout-session` e abre a sessão com `discounts[0][coupon]`.
-O campo de código da página da Stripe fica escondido nos checkouts de plano: um código digitado lá
-não tem como escolher o cupom do plano, e a conta não tem códigos promocionais. O cupom entra pelo
-campo do site ou pelo link. O site recusa abrir o checkout se a resposta não trouxer
-`coupon_applied`, para nunca cobrar preço cheio depois de mostrar desconto.
-Link pronto: `/vendas/planos?cupom=FORTIFY`.
+Cada cupom tem um código promocional próprio na Stripe (`FORTIFYBEGINNER`, `FORTIFYADVANCED`,
+`FORTIFYPRO`), que vale digitado na página de pagamento quando a sessão abre sem cupom
+(`allow_promotion_codes`). A Stripe não aceita cupom aplicado e campo de código juntos. O site
+aceita `FORTIFY` (todos os planos) e os três códigos por plano, e recusa abrir o checkout se a
+resposta não trouxer `coupon_applied`, para nunca cobrar preço cheio depois de mostrar desconto.
+
+Links de compra direta (o checkout abre sozinho e o parâmetro sai da URL):
+`/vendas/planos?plano=beginner&cupom=FORTIFY` (com desconto) e `/vendas/planos?plano=beginner`
+(sem cupom, o cliente digita o código do plano na Stripe). Vale `beginner`, `advanced` e `pro`.
 
 ## Compra: Stripe Checkout
 

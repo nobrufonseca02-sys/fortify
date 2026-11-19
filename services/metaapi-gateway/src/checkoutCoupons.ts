@@ -10,13 +10,18 @@ export interface CheckoutCouponPlan {
   amountOffCents: number;
 }
 
+const BEGINNER: CheckoutCouponPlan = { stripeCouponId: 'FORTIFY_BEGINNER', amountOffCents: 10_000 };
+const ADVANCED: CheckoutCouponPlan = { stripeCouponId: 'FORTIFY_ADVANCED', amountOffCents: 10_000 };
+const PRO: CheckoutCouponPlan = { stripeCouponId: 'FORTIFY_PRO', amountOffCents: 20_000 };
+
 export const CHECKOUT_COUPONS: Record<string, Record<string, CheckoutCouponPlan>> = {
   // Para sempre: Beginner R$ 297 -> R$ 197, Advanced R$ 497 -> R$ 397, Pro R$ 997 -> R$ 797.
-  FORTIFY: {
-    beginner_monthly: { stripeCouponId: 'FORTIFY_BEGINNER', amountOffCents: 10_000 },
-    advanced_monthly: { stripeCouponId: 'FORTIFY_ADVANCED', amountOffCents: 10_000 },
-    pro_monthly: { stripeCouponId: 'FORTIFY_PRO', amountOffCents: 20_000 },
-  },
+  FORTIFY: { beginner_monthly: BEGINNER, advanced_monthly: ADVANCED, pro_monthly: PRO },
+  // Códigos de um plano só. São os mesmos códigos promocionais criados na Stripe, então
+  // valem também digitados na página de pagamento da Stripe.
+  FORTIFYBEGINNER: { beginner_monthly: BEGINNER },
+  FORTIFYADVANCED: { advanced_monthly: ADVANCED },
+  FORTIFYPRO: { pro_monthly: PRO },
 };
 
 export function normalizeCouponCode(raw: unknown) {
@@ -50,7 +55,7 @@ export function resolveCheckoutCoupon(raw: unknown, planSlug: string | null | un
   }
   const plan = coupon[String(planSlug ?? '')];
   if (!plan) {
-    return { ok: false, code, reason: 'plan', message: `O cupom ${code} vale só para os planos mensais Beginner, Advanced e Pro.` };
+    return { ok: false, code, reason: 'plan', message: `O cupom ${code} não vale para este plano.` };
   }
   return { ok: true, code, stripeCouponId: plan.stripeCouponId, amountOffCents: plan.amountOffCents };
 }

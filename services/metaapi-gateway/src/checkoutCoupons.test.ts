@@ -19,6 +19,13 @@ test('sem cupom, nada muda no checkout', () => {
   assert.equal(resolveCheckoutCoupon(undefined, 'pro_monthly'), null);
 });
 
+test('código de um plano só vale para ele', () => {
+  assert.equal(couponDiscountCents('FORTIFYPRO', 'pro_monthly'), 20_000);
+  assert.equal(couponDiscountCents('FORTIFYPRO', 'beginner_monthly'), 0);
+  assert.equal(resolveCheckoutCoupon('fortifybeginner', 'advanced_monthly')?.ok, false);
+  assert.equal(couponDiscountCents('FORTIFYADVANCED', 'advanced_monthly'), 10_000);
+});
+
 test('cupom desconhecido ou fora dos planos mensais é recusado', () => {
   const unknown = resolveCheckoutCoupon('GRATIS', 'pro_monthly');
   assert.equal(unknown?.ok, false);

@@ -67,7 +67,7 @@ export type PlanAction = {
  */
 export function usePricingCheckout() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { session } = useAuth();
   const {
     plans,
@@ -288,6 +288,27 @@ export function usePricingCheckout() {
       setBusyAddon(false);
     }
   };
+
+  // Link de compra direta: /vendas/planos?plano=beginner (com ou sem &cupom=). A página
+  // aparece com o preço do plano e o checkout abre sozinho. O parâmetro sai da URL antes,
+  // para o botão Voltar do navegador não abrir o pagamento de novo.
+  const linkedPlan = searchParams.get('plano');
+  const [linkedPlanStarted, setLinkedPlanStarted] = useState(false);
+  useEffect(() => {
+    if (!linkedPlan || linkedPlanStarted || isLoading || visiblePlans.length === 0) return;
+    const wanted = linkedPlan.trim().toLowerCase();
+    const plan = plans.find((item) =>
+      isCommercialPlan(item) &&
+      !isAddonPlan(item) &&
+      item.billing_interval === 'month' &&
+      (item.slug === wanted || item.id === wanted || planFamily(item) === wanted),
+    );
+    setLinkedPlanStarted(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('plano');
+    setSearchParams(next, { replace: true });
+    if (plan) planAction(plan).onClick();
+  }, [linkedPlan, linkedPlanStarted, isLoading, visiblePlans.length, plans]);
 
   useEffect(() => {
     if (resumeAttempted || !session?.access_token || !intendedPlan || plans.length === 0) return;
