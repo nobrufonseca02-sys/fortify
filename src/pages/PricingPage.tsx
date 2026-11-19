@@ -4,6 +4,7 @@ import { CheckCircle2, Loader2, MessageCircle, ShieldCheck, Star, Tag } from 'lu
 import { Button } from '@/components/ui/button';
 import { CinematicPricing } from '@/components/landing/cinematic/CinematicPricing';
 import { usePricingCheckout } from '@/hooks/usePricingCheckout';
+import { CouponField } from '@/components/pricing/CouponField';
 import { CONSULTA_PRO_SEMESTRAL_WHATSAPP_URL } from '@/lib/support';
 import {
   INCLUDED_IN_EVERY_PLAN,
@@ -45,6 +46,8 @@ export default function PricingPage({ variant = 'auto' }: { variant?: 'auto' | '
     checkoutError,
     checkoutNotice,
     planAction,
+    coupon,
+    couponDiscount,
   } = pricing;
 
   // Em /vendas/planos a página pública é obrigatória. Em /pricing ela vale só
@@ -125,6 +128,10 @@ export default function PricingPage({ variant = 'auto' }: { variant?: 'auto' | '
         </div>
       </div>
 
+      <div className="mt-4 flex justify-center">
+        <CouponField pricing={pricing} tone="app" />
+      </div>
+
       <div className="mt-8 grid grid-cols-1 items-start gap-4 md:grid-cols-3">
         {(isLoading ? [] : visiblePlans).map((plan) => {
           const family = planFamily(plan);
@@ -133,6 +140,7 @@ export default function PricingPage({ variant = 'auto' }: { variant?: 'auto' | '
           const planFeatures = secondaryFeatures(plan);
           const oferta = ofertaLancamento(plan);
           const semestral = detalheSemestral(plan, mensalPorFamilia.get(family));
+          const desconto = couponDiscount(plan);
 
           return (
             <motion.article
@@ -170,14 +178,18 @@ export default function PricingPage({ variant = 'auto' }: { variant?: 'auto' | '
 
               {/* 2. Preço */}
               <div className="mt-6 flex flex-wrap items-baseline gap-x-1">
-                {oferta?.precoCheio && plan.billing_interval === 'month' ? (
+                {desconto > 0 ? (
+                  <s className="mr-1 font-mono text-base tabular-nums text-muted-foreground">
+                    R$ {priceValue(plan).toLocaleString('pt-BR')}
+                  </s>
+                ) : oferta?.precoCheio && plan.billing_interval === 'month' ? (
                   <s className="mr-1 font-mono text-base tabular-nums text-muted-foreground">
                     R$ {oferta.precoCheio.toLocaleString('pt-BR')}
                   </s>
                 ) : null}
                 <span className="font-mono text-4xl font-bold tabular-nums text-foreground">
                   <NumberFlow
-                    value={priceValue(plan)}
+                    value={priceValue(plan) - desconto / 100}
                     format={{
                       style: 'currency',
                       currency: String(plan.currency || 'brl').toUpperCase(),
@@ -191,7 +203,13 @@ export default function PricingPage({ variant = 'auto' }: { variant?: 'auto' | '
                   / {intervalLabel(plan.billing_interval)}
                 </span>
               </div>
-              {oferta ? <p className="mt-2 text-xs font-medium text-warning">{oferta.nota}</p> : null}
+              {desconto > 0 ? (
+                <p className="mt-2 text-xs font-medium text-success">
+                  Com o cupom {coupon}: R$ {(desconto / 100).toLocaleString('pt-BR')} a menos todo mês.
+                </p>
+              ) : oferta ? (
+                <p className="mt-2 text-xs font-medium text-warning">{oferta.nota}</p>
+              ) : null}
               {semestral ? <p className="mt-2 text-xs text-muted-foreground">{semestral}</p> : null}
 
               {/* 3. Limite de contas — o eixo real de comparação entre os planos */}

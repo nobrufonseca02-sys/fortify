@@ -87,9 +87,9 @@ afterEach(() => {
   mockPlans = PLANS;
 });
 
-function renderPricing(props?: { variant?: 'auto' | 'public' }) {
+function renderPricing(props?: { variant?: 'auto' | 'public' }, url = '/vendas/planos') {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[url]}>
       <PricingPage {...props} />
     </MemoryRouter>,
   );
@@ -180,7 +180,36 @@ describe('PricingPage', () => {
     createGuestCheckoutSession.mockReturnValue(new Promise(() => {}));
     renderPricing({ variant: 'public' });
     fireEvent.click(screen.getAllByRole('button', { name: 'Assinar' })[0]);
-    await waitFor(() => expect(createGuestCheckoutSession).toHaveBeenCalledWith('beginner_monthly', expect.any(Boolean)));
+    await waitFor(() => expect(createGuestCheckoutSession).toHaveBeenCalledWith('beginner_monthly', expect.any(Boolean), null));
+  });
+
+  it('link com ?cupom=FORTIFY mostra o preço com desconto e manda o cupom para o checkout', async () => {
+    window.sessionStorage.clear();
+    createGuestCheckoutSession.mockReturnValue(new Promise(() => {}));
+    renderPricing({ variant: 'public' }, '/vendas/planos?cupom=fortify');
+    expect(screen.getByText(/Cupom/)).toHaveTextContent('FORTIFY');
+    expect(screen.getByText(/R\$\s?197/)).toBeInTheDocument();
+    expect(screen.getAllByText(/R\$\s?297/).some((el) => el.tagName === 'S')).toBe(true);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Assinar' })[0]);
+    await waitFor(() => expect(createGuestCheckoutSession).toHaveBeenCalledWith('beginner_monthly', expect.any(Boolean), 'FORTIFY'));
+  });
+
+  it('cupom digitado errado avisa e não muda o preço', () => {
+    window.sessionStorage.clear();
+    renderPricing({ variant: 'public' });
+    fireEvent.change(screen.getByLabelText('Cupom de desconto'), { target: { value: 'gratis' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('GRATIS');
+    expect(screen.queryByText(/R\$\s?197/)).not.toBeInTheDocument();
+  });
+
+  it('cupom digitado no campo aplica o desconto', () => {
+    window.sessionStorage.clear();
+    renderPricing({ variant: 'public' });
+    fireEvent.change(screen.getByLabelText('Cupom de desconto'), { target: { value: 'FORTIFY' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }));
+    expect(screen.getByText(/R\$\s?197/)).toBeInTheDocument();
+    window.sessionStorage.clear();
   });
 
   it('deslogado, com gateway sem checkout direto, volta ao cadastro guardando o plano', async () => {

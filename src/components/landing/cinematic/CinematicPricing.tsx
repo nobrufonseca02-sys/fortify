@@ -20,6 +20,7 @@ import {
   supportLabels,
 } from '@/lib/pricingCatalog';
 import { cn } from '@/lib/utils';
+import { CouponField } from '@/components/pricing/CouponField';
 import { FinalCta } from './FinalCta';
 import { CinematicPage } from './CinematicPage';
 import { Orb } from './Orb';
@@ -95,6 +96,9 @@ function Header({ pricing }: { pricing: PricingCheckout }) {
             </span>
           )}
         </motion.div>
+        <motion.div {...enter(0.4)}>
+          <CouponField pricing={pricing} tone="public" />
+        </motion.div>
       </div>
     </section>
   );
@@ -160,6 +164,7 @@ function PlanCard({ plan, pricing, index }: { plan: FortifyPlan; pricing: Pricin
   const highlighted = Boolean(plan.highlighted);
   const oferta = ofertaLancamento(plan);
   const semestral = detalheSemestral(plan, pricing.mensalPorFamilia.get(family));
+  const desconto = pricing.couponDiscount(plan);
 
   return (
     <motion.article
@@ -202,14 +207,18 @@ function PlanCard({ plan, pricing, index }: { plan: FortifyPlan; pricing: Pricin
         </p>
 
         <div className="relative mt-6 flex flex-wrap items-baseline gap-x-1">
-          {oferta?.precoCheio && plan.billing_interval === 'month' ? (
+          {desconto > 0 ? (
+            <s className="mr-1 text-base tabular-nums text-zinc-500">
+              R$ {priceValue(plan).toLocaleString('pt-BR')}
+            </s>
+          ) : oferta?.precoCheio && plan.billing_interval === 'month' ? (
             <s className="mr-1 text-base tabular-nums text-zinc-500">
               R$ {oferta.precoCheio.toLocaleString('pt-BR')}
             </s>
           ) : null}
           <span className="text-4xl font-semibold tabular-nums tracking-tight text-white">
             <NumberFlow
-              value={priceValue(plan)}
+              value={priceValue(plan) - desconto / 100}
               format={{
                 style: 'currency',
                 currency: String(plan.currency || 'brl').toUpperCase(),
@@ -221,7 +230,13 @@ function PlanCard({ plan, pricing, index }: { plan: FortifyPlan; pricing: Pricin
           </span>
           <span className="text-sm font-medium text-zinc-500">/ {intervalLabel(plan.billing_interval)}</span>
         </div>
-        {oferta ? <p className="relative mt-2 text-xs font-medium text-amber-200">{oferta.nota}</p> : null}
+        {desconto > 0 ? (
+          <p className="relative mt-2 text-xs font-medium text-emerald-200">
+            Com o cupom {pricing.coupon}: R$ {(desconto / 100).toLocaleString('pt-BR')} a menos todo mês.
+          </p>
+        ) : oferta ? (
+          <p className="relative mt-2 text-xs font-medium text-amber-200">{oferta.nota}</p>
+        ) : null}
         {semestral ? <p className="relative mt-2 text-xs text-zinc-400">{semestral}</p> : null}
 
         <div className="relative mt-5 rounded-xl border border-white/10 bg-zinc-900/60 px-4 py-3">

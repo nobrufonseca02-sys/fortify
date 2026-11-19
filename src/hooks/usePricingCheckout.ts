@@ -12,6 +12,11 @@ import {
 import { hasMarketingConsent, trackBeginCheckout, trackSelectPlan } from '@/lib/analytics';
 import { toast } from '@/hooks/use-toast';
 import {
+  couponDiscountCents,
+  isKnownCoupon,
+  normalizeCouponCode,
+} from '../../services/metaapi-gateway/src/checkoutCoupons';
+import {
   SEMESTER_INTERVAL,
   SEMESTRAL_SOB_CONSULTA,
   hasConfiguredPrice,
@@ -22,6 +27,25 @@ import {
   semestraisProntosParaVenda,
   type IntervaloCobranca,
 } from '@/lib/pricingCatalog';
+
+const COUPON_STORAGE_KEY = 'fortify_coupon';
+
+function readStoredCoupon() {
+  try {
+    return window.sessionStorage.getItem(COUPON_STORAGE_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+function storeCoupon(code: string) {
+  try {
+    if (code) window.sessionStorage.setItem(COUPON_STORAGE_KEY, code);
+    else window.sessionStorage.removeItem(COUPON_STORAGE_KEY);
+  } catch {
+    // Sem armazenamento: o cupom vale só enquanto a página estiver aberta.
+  }
+}
 
 export type PlanAction = {
   label: string;
@@ -63,6 +87,37 @@ export function usePricingCheckout() {
   const [resumeAttempted, setResumeAttempted] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [checkoutNotice, setCheckoutNotice] = useState<string | null>(null);
+  // Cupom: vem do link (?cupom=FORTIFY) ou do campo da tela, e fica guardado até o checkout.
+  const [coupon, setCoupon] = useState<string>(() => {
+    const fromLink = normalizeCouponCode(searchParams.get('cupom') || searchParams.get('coupon'));
+    const code = fromLink || normalizeCouponCode(readStoredCoupon());
+    return isKnownCoupon(code) ? code : '';
+  });
+  const [couponError, setCouponError] = useState<string | null>(() => {
+    const fromLink = normalizeCouponCode(searchParams.get('cupom') || searchParams.get('coupon'));
+    return fromLink && !isKnownCoupon(fromLink) ? `O cupom ${fromLink} não existe ou expirou.` : null;
+  });
+  useEffect(() => storeCoupon(coupon), [coupon]);
+  const applyCoupon = (raw: string) => {
+    const code = normalizeCouponCode(raw);
+    if (!code) {
+      setCouponError('Digite o cupom.');
+      return false;
+    }
+    if (!isKnownCoupon(code)) {
+      setCouponError(`O cupom ${code} não existe ou expirou.`);
+      return false;
+    }
+    setCoupon(code);
+    setCouponError(null);
+    return true;
+  };
+  const removeCoupon = () => {
+    setCoupon('');
+    setCouponError(null);
+  };
+  /** Desconto do cupom ativo neste plano, em centavos (0 se não vale para ele). */
+  const couponDiscount = (plan: FortifyPlan) => (coupon ? couponDiscountCents(coupon, plan.slug || plan.id) : 0);
   const billingEnabled = isBillingEnabled();
   const currentPlanId = subscription?.plan_id;
   // Matches the gateway's own gates (findBaseSubscriptionForAddon / create-portal-session):
@@ -156,15 +211,16 @@ export function usePricingCheckout() {
     try {
       // Sem login, Assinar vai direto para a Stripe: a conta é criada depois do
       // pagamento, pelo e-mail usado lá (rota /checkout/sucesso).
+      const planCoupon = couponDiscount(plan) > 0 ? coupon : null;
       const checkout = session?.access_token
-        ? await createCheckoutSession(planSelector, session.access_token, hasMarketingConsent())
-        : await createGuestCheckoutSession(planSelector, hasMarketingConsent());
+        ? await createCheckoutSession(planSelector, session.access_token, hasMarketingConsent(), planCoupon)
+        : await createGuestCheckoutSession(planSelector, hasMarketingConsent(), planCoupon);
       const checkoutUrl = String(checkout.checkout_url || '');
       if (!checkoutUrl.startsWith('https://checkout.stripe.com/')) {
         throw new Error('A Stripe retornou uma URL inválida para checkout.');
       }
       window.sessionStorage.setItem('fortify_pending_plan_slug', planSelector);
-      trackBeginCheckout({ slug: planSelector, name: plan.name, priceCents: plan.price_amount, currency: plan.currency });
+      trackBeginCheckout({ slug: planSelector, name: plan.name, priceCents: Number(plan.price_amount ?? 0) - couponDiscount(plan), currency: plan.currency });
       setCheckoutNotice('Checkout criado. Redirecionando para a Stripe...');
       window.location.href = checkoutUrl;
     } catch (error: any) {
@@ -305,6 +361,11 @@ export function usePricingCheckout() {
     activeAccountCount,
     startAddonCheckout,
     planAction,
+    coupon,
+    couponError,
+    applyCoupon,
+    removeCoupon,
+    couponDiscount,
   };
 }
 

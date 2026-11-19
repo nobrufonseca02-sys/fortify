@@ -88,13 +88,23 @@ async function assertBillingGatewayAvailable() {
   }
 }
 
-export async function createCheckoutSession(planSlug: string, accessToken: string, marketingConsent = false) {
+/**
+ * Com cupom, o gateway devolve `coupon_applied`. Gateway antigo ignora o cupom e cobraria o
+ * preço cheio depois de o site mostrar o preço com desconto: aí o checkout não abre.
+ */
+function assertCouponApplied(body: any, coupon: string | null) {
+  if (coupon && body?.coupon_applied !== coupon) {
+    throw new Error('Não foi possível aplicar o cupom agora. Tente de novo em alguns minutos.');
+  }
+}
+
+export async function createCheckoutSession(planSlug: string, accessToken: string, marketingConsent = false, coupon: string | null = null) {
   await assertBillingGatewayAvailable();
 
   const response = await billingFetch('/billing/create-checkout-session', {
     method: 'POST',
     headers: gatewayJsonHeaders(accessToken),
-    body: JSON.stringify({ planSlug, marketingConsent }),
+    body: JSON.stringify({ planSlug, marketingConsent, ...(coupon ? { coupon } : {}) }),
   });
 
   const body = await response.json().catch(() => ({}));
@@ -103,17 +113,18 @@ export async function createCheckoutSession(planSlug: string, accessToken: strin
   }
 
   assertCheckoutUrl(body?.checkout_url);
+  assertCouponApplied(body, coupon);
   return body as { checkout_url: string; session_id: string };
 }
 
 /** Checkout de quem ainda não tem conta: a conta nasce depois do pagamento, pelo e-mail pago. */
-export async function createGuestCheckoutSession(planSlug: string, marketingConsent = false) {
+export async function createGuestCheckoutSession(planSlug: string, marketingConsent = false, coupon: string | null = null) {
   await assertBillingGatewayAvailable();
 
   const response = await billingFetch('/billing/guest-checkout-session', {
     method: 'POST',
     headers: gatewayJsonHeaders(),
-    body: JSON.stringify({ planSlug, marketingConsent }),
+    body: JSON.stringify({ planSlug, marketingConsent, ...(coupon ? { coupon } : {}) }),
   });
 
   const body = await response.json().catch(() => ({}));
@@ -126,6 +137,7 @@ export async function createGuestCheckoutSession(planSlug: string, marketingCons
   }
 
   assertCheckoutUrl(body?.checkout_url);
+  assertCouponApplied(body, coupon);
   return body as { checkout_url: string; session_id: string };
 }
 

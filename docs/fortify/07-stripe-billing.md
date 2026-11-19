@@ -4,14 +4,35 @@ Esta é uma área crítica. Uma mudança visual em Pricing não autoriza alterar
 
 ## Planos mensais atuais
 
-| Slug | Preço | Contas MT5 | Stripe Price ID |
-| --- | ---: | ---: | --- |
-| `beginner_monthly` | R$ 97/mês | 1 | `price_1TfjleFCCIFbGAWBPkdIZmN0` |
-| `advanced_monthly` | R$ 297/mês | 3 | `price_1TniUnFCCIFbGAWBH4vzK1GB` |
-| `pro_monthly` | R$ 497/mês | 5 | `price_1TfjqlFCCIFbGAWBcYnlMkpB` |
-| `enterprise_monthly` | R$ 847/mês | 10 | `price_1TniUpFCCIFbGAWBZIbcUoXN` |
+Atualizado em 2026-10-16: a tabela anterior estava desatualizada (citava valores de uma
+versão anterior do catálogo) e os Price IDs antigos nunca existiam em modo live — só em
+teste. Os valores e IDs abaixo são os reais, conferidos direto contra o banco (`plans`)
+e contra a Stripe em modo live no momento da correção.
 
-Price IDs são identificadores publicáveis de catálogo, não chaves secretas. Não crie preço novo para corrigir mapeamento sem antes consultar os preços ativos do Product correto.
+| Slug | Preço | Contas MT5 | Stripe Price ID (live) |
+| --- | ---: | ---: | --- |
+| `beginner_monthly` | R$ 297/mês | 1 | `price_1UR2FQ2aY34sNvUukvnxeGFX` |
+| `advanced_monthly` | R$ 497/mês | 3 | `price_1UR2FR2aY34sNvUuBLiVdVGQ` |
+| `pro_monthly` | R$ 997/mês | 5 | `price_1UR2FT2aY34sNvUuehcDrFMI` |
+| `enterprise_monthly` | R$ 1.497/mês | 10 | `price_1UR2FU2aY34sNvUuML2uGiXe` |
+
+Price IDs são identificadores publicáveis de catálogo, não chaves secretas. Não crie preço
+novo para corrigir mapeamento sem antes consultar os preços ativos do Product correto **e**
+o valor atual em `plans.price_amount` — essa tabela, não esta doc, é a fonte de verdade.
+
+## Cupom de desconto
+
+Regra única em `services/metaapi-gateway/src/checkoutCoupons.ts`: o site mostra o preço com ela
+e o gateway cobra com ela. O código `FORTIFY` vale para sempre e dá R$ 100 no Beginner, R$ 100 no
+Advanced e R$ 200 no Pro. Como o desconto em reais muda por plano, cada plano tem um cupom próprio
+na Stripe (`FORTIFY_BEGINNER`, `FORTIFY_ADVANCED`, `FORTIFY_PRO`: valor fixo em BRL, duração
+"para sempre", limitado ao produto do plano). O gateway recebe `coupon` em
+`create-checkout-session` e `guest-checkout-session` e abre a sessão com `discounts[0][coupon]`.
+O campo de código da página da Stripe fica escondido nos checkouts de plano: um código digitado lá
+não tem como escolher o cupom do plano, e a conta não tem códigos promocionais. O cupom entra pelo
+campo do site ou pelo link. O site recusa abrir o checkout se a resposta não trouxer
+`coupon_applied`, para nunca cobrar preço cheio depois de mostrar desconto.
+Link pronto: `/vendas/planos?cupom=FORTIFY`.
 
 ## Compra: Stripe Checkout
 
