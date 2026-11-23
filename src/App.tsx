@@ -236,6 +236,14 @@ function PricingRoute() {
   return <PricingPage />;
 }
 
+/** Link curto da campanha: /cadastro?promo=guard3d abre o cadastro levando o código junto. */
+function CadastroRedirect() {
+  const { search } = useLocation();
+  const params = new URLSearchParams(search);
+  params.set('intent', 'signup');
+  return <Navigate to={`/auth?${params.toString()}`} replace />;
+}
+
 /** Exportado para teste: é ele que decide se /auth abre a tela ou manda
  *  para o painel, e foi exatamente aí que o CTA de cadastro quebrava. */
 export function AuthGuard() {
@@ -303,6 +311,7 @@ function AppContent() {
           <Route path="/blog" element={<BlogIndex />} />
           <Route path="/blog/:slug" element={<BlogPost />} />
           <Route path="/auth" element={<AuthGuard />} />
+          <Route path="/cadastro" element={<CadastroRedirect />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/checkout/sucesso" element={<CheckoutSuccess />} />
           <Route path="/*" element={<ProtectedRoutes />} />

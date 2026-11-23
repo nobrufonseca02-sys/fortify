@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { capturePromoFromSearch } from "@/lib/promoTrial";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { Input } from "@/components/ui/input";
@@ -119,6 +120,11 @@ export default function AuthPage() {
   const [mode, setMode] = useState<AuthMode>(() =>
     new URLSearchParams(search).get("intent") === "signup" ? "signup" : "login",
   );
+  // Link da campanha de teste grátis (?promo=guard3d): guarda o código para pedir o trial
+  // ao gateway assim que a pessoa entrar logada (PromoTrialGate).
+  useEffect(() => {
+    capturePromoFromSearch(search);
+  }, [search]);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);

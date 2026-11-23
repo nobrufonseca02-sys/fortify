@@ -117,6 +117,23 @@ export async function createCheckoutSession(planSlug: string, accessToken: strin
   return body as { checkout_url: string; session_id: string };
 }
 
+/** Pede ao gateway o teste grátis da campanha. O gateway decide se a conta tem direito. */
+export async function startPromoTrial(promo: string, accessToken: string) {
+  const response = await billingFetch('/billing/start-promo-trial', {
+    method: 'POST',
+    headers: gatewayJsonHeaders(accessToken),
+    body: JSON.stringify({ promo }),
+  });
+  const body = await response.json().catch(() => ({}));
+  return {
+    ok: response.ok,
+    status: response.status,
+    code: String(body?.code || ''),
+    message: String(body?.error || ''),
+    trialEndsAt: (body?.trial_ends_at as string | undefined) ?? null,
+  };
+}
+
 /** Checkout de quem ainda não tem conta: a conta nasce depois do pagamento, pelo e-mail pago. */
 export async function createGuestCheckoutSession(planSlug: string, marketingConsent = false, coupon: string | null = null) {
   await assertBillingGatewayAvailable();

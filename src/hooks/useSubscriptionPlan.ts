@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { isPromoTrialSubscription } from '@/lib/promoTrial';
 
 export interface FortifyPlan {
   id: string;
@@ -162,6 +163,8 @@ export function useSubscriptionPlan() {
         accountLimit,
         remainingAccounts: Math.max(0, accountLimit - activeAccountCount),
         hasActivePlan: planoPago,
+        // Teste grátis da campanha, mesmo vencido: o pop-up da oferta precisa dele depois do prazo.
+        promoTrial: subscriptions.find(isPromoTrialSubscription) ?? null,
       };
     },
   });
@@ -176,6 +179,7 @@ export function useSubscriptionPlan() {
     accountLimit: query.data?.accountLimit ?? 0,
     remainingAccounts: query.data?.remainingAccounts ?? 0,
     hasActivePlan: query.data?.hasActivePlan ?? false,
+    promoTrial: query.data?.promoTrial ?? null,
     isLoading: query.isLoading,
     error: query.error,
     refetch: query.refetch,

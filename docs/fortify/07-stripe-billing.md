@@ -38,6 +38,20 @@ Links de compra direta (o checkout abre sozinho e o parâmetro sai da URL):
 `/vendas/planos?plano=beginner&cupom=FORTIFY` (com desconto) e `/vendas/planos?plano=beginner`
 (sem cupom, o cliente digita o código do plano na Stripe). Vale `beginner`, `advanced` e `pro`.
 
+## Teste grátis da campanha e oferta R$ 97 (até 30/11/2026)
+
+Link da campanha: `/cadastro?promo=guard3d` (vira `/auth?intent=signup&promo=guard3d`). O site guarda
+o código no navegador (`src/lib/promoTrial.ts`) e, depois do login, chama `POST /billing/start-promo-trial`.
+O gateway (`services/metaapi-gateway/src/promoTrial.ts`) só libera para conta em `beta_free` sem
+`stripe_subscription_id`: grava `beginner_monthly`, `trialing`, 1 conta e `paid_until` em 3 dias.
+O mesmo entitlement de sempre faz o EA parar quando vence (`plan_inactive`). Quem já usou o trial
+fica em `beginner_monthly` e não ganha outro. O link para de liberar trial depois de 30/11/2026 23h59.
+
+`PromoTrialGate` (no `AppLayout`) mostra a faixa com o tempo restante e o pop-up
+`FortifyGuardPromoModal`, que abre o checkout do Beginner com o cupom `GUARD97`: R$ 200 de desconto
+por 12 meses (cupom Stripe `FORTIFY_GUARD_97`, valor fixo BRL, `repeating` 12 meses, só o produto do
+Beginner). O código expira em `GUARD97_OFFER_ENDS_AT` no site e no gateway.
+
 ## Compra: Stripe Checkout
 
 1. Usuário escolhe um plano em `/pricing`.

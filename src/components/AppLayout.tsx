@@ -9,6 +9,7 @@ import { useIdleSession } from "@/hooks/useIdleSession";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 import { SUPPORT_WHATSAPP_URL } from "@/lib/support";
 import { TradingViewProvider } from "@/components/tradingview/TradingViewProvider";
+import { PromoTrialGate } from "@/components/billing/PromoTrialGate";
 
 const supportLabels: Record<string, string> = {
   basic: "Suporte básico",
@@ -96,6 +97,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </header>
 
             <main className="flex-1 overflow-auto">
+              <PromoTrialGate />
               <PageTransition>{children}</PageTransition>
             </main>
           </div>
