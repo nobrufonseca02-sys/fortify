@@ -5,9 +5,12 @@
  * deploy de código quando o grupo lotar (limite do WhatsApp) ou o vídeo mudar.
  */
 
-/** Link de convite do grupo. Defina VITE_WHATSAPP_VIP_GROUP_URL na Vercel. */
+/**
+ * Link de convite do Grupo VIP. Quando o grupo lotar, troque aqui ou defina
+ * VITE_WHATSAPP_VIP_GROUP_URL na Vercel (a variável tem prioridade).
+ */
 export const WHATSAPP_VIP_GROUP_URL =
-  String(import.meta.env.VITE_WHATSAPP_VIP_GROUP_URL || '').trim() || 'https://chat.whatsapp.com/SEU_GRUPO';
+  String(import.meta.env.VITE_WHATSAPP_VIP_GROUP_URL || '').trim() || 'https://chat.whatsapp.com/DcR07RJL7juHZcCdpj9zlm';
 
 /** Vídeo opcional do hero (mp4 público). Sem ele, a página mostra só a tela real do painel. */
 export const GRUPO_VIP_VIDEO_URL = String(import.meta.env.VITE_GRUPO_VIP_VIDEO_URL || '').trim() || null;
