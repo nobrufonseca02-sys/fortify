@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from 'react';
-import { Link } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { BellRing, Flame, Gift, Lock, MessageCircle, Play, ShieldCheck } from 'lucide-react';
 import { FortifyMark } from '@/components/brand/FortifyMark';
@@ -466,9 +465,10 @@ export default function GrupoVipPage() {
           investimento nem garantia de aprovação ou resultado. Operar no mercado financeiro envolve risco de perda.
         </p>
         <p className="mt-3">
-          <Link to="/vendas" className="underline-offset-2 hover:text-zinc-300 hover:underline">
+          {/* <a> e não <Link>: esta página roda num router próprio, sem a rota /vendas. */}
+          <a href="/vendas" className="underline-offset-2 hover:text-zinc-300 hover:underline">
             Conheça o Fortify
-          </Link>
+          </a>
         </p>
       </footer>
 

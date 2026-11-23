@@ -279,8 +279,30 @@ export function AuthGuard() {
   return <AuthPage />;
 }
 
+/**
+ * Páginas de campanha que não usam login. Ficam fora da espera do Supabase:
+ * quem chega pelo anúncio vê a primeira dobra na hora, sem tela de carregamento,
+ * e a página continua de pé mesmo se o Supabase estiver fora do ar.
+ */
+const ROTAS_DE_CAMPANHA = new Set(["/grupo-vip", "/vip"]);
+
+function CampaignRoutes() {
+  return (
+    <BrowserRouter>
+      <Suspense fallback={<div className="min-h-screen bg-black" />}>
+        <Routes>
+          <Route path="/grupo-vip" element={<GrupoVipPage />} />
+          <Route path="/vip" element={<Navigate to={{ pathname: "/grupo-vip", search: window.location.search }} replace />} />
+        </Routes>
+      </Suspense>
+    </BrowserRouter>
+  );
+}
+
 function AppContent() {
   const { loading, startupError, retryStartup } = useAuth();
+
+  if (ROTAS_DE_CAMPANHA.has(window.location.pathname.replace(/\/+$/, "") || "/")) return <CampaignRoutes />;
 
   if (loading) return <AuthLoadingScreen />;
   if (startupError) return <SupabaseStartupDiagnostic error={startupError} onRetry={retryStartup} />;
@@ -296,9 +318,10 @@ function AppContent() {
           <Route path="/vendas/faq" element={<FaqPage />} />
           <Route path="/vendas/quem-somos" element={<QuemSomosPage />} />
           <Route path="/vendas/planos" element={<PlanosPage />} />
-          {/* Página ponte da campanha do Meta Ads para o grupo VIP do WhatsApp. */}
+          {/* /grupo-vip e /vip: atendidas por CampaignRoutes, antes da espera do Supabase.
+              Repetidas aqui para quem chega a elas navegando dentro do app. */}
           <Route path="/grupo-vip" element={<GrupoVipPage />} />
-          <Route path="/vip" element={<Navigate to={{ pathname: "/grupo-vip", search: window.location.search }} replace />} />
+          <Route path="/vip" element={<Navigate to="/grupo-vip" replace />} />
           {/* Aliases em inglês: rotas canônicas são as em português (convenção
               já existente em /vendas/*), estas existem só para links externos. */}
           <Route path="/about" element={<Navigate to="/vendas/quem-somos" replace />} />
