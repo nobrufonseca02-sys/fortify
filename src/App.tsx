@@ -37,6 +37,7 @@ const MesasPage = lazy(() => import("./pages/landing/MesasPage"));
 const FaqPage = lazy(() => import("./pages/landing/FaqPage"));
 const QuemSomosPage = lazy(() => import("./pages/landing/QuemSomosPage"));
 const PlanosPage = lazy(() => import("./pages/landing/PlanosPage"));
+const GrupoVipPage = lazy(() => import("./pages/landing/GrupoVipPage"));
 const BlogIndex = lazy(() => import("./pages/BlogIndex"));
 const BlogPost = lazy(() => import("./pages/BlogPost"));
 const SubscriptionManagementPage = lazy(() => import("./pages/SubscriptionManagementPage"));
@@ -295,6 +296,9 @@ function AppContent() {
           <Route path="/vendas/faq" element={<FaqPage />} />
           <Route path="/vendas/quem-somos" element={<QuemSomosPage />} />
           <Route path="/vendas/planos" element={<PlanosPage />} />
+          {/* Página ponte da campanha do Meta Ads para o grupo VIP do WhatsApp. */}
+          <Route path="/grupo-vip" element={<GrupoVipPage />} />
+          <Route path="/vip" element={<Navigate to={{ pathname: "/grupo-vip", search: window.location.search }} replace />} />
           {/* Aliases em inglês: rotas canônicas são as em português (convenção
               já existente em /vendas/*), estas existem só para links externos. */}
           <Route path="/about" element={<Navigate to="/vendas/quem-somos" replace />} />

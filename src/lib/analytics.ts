@@ -4,6 +4,8 @@ const UTM_STORAGE_KEY = 'fortify_utm_params';
 declare global {
   interface Window {
     dataLayer?: unknown[];
+    /** Meta Pixel, quando carregado (via GTM, depois do consentimento). */
+    fbq?: (...args: unknown[]) => void;
   }
 }
 
@@ -210,4 +212,39 @@ export function trackPurchase(params: {
     },
     ...getStoredUtmParams(),
   });
+}
+
+const LEAD_GRUPO_VIP_KEY = 'fortify_lead_grupo_vip';
+
+/**
+ * Lead da página ponte /grupo-vip: clique para entrar no grupo do WhatsApp.
+ *
+ * Conta UMA vez por sessão do navegador. Quem toca no botão, volta e toca de
+ * novo é a mesma pessoa; contar duas vezes inflaria o custo por lead que o Meta
+ * usa para otimizar a campanha. O `event_id` vai nos dois canais (dataLayer e
+ * fbq) para o Meta deduplicar caso a tag do GTM também dispare o Lead.
+ */
+export function trackGrupoVipLead(ctaLocation: string) {
+  if (typeof window === 'undefined') return;
+
+  let jaContou = false;
+  try {
+    jaContou = window.sessionStorage.getItem(LEAD_GRUPO_VIP_KEY) !== null;
+    if (!jaContou) window.sessionStorage.setItem(LEAD_GRUPO_VIP_KEY, String(Date.now()));
+  } catch {
+    // Navegador interno sem sessionStorage: segue contando, melhor que perder o lead.
+  }
+  if (jaContou) return;
+
+  const eventId = `grupo_vip_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  pushDataLayerEvent('lead', {
+    source: 'meta_ads_grupo_vip',
+    cta_location: ctaLocation,
+    event_id: eventId,
+    ...getStoredUtmParams(),
+  });
+
+  if (typeof window.fbq === 'function') {
+    window.fbq('track', 'Lead', { content_name: 'grupo_vip_whatsapp' }, { eventID: eventId });
+  }
 }
