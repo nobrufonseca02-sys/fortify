@@ -67,10 +67,10 @@ function WhatsAppCta({
       whileTap={reduceMotion ? undefined : { scale: 0.97 }}
       transition={{ type: 'spring', stiffness: 380, damping: 25 }}
       className={cn(
-        'group relative isolate inline-flex w-full select-none items-center justify-center gap-2.5 overflow-hidden rounded-2xl bg-white font-semibold uppercase tracking-[0.04em] text-zinc-950',
+        'group relative isolate inline-flex w-full select-none items-center justify-center gap-2 overflow-hidden whitespace-nowrap rounded-2xl bg-white font-semibold tracking-[-0.005em] text-zinc-950',
         'shadow-[0_1px_2px_rgba(0,0,0,0.4),0_12px_40px_-12px_rgba(165,88,251,0.65)] transition-shadow duration-300 hover:shadow-[0_1px_2px_rgba(0,0,0,0.4),0_16px_48px_-10px_rgba(165,88,251,0.85)]',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black',
-        size === 'lg' ? 'min-h-14 px-6 text-[15px] sm:text-base' : 'min-h-12 px-5 text-sm',
+        size === 'lg' ? 'min-h-14 px-4 text-[15px] sm:px-6 sm:text-base' : 'min-h-12 px-4 text-[15px]',
         className,
       )}
     >
@@ -96,12 +96,12 @@ function WhatsAppCta({
 function UrgencyBar() {
   return (
     <div className="sticky top-0 z-40 border-b border-white/10 bg-gradient-to-r from-violet-950/95 via-zinc-950/95 to-indigo-950/95 backdrop-blur-md">
-      <p className="mx-auto flex max-w-3xl items-center justify-center gap-2 px-4 py-2.5 text-center text-[12px] leading-snug text-zinc-200 sm:text-[13px]">
+      <p className="mx-auto flex max-w-3xl items-center justify-center gap-1.5 whitespace-nowrap px-3 py-2 text-center text-[11.5px] leading-snug text-zinc-200 sm:gap-2 sm:py-2.5 sm:text-[13px]">
         <Flame className="h-3.5 w-3.5 shrink-0 text-orange-400" aria-hidden="true" />
         <span>
-          <strong className="font-semibold text-white">Black November:</strong> de{' '}
+          <strong className="font-semibold text-white">Black November:</strong>{' '}
           <s className="text-zinc-400">{OFERTA.precoDe}</s> por{' '}
-          <strong className="font-semibold text-white">{OFERTA.precoPor}/mês</strong> até {OFERTA.prazoTexto}
+          <strong className="font-semibold text-white">{OFERTA.precoPor}/mês</strong> até {OFERTA.prazoCurto}
         </span>
       </p>
     </div>
@@ -174,7 +174,7 @@ function Hero({ ctaRef }: { ctaRef: RefObject<HTMLDivElement> }) {
         };
 
   return (
-    <section aria-labelledby="grupo-vip-titulo" className="relative overflow-hidden px-5 pb-12 pt-7 sm:pt-14">
+    <section aria-labelledby="grupo-vip-titulo" className="relative overflow-hidden px-5 pb-12 pt-5 sm:pt-14">
       {/* Iluminação atmosférica: o eclipse do Orb no topo, atrás do título. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 -top-[22vh] h-[52vh] opacity-80 sm:-top-[30vh] sm:h-[70vh]">
         <Orb />
@@ -194,7 +194,7 @@ function Hero({ ctaRef }: { ctaRef: RefObject<HTMLDivElement> }) {
         <motion.h1
           id="grupo-vip-titulo"
           {...enter(0.06)}
-          className="mt-4 text-balance text-[30px] font-semibold leading-[1.08] tracking-tight text-white sm:text-5xl"
+          className="mt-3 text-balance text-[29px] font-semibold leading-[1.08] tracking-tight text-white sm:text-5xl"
         >
           Libere 3 dias de acesso gratuito ao <span className="text-violet-300">Fortify Guard</span> no MT5
         </motion.h1>
@@ -208,18 +208,18 @@ function Hero({ ctaRef }: { ctaRef: RefObject<HTMLDivElement> }) {
         </motion.p>
 
         {/* Sem animação de entrada: é o maior elemento da dobra e tem que pintar logo. */}
-        <div className="mt-6 w-full">
+        <div className="mt-5 w-full">
           <HeroMedia />
         </div>
 
         <motion.div
           ref={ctaRef}
           {...enter(0.24)}
-          className="mt-6 w-full max-w-md"
+          className="mt-5 w-full max-w-md"
         >
           <WhatsAppCta location="hero">Entrar no Grupo VIP do WhatsApp</WhatsAppCta>
-          <p className="mt-3 flex items-center justify-center gap-1.5 text-[12px] text-zinc-400">
-            <Lock className="h-3 w-3" aria-hidden="true" />
+          <p className="mt-2.5 text-center text-[12px] text-zinc-400">
+            <Lock className="mr-1 inline h-3 w-3 -translate-y-px" aria-hidden="true" />
             Acesso 100% gratuito ao grupo · Sem necessidade de cartão
           </p>
         </motion.div>

@@ -26,4 +26,6 @@ export const OFERTA = {
   precoDe: 'R$ 297',
   precoPor: 'R$ 97',
   prazoTexto: '30/11 às 23h59',
+  /** Versão curta para a barra do topo caber em uma linha no celular. */
+  prazoCurto: '30/11, 23h59',
 } as const;
