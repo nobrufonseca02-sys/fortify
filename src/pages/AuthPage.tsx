@@ -157,7 +157,7 @@ export default function AuthPage() {
 
   const handleSignup = async () => {
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
       options: {
@@ -168,6 +168,10 @@ export default function AuthPage() {
     setLoading(false);
     if (error) {
       toast({ title: "Erro ao criar conta", description: error.message, variant: "destructive" });
+    } else if (data.session) {
+      // Sem confirmação de e-mail no projeto: a conta já nasce logada e o app abre sozinho.
+      trackSignUp();
+      toast({ title: "Conta criada!", description: "Você já está dentro do Fortify." });
     } else {
       trackSignUp();
       toast({ title: "Conta criada!", description: "Verifique seu e-mail para confirmar o cadastro." });
