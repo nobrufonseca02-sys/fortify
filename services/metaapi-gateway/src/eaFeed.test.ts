@@ -6,6 +6,7 @@ import {
   sanitizeEaDays,
   serializeEaError,
   serializeEaFeed,
+  sanitizeEaRuleKeys,
   type EaLiveInput,
   type EaPreferences,
 } from './eaFeed';
@@ -109,10 +110,23 @@ test('consistência que o motor não sabe calcular não vai para o EA, nunca vir
   assert.equal(rule, undefined);
 });
 
-test('só manda as regras que o trader escolheu; notícias salvas antes são ignoradas', () => {
-  const feed = feedFor(fullBinding(), live, { ruleKeys: ['consistency', 'news'] as any, stage: 'evaluation', warningPct: 60, criticalPct: 90 });
-  assert.deepEqual(feed.rules.map((r) => r.key), ['consistency']);
+test('só manda as regras que o trader escolheu; regra de texto vai como lembrete na aba Regras', () => {
+  const row = fullBinding();
+  row.rule_snapshot.criticalRules.newsRule = 'Proibido operar 2 minutos antes e depois de notícia';
+  const feed = feedFor(row, live, { ruleKeys: ['consistency', 'news'], stage: 'evaluation', warningPct: 60, criticalPct: 90 });
+  assert.deepEqual(feed.rules.map((r) => r.key), ['consistency', 'news']);
+  const news = feed.rules.find((r) => r.key === 'news')!;
+  assert.equal(news.kind, 'note');
+  assert.equal(news.group, 'rules');
+  assert.equal(news.message, 'Proibido operar 2 minutos antes e depois de notícia');
   assert.equal(feed.warningPct, 60);
+});
+
+test('sem escolha salva, regra de texto não aparece no EA', () => {
+  const row = fullBinding();
+  row.rule_snapshot.criticalRules.newsRule = 'Proibido operar 2 minutos antes e depois de notícia';
+  const feed = feedFor(row, live, { ruleKeys: null, stage: 'evaluation', warningPct: 70, criticalPct: 85 });
+  assert.ok(!feed.rules.some((r) => r.group === 'rules'));
 });
 
 test('histórico do terminal é limpo: datas inválidas e duplicadas saem', () => {
@@ -189,4 +203,176 @@ test('inatividade não depende da ordem do histórico', () => {
   // Histórico em ordem crescente, como vem do terminal antes da limpeza.
   const rule = feedFor(row, live).rules.find((r) => r.key === 'inactivity')!;
   assert.equal(rule.current, 0);
+});
+
+test('aba Configurações do EA: manda todas as regras da mesa, marcando as ligadas', () => {
+  const feed = feedFor(fullBinding(), live, { ...ALL, ruleKeys: ['daily_loss', 'news'] });
+  const news = feed.options.find((o) => o.key === 'news')!;
+  assert.equal(news.on, true);
+  assert.equal(news.live, false);
+  assert.equal(news.group, 'rules');
+  assert.equal(feed.options.find((o) => o.key === 'max_drawdown')!.on, false);
+  assert.deepEqual(feed.rules.map((r) => r.key), ['daily_loss', 'news']);
+  const text = serializeEaFeed({ ...feed, notice: 'Aviso | curto' });
+  const optionLines = text.split('\n').filter((l) => l.startsWith('O|'));
+  assert.equal(optionLines.length, feed.options.length);
+  assert.ok(optionLines.includes('O|news|Notícias|rules|0|1|Proibido operar 2 minutos antes e depois de notícias de alto impacto'));
+  assert.ok(optionLines.includes('O|max_drawdown|Drawdown máximo|account|1|0|10% ($10.000)'));
+  assert.match(text, /\nN\|Aviso curto\nEND\n$/);
+});
+
+test('aba Configurações do EA: cada regra traz o percentual e o valor já calculados', () => {
+  // Vale também para regra desligada: o trader vê o número antes de decidir ligar.
+  const feed = feedFor(fullBinding({ dailyLoss: '6%' }), live, { ...ALL, ruleKeys: ['news'] });
+  const detail = (key: string) => feed.options.find((o) => o.key === key)?.detail;
+  assert.equal(detail('daily_loss'), '6% ($6.000)');
+  assert.equal(detail('max_drawdown'), '10% ($10.000)');
+  assert.equal(detail('profit_target'), '10% ($10.000)');
+  assert.equal(detail('consistency'), 'Maior dia até 30% do lucro total');
+});
+
+test('aba Configurações do EA: limite em dinheiro também vira percentual da conta', () => {
+  const feed = feedFor(fullBinding({ dailyLoss: '$2.500' }), live);
+  assert.equal(feed.options.find((o) => o.key === 'daily_loss')?.detail, '2,5% ($2.500)');
+});
+
+test('escolha vinda do EA: só chaves conhecidas, sem repetir', () => {
+  assert.equal(sanitizeEaRuleKeys(undefined), null);
+  assert.equal(sanitizeEaRuleKeys('daily_loss'), null);
+  assert.deepEqual(sanitizeEaRuleKeys(['daily_loss', 'news', 'daily_loss', 'drop table', 7]), ['daily_loss', 'news']);
+  assert.deepEqual(sanitizeEaRuleKeys([]), []);
+});
+
+// ---- Correções da auditoria de 18/11/2026 ----
+
+function firmBinding(slug: string, overrides: Partial<AccountRuleBindingRow['rule_snapshot']['criticalRules']> = {}) {
+  const base = fullBinding(overrides);
+  return binding({
+    rule_snapshot: { ...base.rule_snapshot, propFirm: { ...base.rule_snapshot.propFirm, slug } },
+  });
+}
+
+const E8_PRO = { drawdownType: 'Static', drawdownCalculation: 'Piso fixo; após o primeiro payout, o loss level move para o saldo inicial.', maxLoss: '8% estático' };
+const FUNDED: EaPreferences = { ...ALL, stage: 'funded' };
+const fundedAccount = { ...account, stage: 'funded' as const };
+
+function fundedFeed(row: AccountRuleBindingRow, input: EaLiveInput) {
+  const evaluation = evaluateForEa(row, fundedAccount, input);
+  return buildEaFeed({ binding: row, evaluation, live: input, account: fundedAccount, preferences: FUNDED });
+}
+
+test('E8 Pro: antes do saque o piso é o saldo inicial menos 8%', () => {
+  const rule = fundedFeed(firmBinding('e8-markets', E8_PRO), { ...live, payouts: 0 }).rules.find((r) => r.key === 'max_drawdown')!;
+  assert.equal(rule.kind, 'floor');
+  assert.equal(rule.floor, 92_000);
+});
+
+test('E8 Pro: depois do primeiro saque o piso sobe para o saldo inicial', () => {
+  const rule = fundedFeed(firmBinding('e8-markets', E8_PRO), { ...live, payouts: 1, lastPayoutDate: '2026-11-11' }).rules.find((r) => r.key === 'max_drawdown')!;
+  assert.equal(rule.kind, 'floor');
+  assert.equal(rule.floor, 100_000);
+});
+
+test('E8 Pro: EA antigo em conta funded não mostra piso que pode estar errado', () => {
+  const rule = fundedFeed(firmBinding('e8-markets', E8_PRO), live).rules.find((r) => r.key === 'max_drawdown')!;
+  assert.equal(rule.kind, 'note');
+});
+
+test('NP Future: o piso trava em saldo inicial + $100, não no saldo inicial', () => {
+  const row = firmBinding('np-future', {
+    drawdownType: 'EOD',
+    drawdownCalculation: 'EOD móvel pelo maior fechamento diário; trava definitivamente em saldo inicial + $100.',
+    maxLoss: '$3,000',
+  });
+  const peak: EaLiveInput = {
+    ...live,
+    balance: 110_000,
+    equity: 110_000,
+    days: [{ date: '2026-11-11', pnl: 10_000, eodBalance: 110_000, traded: true }],
+  };
+  const rule = feedFor(row, peak).rules.find((r) => r.key === 'max_drawdown')!;
+  assert.equal(rule.floor, 100_100);
+});
+
+test('NP Future Standard: o texto que nega a trava não trava o piso', () => {
+  const row = firmBinding('np-future', {
+    drawdownType: 'Static',
+    drawdownCalculation: 'A avaliação usa Max Loss por plano e não usa a trava EOD de saldo inicial + $100 aplicada à Funded.',
+    maxLoss: '$3,000',
+  });
+  assert.equal(feedFor(row, live).rules.find((r) => r.key === 'max_drawdown')!.floor, 97_000);
+});
+
+test('FTMO: às 23h30 UTC a mesa já está no dia seguinte e a perda de ontem não conta', () => {
+  const late = new Date('2026-11-12T23:30:00Z');
+  const firmDay: EaLiveInput = {
+    balance: 99_000,
+    equity: 99_000,
+    now: late,
+    dayBasis: 'Europe/Prague+0',
+    dayToday: '2026-11-13',
+    days: [{ date: '2026-11-12', pnl: -1_000, eodBalance: 99_000, traded: true }],
+  };
+  const rule = feedFor(firmBinding('ftmo'), firmDay).rules.find((r) => r.key === 'daily_loss')!;
+  // O dia da mesa começou agora com 99.000: quebra 5.000 abaixo.
+  assert.equal(rule.floor, 94_000);
+  assert.equal(rule.status, 'safe');
+});
+
+test('EA antigo continua em UTC mesmo em mesa com horário próprio', () => {
+  const rule = feedFor(firmBinding('ftmo'), live).rules.find((r) => r.key === 'daily_loss')!;
+  assert.equal(rule.floor, 97_000);
+  assert.equal(rule.status, 'partial');
+});
+
+test('o gateway manda ao EA a hora em que a mesa vira o dia', () => {
+  const text = serializeEaFeed(feedFor(firmBinding('ftmo'), live));
+  const line = text.split('\n').find((item) => item.startsWith('D|'))!;
+  const [, token, reset, exact, steps] = line.split('|');
+  assert.equal(token, 'Europe/Prague+0');
+  assert.equal(reset, '0');
+  assert.equal(exact, '1');
+  // Novembro em Praga é UTC+1.
+  assert.equal(steps.split(',').at(-1)!.split(':')[1], '60');
+});
+
+test('mesa sem horário publicado fica em UTC e o painel avisa', () => {
+  const feed = feedFor(firmBinding('asap-funding-prop'), live);
+  assert.equal(feed.dayBoundary?.token, 'utc');
+  assert.match(feed.rules.find((r) => r.key === 'daily_loss')!.message, /não publica/);
+});
+
+test('dias lucrativos: só conta o dia que fechou com o lucro mínimo', () => {
+  const row = firmBinding('the-trading-pit', { minTradingDays: '3 dias lucrativos de pelo menos 0,5% do saldo inicial' });
+  const history: EaLiveInput = {
+    ...live,
+    days: [
+      { date: '2026-11-09', pnl: 500, eodBalance: 100_500, traded: true },
+      { date: '2026-11-10', pnl: 499, eodBalance: 100_999, traded: true },
+      { date: '2026-11-11', pnl: 800, eodBalance: 101_799, traded: true },
+      { date: '2026-11-12', pnl: 900, eodBalance: 102_699, traded: true },
+    ],
+  };
+  const feed = feedFor(row, history);
+  const rule = feed.rules.find((r) => r.key === 'min_trading_days')!;
+  assert.equal(rule.kind, 'counter');
+  assert.equal(rule.mode, 'profitable');
+  // $499 fica abaixo dos $500 e hoje ainda não fechou.
+  assert.equal(rule.current, 2);
+  assert.equal(rule.required, 3);
+  assert.equal(rule.param1, 500);
+  assert.equal(feed.options.find((o) => o.key === 'min_trading_days')!.detail, '3 dias com lucro de $500 ou mais');
+});
+
+test('dias positivos por ciclo: recomeça depois do último saque', () => {
+  const row = firmBinding('asap-funding-prop', { minTradingDays: '7 dias positivos por ciclo, cada um com lucro de ao menos 0,1% do saldo' });
+  const rule = feedFor(row, { ...live, lastPayoutDate: '2026-11-10' }).rules.find((r) => r.key === 'min_trading_days')!;
+  assert.equal(rule.current, 1);
+});
+
+test('NP Future Funded: o lucro mínimo do dia vem da tabela do plano', () => {
+  const row = firmBinding('np-future', { minTradingDays: '5 dias positivos por ciclo, com lucro mínimo diário por plano' });
+  const rule = feedFor(row, live).rules.find((r) => r.key === 'min_trading_days')!;
+  assert.equal(rule.param1, 250);
+  assert.equal(rule.current, 2);
 });

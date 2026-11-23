@@ -35,11 +35,16 @@ import {
   buildEaFeed,
   evaluateForEa,
   isEaRuleKey,
+  sanitizeEaDayInfo,
   sanitizeEaDays,
   serializeEaError,
   serializeEaFeed,
+  sanitizeEaRuleKeys,
   type EaPreferences,
 } from './eaFeed';
+import { resolveEaDay } from './eaDayBoundary';
+import { resolveCheckoutCoupon } from './checkoutCoupons';
+import { decidePromoTrial, isPromoTrialRow, trialSubscriptionFields } from './promoTrial';
 import { verifyBindingSnapshot } from './ruleEngine/snapshotIntegrity';
 import { parseInitialBalance } from './ruleEngine/ruleEngineTypes';
 import {
@@ -1051,6 +1056,16 @@ function shouldSuspendForPaymentFailure(paidUntil: unknown) {
 }
 
 function metaApiBlockedError(entitlement?: UserEntitlement) {
+  if (entitlement?.hasActivePaidPlan && !entitlement.canUseMetaApi) {
+    // Plano em dia, mas sem MetaApi: é o teste grátis, que funciona só pelo EA.
+    return {
+      error: 'No teste grátis o Fortify Guard funciona pelo EA no MT5. Conectar conta pelo servidor fica para os planos pagos.',
+      code: 'trial_ea_only',
+      reason: 'promo_trial_ea_only',
+      subscriptionStatus: entitlement.subscriptionStatus || null,
+      paidUntil: entitlement.paidUntil || null,
+    };
+  }
   return {
     error: 'Seu plano não está ativo. Regularize sua assinatura para sincronizar contas MT5.',
     code: 'plan_required',
@@ -1521,6 +1536,8 @@ async function getUserEntitlement(userId: string): Promise<UserEntitlement> {
   const extraAccountQuantity = isPaidPlan ? await getActiveAddonQuantityForUser(userId) : 0;
   const accountLimit = baseAccountLimit + extraAccountQuantity;
   const hasActivePaidPlan = isPaidPlan && isValidPaidStatus(status) && periodActive;
+  // Teste grátis da campanha: libera o EA (hasActivePaidPlan), mas nunca o MetaApi, que tem custo.
+  const promoTrial = isPromoTrialRow(subscription);
 
   let reason = 'active_paid_plan';
   if (!isPaidPlan) reason = planSlug === 'beta_free' ? 'beta_free_not_paid' : 'plan_not_paid';
@@ -1533,7 +1550,7 @@ async function getUserEntitlement(userId: string): Promise<UserEntitlement> {
     accountLimit: hasActivePaidPlan ? accountLimit : 0,
     paidUntil,
     subscriptionStatus: status || null,
-    canUseMetaApi: hasActivePaidPlan,
+    canUseMetaApi: hasActivePaidPlan && !promoTrial,
     reason,
   };
 }
@@ -5113,6 +5130,70 @@ fastify.post('/coach/chat', async (request, reply) => {
   }
 });
 
+// Trial promocional (link ?promo=guard3d): 3 dias do Beginner para conta nova no plano gratuito.
+// O navegador só manda o código; elegibilidade e gravação ficam aqui, com service role.
+fastify.post('/billing/start-promo-trial', async (request, reply) => {
+  try {
+    const limit = checkRateLimit(request, 'billing', 30, 60_000);
+    if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
+
+    const authResult = await verifyBearerUser(request);
+    if (isAuthError(authResult)) {
+      return reply.status(authResult.status).send(authResult.error);
+    }
+
+    const body = request.body as { promo?: string } | undefined;
+    const { data: row, error: lookupError } = await (supabase
+      .from('user_subscriptions' as any)
+      .select('plan_id,status,stripe_subscription_id,activated_at')
+      .eq('user_id', authResult.id)
+      .maybeSingle() as any);
+    if (lookupError) {
+      fastify.log.error({ event: 'promo_trial_lookup_failed', userId: maskForLog(authResult.id), error: lookupError.message });
+      return reply.status(500).send({ error: 'Não foi possível liberar o teste agora.', code: 'promo_trial_failed' });
+    }
+
+    const decision = decidePromoTrial(body?.promo, row || null);
+    if (!decision.ok) {
+      return reply.status(decision.status).send({ error: decision.message, code: decision.code });
+    }
+
+    const fields = trialSubscriptionFields(decision.promo);
+    let written = false;
+    if (decision.insert) {
+      const { error } = await (supabase
+        .from('user_subscriptions' as any)
+        .insert({ user_id: authResult.id, ...fields }) as any);
+      written = !error;
+      if (error) fastify.log.error({ event: 'promo_trial_insert_failed', userId: maskForLog(authResult.id), error: error.message });
+    } else {
+      // Condição repetida no UPDATE: se outra requisição já mudou o plano, nada é gravado.
+      const { data, error } = await (supabase
+        .from('user_subscriptions' as any)
+        .update(fields)
+        .eq('user_id', authResult.id)
+        .eq('plan_id', 'beta_free')
+        .is('stripe_subscription_id', null)
+        .select('id') as any);
+      written = !error && Array.isArray(data) && data.length > 0;
+      if (error) fastify.log.error({ event: 'promo_trial_update_failed', userId: maskForLog(authResult.id), error: error.message });
+    }
+
+    if (!written) {
+      return reply.status(409).send({
+        error: 'O teste grátis vale só para contas novas que ainda não assinaram o Fortify.',
+        code: 'promo_not_eligible',
+      });
+    }
+
+    fastify.log.info({ event: 'promo_trial_started', userId: maskForLog(authResult.id), promo: decision.promo.code, endsAt: fields.paid_until });
+    return reply.send({ ok: true, promo: decision.promo.code, plan_id: fields.plan_id, trial_ends_at: fields.paid_until });
+  } catch (error: any) {
+    fastify.log.error({ event: 'promo_trial_failed', ...safeErrorMetadata(error) });
+    return reply.status(500).send({ error: 'Não foi possível liberar o teste agora.', code: 'promo_trial_failed' });
+  }
+});
+
 fastify.post('/billing/create-checkout-session', async (request, reply) => {
   try {
     const limit = checkRateLimit(request, 'billing', 30, 60_000);
@@ -5129,6 +5210,7 @@ fastify.post('/billing/create-checkout-session', async (request, reply) => {
       planId?: string;
       priceId?: string;
       marketingConsent?: boolean;
+      coupon?: string;
     };
     const selector = String(body?.planSlug || body?.plan_slug || body?.planId || body?.priceId || '').trim();
     const marketingConsent = body?.marketingConsent === true ? 'granted' : 'denied';
@@ -5142,6 +5224,11 @@ fastify.post('/billing/create-checkout-session', async (request, reply) => {
     const validation = await validateBillingPlanForCheckout(selector);
     if (!validation.ok) return reply.status(validation.status).send(validation.error);
     const plan = validation.plan;
+
+    const coupon = resolveCheckoutCoupon(body?.coupon, plan.slug || plan.id);
+    if (coupon && !coupon.ok) {
+      return reply.status(400).send({ error: coupon.message, code: 'coupon_invalid' });
+    }
 
     if (!STRIPE_SECRET_KEY) {
       return reply.status(503).send(stripeConfigError());
@@ -5192,7 +5279,7 @@ fastify.post('/billing/create-checkout-session', async (request, reply) => {
       'subscription_data[metadata][user_id]': authResult.id,
       'subscription_data[metadata][plan_id]': plan.id,
       'subscription_data[metadata][plan_slug]': plan.slug || plan.id,
-      allow_promotion_codes: true,
+      ...checkoutDiscountParams(coupon),
     };
 
     if (stripeCustomerId) {
@@ -5239,6 +5326,7 @@ fastify.post('/billing/create-checkout-session', async (request, reply) => {
     return reply.send({
       checkout_url: checkoutSession.url,
       session_id: checkoutSession.id,
+      coupon_applied: coupon?.ok ? coupon.code : null,
     });
   } catch (error: any) {
     fastify.log.error({
@@ -6263,7 +6351,7 @@ async function persistEaData(input: {
   login: string;
   server: string;
   broker: string;
-  live: { balance: number; equity: number; days: ReturnType<typeof sanitizeEaDays>; now: Date };
+  live: { balance: number; equity: number; days: ReturnType<typeof sanitizeEaDays>; now: Date; today: string };
   trades: ReturnType<typeof sanitizeEaTrades>;
   positions: ReturnType<typeof sanitizeEaPositions>;
   initialBalance: number | null;
@@ -6454,6 +6542,27 @@ fastify.post('/ea/feed', async (request, reply) => {
       criticalPct: Number(prefRow?.critical_pct ?? 85),
     };
 
+    // EA 1.60+: o trader ligou/desligou regras na aba Configurações do MT5.
+    let eaNotice: string | undefined;
+    const requestedKeys = sanitizeEaRuleKeys(body.setRuleKeys);
+    if (requestedKeys) {
+      const { error: saveError } = await (supabase.from('ea_rule_preferences' as any).upsert(
+        {
+          trading_account_id: account.id,
+          user_id: tokenRow.user_id,
+          rule_keys: requestedKeys,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'trading_account_id' },
+      ) as any);
+      if (saveError) {
+        fastify.log.error({ event: 'ea_preferences_save_failed', tradingAccountId: maskForLog(account.id), error: saveError.message });
+        eaNotice = 'Não foi possível salvar a escolha agora. Tente de novo ou mude pelo site.';
+      } else {
+        preferences.ruleKeys = requestedKeys;
+      }
+    }
+
     const peakEquity = Number(body.peakEquity);
     const live = {
       balance,
@@ -6462,8 +6571,11 @@ fastify.post('/ea/feed', async (request, reply) => {
       peakEquity: Number.isFinite(peakEquity) && peakEquity > 0 ? peakEquity : null,
       // EA 1.50+: maior trade fechado do histórico (consistência por trade).
       bestTrade: body.bestTrade === undefined || body.bestTrade === null || !Number.isFinite(Number(body.bestTrade)) ? null : Number(body.bestTrade),
+      // EA 1.72+: calendário da mesa e saques lidos do histórico do terminal.
+      ...sanitizeEaDayInfo(body),
       now: new Date(),
     };
+    const eaToday = resolveEaDay(binding.rule_snapshot.propFirm?.slug, live).today;
     const accountContext = {
       startBalance: toNullableNumber(account.start_balance),
       highestEquity: toNullableNumber(account.highest_equity),
@@ -6481,7 +6593,7 @@ fastify.post('/ea/feed', async (request, reply) => {
       login,
       server,
       broker,
-      live,
+      live: { ...live, today: eaToday },
       trades: sanitizeEaTrades(body.trades),
       positions: sanitizeEaPositions(body.positions),
       initialBalance,
@@ -6512,7 +6624,7 @@ fastify.post('/ea/feed', async (request, reply) => {
       void (supabase.from('ea_access_tokens' as any).update({ last_used_at: new Date().toISOString() }).eq('id', tokenRow.id) as any);
     }
 
-    return reply.send(serializeEaFeed(feed));
+    return reply.send(serializeEaFeed(eaNotice ? { ...feed, notice: eaNotice } : feed));
   } catch (error: any) {
     fastify.log.error({ event: 'ea_feed_failed', error: error?.message });
     return fail('server_error', 'O Fortify não respondeu agora. O EA tenta de novo sozinho.');
@@ -6525,6 +6637,22 @@ fastify.post('/ea/feed', async (request, reply) => {
 // de status abaixo, que tambem confere o pagamento na Stripe), pelo e-mail coletado la.
 const SITE_GUEST_SOURCE = 'site_guest';
 // So o catalogo comercial pode ser comprado sem login: nada de Enterprise, anual ou legado.
+/**
+ * Com cupom, a sessão já nasce com o desconto do plano. Sem cupom, a página da Stripe mostra
+ * o campo de código, onde valem os códigos de cada plano (FORTIFYBEGINNER, FORTIFYADVANCED,
+ * FORTIFYPRO). A Stripe não aceita os dois juntos.
+ */
+function checkoutDiscountParams(coupon: ReturnType<typeof resolveCheckoutCoupon>): Record<string, unknown> {
+  if (coupon?.ok) {
+    return {
+      'discounts[0][coupon]': coupon.stripeCouponId,
+      'metadata[coupon_code]': coupon.code,
+      'subscription_data[metadata][coupon_code]': coupon.code,
+    };
+  }
+  return { allow_promotion_codes: true };
+}
+
 const SITE_GUEST_PLAN_IDS = new Set([
   'beginner_monthly',
   'advanced_monthly',
@@ -6554,7 +6682,7 @@ fastify.post('/billing/guest-checkout-session', async (request, reply) => {
     const limit = checkRateLimit(request, 'site-guest-checkout', 10, 60_000);
     if (!limit.allowed) return reply.status(429).send(rateLimitError(limit.retryAfterSeconds));
 
-    const body = request.body as { planSlug?: string; marketingConsent?: boolean };
+    const body = request.body as { planSlug?: string; marketingConsent?: boolean; coupon?: string };
     const selector = String(body?.planSlug || '').trim();
     if (!selector) {
       return reply.status(400).send({ error: 'Informe o plano desejado.', code: 'billing_plan_required' });
@@ -6566,6 +6694,11 @@ fastify.post('/billing/guest-checkout-session', async (request, reply) => {
 
     if (!SITE_GUEST_PLAN_IDS.has(plan.id)) {
       return reply.status(400).send({ error: 'Plano indisponível para compra pelo site.', code: 'plan_not_for_sale' });
+    }
+
+    const coupon = resolveCheckoutCoupon(body?.coupon, plan.slug || plan.id);
+    if (coupon && !coupon.ok) {
+      return reply.status(400).send({ error: coupon.message, code: 'coupon_invalid' });
     }
 
     if (!STRIPE_SECRET_KEY) {
@@ -6587,7 +6720,7 @@ fastify.post('/billing/guest-checkout-session', async (request, reply) => {
       'subscription_data[metadata][source]': SITE_GUEST_SOURCE,
       'subscription_data[metadata][plan_id]': plan.id,
       'subscription_data[metadata][plan_slug]': plan.slug || plan.id,
-      allow_promotion_codes: true,
+      ...checkoutDiscountParams(coupon),
     });
     // Deliberadamente sem metadata[user_id], client_reference_id e customer: e essa ausencia
     // que leva o webhook ao ramo site_guest, que cria ou acha a conta pelo e-mail pago.
@@ -6598,7 +6731,11 @@ fastify.post('/billing/guest-checkout-session', async (request, reply) => {
       sessionId: maskForLog(checkoutSession.id),
     });
 
-    return reply.send({ checkout_url: checkoutSession.url, session_id: checkoutSession.id });
+    return reply.send({
+      checkout_url: checkoutSession.url,
+      session_id: checkoutSession.id,
+      coupon_applied: coupon?.ok ? coupon.code : null,
+    });
   } catch (error: any) {
     fastify.log.error({ event: 'site_guest_checkout_session_failed', error: error?.message, status: error?.status });
     return reply.status(error?.status && error.status < 500 ? 400 : 500).send({

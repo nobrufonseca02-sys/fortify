@@ -1,5 +1,5 @@
 import { evaluateDailyLoss } from './dailyLossCalculations';
-import { evaluateMaxDrawdown } from './drawdownCalculations';
+import { evaluateMaxDrawdown, payoutStateOf } from './drawdownCalculations';
 import { evaluateProfitTarget } from './profitTargetCalculations';
 import { evaluateConsistency } from './consistencyCalculations';
 import { consistencyClausesForStage, primaryConsistency } from './consistencyRules';
@@ -63,6 +63,7 @@ const ruleAliases: Record<BoundRuleKey, string[]> = {
     'dias operados',
     'dias lucrativos',
     'dias positivos',
+    'dias validos',
     'trades por dia',
   ],
 };
@@ -323,6 +324,7 @@ export function evaluateBoundAccountRules(
           highestEquity: finiteNumber(account.highestEquity),
           snapshots,
           currency,
+          payoutState: payoutStateOf(account),
         });
 
   const target =
@@ -386,6 +388,11 @@ export function evaluateBoundAccountRules(
           ruleText: snapshot.criticalRules.minTradingDays,
           trades,
           currency,
+          initialBalance,
+          currentBalance,
+          snapshots,
+          lastPayoutDate: account.lastPayoutDate ?? null,
+          now,
         });
 
   // Consistência e dias mínimos ficam fora do status geral e do ruído padrão

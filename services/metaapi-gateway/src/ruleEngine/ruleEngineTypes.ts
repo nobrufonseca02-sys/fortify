@@ -38,6 +38,8 @@ export interface BoundRuleEvaluation {
   message: string;
   detail?: string;
   phaseLabel?: string;
+  /** Dias mínimos: lucro que o dia precisa fechar para contar. */
+  minDayProfit?: number | null;
 }
 
 export interface BoundRuleListItem {
@@ -60,6 +62,10 @@ export interface RuleEngineAccountInput {
   stage?: 'evaluation' | 'funded' | null;
   /** Maior resultado de um trade fechado, quando o terminal informa (EA). */
   bestClosedTrade?: number | null;
+  /** Saques já feitos, lidos do histórico do terminal. null = desconhecido. */
+  payoutsMade?: number | null;
+  /** Dia do último saque (AAAA-MM-DD): o ciclo de dias recomeça depois dele. */
+  lastPayoutDate?: string | null;
 }
 
 export interface RuleEngineSnapshotInput {
@@ -196,6 +202,8 @@ function parseLocalizedNumber(value: string) {
 
 export function parseInitialBalance(value: string | null | undefined) {
   if (!isExplicitRuleValue(value)) return null;
+  // Faixa de tamanhos ("$5K a $100K") não é o saldo da conta: quem chama usa o saldo real.
+  if ((String(value).match(/\d[\d.,]*\s*[kKmM]?/g) ?? []).length > 1) return null;
   const match = String(value).match(/([\d.,]+)\s*([kKmM])?/);
   if (!match) return null;
   const parsed = parseLocalizedNumber(match[1]);

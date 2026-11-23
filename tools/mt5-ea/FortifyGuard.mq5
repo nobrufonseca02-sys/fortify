@@ -9,14 +9,14 @@
 //| que so age depois da confirmacao do trader.                       |
 //|                                                                    |
 //| A cada consulta o EA envia ao Fortify o saldo, a equity e o P&L    |
-//| fechado por dia (UTC) deste terminal. O Fortify roda o motor de    |
+//| fechado por dia (na hora da mesa) deste terminal. O Fortify roda  |
 //| regras e devolve um valor de referencia por regra (equity minima  |
 //| do dia, piso do drawdown, saldo da meta, teto de lucro de hoje).  |
 //| Entre consultas o EA compara a equity de agora com esse valor.    |
 //+------------------------------------------------------------------+
 #property copyright "Fortify"
 #property link      "https://fortify-delta.vercel.app"
-#property version   "1.50"
+#property version   "1.72"
 #property description "Fortify Guard: acompanhe ao vivo as regras da sua mesa proprietaria."
 
 #include <Trade\Trade.mqh>
@@ -44,8 +44,11 @@ input GuardTheme  InpTheme      = GUARD_THEME_AUTO;                    // Tema d
 input int         InpSimStopPoints = 200;                              // Simulador de lote: stop padrão (pontos)
 input bool        InpSound      = true;                                // Som do Fortify no nível crítico
 input bool        InpPreviewStress = false;                            // Demonstração: mostrar um dia perto do limite
+input double      InpMkRisk     = 0;                                   // Mercado: quanto arriscar (0 = 1% do saldo)
+input double      InpMkStopAtr  = 1.0;                                 // Mercado: stop em ATR do H1
+input double      InpMkRR       = 2.0;                                 // Mercado: alvo = stop x este valor
 
-#define GUARD_VERSION "1.50"
+#define GUARD_VERSION "1.72"
 #define PFX           "FG_"
 #define PANEL_W       360
 #define PAD           14
@@ -102,30 +105,53 @@ struct GuardRule
    int               alertLevel;   // maior nivel ja avisado hoje (0 nenhum, 1 atencao, 2 critico, 3 limite)
    double            pct;          // calculado ao vivo
    int               level;        // calculado ao vivo
-   string            valueText;    // calculado ao vivo
+   string            valueText;    // calculado ao vivo (texto inteiro, usado nos avisos)
+   string            valuePre;     // parte apagada do valor no painel ("folga")
+   string            valueMain;    // parte forte do valor no painel ("$3.900")
+   bool              valueDone;    // cumprido: mostra o selo de check
    string            detailText;   // calculado ao vivo
    double            slack;        // folga em dinheiro ate quebrar (floor e floating)
    bool              hasSlack;
   };
 
-GuardRule g_rules[];
+// Todas as regras da mesa, para a aba Configurações (linhas O| do Fortify).
+struct GuardOption
+  {
+   string            key;
+   string            label;
+   string            group;
+   bool              live;
+   bool              on;
+   string            detail;       // valor da regra nesta conta, já calculado: "6% ($6.000)"
+  };
+
+GuardRule   g_rules[];
+GuardOption g_options[];
+bool        g_pendingSave = false;  // escolha feita no MT5 ainda não enviada ao Fortify
+string      g_expanded = "";        // regra com o detalhe aberto no painel
 string    g_firm = "", g_program = "", g_size = "", g_currency = "USD", g_overall = "", g_stage = "";
 string    g_error = "", g_notice = "";
 double    g_warnPct = 70.0, g_critPct = 85.0;
 int       g_pollSeconds = 15;
 datetime  g_lastPoll = 0, g_lastOk = 0;
-string    g_utcDay = "";
+string    g_utcDay = "";         // dia de hoje no calendario da mesa
+string    g_dayBasis = "utc";    // calendario: utc, server ou fuso+minuto da virada
+int       g_dayReset = 0;        // minuto do dia em que a mesa vira o dia
+long      g_dayEpochs[];         // trocas de fuso: instante UTC
+int       g_dayOffsets[];        // trocas de fuso: minutos a somar ao UTC
 bool      g_collapsed = false;
 bool      g_hasFeed = false;
 double    g_peakEquity = 0.0;
 string    g_used[];
 bool      g_previewShot = false;
+int       g_previewEnd = 0;       // demonstração: 1 rolou até o fim, 2 print do fim salvo
 uint      g_startTick = 0;
 datetime  g_lastTradesSent = 0;
 bool      g_tradesDirty = true;
-double    g_todayClosed = 0.0;   // P&L fechado de hoje (UTC), do historico do terminal
+double    g_todayClosed = 0.0;   // P&L fechado de hoje, do historico do terminal
 double    g_balanceNow = 0.0, g_equityNow = 0.0;
-string    g_tab = "account";      // aba ativa: account | payout | reminder
+uint      g_repollAt = 0;        // nova consulta logo depois de uma operação
+string    g_tab = "painel";       // aba ativa: painel | regras | config
 int       g_simStop = 200;        // simulador de lote: stop em pontos
 CTrade    g_trade;
 
@@ -138,7 +164,33 @@ void ResetRule(GuardRule &r)
    r.hasLimit = false; r.hasFloor = false; r.hasFloorMax = false; r.hasTarget = false; r.hasDayStart = false;
    r.hasCap = false; r.hasRegularize = false; r.hasCurrent = false; r.hasRequired = false;
    r.alertLevel = 0; r.pct = 0; r.level = 0; r.valueText = ""; r.detailText = "";
+   r.valuePre = ""; r.valueMain = ""; r.valueDone = false;
    r.slack = 0; r.hasSlack = false;
+  }
+
+//--- paleta do painel desenhado em pixels (ARGB)
+uint P_BG, P_CARD, P_BORDER, P_TEXT, P_MUTED, P_TRACK, P_FIELD, P_TABON, P_TOGGLEOFF;
+const uint P_OK     = (uint)0xFF2FBF71;
+const uint P_WARN   = (uint)0xFFF0B429;
+const uint P_CRIT   = (uint)0xFFF57C00;
+const uint P_BREACH = (uint)0xFFE5484D;
+const uint P_INFO   = (uint)0xFF3D7BFA;
+const uint P_WHITE  = (uint)0xFFFFFFFF;
+
+void ApplyPalette()
+  {
+   if(g_light)
+     {
+      P_BG = (uint)0xFFFBFBFD; P_CARD = (uint)0xFFF1F3F7; P_BORDER = (uint)0xFFDCE0E7; P_TEXT = (uint)0xFF151922;
+      P_MUTED = (uint)0xFF657082; P_TRACK = (uint)0xFFE3E7EE; P_FIELD = (uint)0xFFFFFFFF; P_TABON = (uint)0xFFFFFFFF;
+      P_TOGGLEOFF = (uint)0xFFC9CFD9;
+     }
+   else
+     {
+      P_BG = (uint)0xFF0F1115; P_CARD = (uint)0xFF171A21; P_BORDER = (uint)0xFF262B34; P_TEXT = (uint)0xFFF3F5F8;
+      P_MUTED = (uint)0xFF8B94A4; P_TRACK = (uint)0xFF242932; P_FIELD = (uint)0xFF1D2129; P_TABON = (uint)0xFF2A303B;
+      P_TOGGLEOFF = (uint)0xFF3A404C;
+     }
   }
 
 bool IsLightChart()
@@ -161,6 +213,7 @@ void ApplyTheme()
       C_BG = C'14,16,20'; C_BORDER = C'42,47,56'; C_TEXT = C'236,239,244'; C_MUTED = C'134,142,156';
       C_TRACK = C'32,36,44'; C_HEADING = C'160,168,182'; C_ERRBG = C'48,22,24'; C_TABON = C'40,46,58';
      }
+   ApplyPalette();
   }
 
 string PeakVarName()
@@ -176,6 +229,37 @@ string UtcDayKey(const datetime utc)
    MqlDateTime t;
    TimeToStruct(utc, t);
    return StringFormat("%04d-%02d-%02d", t.year, t.mon, t.day);
+  }
+
+// Diferenca entre o servidor e o UTC, arredondada para meia hora (o relogio oscila segundos).
+long ServerOffset()
+  {
+   return (long)MathRound((double)(TimeTradeServer() - TimeGMT()) / 1800.0) * 1800;
+  }
+
+int ZoneOffsetAt(const datetime utc)
+  {
+   int minutes = 0;
+   for(int i = 0; i < ArraySize(g_dayEpochs); i++)
+      if((long)utc >= g_dayEpochs[i])
+         minutes = g_dayOffsets[i];
+   return minutes;
+  }
+
+// Dia de um instante no calendario da mesa. Recebe a hora do servidor, como vem nos negocios.
+string FirmDayKey(const datetime serverTime, const long offset)
+  {
+   if(g_dayBasis == "server")
+      return UtcDayKey(serverTime);
+   datetime utc = (datetime)(serverTime - offset);
+   if(g_dayBasis == "utc")
+      return UtcDayKey(utc);
+   return UtcDayKey((datetime)(utc + (ZoneOffsetAt(utc) - g_dayReset) * 60));
+  }
+
+string FirmToday()
+  {
+   return FirmDayKey(TimeTradeServer(), ServerOffset());
   }
 
 string Trimmed(string s)
@@ -225,6 +309,39 @@ string Money(const double value)
    return (value < 0 ? "-" : "") + CurrencySymbol() + FormatNumber(MathAbs(value));
   }
 
+// Valor redondo para o painel: 3899.6 -> "$3.900".
+string MoneyShort(const double value)
+  {
+   string raw = DoubleToString(MathRound(MathAbs(value)), 0);
+   string grouped = "";
+   int len = StringLen(raw);
+   for(int i = 0; i < len; i++)
+     {
+      if(i > 0 && (len - i) % 3 == 0)
+         grouped += ".";
+      grouped += StringSubstr(raw, i, 1);
+     }
+   return (value <= -0.5 ? "-" : "") + CurrencySymbol() + grouped;
+  }
+
+// Valor da regra no painel: parte apagada ("folga") + número forte ("$3.900").
+void SetValue(GuardRule &r, const string pre, const string main, const bool done = false)
+  {
+   r.valuePre = pre;
+   r.valueMain = main;
+   r.valueDone = done;
+   r.valueText = (pre != "") ? pre + " " + main : main;
+  }
+
+// Regra aparece no painel? Sem a lista de opções (Fortify antigo), mostra tudo.
+bool RuleVisible(const int i)
+  {
+   for(int o = 0; o < ArraySize(g_options); o++)
+      if(g_options[o].key == g_rules[i].key)
+         return g_options[o].on;
+   return true;
+  }
+
 string JsonSafe(string s)
   {
    StringReplace(s, "\\", "");
@@ -257,14 +374,14 @@ int LevelFor(const double pct)
   }
 
 //+------------------------------------------------------------------+
-//| Historico do terminal por dia UTC                                 |
+//| Historico do terminal por dia da mesa                             |
 //+------------------------------------------------------------------+
 string BuildPayload()
   {
    long   login   = AccountInfoInteger(ACCOUNT_LOGIN);
    double balance = AccountInfoDouble(ACCOUNT_BALANCE);
    double equity  = AccountInfoDouble(ACCOUNT_EQUITY);
-   long   offset  = (long)(TimeTradeServer() - TimeGMT()); // servidor - UTC, em segundos
+   long   offset  = ServerOffset(); // servidor - UTC, em segundos
 
    string dayKeys[];
    double dayPnl[];
@@ -272,6 +389,9 @@ string BuildPayload()
    bool   dayTraded[];
    int    days = 0;
    double running = 0.0;
+   // Saques: retiradas de saldo no historico. Algumas regras mudam depois do saque.
+   int    payouts = 0;
+   string lastPayout = "";
 
    // Resultado de cada trade (posicao) fechado, para a consistencia por trade.
    ulong  posIds[];
@@ -295,7 +415,12 @@ string BuildPayload()
                            + HistoryDealGetDouble(ticket, DEAL_FEE);
          running += amount;
 
-         string key = UtcDayKey((datetime)(when - offset));
+         string key = FirmDayKey(when, offset);
+         if(type == DEAL_TYPE_BALANCE && amount < 0.0)
+           {
+            payouts++;
+            lastPayout = key;
+           }
          if(days == 0 || dayKeys[days - 1] != key)
            {
             days++;
@@ -339,7 +464,7 @@ string BuildPayload()
    // Se o terminal nao tem o historico inteiro, os saldos ficam deslocados por uma
    // constante: corrige para o ultimo dia terminar no saldo atual.
    double drift = balance - running;
-   string todayKey = UtcDayKey(TimeGMT());
+   string todayKey = FirmToday();
    g_todayClosed = (days > 0 && dayKeys[days - 1] == todayKey) ? dayPnl[days - 1] : 0.0;
 
    string json = "{";
@@ -351,6 +476,11 @@ string BuildPayload()
    json += "\"balance\":" + DoubleToString(balance, 2) + ",";
    json += "\"equity\":" + DoubleToString(equity, 2) + ",";
    json += "\"peakEquity\":" + DoubleToString(g_peakEquity, 2) + ",";
+   json += "\"dayBasis\":\"" + JsonSafe(g_dayBasis) + "\",";
+   json += "\"dayToday\":\"" + todayKey + "\",";
+   json += "\"payouts\":" + IntegerToString(payouts) + ",";
+   if(lastPayout != "")
+      json += "\"lastPayout\":\"" + lastPayout + "\",";
    bool   hasBest = false;
    double bestTrade = 0.0;
    for(int p = 0; p < positions; p++)
@@ -380,6 +510,15 @@ string BuildPayload()
       g_lastTradesSent = TimeLocal();
       g_tradesDirty = false;
      }
+   // Aba Configurações: o trader ligou/desligou regras aqui no MT5.
+   if(g_pendingSave)
+     {
+      string keys = "";
+      for(int o = 0; o < ArraySize(g_options); o++)
+         if(g_options[o].on)
+            keys += (keys == "" ? "" : ",") + "\"" + JsonSafe(g_options[o].key) + "\"";
+      json += ",\"setRuleKeys\":[" + keys + "]";
+     }
    json += "}";
    return json;
   }
@@ -397,8 +536,21 @@ string PreviewFeed()
    f += "R|max_lots|Lote máximo|lots|safe|40.00|||||||||||Até 40 lotes abertos, somando todas as posições.|total||account\n";
    f += "R|weekend|Fechamento de sexta|close|safe||||||||||||Qualified Analyst Pro não permite manter posição no fim de semana e aplica soft breach.|weekly||account\n";
    f += "R|consistency|Consistência|daycap|warning|600.00||||||102000.00|1333.33|1000.00|||Nenhum dia pode passar de 40% do lucro total. Regra oficial: payout on-demand exige Best Day de 40% e 2% de lucro bruto.|||payout\n";
-   f += "R|min_trading_days|Dias mínimos|counter|safe|3.00|||||||||5.00|3.00|Mínimo de dias operados atingido.|||payout\n";
-   f += "R|news|Notícias|note|safe||||||||||||Avaliação livre; Qualified proíbe execução em ±2 minutos de eventos direcionados.|||reminder\n";
+   f += "R|min_trading_days|Dias mínimos|counter|safe|4.00|||||||||4.00|4.00|Mínimo de dias operados atingido.|||payout\n";
+   f += "R|news|Notícias|note|safe||||||||||||Avaliação livre; Qualified proíbe execução em ±2 minutos de eventos direcionados.|||rules\n";
+   f += "R|leverage|Alavancagem|note|safe||||||||||||Até 1:100 em forex; índices e metais com alavancagem menor.|||rules\n";
+   f += "R|payout_split|Divisão do lucro|note|safe||||||||||||80% para o trader; pode subir para 90% com o add-on.|||rules\n";
+   // Todas as regras da mesa para a aba Configurações (1 = ao vivo, depois 1 = ligada).
+   f += "O|daily_loss|Perda diária|account|1|1|5% ($5.000)\\n";
+   f += "O|max_drawdown|Drawdown máximo|account|1|1|10% ($10.000)\\n";
+   f += "O|inactivity|Inatividade|account|1|0|30 dias sem operar\\n";
+   f += "O|max_lots|Lote máximo|account|1|0|40 lotes no total\\n";
+   f += "O|weekend|Fechamento de sexta|account|1|0|Toda sexta\\n";
+   f += "O|consistency|Consistência|payout|1|1|Maior dia até 40% do lucro total\\n";
+   f += "O|min_trading_days|Dias mínimos|payout|1|1|4 dias operados\\n";
+   f += "O|news|Notícias|rules|0|1|Livre na avaliação. Qualified: ±2 minutos\\n";
+   f += "O|leverage|Alavancagem|rules|0|1|Até 1:100 em forex\\n";
+   f += "O|payout_split|Divisão do lucro|rules|0|0|80% para o trader\\n";
    f += "END\n";
    return f;
   }
@@ -537,6 +689,9 @@ bool ParseFeed(const string text, string &error)
 
    GuardRule parsed[];
    int n = 0;
+   GuardOption parsedOptions[];
+   int nOptions = 0;
+   string notice = "";
    for(int i = 1; i < count; i++)
      {
       string line = lines[i];
@@ -561,6 +716,32 @@ bool ParseFeed(const string text, string &error)
          ParseNum(f[7], g_warnPct);
          ParseNum(f[8], g_critPct);
          g_stage = (k >= 10) ? f[9] : "";
+         continue;
+        }
+      // Hora em que esta mesa vira o dia. Mudou: refaz a consulta com os dias certos.
+      if(f[0] == "D" && k >= 4)
+        {
+         bool changed = (f[1] != g_dayBasis);
+         g_dayBasis = f[1];
+         g_dayReset = (int)StringToInteger(f[2]);
+         string steps[];
+         int total = (k >= 5 && f[4] != "") ? StringSplit(f[4], ',', steps) : 0;
+         ArrayResize(g_dayEpochs, total);
+         ArrayResize(g_dayOffsets, total);
+         for(int s = 0; s < total; s++)
+           {
+            string pair[];
+            if(StringSplit(steps[s], ':', pair) == 2)
+              {
+               g_dayEpochs[s]  = StringToInteger(pair[0]);
+               g_dayOffsets[s] = (int)StringToInteger(pair[1]);
+              }
+           }
+         if(changed)
+           {
+            g_utcDay = FirmToday();
+            g_lastPoll = 0;
+           }
          continue;
         }
       if(f[0] == "R" && k >= 17)
@@ -596,13 +777,56 @@ bool ParseFeed(const string text, string &error)
          n++;
          ArrayResize(parsed, n);
          parsed[n - 1] = r;
+         continue;
         }
+      if(f[0] == "O" && k >= 6)
+        {
+         GuardOption o;
+         o.key   = f[1];
+         o.label = f[2];
+         o.group = f[3];
+         o.live  = (f[4] == "1");
+         o.on    = (f[5] == "1");
+         o.detail = (k >= 7) ? f[6] : "";
+         // Demonstração: a escolha feita na aba Configurações vale só nesta tela.
+         if(InpPreview)
+            for(int j = 0; j < ArraySize(g_options); j++)
+               if(g_options[j].key == o.key)
+                  o.on = g_options[j].on;
+         nOptions++;
+         ArrayResize(parsedOptions, nOptions);
+         parsedOptions[nOptions - 1] = o;
+         continue;
+        }
+      if(f[0] == "N" && k >= 2)
+         notice = f[1];
      }
 
    ArrayResize(g_rules, n);
    for(int i = 0; i < n; i++)
       g_rules[i] = parsed[i];
+   ArrayResize(g_options, nOptions);
+   for(int i = 0; i < nOptions; i++)
+      g_options[i] = parsedOptions[i];
+   if(notice != "")
+      g_notice = notice;
    return true;
+  }
+
+// Demonstração: as regras de exemplo valem sobre o dia real da conta aberta no MT5.
+void PreviewAnchor()
+  {
+   if(InpPreviewStress)
+      return;
+   BuildPayload(); // atualiza o resultado fechado de hoje a partir do histórico
+   double dayStart = AccountInfoDouble(ACCOUNT_BALANCE) - g_todayClosed;
+   for(int i = 0; i < ArraySize(g_rules); i++)
+     {
+      if(g_rules[i].key == "daily_loss" && g_rules[i].hasFloor && g_rules[i].hasLimit)
+         g_rules[i].floorValue = dayStart - g_rules[i].limit;
+      if(g_rules[i].kind == "daycap" && g_rules[i].hasDayStart)
+         g_rules[i].dayStart = dayStart;
+     }
   }
 
 void Poll()
@@ -611,8 +835,21 @@ void Poll()
    if(InpPreview)
      {
       string previewError;
-      if(ParseFeed(PreviewFeed(), previewError))
+      // Demonstração: usa um feed salvo em MQL5\Files quando existe (prévia com as regras escolhidas).
+      string feed = PreviewFeed();
+      int fh = FileOpen("FortifyGuard_preview_feed.txt", FILE_READ | FILE_TXT | FILE_ANSI | FILE_SHARE_READ, 0, CP_UTF8);
+      if(fh != INVALID_HANDLE)
         {
+         string custom = "";
+         while(!FileIsEnding(fh))
+            custom += FileReadString(fh) + "\n";
+         FileClose(fh);
+         if(StringFind(custom, "FORTIFY-EA|") == 0)
+            feed = custom;
+        }
+      if(ParseFeed(feed, previewError))
+        {
+         PreviewAnchor();
          g_error = "";
          g_lastOk = TimeLocal();
          g_hasFeed = true;
@@ -632,6 +869,8 @@ void Poll()
       g_error  = "";
       g_lastOk = TimeLocal();
       g_hasFeed = true;
+      // A escolha foi junto com a consulta; a resposta já traz o que ficou salvo.
+      g_pendingSave = false;
      }
    else
       g_error = error;
@@ -739,14 +978,15 @@ void ComputeLive()
   {
    double balance = AccountInfoDouble(ACCOUNT_BALANCE);
    double equity  = AccountInfoDouble(ACCOUNT_EQUITY);
-   if(InpPreview)
+   // Só o teste de "dia perto do limite" usa conta simulada. A demonstração lê a conta aberta no MT5.
+   bool simulated = (InpPreview && InpPreviewStress);
+   if(simulated)
      {
-      // Conta simulada: equity oscilando para mostrar o painel ao vivo.
       balance = 101500.0;
-      equity  = (InpPreviewStress ? 98000.0 : 100950.0) + (InpPreviewStress ? 120.0 : 350.0) * MathSin(GetTickCount() / 2500.0);
+      equity  = 98000.0 + 120.0 * MathSin(GetTickCount() / 2500.0);
       g_todayClosed = -500.0;
      }
-   else if(equity > g_peakEquity)
+   else if(!InpPreview && equity > g_peakEquity)
      {
       g_peakEquity = equity;
       GlobalVariableSet(PeakVarName(), g_peakEquity);
@@ -774,7 +1014,7 @@ void ComputeLive()
       if(OrderCalcProfit(side, PositionGetString(POSITION_SYMBOL), volume, PositionGetDouble(POSITION_PRICE_OPEN), stop, atStop))
          openRisk += MathMax(0.0, -atStop);
      }
-   if(InpPreview)
+   if(simulated)
      {
       totalLots = 12.5;
       biggestLot = 5.0;
@@ -788,6 +1028,9 @@ void ComputeLive()
       g_rules[i].pct = 0.0;
       g_rules[i].level = 0;
       g_rules[i].valueText = "";
+      g_rules[i].valuePre = "";
+      g_rules[i].valueMain = "";
+      g_rules[i].valueDone = false;
       g_rules[i].detailText = "";
       string kind = g_rules[i].kind;
 
@@ -811,7 +1054,8 @@ void ComputeLive()
          g_rules[i].hasSlack = true;
          g_rules[i].pct = MathMax(0.0, used / g_rules[i].limit * 100.0);
          g_rules[i].level = LevelFor(g_rules[i].pct);
-         g_rules[i].valueText = (slack > 0) ? "folga " + Money(slack) : "LIMITE ATINGIDO";
+         if(slack > 0) SetValue(g_rules[i], "folga", MoneyShort(slack));
+         else          SetValue(g_rules[i], "", "LIMITE ATINGIDO");
          g_rules[i].detailText = "Equity mínima " + Money(g_rules[i].floorValue)
                                  + (g_rules[i].trailing != "" ? " (sobe com o pico)" : "");
         }
@@ -819,7 +1063,8 @@ void ComputeLive()
         {
          double missing = g_rules[i].targetBalance - balance;
          g_rules[i].pct = MathMin(100.0, MathMax(0.0, (g_rules[i].limit - missing) / g_rules[i].limit * 100.0));
-         g_rules[i].valueText = (missing > 0) ? "faltam " + Money(missing) : "META ATINGIDA";
+         if(missing > 0) SetValue(g_rules[i], "faltam", MoneyShort(missing));
+         else            SetValue(g_rules[i], "", "META ATINGIDA", true);
          g_rules[i].detailText = "Saldo da meta " + Money(g_rules[i].targetBalance)
                                  + "  |  lucro flutuante só conta ao fechar";
         }
@@ -830,14 +1075,15 @@ void ComputeLive()
            {
             g_rules[i].pct = MathMax(0.0, today / g_rules[i].todayCap * 100.0);
             double room = g_rules[i].todayCap - today;
-            g_rules[i].valueText = (room > 0) ? "pode ganhar +" + Money(room) : "ACIMA DO TETO";
+            if(room > 0) SetValue(g_rules[i], "hoje até", "+" + MoneyShort(g_rules[i].todayCap));
+            else         SetValue(g_rules[i], "", "ACIMA DO TETO");
             g_rules[i].detailText = "Hoje " + (today >= 0 ? "+" : "") + Money(today)
                                     + " de teto " + Money(g_rules[i].todayCap);
            }
          else
            {
             g_rules[i].pct = (today > 0) ? 100.0 : 0.0;
-            g_rules[i].valueText = "sem folga hoje";
+            SetValue(g_rules[i], "", "sem folga hoje");
             g_rules[i].detailText = g_rules[i].message;
            }
          g_rules[i].level = LevelFor(g_rules[i].pct);
@@ -861,13 +1107,14 @@ void ComputeLive()
            {
             g_rules[i].pct = MathMax(0.0, openBest / g_rules[i].todayCap * 100.0);
             double room = g_rules[i].todayCap - openBest;
-            g_rules[i].valueText = (room > 0) ? "trade até +" + Money(g_rules[i].todayCap) : "TRADE ACIMA DO TETO";
+            if(room > 0) SetValue(g_rules[i], "trade até", "+" + MoneyShort(g_rules[i].todayCap));
+            else         SetValue(g_rules[i], "", "TRADE ACIMA DO TETO");
             g_rules[i].detailText = "Trade aberto +" + Money(openBest) + " de teto " + Money(g_rules[i].todayCap);
            }
          else
            {
             g_rules[i].pct = (openBest > 0) ? 100.0 : 0.0;
-            g_rules[i].valueText = "sem folga";
+            SetValue(g_rules[i], "", "sem folga");
             g_rules[i].detailText = g_rules[i].message;
            }
          g_rules[i].level = LevelFor(g_rules[i].pct);
@@ -879,11 +1126,12 @@ void ComputeLive()
          if(g_rules[i].hasCurrent && g_rules[i].hasRequired)
            {
             bool done = g_rules[i].current >= g_rules[i].required;
-            string unit = (g_rules[i].mode == "profitable") ? " dias lucrativos" : " dias";
-            g_rules[i].valueText = done ? "cumprido" : DoubleToString(g_rules[i].current, 0) + " de " + DoubleToString(g_rules[i].required, 0) + unit;
+            double shownDays = done ? g_rules[i].required : g_rules[i].current;
+            SetValue(g_rules[i], "", DoubleToString(shownDays, 0) + " de " + DoubleToString(g_rules[i].required, 0), done);
             g_rules[i].pct = (g_rules[i].required > 0) ? MathMin(100.0, g_rules[i].current / g_rules[i].required * 100.0) : 100.0;
             g_rules[i].detailText = (g_rules[i].mode == "profitable")
-                                    ? DoubleToString(g_rules[i].current, 0) + " dias lucrativos; a mesa exige " + DoubleToString(g_rules[i].required, 0) + "."
+                                    ? DoubleToString(g_rules[i].current, 0) + " dias lucrativos; a mesa exige " + DoubleToString(g_rules[i].required, 0)
+                                      + (g_rules[i].hasParam1 && g_rules[i].param1 > 0 ? ", cada um com " + Money(g_rules[i].param1) + " ou mais." : ".")
                                     : DoubleToString(g_rules[i].current, 0) + " dias operados; a mesa exige " + DoubleToString(g_rules[i].required, 0) + ".";
            }
          else
@@ -896,7 +1144,8 @@ void ComputeLive()
             double left = g_rules[i].required - g_rules[i].current;
             g_rules[i].pct = g_rules[i].current / g_rules[i].required * 100.0;
             g_rules[i].level = LevelFor(g_rules[i].pct);
-            g_rules[i].valueText = (left > 0) ? "faltam " + DoubleToString(left, 0) + " dias" : "LIMITE ATINGIDO";
+            if(left > 0) SetValue(g_rules[i], "faltam", DoubleToString(left, 0) + " dias");
+            else         SetValue(g_rules[i], "", "LIMITE ATINGIDO");
             g_rules[i].detailText = ((g_rules[i].current < 1) ? "Operou hoje." : "Último trade há " + DoubleToString(g_rules[i].current, 0) + " dias.")
                                     + " A mesa encerra a conta com "
                                     + DoubleToString(g_rules[i].required, 0) + " dias sem operar.";
@@ -910,12 +1159,12 @@ void ComputeLive()
          string when = (deadline > 0) ? FormatLocal(deadline) : "no fim do pregão";
          if(positions == 0)
            {
-            g_rules[i].valueText = "sem posição aberta";
+            SetValue(g_rules[i], "", "sem posição");
             g_rules[i].detailText = "Próximo fechamento: " + when + ". " + g_rules[i].message;
            }
          else if(deadline == 0)
            {
-            g_rules[i].valueText = "confira o horário";
+            SetValue(g_rules[i], "", "confira o horário");
             g_rules[i].level = 1;
             g_rules[i].detailText = g_rules[i].message;
            }
@@ -924,7 +1173,8 @@ void ComputeLive()
             long left = (long)(deadline - TimeGMT());
             g_rules[i].pct = (left < 86400) ? (1.0 - left / 86400.0) * 100.0 : 0.0;
             g_rules[i].level = (left <= 0) ? 3 : (left <= 1800) ? 2 : (left <= 7200) ? 1 : 0;
-            g_rules[i].valueText = (left > 0) ? "feche em " + FormatDuration(left) : "HORÁRIO PASSOU";
+            if(left > 0) SetValue(g_rules[i], "feche em", FormatDuration(left));
+            else         SetValue(g_rules[i], "", "HORÁRIO PASSOU");
             g_rules[i].detailText = "Fechamento obrigatório " + when + " (seu horário). " + g_rules[i].message;
            }
         }
@@ -934,7 +1184,7 @@ void ComputeLive()
          double used = perOrder ? biggestLot : totalLots;
          g_rules[i].pct = used / g_rules[i].limit * 100.0;
          g_rules[i].level = LevelFor(g_rules[i].pct);
-         g_rules[i].valueText = FormatLots(used) + " de " + FormatLots(g_rules[i].limit) + " lotes";
+         SetValue(g_rules[i], "", FormatLots(used) + " de " + FormatLots(g_rules[i].limit) + " lotes");
          g_rules[i].detailText = perOrder ? "Maior posição aberta. " + g_rules[i].message
                                           : "Soma das posições abertas. " + g_rules[i].message;
         }
@@ -946,14 +1196,16 @@ void ComputeLive()
          g_rules[i].hasSlack = true;
          g_rules[i].pct = loss / g_rules[i].limit * 100.0;
          g_rules[i].level = LevelFor(g_rules[i].pct);
-         g_rules[i].valueText = (slack > 0) ? "folga " + Money(slack) : "LIMITE ATINGIDO";
+         if(slack > 0) SetValue(g_rules[i], "folga", MoneyShort(slack));
+         else          SetValue(g_rules[i], "", "LIMITE ATINGIDO");
          g_rules[i].detailText = "Em aberto -" + Money(loss) + " de -" + Money(g_rules[i].limit) + ". " + g_rules[i].message;
         }
       else if(kind == "risk" && g_rules[i].hasLimit && g_rules[i].limit > 0)
         {
          g_rules[i].pct = openRisk / g_rules[i].limit * 100.0;
          g_rules[i].level = (withoutStop > 0) ? MathMax(2, LevelFor(g_rules[i].pct)) : LevelFor(g_rules[i].pct);
-         g_rules[i].valueText = (withoutStop > 0) ? IntegerToString(withoutStop) + " sem stop" : "risco " + Money(openRisk);
+         if(withoutStop > 0) SetValue(g_rules[i], "", IntegerToString(withoutStop) + " sem stop");
+         else                SetValue(g_rules[i], "risco", MoneyShort(openRisk));
          g_rules[i].detailText = "Risco até os stops " + Money(openRisk) + " de " + Money(g_rules[i].limit) + ". " + g_rules[i].message;
         }
       else
@@ -979,6 +1231,8 @@ void CheckAlerts()
       return;
    for(int i = 0; i < ArraySize(g_rules); i++)
      {
+      if(!RuleVisible(i))
+         continue;
       string kind = g_rules[i].kind;
       if(kind == "target")
         {
@@ -1023,11 +1277,6 @@ void CheckAlerts()
 //+------------------------------------------------------------------+
 void CloseAllPositions()
   {
-   if(InpPreview)
-     {
-      g_notice = "Demonstração: o botão não fecha posições. Na sua conta ele pede confirmação antes.";
-      return;
-     }
    int total = PositionsTotal();
    if(total == 0)
      {
@@ -1059,8 +1308,45 @@ void CloseAllPositions()
   }
 
 //+------------------------------------------------------------------+
-//| Painel                                                            |
+//| Painel: desenhado em pixels (cantos arredondados, anel, chaves)   |
 //+------------------------------------------------------------------+
+#define PANEL_RES "::fortify_panel"
+#define PW        340.0   // largura do painel em pontos de tela (x escala do Windows)
+#define PP        16.0    // margem interna
+
+struct HitArea
+  {
+   double            x1;
+   double            y1;
+   double            x2;
+   double            y2;
+   string            action;
+  };
+
+uint     g_px[];
+int      g_cw = 0, g_ch = 0;      // tamanho do desenho em pixels
+double   g_s = 1.0;               // escala do Windows (DPI / 96)
+bool     g_measure = false;       // true: só mede a altura, não desenha
+bool     g_compact = false;       // painel apertado no gráfico baixo
+int      g_x0 = 0, g_y0 = 0;      // canto do painel no gráfico (pixels)
+HitArea  g_hits[];
+bool     g_editOn = false;
+double   g_editX = 0, g_editY = 0;
+int      g_worst = 0, g_worstIdx = -1, g_slackIdx = -1;
+double   g_canLose = 0.0;
+bool     g_hasCanLose = false;
+uchar    g_logoSq[], g_logoF[];
+int      g_logoSize = 0;
+// Rolagem do conteúdo das abas quando não cabe na altura do gráfico.
+uint     g_content[];             // conteúdo desenhado inteiro, antes do recorte
+double   g_scroll = 0.0, g_scrollMax = 0.0;
+double   g_contentTop = 0.0;      // onde o conteúdo começa (abaixo das abas)
+double   g_hitDy = 0.0, g_hitTop = 0.0, g_hitBottom = 1e9;
+double   g_editDy = 0.0;
+bool     g_hover = false;
+long     g_savedMouseScroll = 1;
+#define  FONT_K 1.12              // a fonte em pixels sai menor que o tamanho pedido
+
 void MarkUsed(const string name)
   {
    int n = ArraySize(g_used);
@@ -1068,8 +1354,215 @@ void MarkUsed(const string name)
    g_used[n] = name;
   }
 
+color ToColor(const uint argb)
+  {
+   return (color)(((argb & 0xFF) << 16) | (argb & 0xFF00) | ((argb >> 16) & 0xFF));
+  }
+
+uint Argb(const uint rgb, const int alpha)
+  {
+   return ((uint)alpha << 24) | (rgb & 0xFFFFFF);
+  }
+
+uint Mix(const uint a, const uint b, const double t)
+  {
+   int r  = (int)MathRound(((a >> 16) & 0xFF) * (1.0 - t) + ((b >> 16) & 0xFF) * t);
+   int g  = (int)MathRound(((a >> 8) & 0xFF) * (1.0 - t) + ((b >> 8) & 0xFF) * t);
+   int bl = (int)MathRound((a & 0xFF) * (1.0 - t) + (b & 0xFF) * t);
+   return (uint)0xFF000000 | ((uint)r << 16) | ((uint)g << 8) | (uint)bl;
+  }
+
+uint LevelArgb(const int level)
+  {
+   if(level >= 3) return P_BREACH;
+   if(level == 2) return P_CRIT;
+   if(level == 1) return P_WARN;
+   return P_OK;
+  }
+
+//--- pixels
+void Blend(const int x, const int y, const uint c, const double cov)
+  {
+   if(x < 0 || y < 0 || x >= g_cw || y >= g_ch || cov <= 0.0)
+      return;
+   int i = y * g_cw + x;
+   int ca = (int)((c >> 24) & 0xFF);
+   if(cov >= 1.0 && ca == 255)
+     {
+      g_px[i] = c;
+      return;
+     }
+   double sa = ca / 255.0 * MathMin(1.0, cov);
+   if(sa <= 0.0)
+      return;
+   uint d = g_px[i];
+   double da = ((d >> 24) & 0xFF) / 255.0;
+   double oa = sa + da * (1.0 - sa);
+   if(oa <= 0.0)
+      return;
+   double k = da * (1.0 - sa);
+   int r = (int)MathRound((((c >> 16) & 0xFF) * sa + ((d >> 16) & 0xFF) * k) / oa);
+   int g = (int)MathRound((((c >> 8) & 0xFF) * sa + ((d >> 8) & 0xFF) * k) / oa);
+   int b = (int)MathRound(((c & 0xFF) * sa + (d & 0xFF) * k) / oa);
+   g_px[i] = ((uint)MathRound(oa * 255.0) << 24) | ((uint)r << 16) | ((uint)g << 8) | (uint)b;
+  }
+
+double Clamp01(const double v)
+  {
+   return MathMax(0.0, MathMin(1.0, v));
+  }
+
+// Retangulo arredondado com antialias (distancia com sinal). stroke > 0: só a borda.
+void RoundRect(const double x, const double y, const double w, const double h, const double r, const uint c, const double stroke = 0.0)
+  {
+   if(g_measure || w <= 0 || h <= 0)
+      return;
+   double X = x * g_s, Y = y * g_s, W = w * g_s, H = h * g_s;
+   double R = MathMin(r * g_s, MathMin(W, H) / 2.0), T = stroke * g_s;
+   double cx = X + W / 2.0, cy = Y + H / 2.0, hx = W / 2.0 - R, hy = H / 2.0 - R;
+   int x1 = MathMax(0, (int)MathFloor(X)), x2 = MathMin(g_cw, (int)MathCeil(X + W));
+   int y1 = MathMax(0, (int)MathFloor(Y)), y2 = MathMin(g_ch, (int)MathCeil(Y + H));
+   for(int py = y1; py < y2; py++)
+      for(int px = x1; px < x2; px++)
+        {
+         double qx = MathAbs(px + 0.5 - cx) - hx, qy = MathAbs(py + 0.5 - cy) - hy;
+         double ox = MathMax(qx, 0.0), oy = MathMax(qy, 0.0);
+         double d = MathSqrt(ox * ox + oy * oy) + MathMin(MathMax(qx, qy), 0.0) - R;
+         double cov = Clamp01(0.5 - d);
+         if(T > 0)
+            cov -= Clamp01(0.5 - (d + T));
+         if(cov > 0)
+            Blend(px, py, c, cov);
+        }
+  }
+
+void Circle(const double cx, const double cy, const double r, const uint c, const double stroke = 0.0)
+  {
+   RoundRect(cx - r, cy - r, 2.0 * r, 2.0 * r, r, c, stroke);
+  }
+
+double Atan2(const double y, const double x)
+  {
+   if(x > 0) return MathArctan(y / x);
+   if(x < 0) return MathArctan(y / x) + (y >= 0 ? M_PI : -M_PI);
+   if(y > 0) return M_PI / 2.0;
+   if(y < 0) return -M_PI / 2.0;
+   return 0.0;
+  }
+
+// Arco do anel: começa no topo e anda no sentido horário; pontas arredondadas.
+void Arc(const double cx, const double cy, const double r, const double thick, double frac, const uint c)
+  {
+   if(g_measure || frac <= 0)
+      return;
+   frac = MathMin(1.0, frac);
+   double CX = cx * g_s, CY = cy * g_s, R = r * g_s, T = thick * g_s / 2.0;
+   double sweep = frac * 2.0 * M_PI;
+   double sx = CX, sy = CY - R, ex = CX + R * MathSin(sweep), ey = CY - R * MathCos(sweep);
+   int x1 = MathMax(0, (int)MathFloor(CX - R - T - 1)), x2 = MathMin(g_cw, (int)MathCeil(CX + R + T + 1));
+   int y1 = MathMax(0, (int)MathFloor(CY - R - T - 1)), y2 = MathMin(g_ch, (int)MathCeil(CY + R + T + 1));
+   for(int py = y1; py < y2; py++)
+      for(int px = x1; px < x2; px++)
+        {
+         double dx = px + 0.5 - CX, dy = py + 0.5 - CY;
+         double d = MathSqrt(dx * dx + dy * dy);
+         double ring = Clamp01(T + 0.5 - MathAbs(d - R));
+         if(ring <= 0)
+            continue;
+         double cov = ring;
+         if(frac < 1.0)
+           {
+            double ang = Atan2(dx, -dy);
+            if(ang < 0)
+               ang += 2.0 * M_PI;
+            if(ang > sweep)
+              {
+               double d1 = MathSqrt((px + 0.5 - sx) * (px + 0.5 - sx) + (py + 0.5 - sy) * (py + 0.5 - sy));
+               double d2 = MathSqrt((px + 0.5 - ex) * (px + 0.5 - ex) + (py + 0.5 - ey) * (py + 0.5 - ey));
+               cov = MathMax(Clamp01(T + 0.5 - d1), Clamp01(T + 0.5 - d2));
+              }
+           }
+         if(cov > 0)
+            Blend(px, py, c, cov);
+        }
+  }
+
+double SegDist(const double px, const double py, const double ax, const double ay, const double bx, const double by)
+  {
+   double vx = bx - ax, vy = by - ay, wx = px - ax, wy = py - ay;
+   double len = vx * vx + vy * vy;
+   double t = (len > 0) ? MathMax(0.0, MathMin(1.0, (wx * vx + wy * vy) / len)) : 0.0;
+   double dx = wx - t * vx, dy = wy - t * vy;
+   return MathSqrt(dx * dx + dy * dy);
+  }
+
+// Linha grossa por pontos (em pontos de tela), com pontas e juntas arredondadas.
+void Stroke(const double &xs[], const double &ys[], const bool closed, const double thick, const uint c)
+  {
+   if(g_measure)
+      return;
+   int n = ArraySize(xs);
+   if(n < 2)
+      return;
+   double T = thick * g_s / 2.0;
+   double minX = xs[0], maxX = xs[0], minY = ys[0], maxY = ys[0];
+   for(int i = 1; i < n; i++)
+     {
+      minX = MathMin(minX, xs[i]); maxX = MathMax(maxX, xs[i]);
+      minY = MathMin(minY, ys[i]); maxY = MathMax(maxY, ys[i]);
+     }
+   int x1 = MathMax(0, (int)MathFloor(minX * g_s - T - 1)), x2 = MathMin(g_cw, (int)MathCeil(maxX * g_s + T + 1));
+   int y1 = MathMax(0, (int)MathFloor(minY * g_s - T - 1)), y2 = MathMin(g_ch, (int)MathCeil(maxY * g_s + T + 1));
+   int segs = closed ? n : n - 1;
+   for(int py = y1; py < y2; py++)
+      for(int px = x1; px < x2; px++)
+        {
+         double best = 1e9;
+         for(int s = 0; s < segs; s++)
+           {
+            int e = (s + 1) % n;
+            best = MathMin(best, SegDist(px + 0.5, py + 0.5, xs[s] * g_s, ys[s] * g_s, xs[e] * g_s, ys[e] * g_s));
+           }
+         double cov = Clamp01(T + 0.5 - best);
+         if(cov > 0)
+            Blend(px, py, c, cov);
+        }
+  }
+
+void ShieldIcon(const double x, const double y, const double size, const uint c)
+  {
+   double k = size / 16.0;
+   double xs[] = {8.0, 14.0, 14.0, 12.6, 8.0, 3.4, 2.0, 2.0};
+   double ys[] = {1.2, 3.4, 8.2, 11.8, 15.0, 11.8, 8.2, 3.4};
+   for(int i = 0; i < 8; i++)
+     {
+      xs[i] = x + xs[i] * k;
+      ys[i] = y + ys[i] * k;
+     }
+   Stroke(xs, ys, true, MathMax(1.5, 1.7 * k), c);
+  }
+
+void CheckIcon(const double x, const double y, const double size, const uint c, const double thick)
+  {
+   double k = size / 16.0;
+   double xs[] = {3.6, 6.7, 12.4};
+   double ys[] = {8.3, 11.3, 5.0};
+   for(int i = 0; i < 3; i++)
+     {
+      xs[i] = x + xs[i] * k;
+      ys[i] = y + ys[i] * k;
+     }
+   Stroke(xs, ys, false, thick, c);
+  }
+
+void CheckBadge(const double cx, const double cy, const double r, const uint fill, const uint mark)
+  {
+   Circle(cx, cy, r, fill);
+   CheckIcon(cx - r * 0.8, cy - r * 0.8, r * 1.6, mark, MathMax(1.6, r * 0.22));
+  }
+
 // Logo do Fortify (mesmo desenho do favicon.svg do site): "F" branco num quadrado
-// preto de cantos arredondados. Desenhada em pixels com antialias 4x4.
+// preto de cantos arredondados, com antialias 4x4. Calculada uma vez por tamanho.
 bool LogoInside(const double px, const double py, const double &xs[], const double &ys[])
   {
    bool in = false;
@@ -1080,26 +1573,27 @@ bool LogoInside(const double px, const double py, const double &xs[], const doub
    return in;
   }
 
-void Logo(const string name, const int x, const int y, const int size)
+void DrawLogo(const double x, const double y, const double size)
   {
-   string res = "::fortify_logo_" + IntegerToString(size);
-   static int built = 0;
-   if(built != size)
+   if(g_measure)
+      return;
+   int S = (int)MathRound(size * g_s);
+   if(g_logoSize != S)
      {
       double ax[] = {32, 232, 191, 82, 82, 32}, ay[] = {29, 29, 71, 71, 180, 229};
       double bx[] = {110, 162, 110}, by[] = {100, 100, 152};
       double scale = 0.2473, offX = 16.0, offY = 18.97; // viewBox 275x251 dentro de 68x64
-      uint px[];
-      ArrayResize(px, size * size);
-      for(int j = 0; j < size; j++)
-         for(int i = 0; i < size; i++)
+      ArrayResize(g_logoSq, S * S);
+      ArrayResize(g_logoF, S * S);
+      for(int j = 0; j < S; j++)
+         for(int i = 0; i < S; i++)
            {
             int inSquare = 0, inF = 0;
             for(int sj = 0; sj < 4; sj++)
                for(int si = 0; si < 4; si++)
                  {
-                  double u = (i + (si + 0.5) / 4.0) * 100.0 / size;
-                  double v = (j + (sj + 0.5) / 4.0) * 100.0 / size;
+                  double u = (i + (si + 0.5) / 4.0) * 100.0 / S;
+                  double v = (j + (sj + 0.5) / 4.0) * 100.0 / S;
                   double cx = MathMax(14.0, MathMin(86.0, u)), cy = MathMax(14.0, MathMin(86.0, v));
                   if((u - cx) * (u - cx) + (v - cy) * (v - cy) > 14.0 * 14.0)
                      continue;
@@ -1108,48 +1602,110 @@ void Logo(const string name, const int x, const int y, const int size)
                   if(LogoInside(sx, sy, ax, ay) || LogoInside(sx, sy, bx, by))
                      inF++;
                  }
-            uint a = (uint)MathRound(255.0 * inSquare / 16.0);
-            uint w = inSquare > 0 ? (uint)MathRound(255.0 * inF / inSquare) : 0;
-            px[j * size + i] = (a << 24) | (w << 16) | (w << 8) | w;
+            g_logoSq[j * S + i] = (uchar)inSquare;
+            g_logoF[j * S + i] = (uchar)inF;
            }
-      ResourceCreate(res, px, size, size, 0, 0, size, COLOR_FORMAT_ARGB_NORMALIZE);
-      built = size;
+      g_logoSize = S;
      }
-   string id = PFX + name;
-   if(ObjectFind(0, id) < 0)
-     {
-      ObjectCreate(0, id, OBJ_BITMAP_LABEL, 0, 0, 0);
-      ObjectSetInteger(0, id, OBJPROP_CORNER, CORNER_LEFT_UPPER);
-      ObjectSetInteger(0, id, OBJPROP_SELECTABLE, false);
-      ObjectSetInteger(0, id, OBJPROP_HIDDEN, true);
-     }
-   ObjectSetString(0, id, OBJPROP_BMPFILE, res);
-   ObjectSetInteger(0, id, OBJPROP_XDISTANCE, x);
-   ObjectSetInteger(0, id, OBJPROP_YDISTANCE, y);
-   MarkUsed(id);
+   int X0 = (int)MathRound(x * g_s), Y0 = (int)MathRound(y * g_s);
+   for(int j = 0; j < S; j++)
+      for(int i = 0; i < S; i++)
+        {
+         int sq = g_logoSq[j * S + i];
+         if(sq == 0)
+            continue;
+         Blend(X0 + i, Y0 + j, (uint)0xFF000000, sq / 16.0);
+         int f = g_logoF[j * S + i];
+         if(f > 0)
+            Blend(X0 + i, Y0 + j, P_WHITE, f / 16.0);
+        }
   }
 
-void Rect(const string name, const int x, const int y, const int w, const int h, const color bg, const color border)
+//--- texto
+double TextWidth(const string s, const double size, const int weight)
   {
-   string id = PFX + name;
-   if(ObjectFind(0, id) < 0)
-     {
-      ObjectCreate(0, id, OBJ_RECTANGLE_LABEL, 0, 0, 0);
-      ObjectSetInteger(0, id, OBJPROP_CORNER, CORNER_LEFT_UPPER);
-      ObjectSetInteger(0, id, OBJPROP_BORDER_TYPE, BORDER_FLAT);
-      ObjectSetInteger(0, id, OBJPROP_SELECTABLE, false);
-      ObjectSetInteger(0, id, OBJPROP_HIDDEN, true);
-      ObjectSetInteger(0, id, OBJPROP_BACK, false);
-     }
-   ObjectSetInteger(0, id, OBJPROP_XDISTANCE, x);
-   ObjectSetInteger(0, id, OBJPROP_YDISTANCE, y);
-   ObjectSetInteger(0, id, OBJPROP_XSIZE, MathMax(1, w));
-   ObjectSetInteger(0, id, OBJPROP_YSIZE, MathMax(1, h));
-   ObjectSetInteger(0, id, OBJPROP_BGCOLOR, bg);
-   ObjectSetInteger(0, id, OBJPROP_COLOR, border);
-   MarkUsed(id);
+   TextSetFont("Segoe UI", (int)MathRound(size * FONT_K * g_s), weight);
+   uint w = 0, h = 0;
+   TextGetSize(s, w, h);
+   return w / g_s;
   }
 
+void Text(const string s, const double x, const double y, const double size, const uint c,
+          const int weight = FW_NORMAL, const uint align = TA_LEFT | TA_TOP)
+  {
+   if(g_measure || s == "")
+      return;
+   TextSetFont("Segoe UI", (int)MathRound(size * FONT_K * g_s), weight);
+   TextOut(s, (int)MathRound(x * g_s), (int)MathRound(y * g_s), align, g_px, g_cw, g_ch, c, COLOR_FORMAT_ARGB_NORMALIZE);
+  }
+
+// Corta com "…" para caber na largura.
+string FitText(string s, const double maxW, const double size, const int weight)
+  {
+   if(TextWidth(s, size, weight) <= maxW)
+      return s;
+   while(StringLen(s) > 1 && TextWidth(s + "…", size, weight) > maxW)
+      s = StringSubstr(s, 0, StringLen(s) - 1);
+   return Trimmed(s) + "…";
+  }
+
+// Quebra o texto em linhas que cabem na largura; a última termina em "…" se sobrar texto.
+int WrapWidth(const string text, const double maxW, const double size, const int weight, const int maxLines, string &out[])
+  {
+   ArrayResize(out, 0);
+   string words[];
+   int count = StringSplit(text, ' ', words);
+   string line = "";
+   int lines = 0;
+   for(int i = 0; i < count; i++)
+     {
+      if(words[i] == "")
+         continue;
+      string candidate = (line == "") ? words[i] : line + " " + words[i];
+      if(line != "" && TextWidth(candidate, size, weight) > maxW)
+        {
+         if(lines == maxLines - 1)
+           {
+            lines++;
+            ArrayResize(out, lines);
+            out[lines - 1] = FitText(candidate, maxW, size, weight);
+            return lines;
+           }
+         lines++;
+         ArrayResize(out, lines);
+         out[lines - 1] = line;
+         line = words[i];
+        }
+      else
+         line = candidate;
+     }
+   if(line != "" && lines < maxLines)
+     {
+      lines++;
+      ArrayResize(out, lines);
+      out[lines - 1] = FitText(line, maxW, size, weight);
+     }
+   return lines;
+  }
+
+void AddHit(const double x, const double y, const double w, const double h, const string action)
+  {
+   if(g_measure)
+      return;
+   // Conteúdo rolado: desloca e corta na parte visível.
+   double y1 = MathMax(g_hitTop, y + g_hitDy), y2 = MathMin(g_hitBottom, y + h + g_hitDy);
+   if(y2 <= y1)
+      return;
+   int n = ArraySize(g_hits);
+   ArrayResize(g_hits, n + 1);
+   g_hits[n].x1 = x;
+   g_hits[n].y1 = y1;
+   g_hits[n].x2 = x + w;
+   g_hits[n].y2 = y2;
+   g_hits[n].action = action;
+  }
+
+//--- objetos do gráfico que ficam fora do desenho (linha de quebra e campo do stop)
 void Label(const string name, const int x, const int y, const string text, const color clr, const int size,
            const string font = "Segoe UI", const ENUM_ANCHOR_POINT anchor = ANCHOR_LEFT_UPPER)
   {
@@ -1171,31 +1727,6 @@ void Label(const string name, const int x, const int y, const string text, const
    MarkUsed(id);
   }
 
-void Button(const string name, const int x, const int y, const int w, const int h, const string text,
-            const color bg, const color fg)
-  {
-   string id = PFX + name;
-   if(ObjectFind(0, id) < 0)
-     {
-      ObjectCreate(0, id, OBJ_BUTTON, 0, 0, 0);
-      ObjectSetInteger(0, id, OBJPROP_CORNER, CORNER_LEFT_UPPER);
-      ObjectSetInteger(0, id, OBJPROP_SELECTABLE, false);
-      ObjectSetInteger(0, id, OBJPROP_HIDDEN, true);
-      ObjectSetString(0, id, OBJPROP_FONT, "Segoe UI Semibold");
-      ObjectSetInteger(0, id, OBJPROP_FONTSIZE, 8);
-     }
-   ObjectSetInteger(0, id, OBJPROP_XDISTANCE, x);
-   ObjectSetInteger(0, id, OBJPROP_YDISTANCE, y);
-   ObjectSetInteger(0, id, OBJPROP_XSIZE, w);
-   ObjectSetInteger(0, id, OBJPROP_YSIZE, h);
-   ObjectSetString(0, id, OBJPROP_TEXT, text);
-   ObjectSetInteger(0, id, OBJPROP_BGCOLOR, bg);
-   ObjectSetInteger(0, id, OBJPROP_COLOR, fg);
-   ObjectSetInteger(0, id, OBJPROP_BORDER_COLOR, C_BORDER);
-   ObjectSetInteger(0, id, OBJPROP_STATE, false);
-   MarkUsed(id);
-  }
-
 void Edit(const string name, const int x, const int y, const int w, const int h, const string initial)
   {
    string id = PFX + name;
@@ -1206,7 +1737,7 @@ void Edit(const string name, const int x, const int y, const int w, const int h,
       ObjectSetInteger(0, id, OBJPROP_SELECTABLE, false);
       ObjectSetInteger(0, id, OBJPROP_HIDDEN, true);
       ObjectSetString(0, id, OBJPROP_FONT, "Segoe UI Semibold");
-      ObjectSetInteger(0, id, OBJPROP_FONTSIZE, 8);
+      ObjectSetInteger(0, id, OBJPROP_FONTSIZE, 9);
       ObjectSetInteger(0, id, OBJPROP_ALIGN, ALIGN_CENTER);
       ObjectSetString(0, id, OBJPROP_TEXT, initial); // depois disso o texto e do trader
      }
@@ -1214,15 +1745,44 @@ void Edit(const string name, const int x, const int y, const int w, const int h,
    ObjectSetInteger(0, id, OBJPROP_YDISTANCE, y);
    ObjectSetInteger(0, id, OBJPROP_XSIZE, w);
    ObjectSetInteger(0, id, OBJPROP_YSIZE, h);
-   ObjectSetInteger(0, id, OBJPROP_BGCOLOR, C_TRACK);
-   ObjectSetInteger(0, id, OBJPROP_COLOR, C_TEXT);
-   ObjectSetInteger(0, id, OBJPROP_BORDER_COLOR, C_BORDER);
+   ObjectSetInteger(0, id, OBJPROP_BGCOLOR, ToColor(P_FIELD));
+   ObjectSetInteger(0, id, OBJPROP_COLOR, ToColor(P_TEXT));
+   ObjectSetInteger(0, id, OBJPROP_BORDER_COLOR, ToColor(P_FIELD));
+   ObjectSetInteger(0, id, OBJPROP_ZORDER, 2);
    MarkUsed(id);
+  }
+
+// Resultado de 1 lote pela calculadora do MT5. Ela arredonda em centavos, então
+// em ativos baratos mede num volume maior e divide, para não perder precisão.
+bool ProfitPerLot(const string symbol, const ENUM_ORDER_TYPE type, const double open, const double close, double &perLot)
+  {
+   double volume = 1.0, result = 0.0;
+   bool have = false;
+   for(int i = 0; i < 4; i++)
+     {
+      // Volume alto demais para o ativo: fica com a última medida boa.
+      if(!OrderCalcProfit(type, symbol, volume, open, close, result))
+         break;
+      perLot = result / volume;
+      have = true;
+      if(MathAbs(result) >= 1000.0)
+         break;
+      volume *= (result == 0.0) ? 1000.0 : MathCeil(2000.0 / MathAbs(result));
+     }
+   return have;
   }
 
 // Quanto vale 1 ponto de preco para 1 lote do ativo, na moeda da conta.
 double PointValuePerLot(const string symbol)
   {
+   // A calculadora do MT5 usa o contrato e a conversão de moeda reais do ativo.
+   double px = SymbolInfoDouble(symbol, SYMBOL_ASK), pt = SymbolInfoDouble(symbol, SYMBOL_POINT);
+   if(px > 0 && pt > 0)
+     {
+      double dist = MathMin(1000.0 * pt, px * 0.1), res = 0.0;
+      if(ProfitPerLot(symbol, ORDER_TYPE_BUY, px, px - dist, res) && res < 0)
+         return -res / (dist / pt);
+     }
    double tickValue = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_VALUE_LOSS);
    if(tickValue <= 0)
       tickValue = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_VALUE);
@@ -1262,7 +1822,7 @@ void DrawBreakLine(const bool has, const double budget, const string ruleLabel, 
       double volume = PositionGetDouble(POSITION_VOLUME);
       net += (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? volume : -volume;
      }
-   if(InpPreview)
+   if(InpPreview && InpPreviewStress)
       net = 2.0;
    double pointValue = PointValuePerLot(_Symbol);
    double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
@@ -1295,40 +1855,6 @@ void DrawBreakLine(const bool has, const double budget, const string ruleLabel, 
       Label("break_txt", 10, ly - 17, text, c, 8, "Segoe UI Semibold");
   }
 
-// Quebra o texto em linhas de ate `width` caracteres, no maximo `maxLines`.
-int WrapText(const string text, const int width, const int maxLines, string &out[])
-  {
-   ArrayResize(out, 0);
-   string words[];
-   int count = StringSplit(text, ' ', words);
-   string line = "";
-   int lines = 0;
-   for(int i = 0; i < count; i++)
-     {
-      string candidate = (line == "") ? words[i] : line + " " + words[i];
-      if(StringLen(candidate) > width && line != "")
-        {
-         lines++;
-         ArrayResize(out, lines);
-         out[lines - 1] = line;
-         line = words[i];
-         if(lines == maxLines)
-            break;
-        }
-      else
-         line = candidate;
-     }
-   if(lines < maxLines && line != "")
-     {
-      lines++;
-      ArrayResize(out, lines);
-      out[lines - 1] = line;
-     }
-   else if(lines == maxLines && line != "" && ArraySize(out) > 0)
-      out[lines - 1] = StringSubstr(out[lines - 1], 0, MathMax(0, width - 3)) + "...";
-   return lines;
-  }
-
 string Elapsed()
   {
    if(g_lastOk == 0)
@@ -1341,260 +1867,1261 @@ string Elapsed()
    return "atualizado há " + IntegerToString(secs / 60) + " min";
   }
 
-int g_panelBottom = 0;
-
-// Desenha o painel; se nao couber na altura do grafico, redesenha compacto
-// (sem o texto de detalhe das regras que estao no verde).
-void DrawPanelPass(const int density);
-
-// 0 = completo; 1 = sem o texto de detalhe das regras no verde; 2 = tambem sem
-// as barras das regras no verde e sem os lembretes (grafico baixo).
-void DrawPanel()
+// Regra mais perto do limite e quanto ainda pode perder hoje (só regras ligadas).
+void Summarize()
   {
-   int chartH = (int)ChartGetInteger(0, CHART_HEIGHT_IN_PIXELS);
-   for(int density = 0; density <= 2; density++)
-     {
-      DrawPanelPass(density);
-      if(g_panelBottom <= chartH - 6)
-         break;
-     }
-  }
-
-void DrawPanelPass(const int density)
-  {
-   ArrayResize(g_used, 0);
-   int chartW = (int)ChartGetInteger(0, CHART_WIDTH_IN_PIXELS);
-   // A largura do grafico inclui a escala de preco a direita (~70px).
-   int x0 = (InpCorner == GUARD_RIGHT) ? MathMax(8, chartW - PANEL_W - 84) : 12;
-   int y0 = 28;
-   int inner = PANEL_W - 2 * PAD;
-   int y = y0 + PAD;
-
-   // Fundo primeiro: no MT5 o objeto criado antes fica atras dos demais.
-   Rect("bg", x0, y0, PANEL_W, 40, C_BG, C_BORDER);
-
-   // Cabecalho
-   // Logo no canto superior esquerdo, com o nome ao lado.
-   Logo("logo", x0 + PAD, y, 34);
-   Label("title", x0 + PAD + 44, y, "Fortify Guard", C_TEXT, 11, "Segoe UI Semibold");
-   if(InpPreview)
-      Label("demo", x0 + PANEL_W - PAD - 32, y + 2, "DEMONSTRAÇÃO", C_WARN, 7, "Segoe UI Semibold", ANCHOR_RIGHT_UPPER);
-   Button("btn_min", x0 + PANEL_W - PAD - 24, y - 2, 24, 18, g_collapsed ? "+" : "-", C_TRACK, C_TEXT);
-   y += 20;
-   // So o essencial: programa e tamanho (a mesa vem no nome do programa).
-   string subtitle = g_hasFeed ? g_program + (g_size != "" ? "  ·  " + g_size : "") : "Conectando...";
-   Label("subtitle", x0 + PAD + 44, y, subtitle, C_MUTED, 8);
-   y += 26;
-
-   // Regra mais perto do limite: maior nivel; no empate, maior percentual usado.
-   int worst = 0, worstIdx = -1;
-   double worstPct = -1.0, canLose = 0.0;
-   bool hasCanLose = false;
-   string canLoseLabel = "";
+   g_worst = 0;
+   g_worstIdx = -1;
+   g_slackIdx = -1;
+   g_hasCanLose = false;
+   g_canLose = 0.0;
+   double worstPct = -1.0;
    for(int i = 0; i < ArraySize(g_rules); i++)
      {
+      if(!RuleVisible(i))
+         continue;
       string k = g_rules[i].kind;
       if(k == "target" || k == "counter" || k == "note")
          continue;
-      if(g_rules[i].level > worst || (g_rules[i].level == worst && g_rules[i].pct > worstPct))
+      if(g_rules[i].level > g_worst || (g_rules[i].level == g_worst && g_rules[i].pct > worstPct))
         {
-         worst = g_rules[i].level;
+         g_worst = g_rules[i].level;
          worstPct = g_rules[i].pct;
-         worstIdx = i;
+         g_worstIdx = i;
         }
-      if(g_rules[i].hasSlack && (!hasCanLose || g_rules[i].slack < canLose))
+      if(g_rules[i].hasSlack && (!g_hasCanLose || g_rules[i].slack < g_canLose))
         {
-         canLose = g_rules[i].slack;
-         hasCanLose = true;
-         canLoseLabel = g_rules[i].label;
+         g_canLose = g_rules[i].slack;
+         g_hasCanLose = true;
+         g_slackIdx = i;
         }
      }
+  }
 
-   if(!g_collapsed && g_hasFeed && g_error == "")
+uint ConnectionTone()
+  {
+   if(g_error != "")
+      return P_BREACH;
+   if(!g_hasFeed || g_lastOk == 0)
+      return P_MUTED;
+   if(TimeLocal() - g_lastOk > MathMax(45, 3 * g_pollSeconds))
+      return P_WARN;
+   return P_OK;
+  }
+
+string StageText()
+  {
+   if(g_stage == "funded")
+      return "Funded";
+   if(g_stage == "evaluation")
+      return "Avaliação";
+   return "";
+  }
+
+//--- conteúdo das abas
+double RenderRuleRow(const int i, double y)
+  {
+   double inner = PW - 2 * PP;
+   string kind = g_rules[i].kind;
+   bool info = (kind == "target" || kind == "counter" || ((kind == "daycap" || kind == "tradecap") && g_rules[i].level == 0));
+   uint accent = info ? P_INFO : LevelArgb(g_rules[i].level);
+   if(g_rules[i].valueDone)
+      accent = P_OK;
+   bool calm = (g_rules[i].level == 0);
+
+   // Valor à direita: parte apagada ("folga") + número forte ("$3.900").
+   double vs = 14.0;
+   string main = g_rules[i].valueMain, pre = g_rules[i].valuePre;
+   double right = PW - PP;
+   double mainW = (main != "") ? TextWidth(main, vs, FW_SEMIBOLD) : 0;
+   Text(main, right, y, vs, calm ? P_TEXT : accent, FW_SEMIBOLD, TA_RIGHT | TA_TOP);
+   double valueW = mainW;
+   if(pre != "")
      {
-      color tone = LevelColor(worst);
-      color tint;
-      if(g_light)
-         tint = (worst >= 3) ? C'253,228,228' : (worst == 2) ? C'254,234,218' : (worst == 1) ? C'253,245,222' : C'230,246,236';
-      else
-         tint = (worst >= 3) ? C'52,20,22' : (worst == 2) ? C'52,32,14' : (worst == 1) ? C'46,38,14' : C'16,38,28';
-      // Critico ou limite: a faixa pisca para chamar o olho do trader.
-      if(worst >= 2 && (GetTickCount() / 500) % 2 == 0)
-         tint = g_light ? C'250,196,196' : C'96,30,30';
-      // Faixa de status: o que importa (status) e o numero que decide (quanto ainda pode perder).
+      Text(pre, right - mainW - 5, y, vs, P_MUTED, FW_NORMAL, TA_RIGHT | TA_TOP);
+      valueW += 5 + TextWidth(pre, vs, FW_NORMAL);
+     }
+   if(g_rules[i].valueDone)
+     {
+      CheckBadge(right - valueW - 16, y + 10, 9.5, P_OK, P_BG);
+      valueW += 28;
+     }
+   Text(FitText(g_rules[i].label, inner - valueW - 12, 14.0, FW_NORMAL), PP, y, 14.0, P_TEXT);
+   AddHit(PP, y - 6, inner, 36, "row:" + g_rules[i].key);
+   y += 26;
+
+   bool showBar = (kind != "note") && !(kind == "counter" && !g_rules[i].hasRequired);
+   if(showBar)
+     {
+      RoundRect(PP, y, inner, 6, 3, P_TRACK);
+      double pct = MathMin(100.0, MathMax(0.0, g_rules[i].pct));
+      double fill = inner * pct / 100.0;
+      if(fill > 0)
+         RoundRect(PP, y, MathMax(6.0, fill), 6, 3, accent);
+      y += 6;
+     }
+   // Toque na regra: abre a explicação embaixo.
+   if(g_expanded == g_rules[i].key && g_rules[i].detailText != "")
+     {
+      string lines[];
+      int n = WrapWidth(g_rules[i].detailText, inner, 11.5, FW_NORMAL, 5, lines);
+      y += 9;
+      for(int l = 0; l < n; l++)
+         Text(lines[l], PP, y + l * 16, 11.5, P_MUTED);
+      y += n * 16;
+     }
+   y += g_compact ? 12 : 18;
+   return y;
+  }
+
+double RenderMain(double y)
+  {
+   double inner = PW - 2 * PP;
+   if(!g_hasFeed)
+     {
+      if(g_error == "")
+        {
+         Text("Conectando ao Fortify...", PP, y, 13, P_MUTED);
+         y += 30;
+        }
+      return y;
+     }
+   if(g_error == "")
+     {
+      uint tone = LevelArgb(g_worst);
+      double hh = 110;
+      // Crítico ou limite: o cartão pisca para chamar o olho.
+      double tint = (g_worst >= 2 && (GetTickCount() / 500) % 2 == 0) ? 0.28 : 0.11;
+      RoundRect(PP, y, inner, hh, 14, Mix(P_BG, tone, tint));
+      RoundRect(PP, y, inner, hh, 14, Argb(tone, 160), 1.2);
       string headline = "Dentro das regras";
-      if(worstIdx >= 0 && worst >= 1)
-         headline = g_rules[worstIdx].label + " · " + DoubleToString(MathMin(999.0, g_rules[worstIdx].pct), 0) + "%";
-      Rect("hero_bg", x0 + PAD, y, inner, 50, tint, tone);
-      Rect("hero_bar", x0 + PAD, y, 3, 50, tone, tone);
-      Label("hero_title", x0 + PAD + 12, y + 8, headline, C_TEXT, 10, "Segoe UI Semibold");
-      Label("hero_sub", x0 + PAD + 12, y + 28, "pode perder hoje", C_MUTED, 8);
-      Label("hero_val", x0 + PANEL_W - PAD - 12, y + 13, hasCanLose ? Money(MathMax(0.0, canLose)) : "-",
-            hasCanLose ? tone : C_MUTED, 14, "Segoe UI Semibold", ANCHOR_RIGHT_UPPER);
-      y += 60;
-
-      // Simulador: stop em pontos -> lote maximo que cabe na folga de hoje.
-      double pointValue = PointValuePerLot(_Symbol);
-      Label("sim_cap", x0 + PAD, y + 3, "Stop", C_MUTED, 8);
-      Edit("sim_stop", x0 + PAD + 34, y, 52, 20, IntegerToString(g_simStop));
-      string simText = "pts";
-      if(hasCanLose && pointValue > 0)
-         simText = "pts  →  " + FormatLots(SimLots(canLose, g_simStop, pointValue)) + " lotes";
-      Label("sim_txt", x0 + PAD + 94, y + 3, simText, C_TEXT, 8, "Segoe UI Semibold");
-      y += 30;
-      DrawBreakLine(hasCanLose, canLose, canLoseLabel, worst);
+      if(g_worstIdx >= 0 && g_worst >= 1)
+         headline = g_rules[g_worstIdx].label + " · " + DoubleToString(MathMin(999.0, g_rules[g_worstIdx].pct), 0) + "%";
+      ShieldIcon(PP + 15, y + 15, 18, tone);
+      Text(FitText(headline, inner - 42 - 96, 15.5, FW_SEMIBOLD), PP + 41, y + 15, 15.5, tone, FW_SEMIBOLD);
+      Text("pode perder hoje", PP + 16, y + 45, 12.5, P_MUTED);
+      Text(g_hasCanLose ? MoneyShort(MathMax(0.0, g_canLose)) : "–", PP + 15, y + 62, 32, P_TEXT, FW_BOLD);
+      // Anel: quanto ainda sobra da regra mais apertada.
+      double rcx = PP + inner - 18 - 32, rcy = y + hh / 2;
+      double frac = 1.0;
+      if(g_slackIdx >= 0 && g_rules[g_slackIdx].limit > 0)
+         frac = Clamp01(g_rules[g_slackIdx].slack / g_rules[g_slackIdx].limit);
+      Circle(rcx, rcy, 32 + 3.25, Argb(P_TEXT, 26), 6.5);
+      Arc(rcx, rcy, 32, 6.5, frac, tone);
+      ShieldIcon(rcx - 10, rcy - 10.5, 20, tone);
+      y += hh + 14;
+      // Os mesmos números da aba Negociação do MT5, com centavos.
+      double openResult = g_equityNow - g_balanceNow;
+      bool flat = (MathAbs(openResult) < 0.005);
+      Text("Saldo", PP, y, 11.5, P_MUTED);
+      Text(Money(g_balanceNow), PP, y + 16, 13, P_TEXT, FW_SEMIBOLD);
+      Text("Equity", PP + inner / 2, y, 11.5, P_MUTED, FW_NORMAL, TA_CENTER | TA_TOP);
+      Text(Money(g_equityNow), PP + inner / 2, y + 16, 13, P_TEXT, FW_SEMIBOLD, TA_CENTER | TA_TOP);
+      Text("Em aberto", PP + inner, y, 11.5, P_MUTED, FW_NORMAL, TA_RIGHT | TA_TOP);
+      Text((openResult > 0 && !flat ? "+" : "") + Money(flat ? 0.0 : openResult), PP + inner, y + 16, 13,
+           flat ? P_TEXT : (openResult > 0 ? P_OK : P_BREACH), FW_SEMIBOLD, TA_RIGHT | TA_TOP);
+      y += 36 + 18;
      }
 
-   if(!g_collapsed)
+   int shown = 0;
+   for(int i = 0; i < ArraySize(g_rules); i++)
      {
-      if(g_error != "")
+      if(!RuleVisible(i) || g_rules[i].kind == "note" || g_rules[i].group == "rules")
+         continue;
+      y = RenderRuleRow(i, y);
+      shown++;
+     }
+   if(shown == 0)
+     {
+      Text("Nenhuma regra ao vivo ligada.", PP, y, 13, P_TEXT, FW_SEMIBOLD);
+      Text("Abrir Configurações", PP, y + 22, 12.5, P_INFO, FW_SEMIBOLD);
+      AddHit(PP, y + 16, 170, 26, "tab:config");
+      y += 52;
+     }
+
+   if(g_error == "")
+     {
+      // Simulador: stop em pontos -> lote máximo que cabe no que ainda pode perder hoje.
+      RoundRect(PP, y, inner, 1, 0, P_BORDER);
+      y += 14;
+      Text("Stop", PP, y + 13, 12.5, P_MUTED, FW_NORMAL, TA_LEFT | TA_VCENTER);
+      RoundRect(PP + 40, y, 66, 26, 8, P_FIELD);
+      RoundRect(PP + 40, y, 66, 26, 8, P_BORDER, 1);
+      if(!g_measure)
         {
-         string lines[];
-         int n = WrapText(g_error, 52, 4, lines);
-         Rect("err_bg", x0 + PAD, y, inner, 12 + n * 14, C_ERRBG, C_BREACH);
-         for(int l = 0; l < n; l++)
-            Label("err_" + IntegerToString(l), x0 + PAD + 8, y + 6 + l * 14, lines[l], C_TEXT, 8);
-         y += 12 + n * 14 + 10;
+         g_editOn = true;
+         g_editX = PP + 44;
+         g_editY = y + 4;
         }
+      double pointValue = PointValuePerLot(_Symbol);
+      string sim = "pts";
+      if(g_hasCanLose && pointValue > 0)
+         sim = "pts  →  " + FormatLots(SimLots(g_canLose, g_simStop, pointValue)) + " lotes";
+      Text(sim, PP + 116, y + 13, 12.5, P_TEXT, FW_SEMIBOLD, TA_LEFT | TA_VCENTER);
+      y += 26 + 14;
+      RoundRect(PP, y, inner, 36, 10, P_BREACH);
+      Text("FECHAR POSIÇÕES", PP + inner / 2, y + 18, 13, P_WHITE, FW_BOLD, TA_CENTER | TA_VCENTER);
+      AddHit(PP, y, inner, 36, "close");
+      y += 36 + 14;
+     }
+   return y;
+  }
 
-      // Abas por grupo: Conta (zera a conta) e Saque (metas e saque). Lembretes/notícias não fazem parte do Guard.
-      string groupIds[] = {"account", "payout"};
-      string groupTitles[] = {"Conta", "Saque"};
-      bool present[2];
-      bool alerting[2];
-      ArrayInitialize(present, false);
-      ArrayInitialize(alerting, false);
-      bool grouped = false;
-      for(int i = 0; i < ArraySize(g_rules); i++)
+double RenderNotes(double y)
+  {
+   double inner = PW - 2 * PP;
+   int shown = 0;
+   for(int i = 0; i < ArraySize(g_rules); i++)
+     {
+      if(!RuleVisible(i) || g_rules[i].kind != "note")
+         continue;
+      if(shown > 0)
         {
-         for(int g = 0; g < 2; g++)
-           {
-            if(g_rules[i].group != groupIds[g])
-               continue;
-            grouped = true;
-            present[g] = true;
-            string k = g_rules[i].kind;
-            if(g_rules[i].level >= 1 && k != "note" && k != "target" && k != "counter")
-               alerting[g] = true;
-           }
+         RoundRect(PP, y, inner, 1, 0, P_BORDER);
+         y += 14;
         }
-      if(grouped)
+      Text(FitText(g_rules[i].label, inner, 13.5, FW_SEMIBOLD), PP, y, 13.5, P_TEXT, FW_SEMIBOLD);
+      y += 22;
+      string lines[];
+      int n = WrapWidth(g_rules[i].message, inner, 12, FW_NORMAL, g_compact ? 3 : 6, lines);
+      for(int l = 0; l < n; l++)
+         Text(lines[l], PP, y + l * 17, 12, P_MUTED);
+      y += n * 17 + 14;
+      shown++;
+     }
+   if(shown == 0)
+     {
+      Text("Nenhuma regra de texto ligada.", PP, y, 13, P_TEXT, FW_SEMIBOLD);
+      Text("Ligue em Configurações o que quer ler aqui.", PP, y + 22, 12, P_MUTED);
+      Text("Abrir Configurações", PP, y + 48, 12.5, P_INFO, FW_SEMIBOLD);
+      AddHit(PP, y + 42, 170, 26, "tab:config");
+      y += 80;
+     }
+   return y;
+  }
+
+//+------------------------------------------------------------------+
+//| Aba Mercado: leitura do dia, probabilidade histórica e lote       |
+//+------------------------------------------------------------------+
+// Como o número sai: o EA olha o contexto de agora no ativo (tendência do
+// diário e do H4, zona na faixa de ontem, se já varreu a máxima ou a mínima
+// de ontem, sessão) e procura no histórico do próprio MT5 as horas com o
+// mesmo contexto. Em cada uma, simula uma compra e uma venda com o mesmo
+// stop (ATR do H1) e o mesmo alvo (stop x InpMkRR) e conta quantas vezes o
+// alvo veio antes do stop. O lado que se saiu melhor vira o botão.
+#define MK_FWD    48     // horas que a operação tem para tocar o stop ou o alvo
+#define MK_MIN_N  40     // casos mínimos para mostrar uma probabilidade
+#define MK_EDGE   0.03   // vantagem mínima sobre a referência para indicar um lado
+
+double   g_mkRisk = 1000.0;      // quanto o trader quer arriscar (moeda da conta)
+string   g_mkSym = "";
+datetime g_mkBar = 0;            // H1 em que o estudo foi feito
+datetime g_mkTry = 0;
+int      g_mkBars = 0;           // barras H1 usadas no estudo (muda quando o MT5 baixa mais histórico)
+datetime g_mkSyncSince = 0;      // desde quando espera o histórico sincronizar
+bool     g_mkReady = false;
+string   g_mkStatus = "Lendo o histórico do ativo...";
+datetime g_mkFrom = 0;           // início do histórico estudado
+int      g_mkKeyFull[], g_mkKeyMid[], g_mkKeyLow[];
+char     g_mkBuy[], g_mkSell[];  // 1 alvo, 0 stop, -1 sem desfecho
+// Contexto que não muda dentro da hora.
+double   g_mkPdh = 0, g_mkPdl = 0, g_mkAtr = 0;
+int      g_mkTrendNow = 2;
+// Leitura de agora.
+int      g_mkZone = 0, g_mkSweep = 0, g_mkSession = 0, g_mkLevel = 0;
+double   g_mkP = 0.0;
+int      g_mkN = 0, g_mkSide = 0;    // 1 compra, -1 venda, 0 sem indicação
+int      g_mkProbSide = 1;           // lado da probabilidade mostrada
+datetime g_mkNewsTime = 0;           // horário da notícia forte (servidor)
+string   g_mkNewsName = "";
+datetime g_mkNewsCheck = 0;
+// Campo do valor a arriscar (objeto de edição por cima do desenho).
+bool     g_mkEditOn = false;
+double   g_mkEditX = 0, g_mkEditY = 0, g_mkEditW = 0;
+
+void MkEma(const MqlRates &r[], const int period, double &out[])
+  {
+   int n = ArraySize(r);
+   ArrayResize(out, n);
+   if(n == 0)
+      return;
+   double k = 2.0 / (period + 1.0);
+   out[0] = r[0].close;
+   for(int i = 1; i < n; i++)
+      out[i] = r[i].close * k + out[i - 1] * (1.0 - k);
+  }
+
+// 0 Ásia, 1 Londres, 2 Nova York (hora de Greenwich).
+int MkSessionOf(const datetime gmt)
+  {
+   MqlDateTime t;
+   TimeToStruct(gmt, t);
+   if(t.hour >= 7 && t.hour < 12)
+      return 1;
+   if(t.hour >= 12 && t.hour < 21)
+      return 2;
+   return 0;
+  }
+
+// 0 diário e H4 em alta, 1 os dois em baixa, 2 em direções opostas.
+int MkTrend(const bool d1Up, const bool h4Up)
+  {
+   if(d1Up && h4Up)
+      return 0;
+   if(!d1Up && !h4Up)
+      return 1;
+   return 2;
+  }
+
+int MkKeyFull(const int tr, const int zone, const int sweep, const int ses) { return ((tr * 2 + zone) * 4 + sweep) * 3 + ses; }
+int MkKeyMid(const int tr, const int zone, const int sweep)                 { return (tr * 2 + zone) * 4 + sweep; }
+int MkKeyLow(const int tr, const int zone)                                  { return tr * 2 + zone; }
+
+// Compra entra no ask e sai no bid; venda o contrário. Stop e alvo na mesma hora contam como stop.
+char MkOutcome(const MqlRates &r[], const int k, const int n, const double entry, const int dir,
+               const double risk, const double target, const double spread)
+  {
+   double sl = entry - dir * risk, tp = entry + dir * target;
+   for(int f = k + 1; f < n && f <= k + MK_FWD; f++)
+     {
+      bool hitSl = (dir > 0) ? (r[f].low <= sl) : (r[f].high + spread >= sl);
+      bool hitTp = (dir > 0) ? (r[f].high >= tp) : (r[f].low + spread <= tp);
+      if(hitSl)
+         return 0;
+      if(hitTp)
+         return 1;
+     }
+   return -1;
+  }
+
+bool MkBuild()
+  {
+   string sym = g_mkSym;
+   // Só estuda com o histórico sincronizado com a corretora (espera até 30 s).
+   bool synced = SeriesInfoInteger(sym, PERIOD_H1, SERIES_SYNCHRONIZED) && SeriesInfoInteger(sym, PERIOD_H4, SERIES_SYNCHRONIZED)
+                 && SeriesInfoInteger(sym, PERIOD_D1, SERIES_SYNCHRONIZED);
+   if(!synced)
+     {
+      if(g_mkSyncSince == 0)
+         g_mkSyncSince = TimeLocal();
+      if(TimeLocal() - g_mkSyncSince < 30)
         {
-         int tabs = 0;
-         bool activeOk = false;
-         for(int g = 0; g < 2; g++)
-           {
-            if(!present[g])
-               continue;
-            tabs++;
-            if(groupIds[g] == g_tab)
-               activeOk = true;
-           }
-         if(!activeOk)
-            for(int g = 0; g < 2; g++)
-               if(present[g])
-                 {
-                  g_tab = groupIds[g];
-                  break;
-                 }
-         int tabW = (inner - (tabs - 1) * 6) / tabs;
-         int tx = x0 + PAD;
-         for(int g = 0; g < 2; g++)
-           {
-            if(!present[g])
-               continue;
-            bool on = (g_tab == groupIds[g]);
-            string title = groupTitles[g] + (alerting[g] ? "  ●" : "");
-            color fg = on ? C_TEXT : (alerting[g] ? C_WARN : C_MUTED);
-            Button("tab_" + groupIds[g], tx, y, tabW, 20, title, on ? C_TABON : C_BG, fg);
-            tx += tabW + 6;
-           }
-         y += 28;
+         g_mkStatus = "Sincronizando o histórico do " + sym + "...";
+         return false;
         }
+     }
+   g_mkSyncSince = 0;
+   MqlRates h1[], h4[], d1[];
+   int n1 = CopyRates(sym, PERIOD_H1, 0, MathMin(MathMax(Bars(sym, PERIOD_H1), 1), 20000), h1);
+   int n4 = CopyRates(sym, PERIOD_H4, 0, MathMin(MathMax(Bars(sym, PERIOD_H4), 1), 6000), h4);
+   int nd = CopyRates(sym, PERIOD_D1, 0, MathMin(MathMax(Bars(sym, PERIOD_D1), 1), 1500), d1);
+   if(n1 < 1500 || n4 < 120 || nd < 80)
+     {
+      g_mkStatus = "Baixando o histórico do " + sym + "...";
+      return false;
+     }
+   double e4[], ed[];
+   MkEma(h4, 20, e4);
+   MkEma(d1, 50, ed);
+   double point = SymbolInfoDouble(sym, SYMBOL_POINT);
+   double spread = (double)SymbolInfoInteger(sym, SYMBOL_SPREAD) * point;
+   // Fuso do servidor em blocos de 30 min (a diferença entre os relógios pode vir com segundos a mais).
+   long offset = (long)MathRound((double)(TimeTradeServer() - TimeGMT()) / 1800.0) * 1800;
 
-      for(int i = 0; i < ArraySize(g_rules); i++)
+   ArrayResize(g_mkKeyFull, n1);
+   ArrayResize(g_mkKeyMid, n1);
+   ArrayResize(g_mkKeyLow, n1);
+   ArrayResize(g_mkBuy, n1);
+   ArrayResize(g_mkSell, n1);
+   ArrayInitialize(g_mkKeyFull, -1);
+   ArrayInitialize(g_mkKeyMid, -1);
+   ArrayInitialize(g_mkKeyLow, -1);
+   ArrayInitialize(g_mkBuy, -1);
+   ArrayInitialize(g_mkSell, -1);
+
+   double tr[];
+   ArrayResize(tr, n1);
+   double trSum = 0;
+   int j4 = 0, jd = 0;
+   datetime curDay = 0;
+   double dayHi = 0, dayLo = 0;
+   for(int k = 0; k < n1; k++)
+     {
+      double prevClose = (k > 0) ? h1[k - 1].close : h1[k].open;
+      tr[k] = MathMax(h1[k].high, prevClose) - MathMin(h1[k].low, prevClose);
+      trSum += tr[k];
+      if(k >= 14)
+         trSum -= tr[k - 14];
+      datetime dayStart = h1[k].time - h1[k].time % 86400;
+      if(dayStart != curDay)
         {
-         string id = "r" + IntegerToString(i) + "_";
-         string kind = g_rules[i].kind;
-         if(grouped && g_rules[i].group != g_tab)
-            continue;
-         if(density >= 2 && kind == "note")
-            continue;
-         bool measured = (kind == "floor" || kind == "daycap" || kind == "tradecap" || kind == "target" || kind == "counter"
-                          || kind == "idle" || kind == "close" || kind == "lots" || kind == "floating" || kind == "risk");
-         color accent = (kind == "target" || kind == "counter") ? C_INFO
-                        : (kind == "note") ? C_MUTED
-                        : LevelColor(g_rules[i].level);
-
-         Rect(id + "dot", x0 + PAD, y + 5, 6, 6, accent, accent);
-         Label(id + "label", x0 + PAD + 12, y, g_rules[i].label, C_TEXT, 9, "Segoe UI Semibold");
-         // A explicacao da regra fica no tooltip: passa o mouse em cima para ler.
-         ObjectSetString(0, PFX + id + "label", OBJPROP_TOOLTIP, g_rules[i].detailText != "" ? g_rules[i].detailText : g_rules[i].label);
-         bool calm = (g_rules[i].level == 0 && kind != "target" && kind != "counter");
-         if(g_rules[i].valueText != "")
-            Label(id + "value", x0 + PANEL_W - PAD, y, g_rules[i].valueText, calm ? C_TEXT : accent, 9, "Segoe UI Semibold", ANCHOR_RIGHT_UPPER);
-         y += 18;
-
-         bool showBar = (measured && kind != "counter") || (kind == "counter" && g_rules[i].hasRequired);
-         if(density >= 2 && g_rules[i].level == 0)
-            showBar = false;
-         if(showBar)
-           {
-            Rect(id + "track", x0 + PAD, y, inner, 4, C_TRACK, C_TRACK);
-            int fill = (int)MathRound(inner * MathMin(100.0, g_rules[i].pct) / 100.0);
-            if(fill > 0)
-               Rect(id + "fill", x0 + PAD, y, fill, 4, accent, accent);
-            y += 4;
-           }
-         y += (density >= 2) ? 6 : 12;
-        }
-
-      if(ArraySize(g_rules) == 0 && g_error == "")
-        {
-         Label("empty", x0 + PAD, y, g_hasFeed ? "Nenhuma regra escolhida para o EA nesta conta." : "Conectando ao Fortify...", C_MUTED, 8);
-         y += 22;
-        }
-
-      if(g_notice != "")
-        {
-         string lines[];
-         int n = WrapText(g_notice, 56, 2, lines);
-         for(int l = 0; l < n; l++)
-            Label("notice" + IntegerToString(l), x0 + PAD, y + l * 13, lines[l], C_WARN, 7);
-         y += n * 13 + 6;
-        }
-
-      // "Atualizar" so aparece quando algo deu errado; no normal o EA atualiza sozinho.
-      if(g_error != "")
-        {
-         int bw = (inner - 8) / 2;
-         Button("btn_close", x0 + PAD, y, bw, 24, "Fechar posições", worst >= 2 ? C_BREACH : C_TRACK, C_TEXT);
-         Button("btn_refresh", x0 + PAD + bw + 8, y, bw, 24, "Tentar de novo", C_TRACK, C_TEXT);
+         curDay = dayStart;
+         dayHi = h1[k].high;
+         dayLo = h1[k].low;
         }
       else
-         Button("btn_close", x0 + PAD, y, inner, 24, "Fechar posições", worst >= 2 ? C_BREACH : C_TRACK, C_TEXT);
-      y += 32;
+        {
+         dayHi = MathMax(dayHi, h1[k].high);
+         dayLo = MathMin(dayLo, h1[k].low);
+        }
+      if(k < 14 || k + 1 >= n1)          // a hora que ainda está aberta fica de fora
+         continue;
+      datetime closeT = h1[k].time + 3600;
+      while(jd + 1 < nd && d1[jd + 1].time < dayStart)
+         jd++;
+      while(j4 + 1 < n4 && h4[j4 + 1].time + 14400 <= closeT)
+         j4++;
+      if(jd < 50 || j4 < 20 || d1[jd].time >= dayStart || h4[j4].time + 14400 > closeT)
+         continue;
+      double pdh = d1[jd].high, pdl = d1[jd].low;
+      double risk = trSum / 14.0 * InpMkStopAtr;
+      if(pdh <= pdl || risk <= 0)
+         continue;
+      int trend = MkTrend(d1[jd].close > ed[jd], h4[j4].close > e4[j4]);
+      int zone = ((h1[k].close - pdl) / (pdh - pdl) >= 0.5) ? 1 : 0;
+      int sweep = (dayHi > pdh ? 1 : 0) + (dayLo < pdl ? 2 : 0);
+      int ses = MkSessionOf((datetime)(closeT - offset));
+      g_mkKeyFull[k] = MkKeyFull(trend, zone, sweep, ses);
+      g_mkKeyMid[k] = MkKeyMid(trend, zone, sweep);
+      g_mkKeyLow[k] = MkKeyLow(trend, zone);
+      double target = risk * InpMkRR;
+      g_mkBuy[k] = MkOutcome(h1, k, n1, h1[k].close + spread, 1, risk, target, spread);
+      g_mkSell[k] = MkOutcome(h1, k, n1, h1[k].close, -1, risk, target, spread);
+     }
+   g_mkFrom = h1[0].time;
+
+   // Contexto de agora que só muda com a hora: dia anterior, H4 fechado e ATR.
+   datetime now = TimeCurrent();
+   datetime today = now - now % 86400;
+   int pd = -1;
+   for(int i = nd - 1; i >= 0; i--)
+      if(d1[i].time < today)
+        {
+         pd = i;
+         break;
+        }
+   int p4 = -1;
+   for(int i = n4 - 1; i >= 0; i--)
+      if(h4[i].time + 14400 <= now)
+        {
+         p4 = i;
+         break;
+        }
+   if(pd < 0 || p4 < 0)
+     {
+      g_mkStatus = "Histórico do " + sym + " incompleto.";
+      return false;
+     }
+   g_mkPdh = d1[pd].high;
+   g_mkPdl = d1[pd].low;
+   g_mkTrendNow = MkTrend(d1[pd].close > ed[pd], h4[p4].close > e4[p4]);
+   double s = 0;
+   for(int i = n1 - 15; i < n1 - 1; i++)
+      s += tr[i];
+   g_mkAtr = s / 14.0;
+   return g_mkAtr > 0 && g_mkPdh > g_mkPdl;
+  }
+
+void MkCount(const int level, const int key, int &bw, int &bn, int &sw, int &sn)
+  {
+   bw = 0; bn = 0; sw = 0; sn = 0;
+   int n = ArraySize(g_mkBuy);
+   for(int k = 0; k < n; k++)
+     {
+      int kk = (level == 0) ? g_mkKeyFull[k] : (level == 1) ? g_mkKeyMid[k] : g_mkKeyLow[k];
+      if(kk != key)
+         continue;
+      if(g_mkBuy[k] >= 0)
+        {
+         bn++;
+         bw += g_mkBuy[k];
+        }
+      if(g_mkSell[k] >= 0)
+        {
+         sn++;
+         sw += g_mkSell[k];
+        }
+     }
+  }
+
+// Notícia forte da moeda do ativo, de 5 min atrás até 30 min à frente (calendário do MT5).
+void MkNews()
+  {
+   datetime now = TimeTradeServer();
+   if(now - g_mkNewsCheck < 60)
+      return;
+   g_mkNewsCheck = now;
+   g_mkNewsTime = 0;
+   g_mkNewsName = "";
+   string c1 = SymbolInfoString(g_mkSym, SYMBOL_CURRENCY_BASE), c2 = SymbolInfoString(g_mkSym, SYMBOL_CURRENCY_PROFIT);
+   MqlCalendarValue vals[];
+   ResetLastError();
+   if(CalendarValueHistory(vals, now - 300, now + 1800) <= 0)
+      return;
+   for(int i = 0; i < ArraySize(vals); i++)
+     {
+      MqlCalendarEvent ev;
+      MqlCalendarCountry country;
+      if(!CalendarEventById(vals[i].event_id, ev) || ev.importance != CALENDAR_IMPORTANCE_HIGH)
+         continue;
+      if(!CalendarCountryById(ev.country_id, country) || (country.currency != c1 && country.currency != c2))
+         continue;
+      if(g_mkNewsName == "" || vals[i].time < g_mkNewsTime)
+        {
+         g_mkNewsTime = vals[i].time;
+         g_mkNewsName = ev.name;
+        }
+     }
+  }
+
+// Minutos até a notícia forte, arredondados para cima: 0 ou menos = já saiu.
+int MkNewsMinutes()
+  {
+   return (int)MathCeil((double)(g_mkNewsTime - TimeTradeServer()) / 60.0);
+  }
+
+// Há notícia forte nos próximos 30 min (ou saiu há até 5 min)?
+bool MkNewsSoon()
+  {
+   if(g_mkNewsName == "")
+      return false;
+   int mins = MkNewsMinutes();
+   return mins <= 30 && mins >= -5;
+  }
+
+string MkNewsWhen()
+  {
+   int mins = MkNewsMinutes();
+   return (mins <= 0) ? "agora" : "em " + IntegerToString(mins) + " min";
+  }
+
+// Leitura de agora (preço, máxima e mínima do dia, sessão) e a probabilidade.
+void MkLive()
+  {
+   double bid = SymbolInfoDouble(g_mkSym, SYMBOL_BID);
+   if(bid <= 0)
+      bid = iClose(g_mkSym, PERIOD_H1, 0);
+   datetime now = TimeCurrent();
+   datetime today = now - now % 86400;
+   double hi = bid, lo = bid;
+   if(iTime(g_mkSym, PERIOD_D1, 0) == today)
+     {
+      hi = MathMax(hi, iHigh(g_mkSym, PERIOD_D1, 0));
+      lo = MathMin(lo, iLow(g_mkSym, PERIOD_D1, 0));
+     }
+   g_mkZone = ((bid - g_mkPdl) / (g_mkPdh - g_mkPdl) >= 0.5) ? 1 : 0;
+   g_mkSweep = (hi > g_mkPdh ? 1 : 0) + (lo < g_mkPdl ? 2 : 0);
+   g_mkSession = MkSessionOf(TimeGMT());
+
+   // Do contexto mais completo para o mais simples, até ter casos suficientes.
+   int bw = 0, bn = 0, sw = 0, sn = 0;
+   g_mkLevel = -1;
+   for(int level = 0; level < 3; level++)
+     {
+      int key = (level == 0) ? MkKeyFull(g_mkTrendNow, g_mkZone, g_mkSweep, g_mkSession)
+                : (level == 1) ? MkKeyMid(g_mkTrendNow, g_mkZone, g_mkSweep) : MkKeyLow(g_mkTrendNow, g_mkZone);
+      MkCount(level, key, bw, bn, sw, sn);
+      if(MathMin(bn, sn) >= MK_MIN_N)
+        {
+         g_mkLevel = level;
+         break;
+        }
+     }
+   double pb = (bn > 0) ? (double)bw / bn : 0.0, ps = (sn > 0) ? (double)sw / sn : 0.0;
+   g_mkProbSide = (pb >= ps) ? 1 : -1;
+   g_mkSide = g_mkProbSide;
+   g_mkP = MathMax(pb, ps);
+   g_mkN = (g_mkSide > 0) ? bn : sn;
+   // Sem casos suficientes, sem vantagem ou com notícia forte perto: nenhum lado fica destacado.
+   double base = 1.0 / (1.0 + InpMkRR);
+   if(g_mkLevel < 0 || g_mkP < base + MK_EDGE || MkNewsSoon())
+      g_mkSide = 0;
+  }
+
+void MkUpdate()
+  {
+   datetime bar = iTime(_Symbol, PERIOD_H1, 0);
+   int bars = Bars(_Symbol, PERIOD_H1);
+   if(g_mkSym != _Symbol)
+     {
+      g_mkSym = _Symbol;
+      g_mkReady = false;
+      g_mkTry = 0;
+      g_mkNewsCheck = 0;
+      g_mkStatus = "Lendo o histórico do " + _Symbol + "...";
+     }
+   // Estudo novo a cada hora; se falhar, o anterior continua valendo.
+   // Também refaz quando chega histórico novo (o MT5 ainda estava baixando).
+   if((!g_mkReady || bar != g_mkBar || bars != g_mkBars) && TimeLocal() - g_mkTry >= 3)
+     {
+      g_mkTry = TimeLocal();
+      if(MkBuild())
+        {
+         g_mkReady = true;
+         g_mkBar = bar;
+         g_mkBars = bars;
+        }
+     }
+   if(!g_mkReady)
+      return;
+   MkNews();
+   MkLive();
+  }
+
+string MkPrice(const double price)
+  {
+   string s = DoubleToString(price, (int)SymbolInfoInteger(g_mkSym, SYMBOL_DIGITS));
+   StringReplace(s, ".", ",");
+   return s;
+  }
+
+double g_mkGainUsed = 0.0;       // ganho real no alvo com o lote calculado
+
+// Perda e ganho reais de 1 lote, pela calculadora do MT5. Usa o pior lado (compra ou venda).
+bool MkPerLot(const double stopDist, double &lossPerLot, double &gainPerLot)
+  {
+   double ask = SymbolInfoDouble(g_mkSym, SYMBOL_ASK), bid = SymbolInfoDouble(g_mkSym, SYMBOL_BID);
+   if(ask <= 0 || bid <= 0 || stopDist <= 0)
+      return false;
+   double tpDist = stopDist * InpMkRR, a = 0, b = 0, c = 0, d = 0;
+   if(!ProfitPerLot(g_mkSym, ORDER_TYPE_BUY, ask, ask - stopDist, a) || !ProfitPerLot(g_mkSym, ORDER_TYPE_SELL, bid, bid + stopDist, b)
+      || !ProfitPerLot(g_mkSym, ORDER_TYPE_BUY, ask, ask + tpDist, c))
+      return false;
+   lossPerLot = MathMax(-a, -b);
+   gainPerLot = c;
+   // Em ativo muito barato o alvo da venda pode cair abaixo de zero: aí vale só o da compra.
+   if(bid - tpDist > 0 && ProfitPerLot(g_mkSym, ORDER_TYPE_SELL, bid, bid - tpDist, d))
+      gainPerLot = MathMin(c, d);
+   return lossPerLot > 0;
+  }
+
+// Lote para o valor que o trader quer arriscar, com o stop de hoje e as regras da mesa.
+double MkLots(const double stopDist, double &riskUsed, string &warn)
+  {
+   warn = "";
+   riskUsed = 0;
+   g_mkGainUsed = 0;
+   double lossPerLot = 0, gainPerLot = 0;
+   if(!MkPerLot(stopDist, lossPerLot, gainPerLot))
+     {
+      warn = "Sem cotação para calcular o valor deste ativo agora.";
+      return 0;
+     }
+   double risk = g_mkRisk;
+   if(g_hasCanLose && risk > g_canLose)
+     {
+      risk = MathMax(0.0, g_canLose);
+      warn = "Hoje a mesa deixa perder no máximo " + MoneyShort(risk) + ". O lote foi calculado com esse valor.";
+     }
+   double step = SymbolInfoDouble(g_mkSym, SYMBOL_VOLUME_STEP);
+   double minVol = SymbolInfoDouble(g_mkSym, SYMBOL_VOLUME_MIN);
+   double maxVol = SymbolInfoDouble(g_mkSym, SYMBOL_VOLUME_MAX);
+   if(step <= 0)
+      step = 0.01;
+   double lots = MathFloor(risk / lossPerLot / step + 1e-9) * step;
+   if(maxVol > 0)
+      lots = MathMin(lots, maxVol);
+   // Limite de lote da mesa, se estiver ligado.
+   for(int i = 0; i < ArraySize(g_rules); i++)
+     {
+      if(!RuleVisible(i) || g_rules[i].kind != "lots" || !g_rules[i].hasLimit || g_rules[i].limit <= 0)
+         continue;
+      double cap = g_rules[i].limit;
+      if(g_rules[i].mode != "per_order")
+        {
+         double open = 0;
+         for(int p = 0; p < PositionsTotal(); p++)
+            if(PositionGetTicket(p) != 0)
+               open += PositionGetDouble(POSITION_VOLUME);
+         cap -= open;
+        }
+      cap = MathFloor(MathMax(0.0, cap) / step + 1e-9) * step;
+      if(lots > cap)
+        {
+         lots = cap;
+         warn = "Lote limitado pela regra da mesa (" + FormatLots(g_rules[i].limit) + " lotes).";
+        }
+     }
+   if(minVol > 0 && lots < minVol)
+     {
+      warn = "Com " + MoneyShort(risk) + " o stop de hoje não cabe nem no lote mínimo (" + FormatLots(minVol) + ").";
+      return 0;
+     }
+   riskUsed = lots * lossPerLot;
+   g_mkGainUsed = lots * gainPerLot;
+   return lots;
+  }
+
+// Preço alinhado ao passo de cotação do ativo.
+double MkTickRound(const double price)
+  {
+   double tick = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);
+   if(tick <= 0)
+      return NormalizeDouble(price, _Digits);
+   return NormalizeDouble(MathRound(price / tick) * tick, _Digits);
+  }
+
+// Entrada com um clique: lote, stop e alvo da aba Mercado, sempre com confirmação.
+void MkPlaceOrder(const int dir)
+  {
+   if(!g_mkReady)
+     {
+      g_notice = "Espere a leitura do ativo terminar.";
+      return;
+     }
+   string sideName = (dir > 0) ? "Comprar" : "Vender";
+   double stopDist = g_mkAtr * InpMkStopAtr, tpDist = stopDist * InpMkRR;
+   double riskUsed = 0;
+   string warn = "";
+   double lots = MkLots(stopDist, riskUsed, warn);
+   if(lots <= 0)
+     {
+      g_notice = (warn != "") ? warn : "Não deu para calcular o lote com esse valor.";
+      return;
+     }
+   if(!TerminalInfoInteger(TERMINAL_TRADE_ALLOWED) || !MQLInfoInteger(MQL_TRADE_ALLOWED))
+     {
+      g_notice = "Ative o Algo Trading no MT5 para o botão conseguir abrir a operação.";
+      return;
+     }
+   if(SymbolInfoInteger(_Symbol, SYMBOL_TRADE_MODE) != SYMBOL_TRADE_MODE_FULL &&
+      SymbolInfoInteger(_Symbol, SYMBOL_TRADE_MODE) != (dir > 0 ? SYMBOL_TRADE_MODE_LONGONLY : SYMBOL_TRADE_MODE_SHORTONLY))
+     {
+      g_notice = "A corretora não aceita essa operação no " + _Symbol + " agora (mercado fechado ou só fechamento).";
+      return;
+     }
+   double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+   long stopsLevel = SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL);
+   if(stopsLevel > 0 && stopDist < stopsLevel * point)
+     {
+      g_notice = "O stop de hoje fica mais perto do que a corretora permite (" + IntegerToString(stopsLevel) + " pts).";
+      return;
+     }
+   double entry = (dir > 0) ? SymbolInfoDouble(_Symbol, SYMBOL_ASK) : SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   if(entry <= 0)
+     {
+      g_notice = "Sem cotação do " + _Symbol + " agora.";
+      return;
+     }
+   double margin = 0;
+   if(OrderCalcMargin(dir > 0 ? ORDER_TYPE_BUY : ORDER_TYPE_SELL, _Symbol, lots, entry, margin)
+      && margin > AccountInfoDouble(ACCOUNT_MARGIN_FREE))
+     {
+      g_notice = "Margem livre insuficiente para " + FormatLots(lots) + " lotes (precisa de " + MoneyShort(margin) + ").";
+      return;
+     }
+
+   // Confirmação com tudo o que vai ser enviado.
+   string q = sideName + " " + FormatLots(lots) + " lotes de " + _Symbol + " agora, a mercado?\n\n"
+              + "Stop loss: " + MkPrice(MkTickRound(entry - dir * stopDist)) + "  (-" + MoneyShort(riskUsed) + ")\n"
+              + "Take profit: " + MkPrice(MkTickRound(entry + dir * tpDist)) + "  (+" + MoneyShort(g_mkGainUsed) + ")\n"
+              + "Risco x retorno: 1 : " + DoubleToString(InpMkRR, InpMkRR == MathFloor(InpMkRR) ? 0 : 1);
+   if(warn != "")
+      q += "\n\n" + warn;
+   if(g_mkSide != 0 && g_mkSide != dir)
+      q += "\n\nAtenção: o Fortify não indica este lado agora.";
+   if(MkNewsSoon())
+      q += "\n\nAtenção: notícia forte " + MkNewsWhen() + ": " + g_mkNewsName + ".";
+   q += "\n\nStop e alvo podem escorregar com o preço em movimento.";
+   if(MessageBox(q, "Fortify Guard", MB_YESNO | (dir > 0 ? MB_ICONQUESTION : MB_ICONWARNING)) != IDYES)
+      return;
+
+   // Preço de agora (pode ter mudado durante a confirmação): stop e alvo a partir dele.
+   entry = (dir > 0) ? SymbolInfoDouble(_Symbol, SYMBOL_ASK) : SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   double sl = MkTickRound(entry - dir * stopDist), tp = MkTickRound(entry + dir * tpDist);
+   g_trade.SetTypeFillingBySymbol(_Symbol);
+   bool ok = (dir > 0) ? g_trade.Buy(lots, _Symbol, 0.0, sl, tp, "Fortify Mercado")
+                       : g_trade.Sell(lots, _Symbol, 0.0, sl, tp, "Fortify Mercado");
+   uint code = g_trade.ResultRetcode();
+   if(ok && (code == TRADE_RETCODE_DONE || code == TRADE_RETCODE_PLACED || code == TRADE_RETCODE_DONE_PARTIAL))
+      g_notice = (dir > 0 ? "Compra" : "Venda") + " aberta: " + FormatLots(g_trade.ResultVolume() > 0 ? g_trade.ResultVolume() : lots)
+                 + " lotes de " + _Symbol + ", stop " + MkPrice(sl) + " e alvo " + MkPrice(tp) + ".";
+   else
+      g_notice = "A ordem não foi aceita: " + g_trade.ResultRetcodeDescription() + " (código " + IntegerToString(code) + ").";
+   g_lastPoll = 0;
+  }
+
+double MkRow(const string label, const string value, const double y, const uint valueColor)
+  {
+   double inner = PW - 2 * PP;
+   Text(label, PP + 14, y + 15, 12.5, P_MUTED, FW_NORMAL, TA_LEFT | TA_VCENTER);
+   Text(value, PP + inner - 14, y + 15, 13, valueColor, FW_SEMIBOLD, TA_RIGHT | TA_VCENTER);
+   return y + 30;
+  }
+
+double RenderMarket(double y)
+  {
+   double inner = PW - 2 * PP;
+   Text(_Symbol + " · leitura de hoje", PP, y, 13.5, P_TEXT, FW_SEMIBOLD);
+   y += 26;
+
+   // Quanto quer arriscar.
+   Text("Quanto quer arriscar", PP, y + 14, 12.5, P_MUTED, FW_NORMAL, TA_LEFT | TA_VCENTER);
+   double fw = 112, fx = PP + inner - fw;
+   RoundRect(fx, y, fw, 28, 8, P_FIELD);
+   RoundRect(fx, y, fw, 28, 8, P_BORDER, 1);
+   Text(CurrencySymbol(), fx - 8, y + 14, 12.5, P_MUTED, FW_SEMIBOLD, TA_RIGHT | TA_VCENTER);
+   if(!g_measure)
+     {
+      g_mkEditOn = true;
+      g_mkEditX = fx + 4;
+      g_mkEditY = y + 5;
+      g_mkEditW = fw - 8;
+     }
+   y += 28 + 16;
+
+   if(!g_mkReady)
+     {
+      Text(g_mkStatus, PP, y, 12.5, P_MUTED);
+      return y + 30;
+     }
+
+   // Probabilidade de ganho e, só quando houver, a notícia forte com o tempo que falta.
+   uint tone = (g_mkSide > 0) ? P_OK : (g_mkSide < 0) ? P_BREACH : P_MUTED;
+   bool news = MkNewsSoon();
+   double ch = news ? 128 : 92;
+   RoundRect(PP, y, inner, ch, 14, Mix(P_BG, tone, 0.10));
+   RoundRect(PP, y, inner, ch, 14, Argb(tone, 140), 1.2);
+   Text("Probabilidade de ganho", PP + 16, y + 14, 12.5, P_MUTED);
+   bool hasProb = (g_mkLevel >= 0);
+   Text(hasProb ? DoubleToString(g_mkP * 100.0, 0) + "%" : "–", PP + 14, y + 32, 40, P_TEXT, FW_BOLD);
+   if(hasProb)
+      Text(g_mkProbSide > 0 ? "na compra" : "na venda", PP + inner - 16, y + 52, 12, P_MUTED, FW_NORMAL, TA_RIGHT | TA_VCENTER);
+   if(news)
+     {
+      double ny = y + 90;
+      RoundRect(PP + 12, ny, inner - 24, 26, 8, Mix(P_BG, P_WARN, 0.16));
+      string nt = "Notícia forte " + MkNewsWhen() + " · " + g_mkNewsName;
+      Text(FitText(nt, inner - 48, 12, FW_SEMIBOLD), PP + inner / 2, ny + 13, 12, P_WARN, FW_SEMIBOLD, TA_CENTER | TA_VCENTER);
+     }
+   y += ch + 14;
+
+   // Lote, stop, alvo e risco x retorno.
+   double stopDist = g_mkAtr * InpMkStopAtr, tpDist = stopDist * InpMkRR;
+   double riskUsed = 0;
+   string warn = "";
+   double lots = MkLots(stopDist, riskUsed, warn);
+   double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+   long stopPts = (point > 0) ? (long)MathRound(stopDist / point) : 0;
+   long tpPts = (point > 0) ? (long)MathRound(tpDist / point) : 0;
+   double rows = 4 * 30 + 8;
+   RoundRect(PP, y, inner, rows, 12, P_CARD);
+   double ry = y + 4;
+   ry = MkRow("Lote", lots > 0 ? FormatLots(lots) : "–", ry, P_TEXT);
+   int dir = (g_mkSide != 0) ? g_mkSide : 1;
+   double entry = (dir > 0) ? SymbolInfoDouble(_Symbol, SYMBOL_ASK) : SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   string slTxt, tpTxt;
+   if(g_mkSide != 0 && entry > 0)
+     {
+      slTxt = MkPrice(entry - dir * stopDist);
+      tpTxt = MkPrice(entry + dir * tpDist);
      }
    else
      {
-      string mini = (worstIdx >= 0 && worst >= 1) ? "Atenção · " + g_rules[worstIdx].label : "Dentro das regras";
-      if(hasCanLose)
-         mini += "  ·  pode perder " + Money(MathMax(0.0, canLose)) + " hoje";
-      Label("collapsed", x0 + PAD, y, mini, worst >= 1 ? LevelColor(worst) : C_OK, 8, "Segoe UI Semibold");
-      y += 18;
+      slTxt = IntegerToString(stopPts) + " pts";
+      tpTxt = IntegerToString(tpPts) + " pts";
+     }
+   if(lots > 0)
+     {
+      slTxt += "  (-" + MoneyShort(riskUsed) + ")";
+      tpTxt += "  (+" + MoneyShort(g_mkGainUsed) + ")";
+     }
+   ry = MkRow("Stop loss", slTxt, ry, P_BREACH);
+   ry = MkRow("Take profit", tpTxt, ry, P_OK);
+   ry = MkRow("Risco x retorno", "1 : " + DoubleToString(InpMkRR, InpMkRR == MathFloor(InpMkRR) ? 0 : 1), ry, P_TEXT);
+   y += rows + 12;
+
+   // Entrada com um clique: o lado indicado fica destacado, o trader escolhe.
+   double bw = (inner - 10) / 2.0, bh = 44;
+   for(int b = 0; b < 2; b++)
+     {
+      int d = (b == 0) ? 1 : -1;
+      double bx = PP + b * (bw + 10);
+      uint c = (d > 0) ? P_OK : P_BREACH;
+      bool can = (lots > 0);
+      bool lead = can && (g_mkSide == d || g_mkSide == 0);
+      if(!can)
+        {
+         RoundRect(bx, y, bw, bh, 10, P_CARD);
+         RoundRect(bx, y, bw, bh, 10, P_BORDER, 1);
+        }
+      else if(g_mkSide == d)
+         RoundRect(bx, y, bw, bh, 10, c);
+      else
+        {
+         RoundRect(bx, y, bw, bh, 10, Mix(P_BG, c, 0.12));
+         RoundRect(bx, y, bw, bh, 10, Argb(c, 170), 1.2);
+        }
+      uint tc = !can ? P_MUTED : (g_mkSide == d) ? P_WHITE : (lead ? P_TEXT : P_MUTED);
+      Text((d > 0) ? "COMPRAR AGORA" : "VENDER AGORA", bx + bw / 2, y + bh / 2, 13, tc, FW_BOLD, TA_CENTER | TA_VCENTER);
+      if(can)
+         AddHit(bx, y, bw, bh, (d > 0) ? "mkbuy" : "mksell");
+     }
+   y += bh + 8;
+   Text(lots > 0 ? FormatLots(lots) + " lotes com stop e alvo já posicionados · pede confirmação" : "Ajuste o valor para liberar a entrada.",
+        PP + inner / 2, y, 11, P_MUTED, FW_NORMAL, TA_CENTER | TA_TOP);
+   y += 24;
+   // Resultado da última ordem (ou o motivo de não ter enviado), logo abaixo dos botões.
+   if(g_notice != "")
+     {
+      string nl[];
+      int nn = WrapWidth(g_notice, inner - 24, 12, FW_NORMAL, 4, nl);
+      double nh = 16 + nn * 18;
+      RoundRect(PP, y, inner, nh, 10, Mix(P_BG, P_WARN, 0.12));
+      RoundRect(PP, y, inner, nh, 10, Argb(P_WARN, 150), 1);
+      for(int l = 0; l < nn; l++)
+         Text(nl[l], PP + 12, y + 8 + l * 18, 12, P_TEXT);
+      y += nh + 14;
      }
 
-   int h = y - y0 + PAD / 2;
-   g_panelBottom = y0 + h;
-   color border = (worst >= 2 && !g_collapsed) ? LevelColor(worst) : C_BORDER;
-   Rect("bg", x0, y0, PANEL_W, h, C_BG, border);
-   // Botoes recebem o clique antes do fundo.
-   ObjectSetInteger(0, PFX + "bg", OBJPROP_ZORDER, 0);
-   for(int i = 0; i < ArraySize(g_used); i++)
-      if(g_used[i] != PFX + "bg")
-         ObjectSetInteger(0, g_used[i], OBJPROP_ZORDER, 1);
+   if(warn != "")
+     {
+      string lines[];
+      int n = WrapWidth(warn, inner, 11.5, FW_NORMAL, 3, lines);
+      for(int l = 0; l < n; l++)
+         Text(lines[l], PP, y + l * 17, 11.5, P_WARN);
+      y += n * 17 + 10;
+     }
 
-   // Remove objetos de regras que sairam da lista.
+   // O que o EA leu no ativo.
+   Text("O QUE O FORTIFY LEU", PP + 2, y, 10.5, P_MUTED, FW_SEMIBOLD);
+   y += 20;
+   string reads[];
+   ArrayResize(reads, 0);
+   string trendTxt[] = {"Diário e H4 em alta", "Diário e H4 em baixa", "Diário e H4 em direções opostas"};
+   string sweepTxt[] = {"Ainda não rompeu a máxima nem a mínima de ontem", "Já varreu a máxima de ontem",
+                        "Já varreu a mínima de ontem", "Já varreu a máxima e a mínima de ontem"};
+   string sesTxt[] = {"Sessão da Ásia", "Sessão de Londres", "Sessão de Nova York"};
+   int r = 0;
+   ArrayResize(reads, 5);
+   reads[r++] = trendTxt[g_mkTrendNow];
+   reads[r++] = g_mkZone == 1 ? "Preço na metade de cima da faixa de ontem (premium)" : "Preço na metade de baixo da faixa de ontem (desconto)";
+   reads[r++] = sweepTxt[g_mkSweep];
+   reads[r++] = sesTxt[g_mkSession] + " · stop de " + IntegerToString(stopPts) + " pts (1 ATR do H1)";
+   for(int i = 0; i < r; i++)
+     {
+      Circle(PP + 5, y + 8, 2.5, P_MUTED);
+      string lines[];
+      int n = WrapWidth(reads[i], inner - 16, 12, FW_NORMAL, 2, lines);
+      for(int l = 0; l < n; l++)
+         Text(lines[l], PP + 16, y + l * 17, 12, P_TEXT);
+      y += n * 17 + 6;
+     }
+   y += 6;
+   if(g_mkLevel > 0)
+     {
+      Text(g_mkLevel == 1 ? "Poucos casos com a mesma sessão: comparado sem ela." : "Poucos casos iguais: comparado só por tendência e zona.",
+           PP, y, 11, P_MUTED);
+      y += 17;
+     }
+   double years = (double)(TimeCurrent() - g_mkFrom) / (365.0 * 86400.0);
+   string yearsTxt = DoubleToString(years, 1);
+   StringReplace(yearsTxt, ".", ",");
+   string foot = "Leitura de " + yearsTxt + " anos de histórico do " + _Symbol + ".";
+   string lines[];
+   int n = WrapWidth(foot, inner, 11, FW_NORMAL, 3, lines);
+   for(int l = 0; l < n; l++)
+      Text(lines[l], PP, y + l * 16, 11, P_MUTED);
+   return y + n * 16 + 12;
+  }
+
+double RenderConfig(double y)
+  {
+   double inner = PW - 2 * PP;
+   Text("Escolha o que aparece no painel.", PP, y, 13, P_TEXT, FW_SEMIBOLD);
+   y += 21;
+   Text(InpPreview ? "Demonstração: a escolha vale só nesta tela." : "Fica salvo no Fortify e vale também no site.", PP, y, 11.5, P_MUTED);
+   y += 26;
+   if(ArraySize(g_options) == 0)
+     {
+      string lines[];
+      int n = WrapWidth(g_hasFeed ? "Para escolher aqui, atualize o Fortify. Por enquanto, escolha no site: Fortify Guard > Regras no MT5."
+                                  : "Conectando ao Fortify...", inner, 12, FW_NORMAL, 4, lines);
+      for(int l = 0; l < n; l++)
+         Text(lines[l], PP, y + l * 17, 12, P_MUTED);
+      return y + n * 17 + 14;
+     }
+   string groupIds[] = {"account", "payout", "rules"};
+   string groupTitles[] = {"ZERAM A CONTA", "METAS E SAQUE", "OUTRAS REGRAS"};
+   double rowH = g_compact ? 40 : 50;
+   for(int g = 0; g < 3; g++)
+     {
+      int count = 0;
+      for(int o = 0; o < ArraySize(g_options); o++)
+         if(g_options[o].group == groupIds[g])
+            count++;
+      if(count == 0)
+         continue;
+      Text(groupTitles[g], PP + 2, y, 10.5, P_MUTED, FW_SEMIBOLD);
+      y += 19;
+      RoundRect(PP, y, inner, count * rowH, 12, P_CARD);
+      int r = 0;
+      for(int o = 0; o < ArraySize(g_options); o++)
+        {
+         if(g_options[o].group != groupIds[g])
+            continue;
+         double ry = y + r * rowH;
+         if(r > 0)
+            RoundRect(PP + 14, ry, inner - 28, 1, 0, P_BORDER);
+         bool on = g_options[o].on;
+         uint labelColor = on ? P_TEXT : P_MUTED;
+         string label = FitText(g_options[o].label, inner - 28 - 54, 13.5, FW_NORMAL);
+         // Embaixo do nome, o valor exato da regra nesta conta.
+         string sub = (g_options[o].detail != "") ? g_options[o].detail : (g_options[o].live ? "ao vivo" : "texto da mesa");
+         Text(label, PP + 14, ry + (g_compact ? 3 : 8), 13.5, labelColor);
+         Text(FitText(sub, inner - 28 - 54, 12, FW_NORMAL), PP + 14, ry + (g_compact ? 21 : 27), 12,
+              (on && g_options[o].detail != "") ? Mix(P_MUTED, P_TEXT, 0.6) : P_MUTED);
+         // Chave de ligar e desligar.
+         double tx = PP + inner - 14 - 42, ty = ry + rowH / 2 - 12;
+         RoundRect(tx, ty, 42, 24, 12, on ? P_OK : P_TOGGLEOFF);
+         Circle(on ? tx + 30 : tx + 12, ty + 12, 9, P_WHITE);
+         AddHit(PP, ry, inner, rowH, "opt:" + g_options[o].key);
+         r++;
+        }
+      y += count * rowH + 16;
+     }
+   return y;
+  }
+
+// Fundo, cabeçalho e abas. Devolve onde o conteúdo começa (ou a altura toda, recolhido).
+double RenderHeader()
+  {
+   double inner = PW - 2 * PP;
+   double y = PP;
+   if(!g_measure)
+      RoundRect(0, 0, PW, g_ch / g_s, 16, P_BG);
+
+   // Cabeçalho: logo, nome, conta e a bolinha de conexão.
+   DrawLogo(PP, y, 38);
+   RoundRect(PP, y, 38, 38, 38 * 0.14, Argb(P_WHITE, 50), 1);
+   Text("Fortify Guard", PP + 50, y, 16.5, P_TEXT, FW_SEMIBOLD);
+   string subtitle = "Conectando...";
+   if(g_hasFeed)
+     {
+      subtitle = (g_size != "") ? "Conta " + g_size : g_program;
+      string stage = StageText();
+      if(stage != "")
+         subtitle += " · " + stage;
+     }
+   Text(FitText(subtitle, inner - 50 - 64, 12.5, FW_NORMAL), PP + 50, y + 22, 12.5, P_MUTED);
+   double dcx = PW - PP - 10, dcy = y + 19;
+   uint conn = ConnectionTone();
+   Circle(dcx, dcy, 10, conn, 1.6);
+   Circle(dcx, dcy, 4.5, conn);
+   Text(g_collapsed ? "+" : "–", dcx - 27, dcy, 16, P_MUTED, FW_SEMIBOLD, TA_CENTER | TA_VCENTER);
+   AddHit(dcx - 40, y, 52, 38, "min");
+   y += 38 + 16;
+
+   if(g_collapsed)
+     {
+      uint tone = (g_error != "") ? P_BREACH : LevelArgb(g_worst);
+      string mini = (g_error != "") ? "Sem conexão com o Fortify"
+                    : (g_worstIdx >= 0 && g_worst >= 1) ? g_rules[g_worstIdx].label : "Dentro das regras";
+      if(g_error == "" && g_hasCanLose)
+         mini += " · pode perder " + MoneyShort(MathMax(0.0, g_canLose));
+      RoundRect(PP, y, inner, 42, 12, Mix(P_BG, tone, 0.12));
+      RoundRect(PP, y, inner, 42, 12, Argb(tone, 150), 1);
+      ShieldIcon(PP + 12, y + 12, 18, tone);
+      Text(FitText(mini, inner - 50, 13, FW_SEMIBOLD), PP + 38, y + 21, 13, P_TEXT, FW_SEMIBOLD, TA_LEFT | TA_VCENTER);
+      AddHit(PP, y, inner, 42, "min");
+      return y + 42 + PP;
+     }
+
+   // Abas.
+   string tabIds[] = {"painel", "mercado", "regras", "config"};
+   string tabTitles[] = {"Painel", "Mercado", "Regras", "Configurações"};
+   double tabH = 34, fs = 12;
+   // Largura de cada aba proporcional ao texto, o que sobra é dividido igual.
+   double widths[4], textSum = 0;
+   for(int t = 0; t < 4; t++)
+     {
+      widths[t] = TextWidth(tabTitles[t], fs, FW_SEMIBOLD);
+      textSum += widths[t];
+     }
+   double extra = MathMax(0.0, (inner - textSum) / 4.0);
+   RoundRect(PP, y, inner, tabH, 10, P_CARD);
+   double sx = PP;
+   for(int t = 0; t < 4; t++)
+     {
+      double segW = widths[t] + extra;
+      bool on = (g_tab == tabIds[t]);
+      if(on)
+         RoundRect(sx + 3, y + 3, segW - 6, tabH - 6, 8, P_TABON);
+      Text(tabTitles[t], sx + segW / 2, y + tabH / 2, fs, on ? P_TEXT : P_MUTED, on ? FW_SEMIBOLD : FW_NORMAL, TA_CENTER | TA_VCENTER);
+      if(t == 0 && !on && g_worst >= 1 && g_error == "")
+         Circle(sx + segW / 2 + TextWidth(tabTitles[t], fs, FW_NORMAL) / 2 + 7, y + tabH / 2, 3.5, LevelArgb(g_worst));
+      AddHit(sx, y, segW, tabH, "tab:" + tabIds[t]);
+      sx += segW;
+     }
+   return y + tabH + 16;
+  }
+
+// Conteúdo da aba ativa, aviso e rodapé. Devolve o fim (y).
+double RenderContent(double y)
+  {
+   double inner = PW - 2 * PP;
+   if(g_error != "")
+     {
+      string lines[];
+      int n = WrapWidth(g_error, inner - 24, 12.5, FW_NORMAL, 5, lines);
+      double eh = 20 + n * 19;
+      RoundRect(PP, y, inner, eh, 12, Mix(P_BG, P_BREACH, 0.14));
+      RoundRect(PP, y, inner, eh, 12, Argb(P_BREACH, 150), 1);
+      for(int l = 0; l < n; l++)
+         Text(lines[l], PP + 12, y + 10 + l * 19, 12.5, P_TEXT);
+      y += eh + 12;
+      RoundRect(PP, y, inner, 36, 10, P_CARD);
+      RoundRect(PP, y, inner, 36, 10, P_BORDER, 1);
+      Text("Tentar de novo", PP + inner / 2, y + 18, 13, P_TEXT, FW_SEMIBOLD, TA_CENTER | TA_VCENTER);
+      AddHit(PP, y, inner, 36, "refresh");
+      y += 36 + 16;
+     }
+
+   if(g_tab == "config")
+      y = RenderConfig(y);
+   else if(g_tab == "regras")
+      y = RenderNotes(y);
+   else if(g_tab == "mercado")
+      y = RenderMarket(y);
+   else
+      y = RenderMain(y);
+
+   if(g_notice != "" && g_tab != "mercado")
+     {
+      string lines[];
+      int n = WrapWidth(g_notice, inner, 11.5, FW_NORMAL, 3, lines);
+      for(int l = 0; l < n; l++)
+         Text(lines[l], PP, y + l * 17, 11.5, P_WARN);
+      y += n * 17 + 8;
+     }
+   Text(g_pendingSave ? "Salvando a escolha..." : Elapsed(), PP, y, 11, P_MUTED);
+   if(InpPreview)
+      Text("DEMONSTRAÇÃO", PW - PP, y, 10.5, P_WARN, FW_SEMIBOLD, TA_RIGHT | TA_TOP);
+   return y + 16 + PP;
+  }
+
+void DrawPanel()
+  {
+   ArrayResize(g_used, 0);
+   ArrayResize(g_hits, 0);
+   Summarize();
+   g_s = MathMax(1.0, TerminalInfoInteger(TERMINAL_SCREEN_DPI) / 96.0);
+   int chartW = (int)ChartGetInteger(0, CHART_WIDTH_IN_PIXELS);
+   int chartH = (int)ChartGetInteger(0, CHART_HEIGHT_IN_PIXELS);
+   int pw = (int)MathCeil(PW * g_s);
+   // A largura do grafico inclui a escala de preco a direita (~70px).
+   g_x0 = (InpCorner == GUARD_RIGHT) ? MathMax(8, chartW - pw - 84) : 12;
+   g_y0 = 28;
+   int avail = MathMax(160, chartH - g_y0 - 8);
+
+   // 1) Mede: cabeçalho fixo + conteúdo da aba.
+   g_measure = true;
+   g_hitDy = 0;
+   g_hitTop = 0;
+   g_hitBottom = 1e9;
+   double top = RenderHeader();
+   double contentH = g_collapsed ? 0.0 : RenderContent(0.0);
+   g_measure = false;
+   g_contentTop = top;
+
+   g_cw = pw;
+   g_ch = (int)MathMax(1, MathMin(avail, MathCeil((top + contentH) * g_s)));
+   double visible = g_ch / g_s - top;
+   g_scrollMax = g_collapsed ? 0.0 : MathMax(0.0, contentH - visible);
+   g_scroll = MathMax(0.0, MathMin(g_scrollMax, g_scroll));
+
+   // 2) Cabeçalho direto no desenho final.
+   ArrayResize(g_px, g_cw * g_ch);
+   ArrayInitialize(g_px, 0);
+   g_editOn = false;
+   g_mkEditOn = false;
+   g_editDy = 0;
+   RenderHeader();
+
+   if(!g_collapsed)
+     {
+      if(g_scrollMax <= 0)
+         RenderContent(top);
+      else
+        {
+         // 3) Conteúdo maior que o gráfico: desenha inteiro à parte e copia só a faixa visível.
+         int mainCh = g_ch;
+         ArraySwap(g_px, g_content);
+         g_ch = (int)MathCeil(contentH * g_s);
+         ArrayResize(g_px, g_cw * g_ch);
+         ArrayInitialize(g_px, 0);
+         g_hitDy = top - g_scroll;
+         g_hitTop = top;
+         g_hitBottom = mainCh / g_s - 4;
+         g_editDy = top - g_scroll;
+         RenderContent(0.0);
+         ArraySwap(g_px, g_content);
+         int contentPx = g_ch;
+         g_ch = mainCh;
+         int topPx = (int)MathRound(top * g_s), scrollPx = (int)MathRound(g_scroll * g_s);
+         int bottomPx = g_ch - (int)MathRound(6 * g_s);
+         for(int py = topPx; py < bottomPx; py++)
+           {
+            int sy = py - topPx + scrollPx;
+            if(sy >= contentPx)
+               break;
+            for(int px = 0; px < g_cw; px++)
+              {
+               uint c = g_content[sy * g_cw + px];
+               if((c >> 24) != 0)
+                  Blend(px, py, c, 1.0);
+              }
+           }
+         g_hitDy = 0;
+         g_hitTop = 0;
+         g_hitBottom = 1e9;
+         // Barra de rolagem: clique acima/abaixo da barra pula uma página.
+         double trackTop = top, trackH = g_ch / g_s - top - 10;
+         double thumbH = MathMax(28.0, trackH * visible / contentH);
+         double thumbY = trackTop + (trackH - thumbH) * (g_scroll / g_scrollMax);
+         RoundRect(PW - 8, thumbY, 4, thumbH, 2, Argb(P_TEXT, 80));
+         AddHit(PW - 14, trackTop, 14, thumbY - trackTop, "pgup");
+         AddHit(PW - 14, thumbY + thumbH, 14, trackTop + trackH - thumbY - thumbH, "pgdn");
+        }
+     }
+
+   // Borda por último, por cima do conteúdo.
+   bool alarm = (g_worst >= 2 && !g_collapsed && g_error == "");
+   RoundRect(0, 0, PW, g_ch / g_s, 16, alarm ? Argb(LevelArgb(g_worst), 210) : P_BORDER, 1);
+   ResourceCreate(PANEL_RES, g_px, g_cw, g_ch, 0, 0, g_cw, COLOR_FORMAT_ARGB_NORMALIZE);
+
+   string id = PFX + "panel";
+   if(ObjectFind(0, id) < 0)
+     {
+      ObjectCreate(0, id, OBJ_BITMAP_LABEL, 0, 0, 0);
+      ObjectSetInteger(0, id, OBJPROP_CORNER, CORNER_LEFT_UPPER);
+      ObjectSetInteger(0, id, OBJPROP_SELECTABLE, false);
+      ObjectSetInteger(0, id, OBJPROP_HIDDEN, true);
+      ObjectSetInteger(0, id, OBJPROP_BACK, false);
+      ObjectSetString(0, id, OBJPROP_BMPFILE, PANEL_RES);
+     }
+   ObjectSetInteger(0, id, OBJPROP_XDISTANCE, g_x0);
+   ObjectSetInteger(0, id, OBJPROP_YDISTANCE, g_y0);
+   ObjectSetInteger(0, id, OBJPROP_XSIZE, g_cw);
+   ObjectSetInteger(0, id, OBJPROP_YSIZE, g_ch);
+   ObjectSetInteger(0, id, OBJPROP_ZORDER, 1);
+   MarkUsed(id);
+
+   // Campo do stop: objeto de edição por cima do desenho (some fora da parte visível).
+   double editY = g_editY + g_editDy;
+   if(g_editOn && editY >= top && (editY + 18) * g_s < g_ch - 4)
+      Edit("sim_stop", g_x0 + (int)MathRound(g_editX * g_s), g_y0 + (int)MathRound(editY * g_s),
+           (int)MathRound(58 * g_s), (int)MathRound(18 * g_s), IntegerToString(g_simStop));
+   // Campo do valor a arriscar (aba Mercado).
+   double mkY = g_mkEditY + g_editDy;
+   if(g_mkEditOn && mkY >= top && (mkY + 18) * g_s < g_ch - 4)
+      Edit("mk_risk", g_x0 + (int)MathRound(g_mkEditX * g_s), g_y0 + (int)MathRound(mkY * g_s),
+           (int)MathRound(g_mkEditW * g_s), (int)MathRound(18 * g_s), DoubleToString(g_mkRisk, 0));
+
+   if(!g_collapsed && g_error == "" && g_hasFeed)
+      DrawBreakLine(g_hasCanLose, g_canLose, g_slackIdx >= 0 ? g_rules[g_slackIdx].label : "", g_worst);
+
+   // Remove o que não foi usado neste desenho.
    for(int i = ObjectsTotal(0, 0, -1) - 1; i >= 0; i--)
      {
       string name = ObjectName(0, i, 0, -1);
@@ -1609,6 +3136,21 @@ void DrawPanelPass(const int density)
    ChartRedraw(0);
   }
 
+// Mouse em cima do painel: a roda rola a lista e o arrasto não mexe no gráfico.
+void UpdateHover(const int x, const int y)
+  {
+   bool inside = (x >= g_x0 && x <= g_x0 + g_cw && y >= g_y0 && y <= g_y0 + g_ch);
+   if(inside == g_hover)
+      return;
+   g_hover = inside;
+   if(inside)
+     {
+      g_savedMouseScroll = ChartGetInteger(0, CHART_MOUSE_SCROLL);
+      ChartSetInteger(0, CHART_MOUSE_SCROLL, false);
+     }
+   else
+      ChartSetInteger(0, CHART_MOUSE_SCROLL, g_savedMouseScroll);
+  }
 //+------------------------------------------------------------------+
 //| Eventos                                                           |
 //+------------------------------------------------------------------+
@@ -1619,7 +3161,7 @@ int OnInit()
       Print("Fortify Guard não roda no Testador de Estratégia: precisa consultar o Fortify ao vivo.");
       return INIT_FAILED;
      }
-   g_utcDay = UtcDayKey(TimeGMT());
+   g_utcDay = FirmToday();
    g_startTick = GetTickCount();
    if(GlobalVariableCheck(PeakVarName()))
       g_peakEquity = GlobalVariableGet(PeakVarName());
@@ -1627,6 +3169,9 @@ int OnInit()
    g_currency = AccountInfoString(ACCOUNT_CURRENCY);
    g_trade.SetDeviationInPoints(30);
    g_simStop = MathMax(1, InpSimStopPoints);
+   // Mercado: valor padrão a arriscar = 1% do saldo, arredondado.
+   g_mkRisk = (InpMkRisk > 0) ? InpMkRisk : InpPreview ? 1000.0
+              : MathMax(10.0, MathRound(AccountInfoDouble(ACCOUNT_BALANCE) * 0.01 / 10.0) * 10.0);
    if(InpPreview)
      {
       // Demonstração: aba inicial opcional, lida de MQL5\Files (só para gerar prints).
@@ -1636,7 +3181,11 @@ int OnInit()
          string tab = FileReadString(fh);
          StringTrimRight(tab);
          StringTrimLeft(tab);
-         if(tab != "")
+         if(tab == "account" || tab == "payout")
+            tab = "painel";
+         if(tab == "rules")
+            tab = "regras";
+         if(tab == "painel" || tab == "regras" || tab == "config" || tab == "mercado")
             g_tab = tab;
          FileClose(fh);
         }
@@ -1645,7 +3194,7 @@ int OnInit()
       ChartSetInteger(0, CHART_FLOAT_LEFT, 20);
       ChartSetInteger(0, CHART_FLOAT_TOP, 20);
       ChartSetInteger(0, CHART_FLOAT_RIGHT, 1300);
-      ChartSetInteger(0, CHART_FLOAT_BOTTOM, 820);
+      ChartSetInteger(0, CHART_FLOAT_BOTTOM, 860);
       if(InpTheme == GUARD_THEME_LIGHT)
         {
          ChartSetInteger(0, CHART_COLOR_BACKGROUND, clrWhite);
@@ -1657,7 +3206,11 @@ int OnInit()
    ObjectsDeleteAll(0, PFX);
    // O painel fica por cima do grafico.
    ChartSetInteger(0, CHART_FOREGROUND, false);
-   EventSetMillisecondTimer(500);
+   // Roda do mouse rola a lista do painel; o movimento diz quando o mouse está em cima dele.
+   ChartSetInteger(0, CHART_EVENT_MOUSE_MOVE, true);
+   ChartSetInteger(0, CHART_EVENT_MOUSE_WHEEL, true);
+   g_savedMouseScroll = ChartGetInteger(0, CHART_MOUSE_SCROLL);
+   EventSetMillisecondTimer(250);
    DrawPanel();
    return INIT_SUCCEEDED;
   }
@@ -1665,13 +3218,46 @@ int OnInit()
 void OnDeinit(const int reason)
   {
    EventKillTimer();
+   if(g_hover)
+      ChartSetInteger(0, CHART_MOUSE_SCROLL, g_savedMouseScroll);
    ObjectsDeleteAll(0, PFX);
+   ResourceFree(PANEL_RES);
    ChartRedraw(0);
+  }
+
+// Demonstração (só com InpPreview): executa ações lidas de MQL5\Files\FortifyGuard_preview_cmd.txt,
+// uma por linha, iguais às do clique ("tab:mercado", "mkbuy", "pgdn"...). Serve para gravar vídeos
+// sem mouse. Fora da demonstração o arquivo é ignorado.
+void PreviewDirector()
+  {
+   if(!InpPreview || !FileIsExist("FortifyGuard_preview_cmd.txt"))
+      return;
+   int fh = FileOpen("FortifyGuard_preview_cmd.txt", FILE_READ | FILE_TXT | FILE_ANSI);
+   if(fh == INVALID_HANDLE)
+      return;
+   string actions[];
+   while(!FileIsEnding(fh))
+     {
+      string a = FileReadString(fh);
+      StringTrimLeft(a);
+      StringTrimRight(a);
+      if(a != "")
+        {
+         int n = ArraySize(actions);
+         ArrayResize(actions, n + 1);
+         actions[n] = a;
+        }
+     }
+   FileClose(fh);
+   FileDelete("FortifyGuard_preview_cmd.txt");
+   for(int i = 0; i < ArraySize(actions); i++)
+      HandleAction(actions[i]);
   }
 
 void OnTimer()
   {
-   string today = UtcDayKey(TimeGMT());
+   PreviewDirector();
+   string today = FirmToday();
    bool newDay = (today != g_utcDay);
    if(newDay)
      {
@@ -1679,19 +3265,40 @@ void OnTimer()
       for(int i = 0; i < ArraySize(g_rules); i++)
          g_rules[i].alertLevel = 0;
      }
+   // Segunda consulta logo depois de uma operação: o histórico do MT5 pode demorar a registrar o negócio.
+   if(g_repollAt != 0 && GetTickCount() >= g_repollAt)
+     {
+      g_repollAt = 0;
+      g_lastPoll = 0;
+     }
    if(newDay || g_lastPoll == 0 || TimeLocal() - g_lastPoll >= g_pollSeconds)
       Poll();
    ComputeLive();
    if(g_error == "")
       CheckAlerts();
+   if(g_tab == "mercado" && !g_collapsed)
+      MkUpdate();
    DrawPanel();
-   if(InpPreview && !g_previewShot && g_hasFeed && GetTickCount() - g_startTick > 10000)
+   if(InpPreview && !g_previewShot && g_hasFeed && (g_tab != "mercado" || g_mkReady) && GetTickCount() - g_startTick > 10000)
      {
       g_previewShot = true;
       int w = (int)ChartGetInteger(0, CHART_WIDTH_IN_PIXELS);
       int h = (int)ChartGetInteger(0, CHART_HEIGHT_IN_PIXELS);
       if(ChartScreenShot(0, "FortifyGuard_preview.png", w, h, ALIGN_RIGHT))
          Print("Fortify Guard: prévia salva em MQL5\\Files\\FortifyGuard_preview.png");
+     }
+   // Demonstração: um segundo print com o painel rolado até o fim (quando há rolagem).
+   else if(InpPreview && g_previewShot && g_previewEnd == 0 && g_scrollMax > 0)
+     {
+      g_scroll = g_scrollMax;
+      g_previewEnd = 1;
+     }
+   else if(InpPreview && g_previewEnd == 1)
+     {
+      g_previewEnd = 2;
+      ChartScreenShot(0, "FortifyGuard_preview_fim.png", (int)ChartGetInteger(0, CHART_WIDTH_IN_PIXELS),
+                      (int)ChartGetInteger(0, CHART_HEIGHT_IN_PIXELS), ALIGN_RIGHT);
+      g_scroll = 0; // o print do fim não deixa o painel rolado para quem está usando
      }
   }
 
@@ -1706,7 +3313,64 @@ void OnTradeTransaction(const MqlTradeTransaction &trans, const MqlTradeRequest 
      {
       g_lastPoll = 0;
       g_tradesDirty = true;
+      g_repollAt = GetTickCount() + 1500;
      }
+  }
+
+// Liga/desliga uma regra na aba Configurações. Na conta real, a escolha vai
+// para o Fortify na próxima consulta (já na volta do timer).
+void ToggleOption(const string key)
+  {
+   for(int i = 0; i < ArraySize(g_options); i++)
+      if(g_options[i].key == key)
+        {
+         g_options[i].on = !g_options[i].on;
+         g_notice = "";
+         if(!InpPreview)
+           {
+            g_pendingSave = true;
+            g_lastPoll = 0;
+           }
+         return;
+        }
+  }
+
+void HandleAction(const string action)
+  {
+   if(action == "min")
+      g_collapsed = !g_collapsed;
+   else if(action == "refresh")
+     {
+      g_notice = "";
+      Poll();
+     }
+   else if(action == "close")
+      CloseAllPositions();
+   else if(action == "mkbuy")
+      MkPlaceOrder(1);
+   else if(action == "mksell")
+      MkPlaceOrder(-1);
+   else if(StringFind(action, "tab:") == 0)
+     {
+      g_tab = StringSubstr(action, 4);
+      g_expanded = "";
+      g_scroll = 0;
+      if(g_tab == "mercado")
+         MkUpdate();
+     }
+   else if(StringFind(action, "row:") == 0)
+     {
+      string key = StringSubstr(action, 4);
+      g_expanded = (g_expanded == key) ? "" : key;
+     }
+   else if(StringFind(action, "opt:") == 0)
+      ToggleOption(StringSubstr(action, 4));
+   else if(action == "pgup")
+      g_scroll -= (g_ch / g_s - g_contentTop) * 0.8;
+   else if(action == "pgdn")
+      g_scroll += (g_ch / g_s - g_contentTop) * 0.8;
+   ComputeLive();
+   DrawPanel();
   }
 
 void OnChartEvent(const int id, const long &lparam, const double &dparam, const string &sparam)
@@ -1726,23 +3390,48 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
       DrawPanel();
       return;
      }
-   if(id != CHARTEVENT_OBJECT_CLICK)
-      return;
-   if(sparam == PFX + "btn_refresh")
+   if(id == CHARTEVENT_OBJECT_ENDEDIT && sparam == PFX + "mk_risk")
      {
-      g_notice = "";
-      Poll();
-     }
-   else if(sparam == PFX + "btn_close")
-      CloseAllPositions();
-   else if(sparam == PFX + "btn_min")
-      g_collapsed = !g_collapsed;
-   else if(StringFind(sparam, PFX + "tab_") == 0)
-      g_tab = StringSubstr(sparam, StringLen(PFX + "tab_"));
-   else
+      string typed = ObjectGetString(0, sparam, OBJPROP_TEXT);
+      StringReplace(typed, CurrencySymbol(), "");
+      StringReplace(typed, "$", "");
+      StringReplace(typed, " ", "");
+      StringReplace(typed, ".", "");     // 1.000 -> 1000
+      StringReplace(typed, ",", ".");    // 1000,50 -> 1000.50
+      double value = StringToDouble(typed);
+      if(value > 0 && value < 1e9)
+         g_mkRisk = value;
+      ObjectSetString(0, sparam, OBJPROP_TEXT, DoubleToString(g_mkRisk, 0));
+      DrawPanel();
       return;
-   ObjectSetInteger(0, sparam, OBJPROP_STATE, false);
-   ComputeLive();
-   DrawPanel();
+     }
+   if(id == CHARTEVENT_MOUSE_MOVE)
+     {
+      UpdateHover((int)lparam, (int)dparam);
+      return;
+     }
+   if(id == CHARTEVENT_MOUSE_WHEEL)
+     {
+      int mx = (int)(short)lparam, my = (int)(short)(lparam >> 16);
+      UpdateHover(mx, my);
+      if(g_hover && g_scrollMax > 0)
+        {
+         g_scroll -= dparam / 120.0 * 48.0;
+         DrawPanel();
+        }
+      return;
+     }
+   // Clique no painel: acha a área tocada (a última desenhada vence).
+   if(id == CHARTEVENT_OBJECT_CLICK && sparam == PFX + "panel")
+     {
+      double px = ((double)lparam - g_x0) / g_s;
+      double py = (dparam - g_y0) / g_s;
+      for(int i = ArraySize(g_hits) - 1; i >= 0; i--)
+         if(px >= g_hits[i].x1 && px <= g_hits[i].x2 && py >= g_hits[i].y1 && py <= g_hits[i].y2)
+           {
+            HandleAction(g_hits[i].action);
+            break;
+           }
+     }
   }
 //+------------------------------------------------------------------+

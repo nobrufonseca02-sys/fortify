@@ -23,6 +23,8 @@ import {
   type RuleEvaluationStatus,
 } from './ruleEngine/ruleEngineTypes';
 import { consistencyClausesForStage, primaryConsistency } from './ruleEngine/consistencyRules';
+import { applyDrawdownLocks, drawdownLockFloor, payoutStateOf } from './ruleEngine/drawdownCalculations';
+import { resolveEaDay, zoneTransitions } from './eaDayBoundary';
 import {
   defaultGuardRuleKeys,
   floatingLossPercent,
@@ -65,6 +67,12 @@ export interface EaLiveInput {
   peakEquity?: number | null;
   /** Maior resultado de um trade fechado no histórico do terminal (EA 1.50+). */
   bestTrade?: number | null;
+  /** EA 1.72+: calendário em que o EA agrupou os dias e o dia de hoje nesse calendário. */
+  dayBasis?: string | null;
+  dayToday?: string | null;
+  /** EA 1.72+: saques no histórico do terminal e o dia do último. */
+  payouts?: number | null;
+  lastPayoutDate?: string | null;
   now: Date;
 }
 
@@ -130,7 +138,23 @@ export interface EaFeed {
   warningPct: number;
   criticalPct: number;
   pollSeconds: number;
+  /** Hora em que esta mesa vira o dia: o EA agrupa o histórico por ela. */
+  dayBoundary?: { token: string; resetMinutes: number; exact: boolean; transitions: Array<[number, number]> };
   rules: EaRule[];
+  /** Todas as regras da mesa para a aba Configurações do EA, com o que está ligado. */
+  options: EaOption[];
+  /** Aviso curto para o painel (ex.: a escolha feita no MT5 não foi salva). */
+  notice?: string;
+}
+
+export interface EaOption {
+  key: EaRuleKey;
+  label: string;
+  group: GuardGroup;
+  live: boolean;
+  on: boolean;
+  /** O valor exato da regra nesta conta, já calculado. Ex.: "6% ($6.000)". */
+  detail: string;
 }
 
 const MAX_DAYS = 400;
@@ -150,8 +174,20 @@ export function sanitizeEaDays(raw: unknown): EaDayInput[] {
   return [...byDate.values()].sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, MAX_DAYS);
 }
 
-function utcDateKey(date: Date) {
-  return date.toISOString().slice(0, 10);
+/** Dados de calendário e saque enviados pelo EA 1.72+ (entrada não confiável). */
+export function sanitizeEaDayInfo(body: Record<string, unknown>) {
+  const payouts = Number(body.payouts);
+  const lastPayout = String(body.lastPayout ?? '');
+  return {
+    dayBasis: typeof body.dayBasis === 'string' ? body.dayBasis.slice(0, 64) : null,
+    dayToday: typeof body.dayToday === 'string' ? body.dayToday.slice(0, 10) : null,
+    payouts: body.payouts !== undefined && body.payouts !== null && Number.isInteger(payouts) && payouts >= 0 ? payouts : null,
+    lastPayoutDate: /^\d{4}-\d{2}-\d{2}$/.test(lastPayout) ? lastPayout : null,
+  };
+}
+
+function eaDay(binding: AccountRuleBindingRow, live: EaLiveInput) {
+  return resolveEaDay(binding.rule_snapshot.propFirm?.slug, live);
 }
 
 /**
@@ -163,9 +199,10 @@ export function buildEaEngineInput(
   account: EaAccountContext,
   live: EaLiveInput,
 ): EvaluateBoundAccountRulesInput {
-  const today = utcDateKey(live.now);
-  const history = live.days.filter((day) => day.date < today);
-  const todayDay = live.days.find((day) => day.date === today);
+  const day = eaDay(binding, live);
+  const today = day.today;
+  const history = live.days.filter((item) => item.date < today);
+  const todayDay = live.days.find((item) => item.date === today);
   const floating = live.equity - live.balance;
 
   const snapshots = [
@@ -177,21 +214,21 @@ export function buildEaEngineInput(
       floatingPnl: floating,
       maxBalance: null,
     },
-    ...history.map((day) => ({
-      date: day.date,
-      balance: day.eodBalance,
-      equity: day.eodBalance,
-      dailyPnl: day.pnl,
+    ...history.map((item) => ({
+      date: item.date,
+      balance: item.eodBalance,
+      equity: item.eodBalance,
+      dailyPnl: item.pnl,
       floatingPnl: 0,
       maxBalance: null,
     })),
   ];
 
   const trades = live.days
-    .filter((day) => day.traded)
-    .map((day) => ({ profit: day.pnl, commission: 0, swap: 0, closeTime: `${day.date}T12:00:00.000Z` }));
+    .filter((item) => item.traded)
+    .map((item) => ({ profit: item.pnl, commission: 0, swap: 0, closeTime: `${item.date}T12:00:00.000Z` }));
 
-  const knownPeaks = [account.highestEquity, live.peakEquity, live.equity, ...history.map((day) => day.eodBalance)]
+  const knownPeaks = [account.highestEquity, live.peakEquity, live.equity, ...history.map((item) => item.eodBalance)]
     .map((value) => finiteNumber(value))
     .filter((value): value is number => value !== null && value > 0);
 
@@ -203,14 +240,19 @@ export function buildEaEngineInput(
       currentEquity: live.equity,
       highestEquity: knownPeaks.length > 0 ? Math.max(...knownPeaks) : null,
       phase: account.phase,
-      stage: account.stage ?? null,
+      // O EA sempre sabe a fase: escolhida pelo trader ou deduzida do programa.
+      stage: account.stage ?? inferStage(binding.rule_snapshot),
       // Explícito (mesmo null): os "trades" abaixo são somas por dia, não servem para o maior trade.
       bestClosedTrade: finiteNumber(live.bestTrade ?? null),
+      payoutsMade: live.payouts ?? null,
+      lastPayoutDate: live.lastPayoutDate ?? null,
     },
     snapshots,
     trades,
     positions: [{ floatingPnl: floating }],
-    now: live.now,
+    // Os dias já vêm no calendário da mesa: o motor só precisa saber qual é o dia de hoje.
+    now: day.aligned ? new Date(`${today}T12:00:00.000Z`) : live.now,
+    dailyRuleContext: day.aligned && day.boundary.exact ? { timezone: 'UTC', resetTime: '00:00' } : undefined,
   };
 }
 
@@ -278,10 +320,15 @@ function drawdownReference(
     if (source === 'equity') reference = finiteNumber(engineInput.account?.highestEquity) ?? highest(true);
     else if (source === 'balance') reference = highest(false);
   }
-  if (reference !== null && initialBalance !== null && calculation.includes('trava') && calculation.includes('saldo inicial')) {
-    reference = Math.min(reference, initialBalance + limit);
-  }
-  return reference;
+  // O pico nunca fica abaixo do saldo inicial (mesma regra de drawdownCalculations.ts).
+  if (reference !== null && initialBalance !== null) reference = Math.max(reference, initialBalance);
+  if (reference === null) return null;
+  return applyDrawdownLocks(reference, {
+    calculation,
+    initialBalance,
+    limit,
+    payoutState: payoutStateOf(engineInput.account),
+  });
 }
 
 function floorRule(
@@ -298,10 +345,11 @@ function floorRule(
   const limit = rule.limitValue ?? 0;
   let floor: number;
   if ((rule.currentValue ?? 0) > 0) {
-    floor = metricNow - (rule.remainingValue ?? 0);
+    // Referência (métrica + consumo) menos o limite: continua certo com o limite estourado.
+    floor = metricNow + (rule.currentValue ?? 0) - limit;
   } else if (key === 'daily_loss') {
     // Dia no zero ou no lucro: quebra quando o saldo do início do dia cai o limite.
-    const today = utcDateKey(live.now);
+    const today = eaDay(binding, live).today;
     const todayPnl = live.days.find((day) => day.date === today)?.pnl ?? 0;
     floor = live.balance - todayPnl - limit;
   } else {
@@ -310,25 +358,25 @@ function floorRule(
   }
   floor = round2(floor);
   const trailing = key === 'max_drawdown' ? trailingSource(binding) : null;
-  const calculation = normalizeRuleText(binding.rule_snapshot.criticalRules.drawdownCalculation);
-  const locksAtInitial = calculation.includes('trava') && calculation.includes('saldo inicial');
+  const lockFloor = drawdownLockFloor(binding.rule_snapshot.criticalRules.drawdownCalculation, initialBalance);
+  const dayNote = key === 'daily_loss' ? eaDay(binding, live).boundary.note : '';
   return {
     key,
     label: rule.label,
     kind: 'floor',
     status: rule.status,
-    message: rule.message,
+    message: dayNote ? `${rule.message} ${dayNote}` : rule.message,
     limit: rule.limitValue,
     floor,
     metric: 'min',
     trailing,
-    floorMax: trailing && locksAtInitial && initialBalance !== null ? round2(initialBalance) : null,
+    floorMax: trailing && lockFloor !== null ? round2(lockFloor) : null,
   };
 }
 
-function daysBetween(fromDate: string, now: Date) {
+function daysBetween(fromDate: string, todayKey: string) {
   const from = Date.parse(`${fromDate}T00:00:00.000Z`);
-  const today = Date.parse(`${utcDateKey(now)}T00:00:00.000Z`);
+  const today = Date.parse(`${todayKey}T00:00:00.000Z`);
   return Math.max(0, Math.round((today - from) / 86_400_000));
 }
 
@@ -376,7 +424,12 @@ function buildRule(option: GuardRuleOption, ctx: RuleContext): EaRule {
         status: engineRule.status,
         message: engineRule.message,
         limit: engineRule.limitValue,
-        targetBalance: round2(live.balance + (engineRule.remainingValue ?? 0)),
+        // Saldo inicial + meta: com a conta no prejuízo, o que falta inclui recuperar a perda.
+        targetBalance: round2(
+          initialBalance !== null && engineRule.limitValue !== null
+            ? initialBalance + engineRule.limitValue
+            : live.balance + (engineRule.remainingValue ?? 0),
+        ),
       };
     }
     case 'min_trading_days': {
@@ -391,6 +444,8 @@ function buildRule(option: GuardRuleOption, ctx: RuleContext): EaRule {
         limit: engineRule.limitValue,
         current: engineRule.currentValue,
         required: engineRule.limitValue,
+        mode: engineRule.minDayProfit ? 'profitable' : undefined,
+        param1: engineRule.minDayProfit ?? undefined,
       };
     }
     case 'consistency': {
@@ -401,7 +456,7 @@ function buildRule(option: GuardRuleOption, ctx: RuleContext): EaRule {
         initialBalance,
         balance: live.balance,
         days: live.days.map((day) => ({ date: day.date, pnl: day.pnl })),
-        today: utcDateKey(live.now),
+        today: eaDay(binding, live).today,
         profitTargetAmount: target?.limitValue ?? null,
         bestClosedTrade: finiteNumber(live.bestTrade ?? null),
       });
@@ -431,7 +486,7 @@ function buildRule(option: GuardRuleOption, ctx: RuleContext): EaRule {
           .map((day) => day.date)
           .sort()
           .at(-1) ?? null;
-      const current = lastTraded ? daysBetween(lastTraded, live.now) : null;
+      const current = lastTraded ? daysBetween(lastTraded, eaDay(binding, live).today) : null;
       return {
         key: 'inactivity',
         label: option.label,
@@ -508,6 +563,62 @@ function buildRule(option: GuardRuleOption, ctx: RuleContext): EaRule {
   }
 }
 
+const CURRENCY_SYMBOLS: Record<string, string> = { USD: '$', EUR: '€', GBP: '£', BRL: 'R$' };
+
+function moneyText(value: number, currency: string) {
+  const code = currency.toUpperCase();
+  const symbol = CURRENCY_SYMBOLS[code] ?? `${code} `;
+  return `${symbol}${value.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}`;
+}
+
+function clockText(minutes: number) {
+  const hour = Math.floor(minutes / 60);
+  const minute = Math.round(minutes % 60);
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+/**
+ * Linha da aba Configurações: o que a regra vale nesta conta, com os mesmos números
+ * que o motor monitora. Sem número confiável, mostra o texto oficial da mesa.
+ */
+function optionDetail(option: GuardRuleOption, rule: EaRule, initialBalance: number | null, currency: string) {
+  const limit = rule.limit;
+  switch (rule.kind) {
+    case 'floor':
+    case 'target':
+    case 'floating':
+    case 'risk': {
+      if (limit === null) return option.officialText;
+      const money = moneyText(limit, currency);
+      if (initialBalance === null || initialBalance <= 0) return money;
+      const percent = Number(((limit / initialBalance) * 100).toFixed(2));
+      return `${percent.toLocaleString('pt-BR')}% (${money})`;
+    }
+    case 'lots':
+      if (limit === null) return option.officialText;
+      return `${limit.toLocaleString('pt-BR')} lotes ${rule.mode === 'per_order' ? 'por ordem' : 'no total'}`;
+    case 'idle':
+      return rule.required ? `${rule.required} dias sem operar` : option.officialText;
+    case 'counter':
+      if (!rule.required) return option.officialText;
+      if (rule.mode === 'profitable' && rule.param1) {
+        return `${rule.required} dias com lucro de ${moneyText(rule.param1, currency)} ou mais`;
+      }
+      return `${rule.required} dias ${rule.mode === 'profitable' ? 'lucrativos' : 'operados'}`;
+    case 'daycap':
+    case 'tradecap':
+      // A primeira frase já traz o percentual oficial: "Maior dia até 40% do lucro total".
+      return rule.message.split(/\.\s/)[0].replace(/\.$/, '');
+    case 'close': {
+      const day = rule.mode === 'daily' ? 'Todo dia' : 'Toda sexta';
+      if (rule.param1 === null || rule.param1 === undefined) return day;
+      return `${day}, ${clockText(rule.param1)} ${rule.metric === 'server' ? 'do servidor' : 'UTC'}`;
+    }
+    default:
+      return option.officialText;
+  }
+}
+
 export function buildEaFeed(input: {
   binding: AccountRuleBindingRow;
   evaluation: BoundAccountRuleEvaluation;
@@ -526,12 +637,22 @@ export function buildEaFeed(input: {
 
   // A ordem das opções já é a do painel: zeram a conta, saque, lembretes.
   const rules: EaRule[] = [];
+  const eaOptions: EaOption[] = [];
+  const currency = snapshot.accountSize.currency || 'USD';
   for (const option of options) {
-    if (!selected.has(option.key)) continue;
     const rule = buildRule(option, { binding, evaluation, live, engineInput, initialBalance, stage });
-    rules.push({ ...rule, group: option.group });
+    eaOptions.push({
+      key: option.key,
+      label: option.label,
+      group: option.group,
+      live: option.live,
+      on: selected.has(option.key),
+      detail: optionDetail(option, rule, initialBalance, currency),
+    });
+    if (selected.has(option.key)) rules.push({ ...rule, group: option.group });
   }
 
+  const { boundary } = eaDay(binding, live);
   return {
     firmName: snapshot.propFirm.name,
     programName: snapshot.program.name,
@@ -543,7 +664,14 @@ export function buildEaFeed(input: {
     warningPct: preferences.warningPct,
     criticalPct: preferences.criticalPct,
     pollSeconds: EA_POLL_SECONDS,
+    dayBoundary: {
+      token: boundary.token,
+      resetMinutes: boundary.resetMinutes,
+      exact: boundary.exact,
+      transitions: boundary.timezone ? zoneTransitions(boundary.timezone, live.now) : [],
+    },
     rules,
+    options: eaOptions,
   };
 }
 
@@ -575,6 +703,11 @@ export function serializeEaFeed(feed: EaFeed): string {
       feed.stage,
     ].join('|'),
   ];
+  // EA 1.72+: calendário da mesa. Versões antigas ignoram esta linha e seguem em UTC.
+  if (feed.dayBoundary) {
+    const { token, resetMinutes, exact, transitions } = feed.dayBoundary;
+    lines.push(['D', cleanText(token), String(resetMinutes), exact ? '1' : '0', transitions.map(([at, offset]) => `${at}:${offset}`).join(',')].join('|'));
+  }
   for (const rule of feed.rules) {
     lines.push(
       [
@@ -602,8 +735,27 @@ export function serializeEaFeed(feed: EaFeed): string {
       ].join('|'),
     );
   }
+  // EA 1.60+: lista completa para a aba Configurações. Versões antigas ignoram estas linhas.
+  for (const option of feed.options ?? []) {
+    // O valor calculado vem por último: o EA 1.60 e 1.70 lê só os 6 primeiros campos.
+    lines.push(
+      ['O', option.key, cleanText(option.label), option.group, option.live ? '1' : '0', option.on ? '1' : '0', cleanText(option.detail)].join('|'),
+    );
+  }
+  if (feed.notice) lines.push(`N|${cleanText(feed.notice)}`);
   lines.push('END');
   return `${lines.join('\n')}\n`;
+}
+
+/** Escolha feita na aba Configurações do EA: só chaves conhecidas, sem repetir. */
+export function sanitizeEaRuleKeys(raw: unknown): EaRuleKey[] | null {
+  if (!Array.isArray(raw)) return null;
+  const keys: EaRuleKey[] = [];
+  for (const item of raw.slice(0, 64)) {
+    const key = String(item ?? '').trim();
+    if (isEaRuleKey(key) && !keys.includes(key)) keys.push(key);
+  }
+  return keys;
 }
 
 export function serializeEaError(code: string, message: string): string {

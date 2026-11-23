@@ -114,11 +114,12 @@ export interface SnapshotRow {
 /** Um snapshot por dia UTC desde o início do registro, com hoje ao vivo. */
 export function snapshotRowsSince(
   days: EaDayInput[],
-  live: { balance: number; equity: number; now: Date },
+  live: { balance: number; equity: number; now: Date; today?: string },
   trackingStart: Date,
 ): SnapshotRow[] {
   const startKey = trackingStart.toISOString().slice(0, 10);
-  const todayKey = live.now.toISOString().slice(0, 10);
+  // Hoje no calendário da mesa, o mesmo em que o EA agrupou os dias.
+  const todayKey = live.today ?? live.now.toISOString().slice(0, 10);
   const byDate = new Map<string, EaDayInput>();
   for (const day of days) if (day.date >= startKey && day.date <= todayKey) byDate.set(day.date, day);
   const todayPnl = byDate.get(todayKey)?.pnl ?? 0;

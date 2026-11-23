@@ -290,6 +290,14 @@ export const GUARD_RULE_KEYS = [
   'profit_target',
   'consistency',
   'min_trading_days',
+  // Regras só de texto: o EA mostra como lembrete na aba "Regras".
+  'news',
+  'overnight',
+  'leverage',
+  'max_contracts',
+  'payout_split',
+  'first_payout',
+  'breach_rules',
 ] as const;
 export type GuardRuleKey = (typeof GUARD_RULE_KEYS)[number];
 
@@ -297,8 +305,8 @@ export function isGuardRuleKey(value: unknown): value is GuardRuleKey {
   return typeof value === 'string' && (GUARD_RULE_KEYS as readonly string[]).includes(value);
 }
 
-/** account: quebrar zera a conta. payout: trava a aprovação ou o saque. */
-export type GuardGroup = 'account' | 'payout';
+/** account: quebrar zera a conta. payout: trava a aprovação ou o saque. rules: regra de texto, lembrete no EA. */
+export type GuardGroup = 'account' | 'payout' | 'rules';
 
 export interface GuardRuleOption {
   key: GuardRuleKey;
@@ -395,10 +403,32 @@ export function guardRuleOptions(snapshot: RuleBindingSnapshot, stage: AccountSt
       live: true,
     });
   }
+
+  // Regras de texto: o Fortify não calcula, o EA mostra como lembrete se o trader quiser.
+  const text = (value: string | null | undefined) =>
+    value && isExplicitRuleValue(value) && !hasNoRule(value) ? value.trim() : '';
+  const note = (key: GuardRuleKey, label: string, consequence: string, value: string) => {
+    if (value) push({ key, label, group: 'rules', consequence, officialText: value, live: false });
+  };
+  note('news', 'Notícias', 'Lembrete', text(rules.newsRule));
+  if (!close) {
+    const holding = [text(rules.weekendRule), text(rules.overnightRule)]
+      .filter((value, index, all) => value && all.indexOf(value) === index)
+      .join(' · ');
+    note('overnight', 'Fim de semana e overnight', 'Lembrete', holding);
+  }
+  note('leverage', 'Alavancagem', 'Lembrete', text(rules.leverage));
+  if (!lots) note('max_contracts', 'Contratos máximos', 'Lembrete', text(rules.maxContracts));
+  const split = text(rules.payoutSplit);
+  const firstPayout = text(rules.firstPayoutTiming);
+  // O catálogo às vezes guarda divisão e prazo no mesmo texto: aparece uma vez só.
+  note('payout_split', firstPayout === split ? 'Saque' : 'Divisão do lucro', 'Saque', split);
+  if (firstPayout !== split) note('first_payout', 'Primeiro saque', 'Saque', firstPayout);
+  note('breach_rules', 'Regras de risco da mesa', 'Lembrete', conditions.map(text).filter(Boolean).join(' · '));
   return options;
 }
 
-/** Sem escolha salva: tudo que zera a conta ou trava o saque fica ligado. Notícias e lembretes de texto não fazem parte do Fortify Guard. */
+/** Sem escolha salva: tudo que zera a conta ou trava o saque fica ligado. Regras de texto começam desligadas: o trader liga as que quiser ver no MT5. */
 export function defaultGuardRuleKeys(options: GuardRuleOption[]): GuardRuleKey[] {
-  return options.map((option) => option.key);
+  return options.filter((option) => option.group !== 'rules').map((option) => option.key);
 }

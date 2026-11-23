@@ -18,6 +18,48 @@ interface DrawdownCalculationInput {
   highestEquity: number | null;
   snapshots: RuleEngineSnapshotInput[];
   currency: string;
+  payoutState?: PayoutState;
+}
+
+/** none: nenhum saque feito. done: já houve saque. unknown: não dá para saber. */
+export type PayoutState = 'none' | 'done' | 'unknown';
+
+export function payoutStateOf(account: {
+  stage?: 'evaluation' | 'funded' | null;
+  payoutsMade?: number | null;
+} | null | undefined): PayoutState {
+  const made = account?.payoutsMade;
+  if (typeof made === 'number' && Number.isFinite(made)) return made > 0 ? 'done' : 'none';
+  return account?.stage === 'evaluation' ? 'none' : 'unknown';
+}
+
+/** Valor em que o piso para de subir. "saldo inicial + $100" trava US$ 100 acima do saldo inicial. */
+export function drawdownLockFloor(calculationText: string, initialBalance: number | null) {
+  if (initialBalance === null) return null;
+  const text = normalizeRuleText(calculationText);
+  if (!text.includes('trava') || !text.includes('saldo inicial') || text.includes('nao usa a trava')) return null;
+  const extra = text.match(/saldo inicial \+ ?\$? ?(\d+(?:[.,]\d+)?)/);
+  return initialBalance + (extra ? Number(extra[1].replace(',', '.')) : 0);
+}
+
+/** A mesa move o piso para o saldo inicial depois do saque. */
+export function payoutMovesFloorToInitial(calculationText: string) {
+  const text = normalizeRuleText(calculationText);
+  return text.includes('saldo inicial') && /(?:apos (?:o primeiro )?|ou )payout/.test(text);
+}
+
+/** Aplica ao pico as travas da mesa. O piso é sempre o resultado menos o limite. */
+export function applyDrawdownLocks(
+  reference: number,
+  input: { calculation: string; initialBalance: number | null; limit: number; payoutState: PayoutState },
+) {
+  let result = reference;
+  const lock = drawdownLockFloor(input.calculation, input.initialBalance);
+  if (lock !== null) result = Math.min(result, lock + input.limit);
+  if (input.payoutState === 'done' && input.initialBalance !== null && payoutMovesFloorToInitial(input.calculation)) {
+    result = input.initialBalance + input.limit;
+  }
+  return result;
 }
 
 function highestSnapshotReference(
@@ -69,7 +111,8 @@ export function evaluateMaxDrawdown(
   let detail = '';
 
   if (type === 'static' || type === 'estatico') {
-    if (calculation.includes('payout')) {
+    const payoutState = input.payoutState ?? 'unknown';
+    if (calculation.includes('payout') && (!payoutMovesFloorToInitial(input.drawdownCalculation) || payoutState === 'unknown')) {
       return notMonitorableRule(
         'max_drawdown',
         'Drawdown máximo',
@@ -120,12 +163,17 @@ export function evaluateMaxDrawdown(
     );
   }
 
-  if (
-    input.initialBalance !== null &&
-    calculation.includes('trava') &&
-    calculation.includes('saldo inicial')
-  ) {
-    reference = Math.min(reference, input.initialBalance + limit.amount);
+  // A conta nasce no saldo inicial: o pico nunca fica abaixo dele, mesmo que o
+  // histórico disponível só mostre dias de perda.
+  if (input.initialBalance !== null) reference = Math.max(reference, input.initialBalance);
+
+  reference = applyDrawdownLocks(reference, {
+    calculation: input.drawdownCalculation,
+    initialBalance: input.initialBalance,
+    limit: limit.amount,
+    payoutState: input.payoutState ?? 'unknown',
+  });
+  if (drawdownLockFloor(input.drawdownCalculation, input.initialBalance) !== null) {
     detail += ' A trava explícita no saldo inicial foi aplicada.';
   }
 
