@@ -4,9 +4,55 @@ const UTM_STORAGE_KEY = 'fortify_utm_params';
 declare global {
   interface Window {
     dataLayer?: unknown[];
-    /** Meta Pixel, quando carregado (via GTM, depois do consentimento). */
+    /** Meta Pixel, carregado por loadMetaPixel() depois do consentimento. */
     fbq?: (...args: unknown[]) => void;
+    _fbq?: unknown;
   }
+}
+
+/**
+ * Pixel "Fortify" no Gerenciador de Eventos da Meta (empresa Fortify Gestão de
+ * Risco). O ID de pixel é público por natureza — aparece no HTML de qualquer
+ * site que usa pixel —, por isso pode ficar no código como padrão.
+ */
+const META_PIXEL_ID = String(import.meta.env.VITE_META_PIXEL_ID || '1614795650683643').trim();
+
+/**
+ * Código base do Meta Pixel, sem script inline (a CSP bloqueia inline; o
+ * domínio connect.facebook.net já está liberado em script-src). Só roda com
+ * consentimento de marketing. Se o GTM também tiver uma tag do mesmo pixel,
+ * ela vai encontrar o fbq já criado e não duplica o carregamento — mas o
+ * PageView, sim: mantenha o pixel em UM lugar só.
+ */
+function loadMetaPixel() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+  if (!/^\d{10,20}$/.test(META_PIXEL_ID) || window.fbq) return;
+
+  type FilaFbq = ((...args: unknown[]) => void) & {
+    callMethod?: (...args: unknown[]) => void;
+    queue: unknown[];
+    push: unknown;
+    loaded: boolean;
+    version: string;
+  };
+  const fbq = function (...args: unknown[]) {
+    if (fbq.callMethod) fbq.callMethod(...args);
+    else fbq.queue.push(args);
+  } as FilaFbq;
+  fbq.queue = [];
+  fbq.push = fbq;
+  fbq.loaded = true;
+  fbq.version = '2.0';
+  window.fbq = fbq;
+  window._fbq = fbq;
+
+  const script = document.createElement('script');
+  script.async = true;
+  script.src = 'https://connect.facebook.net/en_US/fbevents.js';
+  document.head.appendChild(script);
+
+  fbq('init', META_PIXEL_ID);
+  fbq('track', 'PageView');
 }
 
 function gtag(...args: unknown[]) {
@@ -25,6 +71,8 @@ export function initializeAnalytics() {
     ad_user_data: consentState,
     ad_personalization: consentState,
   });
+
+  if (consentState === 'granted') loadMetaPixel();
 
   const containerId = String(import.meta.env.VITE_GTM_CONTAINER_ID || '').trim();
   if (!/^GTM-[A-Z0-9]+$/.test(containerId) || document.querySelector('script[data-fortify-gtm]')) return;
@@ -58,6 +106,8 @@ export function setMarketingConsent(granted: boolean) {
     ad_user_data: state,
     ad_personalization: state,
   });
+  if (granted) loadMetaPixel();
+  else if (typeof window.fbq === 'function') window.fbq('consent', 'revoke');
 }
 
 const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid', 'fbclid'] as const;
