@@ -60,7 +60,13 @@ vi.mock('@/integrations/supabase/client', () => {
     };
     return chain;
   };
-  return { supabase: { from } };
+  // Vídeo de instalação: a página pede uma URL assinada do Storage para quem assina.
+  const storage = {
+    from: () => ({
+      createSignedUrl: () => Promise.resolve({ data: { signedUrl: 'https://example.test/video.mp4' }, error: null }),
+    }),
+  };
+  return { supabase: { from, storage } };
 });
 
 afterEach(() => {
