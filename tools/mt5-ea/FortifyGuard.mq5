@@ -16,8 +16,8 @@
 //+------------------------------------------------------------------+
 #property copyright "Fortify"
 #property link      "https://fortify-delta.vercel.app"
-#property version   "1.72"
-#property description "Fortify Guard: acompanhe ao vivo as regras da sua mesa proprietaria."
+#property version   "1.80"
+#property description "Fortify Terminal: Inteligencia Preditiva & Gestao de Risco. Regras da mesa ao vivo, leitura institucional (SMC) e execucao com risco calculado."
 
 #include <Trade\Trade.mqh>
 #resource "fortify_alert.wav"
@@ -1329,6 +1329,14 @@ double   g_s = 1.0;               // escala do Windows (DPI / 96)
 bool     g_measure = false;       // true: só mede a altura, não desenha
 bool     g_compact = false;       // painel apertado no gráfico baixo
 int      g_x0 = 0, g_y0 = 0;      // canto do painel no gráfico (pixels)
+// Painel arrastável pelo cabeçalho. A posição escolhida fica salva no terminal.
+#define  DRAG_HANDLE_H 62.0       // altura da faixa de arrastar (pontos, a partir do topo)
+bool     g_userPos = false;       // trader moveu o painel (senão vale o canto do InpCorner)
+int      g_posX = 0, g_posY = 0;
+bool     g_mouseDown = false, g_dragArmed = false, g_drag = false;
+int      g_dragDX = 0, g_dragDY = 0;
+uint     g_dragEndTick = 0;
+void     ClampPanel(const int chartW, const int chartH);
 HitArea  g_hits[];
 bool     g_editOn = false;
 double   g_editX = 0, g_editY = 0;
@@ -1481,6 +1489,40 @@ void Arc(const double cx, const double cy, const double r, const double thick, d
                double d2 = MathSqrt((px + 0.5 - ex) * (px + 0.5 - ex) + (py + 0.5 - ey) * (py + 0.5 - ey));
                cov = MathMax(Clamp01(T + 0.5 - d1), Clamp01(T + 0.5 - d2));
               }
+           }
+         if(cov > 0)
+            Blend(px, py, c, cov);
+        }
+  }
+
+// Meio círculo do medidor: vai da esquerda, passa pelo topo e termina à direita.
+// frac enche a partir da esquerda; pontas arredondadas.
+void HalfArc(const double cx, const double cy, const double r, const double thick, double frac, const uint c)
+  {
+   if(g_measure || frac <= 0)
+      return;
+   frac = MathMin(1.0, frac);
+   double CX = cx * g_s, CY = cy * g_s, R = r * g_s, T = thick * g_s / 2.0;
+   double sweep = frac * M_PI;
+   double sx = CX - R, sy = CY, ex = CX - R * MathCos(sweep), ey = CY - R * MathSin(sweep);
+   int x1 = MathMax(0, (int)MathFloor(CX - R - T - 1)), x2 = MathMin(g_cw, (int)MathCeil(CX + R + T + 1));
+   int y1 = MathMax(0, (int)MathFloor(CY - R - T - 1)), y2 = MathMin(g_ch, (int)MathCeil(CY + T + 1));
+   for(int py = y1; py < y2; py++)
+      for(int px = x1; px < x2; px++)
+        {
+         double dx = px + 0.5 - CX, dy = py + 0.5 - CY;
+         double ang = Atan2(-dy, -dx);   // 0 na esquerda, PI/2 no topo, PI na direita
+         double cov = 0.0;
+         if(ang >= 0 && ang <= sweep)
+           {
+            double d = MathSqrt(dx * dx + dy * dy);
+            cov = Clamp01(T + 0.5 - MathAbs(d - R));
+           }
+         else
+           {
+            double d1 = MathSqrt((px + 0.5 - sx) * (px + 0.5 - sx) + (py + 0.5 - sy) * (py + 0.5 - sy));
+            double d2 = MathSqrt((px + 0.5 - ex) * (px + 0.5 - ex) + (py + 0.5 - ey) * (py + 0.5 - ey));
+            cov = MathMax(Clamp01(T + 0.5 - d1), Clamp01(T + 0.5 - d2));
            }
          if(cov > 0)
             Blend(px, py, c, cov);
@@ -1989,7 +2031,10 @@ double RenderMain(double y)
    if(g_error == "")
      {
       uint tone = LevelArgb(g_worst);
-      double hh = 110;
+      // Medidor em meio círculo: o valor que importa (quanto ainda pode perder hoje) fica no
+      // centro; o arco esvazia e muda de cor conforme a regra mais apertada aperta.
+      double gr = g_compact ? 54.0 : 66.0, gt = g_compact ? 10.0 : 12.0;
+      double hh = 44 + gr + gt / 2 + 14;
       // Crítico ou limite: o cartão pisca para chamar o olho.
       double tint = (g_worst >= 2 && (GetTickCount() / 500) % 2 == 0) ? 0.28 : 0.11;
       RoundRect(PP, y, inner, hh, 14, Mix(P_BG, tone, tint));
@@ -1997,18 +2042,20 @@ double RenderMain(double y)
       string headline = "Dentro das regras";
       if(g_worstIdx >= 0 && g_worst >= 1)
          headline = g_rules[g_worstIdx].label + " · " + DoubleToString(MathMin(999.0, g_rules[g_worstIdx].pct), 0) + "%";
-      ShieldIcon(PP + 15, y + 15, 18, tone);
-      Text(FitText(headline, inner - 42 - 96, 15.5, FW_SEMIBOLD), PP + 41, y + 15, 15.5, tone, FW_SEMIBOLD);
-      Text("pode perder hoje", PP + 16, y + 45, 12.5, P_MUTED);
-      Text(g_hasCanLose ? MoneyShort(MathMax(0.0, g_canLose)) : "–", PP + 15, y + 62, 32, P_TEXT, FW_BOLD);
-      // Anel: quanto ainda sobra da regra mais apertada.
-      double rcx = PP + inner - 18 - 32, rcy = y + hh / 2;
+      ShieldIcon(PP + 15, y + 13, 18, tone);
+      Text(FitText(headline, inner - 42 - 16, 15, FW_SEMIBOLD), PP + 41, y + 13, 15, tone, FW_SEMIBOLD);
       double frac = 1.0;
       if(g_slackIdx >= 0 && g_rules[g_slackIdx].limit > 0)
          frac = Clamp01(g_rules[g_slackIdx].slack / g_rules[g_slackIdx].limit);
-      Circle(rcx, rcy, 32 + 3.25, Argb(P_TEXT, 26), 6.5);
-      Arc(rcx, rcy, 32, 6.5, frac, tone);
-      ShieldIcon(rcx - 10, rcy - 10.5, 20, tone);
+      double gcx = PP + inner / 2, gcy = y + 44 + gr;
+      HalfArc(gcx, gcy, gr, gt, 1.0, Mix(P_BG, tone, 0.22));
+      HalfArc(gcx, gcy, gr, gt, frac, tone);
+      string lose = g_hasCanLose ? MoneyShort(MathMax(0.0, g_canLose)) : "–";
+      double vs = g_compact ? 24.0 : 28.0;
+      while(vs > 16 && TextWidth(lose, vs, FW_BOLD) > 2 * (gr - gt) - 6)
+         vs -= 1.0;
+      Text(lose, gcx, gcy - 6, vs, P_TEXT, FW_BOLD, TA_CENTER | TA_BOTTOM);
+      Text("PODE PERDER HOJE", gcx, gcy - 2, 10, P_MUTED, FW_SEMIBOLD, TA_CENTER | TA_TOP);
       y += hh + 14;
       // Os mesmos números da aba Negociação do MT5, com centavos.
       double openResult = g_equityNow - g_balanceNow;
@@ -2194,6 +2241,564 @@ char MkOutcome(const MqlRates &r[], const int k, const int n, const double entry
    return -1;
   }
 
+// ---------------------------------------------------------------------------
+// Microestrutura institucional (SMC) no H1: varredura de liquidez, CHoCH/BOS,
+// order block e FVG. A mesma engine alimenta o estudo histórico (probabilidade),
+// o stop técnico da aba Mercado e as marcações no gráfico. Só usa velas fechadas:
+// um topo/fundo da vela i só existe depois de SMC_L velas (sem olhar o futuro).
+#define SMC_L          3      // velas de cada lado para confirmar um topo/fundo
+#define SMC_SWEEP_BARS 36     // a varredura vale se veio até 36 h antes do rompimento
+#define SMC_SETUP_BARS 24     // o reteste vale até 24 h depois do rompimento
+#define SMC_ZONES_KEEP 48     // zonas guardadas durante a leitura (as mais novas)
+#define SMC_DRAW_BARS  700    // velas H1 lidas para a leitura recente e o desenho
+#define SMC_DRAW_ZONES 4      // zonas desenhadas por tipo e lado
+#define SMC_DRAW_EVENTS 8     // rompimentos (CHoCH/BOS) desenhados
+#define SMC_DRAW_ARROWS 8     // setas de confluência desenhadas
+#define SMC_PFX        "FG_SMC_"   // = PFX + "SMC_": o painel não apaga, OnInit/OnDeinit apagam
+
+struct SmcZone
+  {
+   int      dir;      // 1 zona de compra (demanda), -1 de venda (oferta)
+   int      kind;     // 0 order block, 1 FVG
+   datetime t0;       // vela que formou a zona
+   double   lo, hi;
+   int      born;     // vela em que a zona passou a existir
+   bool     alive;    // false: preço fechou além dela (OB) ou preencheu o gap (FVG)
+   bool     used;     // já gerou uma confluência (um trade por zona)
+  };
+
+struct SmcEvent
+  {
+   datetime t;        // vela que confirmou o rompimento
+   datetime tFrom;    // topo/fundo rompido
+   double   price;
+   int      dir;
+   bool     choch;    // true: mudança de caráter; false: continuação (BOS)
+  };
+
+struct SmcArrow
+  {
+   datetime t;
+   double   price;
+   int      dir;
+  };
+
+// Estudo histórico das confluências (MkBuild): direção e desfecho por vela H1.
+char     g_mkSmcDir[];      // 1 confluência de compra, -1 de venda, 0 nenhuma
+char     g_mkSmcOut[];      // 1 alvo, 0 stop, -1 sem desfecho
+double   g_mkSmcP = 0.0;    // frequência histórica de alvo do setup de agora
+int      g_mkSmcN = 0;      // casos usados
+int      g_mkSmcLevel = -1; // 0 mesma tendência e zona, 1 só a direção, -1 poucos casos
+int      g_mkTrigger = 0;   // 1 gatilho de compra, -1 de venda, 0 aguardando
+// Leitura recente (gráfico e leitura ao vivo).
+SmcZone  g_smcZones[];
+SmcEvent g_smcEvents[];
+SmcArrow g_smcArrows[];
+int      g_smcN = 0;                    // velas fechadas lidas
+int      g_smcArmBull = -1000000, g_smcArmBullSweep = 0;
+int      g_smcArmBear = -1000000, g_smcArmBearSweep = 0;
+double   g_smcAtr = 0.0, g_smcSpread = 0.0;
+datetime g_smcBar = 0;                  // vela H1 aberta da última leitura
+string   g_smcSym = "";
+bool     g_smcOn = true;                // marcações no gráfico ligadas (Configurações)
+bool     g_smcDrawn = false;
+// Confluência de agora.
+int      g_smcLiveDir = 0;
+double   g_smcLiveStop = 0.0;
+int      g_smcLiveZone = -1;            // índice em g_smcZones da zona em reteste
+int      g_smcLiveDrawn = -2;           // zona destacada no desenho atual
+
+// Guarda uma zona nova. Descarta as mortas e, se passar do limite, as mais velhas.
+void SmcAddZone(SmcZone &z[], const int dir, const int kind, const datetime t0, const double lo, const double hi, const int born)
+  {
+   if(hi <= lo)
+      return;
+   int n = ArraySize(z);
+   if(n >= SMC_ZONES_KEEP)
+     {
+      int w = 0;
+      for(int i = 0; i < n; i++)
+         if(z[i].alive)
+            z[w++] = z[i];
+      if(w >= SMC_ZONES_KEEP)
+        {
+         // Continua cheio: sai a mais velha.
+         for(int i = 1; i < w; i++)
+            z[i - 1] = z[i];
+         w--;
+        }
+      n = w;
+      ArrayResize(z, n);
+     }
+   ArrayResize(z, n + 1);
+   z[n].dir = dir;
+   z[n].kind = kind;
+   z[n].t0 = t0;
+   z[n].lo = lo;
+   z[n].hi = hi;
+   z[n].born = born;
+   z[n].alive = true;
+   z[n].used = false;
+  }
+
+// Stop técnico: alguns ticks além da zona. Válido entre 0,25 e 3 ATR do H1.
+bool SmcStopOk(const int dir, const double entry, const double stop, const double atr)
+  {
+   if(atr <= 0 || stop <= 0)
+      return false;
+   double dist = (dir > 0) ? entry - stop : stop - entry;
+   return dist >= 0.25 * atr && dist <= 3.0 * atr;
+  }
+
+// Roda a engine nas velas fechadas r[0..n-1] (da mais antiga para a mais nova).
+// dirOut/stopOut: a confluência de cada vela (a vela que retestou a zona e fechou a favor).
+// collect = true guarda zonas, rompimentos, setas e o estado final para o gráfico e a leitura ao vivo.
+void SmcRun(const MqlRates &r[], const int n, const double spread, const bool collect, char &dirOut[], double &stopOut[])
+  {
+   ArrayResize(dirOut, MathMax(n, 0));
+   ArrayResize(stopOut, MathMax(n, 0));
+   if(n > 0)
+     {
+      ArrayInitialize(dirOut, 0);
+      ArrayInitialize(stopOut, 0.0);
+     }
+   SmcZone zones[];
+   ArrayResize(zones, 0);
+   if(collect)
+     {
+      ArrayResize(g_smcEvents, 0);
+      ArrayResize(g_smcArrows, 0);
+     }
+   double hiPx = 0, loPx = 0;
+   int hiIdx = -1, loIdx = -1;
+   bool hiBroken = true, loBroken = true;
+   int trend = 0;
+   int sweepBull = -1000000, sweepBear = -1000000;
+   int armBull = -1000000, armBear = -1000000, armBullSweep = 0, armBearSweep = 0;
+   double trSum = 0, atr = 0;
+   double tr[];
+   ArrayResize(tr, MathMax(n, 1));
+   for(int k = 0; k < n; k++)
+     {
+      double prevClose = (k > 0) ? r[k - 1].close : r[k].open;
+      tr[k] = MathMax(r[k].high, prevClose) - MathMin(r[k].low, prevClose);
+      trSum += tr[k];
+      if(k >= 14)
+         trSum -= tr[k - 14];
+      atr = (k >= 13) ? trSum / 14.0 : 0.0;
+
+      // 1. Topo/fundo da vela k - SMC_L, confirmado agora.
+      int c = k - SMC_L;
+      if(c >= SMC_L)
+        {
+         bool isHi = true, isLo = true;
+         for(int j = 1; j <= SMC_L && (isHi || isLo); j++)
+           {
+            if(r[c - j].high >= r[c].high || r[c + j].high > r[c].high)
+               isHi = false;
+            if(r[c - j].low <= r[c].low || r[c + j].low < r[c].low)
+               isLo = false;
+           }
+         if(isHi)
+           {
+            hiPx = r[c].high;
+            hiIdx = c;
+            hiBroken = false;
+           }
+         if(isLo)
+           {
+            loPx = r[c].low;
+            loIdx = c;
+            loBroken = false;
+           }
+        }
+
+      // 2. Varredura de liquidez: pavio além do topo/fundo e fechamento de volta para dentro.
+      if(!loBroken && loIdx >= 0 && loIdx < k && r[k].low < loPx && r[k].close > loPx)
+         sweepBull = k;
+      if(!hiBroken && hiIdx >= 0 && hiIdx < k && r[k].high > hiPx && r[k].close < hiPx)
+         sweepBear = k;
+
+      // 3. Zonas existentes: invalida pelo fechamento (OB) ou pelo preenchimento (FVG).
+      for(int i = 0; i < ArraySize(zones); i++)
+        {
+         if(!zones[i].alive || zones[i].born >= k)
+            continue;
+         if(zones[i].dir > 0)
+           {
+            if(r[k].close < zones[i].lo || (zones[i].kind == 1 && r[k].low <= zones[i].lo))
+               zones[i].alive = false;
+           }
+         else if(r[k].close > zones[i].hi || (zones[i].kind == 1 && r[k].high >= zones[i].hi))
+            zones[i].alive = false;
+        }
+
+      // 4. Rompimento com o corpo: BOS (a favor) ou CHoCH (contra a estrutura anterior).
+      if(!hiBroken && hiIdx >= 0 && r[k].close > hiPx)
+        {
+         hiBroken = true;
+         bool choch = (trend == -1);
+         trend = 1;
+         // Order block: última vela de baixa antes do impulso que rompeu.
+         int m = hiIdx;
+         for(int j = hiIdx; j <= k; j++)
+            if(r[j].low < r[m].low)
+               m = j;
+         int ob = m;
+         for(int j = m; j >= MathMax(0, m - 10); j--)
+            if(r[j].close < r[j].open)
+              {
+               ob = j;
+               break;
+              }
+         SmcAddZone(zones, 1, 0, r[ob].time, r[ob].low, r[ob].high, k);
+         armBear = -1000000;
+         if(k - sweepBull <= SMC_SWEEP_BARS)
+           {
+            armBull = k;
+            armBullSweep = sweepBull;
+           }
+         if(collect)
+           {
+            int e = ArraySize(g_smcEvents);
+            ArrayResize(g_smcEvents, e + 1);
+            g_smcEvents[e].t = r[k].time;
+            g_smcEvents[e].tFrom = r[hiIdx].time;
+            g_smcEvents[e].price = hiPx;
+            g_smcEvents[e].dir = 1;
+            g_smcEvents[e].choch = choch;
+           }
+        }
+      if(!loBroken && loIdx >= 0 && r[k].close < loPx)
+        {
+         loBroken = true;
+         bool choch = (trend == 1);
+         trend = -1;
+         int m = loIdx;
+         for(int j = loIdx; j <= k; j++)
+            if(r[j].high > r[m].high)
+               m = j;
+         int ob = m;
+         for(int j = m; j >= MathMax(0, m - 10); j--)
+            if(r[j].close > r[j].open)
+              {
+               ob = j;
+               break;
+              }
+         SmcAddZone(zones, -1, 0, r[ob].time, r[ob].low, r[ob].high, k);
+         armBull = -1000000;
+         if(k - sweepBear <= SMC_SWEEP_BARS)
+           {
+            armBear = k;
+            armBearSweep = sweepBear;
+           }
+         if(collect)
+           {
+            int e = ArraySize(g_smcEvents);
+            ArrayResize(g_smcEvents, e + 1);
+            g_smcEvents[e].t = r[k].time;
+            g_smcEvents[e].tFrom = r[loIdx].time;
+            g_smcEvents[e].price = loPx;
+            g_smcEvents[e].dir = -1;
+            g_smcEvents[e].choch = choch;
+           }
+        }
+
+      // 5. FVG: vão entre a vela k-2 e a vela k (mínimo de 0,1 ATR para não marcar ruído).
+      if(k >= 2 && atr > 0)
+        {
+         double minGap = atr * 0.1;
+         if(r[k].low - r[k - 2].high >= minGap)
+            SmcAddZone(zones, 1, 1, r[k - 1].time, r[k - 2].high, r[k].low, k);
+         if(r[k - 2].low - r[k].high >= minGap)
+            SmcAddZone(zones, -1, 1, r[k - 1].time, r[k].high, r[k - 2].low, k);
+        }
+
+      // 6. Confluência: varredura -> rompimento -> reteste de OB/FVG formado depois da varredura.
+      double buffer = MathMax(2.0 * spread, 0.1 * atr);
+      for(int side = 1; side >= -1; side -= 2)
+        {
+         int arm = (side > 0) ? armBull : armBear;
+         int swp = (side > 0) ? armBullSweep : armBearSweep;
+         if(arm < 0 || k <= arm || k - arm > SMC_SETUP_BARS || atr <= 0)
+            continue;
+         int best = -1;
+         for(int i = 0; i < ArraySize(zones); i++)
+           {
+            if(!zones[i].alive || zones[i].used || zones[i].dir != side || zones[i].born >= k || zones[i].born < swp)
+               continue;
+            bool touch = (side > 0) ? (r[k].low <= zones[i].hi && r[k].close > zones[i].lo)
+                                    : (r[k].high >= zones[i].lo && r[k].close < zones[i].hi);
+            if(touch && (best < 0 || zones[i].born > zones[best].born))
+               best = i;
+           }
+         if(best < 0)
+            continue;
+         double entry = (side > 0) ? r[k].close + spread : r[k].close;
+         double stop = (side > 0) ? zones[best].lo - buffer : zones[best].hi + buffer;
+         zones[best].used = true;
+         if(!SmcStopOk(side, entry, stop, atr) || dirOut[k] != 0)
+            continue;
+         dirOut[k] = (char)side;
+         stopOut[k] = stop;
+         if(collect)
+           {
+            int a = ArraySize(g_smcArrows);
+            ArrayResize(g_smcArrows, a + 1);
+            g_smcArrows[a].t = r[k].time;
+            g_smcArrows[a].price = (side > 0) ? r[k].low - 0.3 * atr : r[k].high + 0.3 * atr;
+            g_smcArrows[a].dir = side;
+           }
+        }
+     }
+
+   if(!collect)
+      return;
+   int w = 0;
+   for(int i = 0; i < ArraySize(zones); i++)
+      if(zones[i].alive)
+         zones[w++] = zones[i];
+   ArrayResize(zones, w);
+   ArrayResize(g_smcZones, w);
+   for(int i = 0; i < w; i++)
+      g_smcZones[i] = zones[i];
+   g_smcN = n;
+   g_smcArmBull = armBull;
+   g_smcArmBullSweep = armBullSweep;
+   g_smcArmBear = armBear;
+   g_smcArmBearSweep = armBearSweep;
+   g_smcAtr = atr;
+   g_smcSpread = spread;
+  }
+
+// Leitura recente do H1 (gráfico e leitura ao vivo): refaz a cada vela H1 nova.
+void SmcRefresh()
+  {
+   datetime bar = iTime(_Symbol, PERIOD_H1, 0);
+   if(bar == 0 || (bar == g_smcBar && g_smcSym == _Symbol))
+      return;
+   MqlRates rates[];
+   int got = CopyRates(_Symbol, PERIOD_H1, 0, SMC_DRAW_BARS, rates);
+   if(got < 60)
+      return;
+   double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+   double spread = (double)SymbolInfoInteger(_Symbol, SYMBOL_SPREAD) * point;
+   char dirs[];
+   double stops[];
+   // A última vela ainda está aberta: fica de fora da leitura.
+   SmcRun(rates, got - 1, spread, true, dirs, stops);
+   g_smcBar = bar;
+   g_smcSym = _Symbol;
+   g_smcDrawn = false;
+  }
+
+// Confluência agora: a vela H1 aberta retestando uma zona válida depois de varredura + rompimento.
+void SmcLiveCheck()
+  {
+   g_smcLiveDir = 0;
+   g_smcLiveStop = 0.0;
+   g_smcLiveZone = -1;
+   if(g_smcN <= 0 || g_smcSym != _Symbol || g_smcAtr <= 0)
+      return;
+   double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID), ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+   double lo = iLow(_Symbol, PERIOD_H1, 0), hi = iHigh(_Symbol, PERIOD_H1, 0);
+   if(bid <= 0 || ask <= 0 || lo <= 0 || hi <= 0)
+      return;
+   double buffer = MathMax(2.0 * g_smcSpread, 0.1 * g_smcAtr);
+   int bestArm = -1;
+   for(int side = 1; side >= -1; side -= 2)
+     {
+      int arm = (side > 0) ? g_smcArmBull : g_smcArmBear;
+      int swp = (side > 0) ? g_smcArmBullSweep : g_smcArmBearSweep;
+      // A vela aberta é a de índice g_smcN.
+      if(arm < 0 || g_smcN - arm > SMC_SETUP_BARS || arm <= bestArm)
+         continue;
+      int best = -1;
+      for(int i = 0; i < ArraySize(g_smcZones); i++)
+        {
+         if(!g_smcZones[i].alive || g_smcZones[i].used || g_smcZones[i].dir != side || g_smcZones[i].born < swp)
+            continue;
+         bool touch = (side > 0) ? (lo <= g_smcZones[i].hi && bid > g_smcZones[i].lo)
+                                 : (hi >= g_smcZones[i].lo && ask < g_smcZones[i].hi);
+         if(touch && (best < 0 || g_smcZones[i].born > g_smcZones[best].born))
+            best = i;
+        }
+      if(best < 0)
+         continue;
+      double entry = (side > 0) ? ask : bid;
+      double stop = (side > 0) ? g_smcZones[best].lo - buffer : g_smcZones[best].hi + buffer;
+      if(!SmcStopOk(side, entry, stop, g_smcAtr))
+         continue;
+      g_smcLiveDir = side;
+      g_smcLiveStop = stop;
+      g_smcLiveZone = best;
+      bestArm = arm;
+     }
+  }
+
+// Frequência histórica de alvo das confluências desta direção (mesma tendência e zona, senão só a direção).
+void SmcStats(const int dir)
+  {
+   g_mkSmcP = 0.0;
+   g_mkSmcN = 0;
+   g_mkSmcLevel = -1;
+   int key = MkKeyLow(g_mkTrendNow, g_mkZone);
+   int n = ArraySize(g_mkSmcDir);
+   for(int level = 0; level < 2; level++)
+     {
+      int wins = 0, cnt = 0;
+      for(int k = 0; k < n; k++)
+        {
+         if(g_mkSmcDir[k] != dir || g_mkSmcOut[k] < 0)
+            continue;
+         if(level == 0 && (k >= ArraySize(g_mkKeyLow) || g_mkKeyLow[k] != key))
+            continue;
+         cnt++;
+         wins += g_mkSmcOut[k];
+        }
+      if(cnt >= MK_MIN_N)
+        {
+         g_mkSmcLevel = level;
+         g_mkSmcN = cnt;
+         g_mkSmcP = (double)wins / cnt;
+         return;
+        }
+      if(level == 1)
+        {
+         g_mkSmcN = cnt;
+         g_mkSmcP = (cnt > 0) ? (double)wins / cnt : 0.0;
+        }
+     }
+  }
+
+// ---- Marcações no gráfico (objetos FG_SMC_*). Só desenha quando a leitura muda. ----
+void SmcProps(const string name, const color c)
+  {
+   ObjectSetInteger(0, name, OBJPROP_COLOR, c);
+   ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false);
+   ObjectSetInteger(0, name, OBJPROP_SELECTED, false);
+   ObjectSetInteger(0, name, OBJPROP_HIDDEN, true);
+   ObjectSetInteger(0, name, OBJPROP_BACK, true);
+  }
+
+void SmcText(const string name, const datetime t, const double price, const string text, const color c,
+             const ENUM_ANCHOR_POINT anchor, const int size)
+  {
+   if(ObjectFind(0, name) < 0)
+      ObjectCreate(0, name, OBJ_TEXT, 0, t, price);
+   ObjectMove(0, name, 0, t, price);
+   ObjectSetString(0, name, OBJPROP_TEXT, text);
+   ObjectSetString(0, name, OBJPROP_FONT, "Segoe UI Semibold");
+   ObjectSetInteger(0, name, OBJPROP_FONTSIZE, size);
+   ObjectSetInteger(0, name, OBJPROP_ANCHOR, anchor);
+   SmcProps(name, c);
+  }
+
+void SmcClear()
+  {
+   ObjectsDeleteAll(0, SMC_PFX);
+  }
+
+void SmcDraw()
+  {
+   // Leitura de outro ativo (o gráfico trocou e o histórico novo ainda não chegou): nada de zona velha.
+   if(g_smcSym != _Symbol)
+     {
+      if(ObjectsTotal(0, 0, -1) > 0)
+         SmcClear();
+      g_smcDrawn = false;
+      return;
+     }
+   if(!g_smcOn)
+     {
+      if(!g_smcDrawn)
+        {
+         SmcClear();
+         ChartRedraw(0);
+         g_smcDrawn = true;
+        }
+      return;
+     }
+   if(g_smcDrawn && g_smcLiveDrawn == g_smcLiveZone)
+      return;
+   SmcClear();
+   bool light = IsLightChart();
+   color bullFill = light ? C'214,240,224' : C'22,64,44';
+   color bearFill = light ? C'250,222,222' : C'74,28,32';
+   color bullGap  = light ? C'216,231,250' : C'26,46,82';
+   color bearGap  = light ? C'250,234,214' : C'78,54,22';
+   color bullInk  = light ? C'22,128,72' : C'72,214,140';
+   color bearInk  = light ? C'200,40,48' : C'240,96,100';
+   color mutedInk = light ? C'110,116,128' : C'150,156,168';
+   datetime right = TimeCurrent() + PeriodSeconds(PERIOD_H1) * 8;
+
+   // Zonas vivas: as mais novas de cada tipo e lado.
+   for(int dir = 1; dir >= -1; dir -= 2)
+      for(int kind = 0; kind < 2; kind++)
+        {
+         int shown = 0;
+         for(int i = ArraySize(g_smcZones) - 1; i >= 0 && shown < SMC_DRAW_ZONES; i--)
+           {
+            if(g_smcZones[i].dir != dir || g_smcZones[i].kind != kind || !g_smcZones[i].alive)
+               continue;
+            string name = SMC_PFX + "Z" + IntegerToString(i);
+            color fill = (kind == 0) ? (dir > 0 ? bullFill : bearFill) : (dir > 0 ? bullGap : bearGap);
+            ObjectCreate(0, name, OBJ_RECTANGLE, 0, g_smcZones[i].t0, g_smcZones[i].hi, right, g_smcZones[i].lo);
+            ObjectSetInteger(0, name, OBJPROP_FILL, true);
+            SmcProps(name, fill);
+            string tag = (kind == 0 ? "OB" : "FVG") + string(dir > 0 ? " compra" : " venda") + " · H1";
+            SmcText(SMC_PFX + "ZT" + IntegerToString(i), g_smcZones[i].t0, dir > 0 ? g_smcZones[i].lo : g_smcZones[i].hi,
+                    tag, dir > 0 ? bullInk : bearInk, dir > 0 ? ANCHOR_LEFT_UPPER : ANCHOR_LEFT_LOWER, 7);
+            shown++;
+           }
+        }
+
+   // Zona que define o stop técnico da aba Mercado agora: contorno forte.
+   if(g_smcLiveZone >= 0 && g_smcLiveZone < ArraySize(g_smcZones))
+     {
+      SmcZone z = g_smcZones[g_smcLiveZone];
+      string name = SMC_PFX + "LIVE";
+      ObjectCreate(0, name, OBJ_RECTANGLE, 0, z.t0, z.hi, right, z.lo);
+      ObjectSetInteger(0, name, OBJPROP_FILL, false);
+      ObjectSetInteger(0, name, OBJPROP_WIDTH, 2);
+      SmcProps(name, z.dir > 0 ? bullInk : bearInk);
+      SmcText(SMC_PFX + "LIVET", right, z.dir > 0 ? z.hi : z.lo, "Zona do stop técnico",
+              z.dir > 0 ? bullInk : bearInk, z.dir > 0 ? ANCHOR_RIGHT_LOWER : ANCHOR_RIGHT_UPPER, 8);
+     }
+
+   // Rompimentos: linha pontilhada no nível rompido e o nome (CHoCH ou BOS).
+   int ne = ArraySize(g_smcEvents);
+   for(int e = MathMax(0, ne - SMC_DRAW_EVENTS); e < ne; e++)
+     {
+      color ink = g_smcEvents[e].dir > 0 ? bullInk : bearInk;
+      string ln = SMC_PFX + "EL" + IntegerToString(e);
+      ObjectCreate(0, ln, OBJ_TREND, 0, g_smcEvents[e].tFrom, g_smcEvents[e].price, g_smcEvents[e].t, g_smcEvents[e].price);
+      ObjectSetInteger(0, ln, OBJPROP_STYLE, STYLE_DOT);
+      ObjectSetInteger(0, ln, OBJPROP_RAY_RIGHT, false);
+      SmcProps(ln, ink);
+      SmcText(SMC_PFX + "ET" + IntegerToString(e), g_smcEvents[e].t, g_smcEvents[e].price,
+              g_smcEvents[e].choch ? "CHoCH" : "BOS", ink,
+              g_smcEvents[e].dir > 0 ? ANCHOR_RIGHT_LOWER : ANCHOR_RIGHT_UPPER, 8);
+     }
+
+   // Setas de confluência total (varredura -> rompimento -> reteste da zona).
+   int na = ArraySize(g_smcArrows);
+   for(int a = MathMax(0, na - SMC_DRAW_ARROWS); a < na; a++)
+     {
+      string name = SMC_PFX + "A" + IntegerToString(a);
+      ObjectCreate(0, name, OBJ_ARROW, 0, g_smcArrows[a].t, g_smcArrows[a].price);
+      ObjectSetInteger(0, name, OBJPROP_ARROWCODE, g_smcArrows[a].dir > 0 ? 233 : 234);
+      ObjectSetInteger(0, name, OBJPROP_ANCHOR, g_smcArrows[a].dir > 0 ? ANCHOR_TOP : ANCHOR_BOTTOM);
+      ObjectSetInteger(0, name, OBJPROP_WIDTH, 1);
+      SmcProps(name, g_smcArrows[a].dir > 0 ? bullInk : bearInk);
+     }
+   if(ArraySize(g_smcZones) == 0 && ne == 0)
+      SmcText(SMC_PFX + "NONE", TimeCurrent(), SymbolInfoDouble(_Symbol, SYMBOL_BID), "Sem estrutura H1 suficiente", mutedInk, ANCHOR_RIGHT, 8);
+   g_smcLiveDrawn = g_smcLiveZone;
+   g_smcDrawn = true;
+   ChartRedraw(0);
+  }
+
 bool MkBuild()
   {
    string sym = g_mkSym;
@@ -2288,6 +2893,44 @@ bool MkBuild()
       g_mkBuy[k] = MkOutcome(h1, k, n1, h1[k].close + spread, 1, risk, target, spread);
       g_mkSell[k] = MkOutcome(h1, k, n1, h1[k].close, -1, risk, target, spread);
      }
+
+   // Confluências SMC no mesmo histórico, testadas com o trade real: entrada no fechamento
+   // da vela do reteste, stop técnico além da zona e alvo = stop x InpMkRR.
+   double smcStop[];
+   SmcRun(h1, n1 - 1, spread, false, g_mkSmcDir, smcStop);
+   ArrayResize(g_mkSmcDir, n1);
+   g_mkSmcDir[n1 - 1] = 0;
+   ArrayResize(g_mkSmcOut, n1);
+   ArrayInitialize(g_mkSmcOut, -1);
+   for(int k = 0; k < n1 - 1; k++)
+     {
+      if(g_mkSmcDir[k] == 0)
+         continue;
+      int dir = g_mkSmcDir[k];
+      double entry = (dir > 0) ? h1[k].close + spread : h1[k].close;
+      double risk = (dir > 0) ? entry - smcStop[k] : smcStop[k] - entry;
+      if(risk <= 0)
+         continue;
+      g_mkSmcOut[k] = MkOutcome(h1, k, n1, entry, dir, risk, risk * InpMkRR, spread);
+     }
+   int smcB = 0, smcS = 0, smcBw = 0, smcSw = 0;
+   for(int k = 0; k < n1; k++)
+     {
+      if(g_mkSmcOut[k] < 0)
+         continue;
+      if(g_mkSmcDir[k] > 0)
+        {
+         smcB++;
+         smcBw += g_mkSmcOut[k];
+        }
+      else if(g_mkSmcDir[k] < 0)
+        {
+         smcS++;
+         smcSw += g_mkSmcOut[k];
+        }
+     }
+   PrintFormat("Fortify SMC %s: %d velas H1; confluências com desfecho: compra %d (alvo %d), venda %d (alvo %d)",
+               sym, n1, smcB, smcBw, smcS, smcSw);
    g_mkFrom = h1[0].time;
 
    // Contexto de agora que só muda com a hora: dia anterior, H4 fechado e ATR.
@@ -2345,15 +2988,22 @@ void MkCount(const int level, const int key, int &bw, int &bn, int &sw, int &sn)
   }
 
 // Notícia forte da moeda do ativo, de 5 min atrás até 30 min à frente (calendário do MT5).
+// Roda em qualquer aba (o aviso aparece também no Painel): usa o ativo do gráfico.
+string g_mkNewsSym = "";
 void MkNews()
   {
    datetime now = TimeTradeServer();
+   if(g_mkNewsSym != _Symbol)
+     {
+      g_mkNewsSym = _Symbol;
+      g_mkNewsCheck = 0;
+     }
    if(now - g_mkNewsCheck < 60)
       return;
    g_mkNewsCheck = now;
    g_mkNewsTime = 0;
    g_mkNewsName = "";
-   string c1 = SymbolInfoString(g_mkSym, SYMBOL_CURRENCY_BASE), c2 = SymbolInfoString(g_mkSym, SYMBOL_CURRENCY_PROFIT);
+   string c1 = SymbolInfoString(_Symbol, SYMBOL_CURRENCY_BASE), c2 = SymbolInfoString(_Symbol, SYMBOL_CURRENCY_PROFIT);
    MqlCalendarValue vals[];
    ResetLastError();
    if(CalendarValueHistory(vals, now - 300, now + 1800) <= 0)
@@ -2395,6 +3045,12 @@ string MkNewsWhen()
    return (mins <= 0) ? "agora" : "em " + IntegerToString(mins) + " min";
   }
 
+// Amarelo até 15 min antes; vermelho a 15 min ou menos (e logo depois de sair).
+uint MkNewsColor()
+  {
+   return (MkNewsMinutes() <= 15) ? P_BREACH : P_WARN;
+  }
+
 // Leitura de agora (preço, máxima e mínima do dia, sessão) e a probabilidade.
 void MkLive()
   {
@@ -2432,10 +3088,22 @@ void MkLive()
    g_mkSide = g_mkProbSide;
    g_mkP = MathMax(pb, ps);
    g_mkN = (g_mkSide > 0) ? bn : sn;
-   // Sem casos suficientes, sem vantagem ou com notícia forte perto: nenhum lado fica destacado.
+   // Gatilho: confluência SMC acontecendo agora, com histórico suficiente do mesmo setup e
+   // frequência de alvo acima da referência (1 / (1 + R:R)). Nunca com notícia forte perto.
    double base = 1.0 / (1.0 + InpMkRR);
-   if(g_mkLevel < 0 || g_mkP < base + MK_EDGE || MkNewsSoon())
-      g_mkSide = 0;
+   SmcLiveCheck();
+   g_mkTrigger = 0;
+   g_mkSmcP = 0.0;
+   g_mkSmcN = 0;
+   g_mkSmcLevel = -1;
+   if(g_smcLiveDir != 0)
+     {
+      SmcStats(g_smcLiveDir);
+      if(g_mkSmcLevel >= 0 && g_mkSmcP >= base + MK_EDGE && !MkNewsSoon())
+         g_mkTrigger = g_smcLiveDir;
+     }
+   // Só o gatilho destaca um lado; sem ele, o trader escolhe sem indicação.
+   g_mkSide = g_mkTrigger;
   }
 
 void MkUpdate()
@@ -2465,6 +3133,7 @@ void MkUpdate()
    if(!g_mkReady)
       return;
    MkNews();
+   SmcRefresh();
    MkLive();
   }
 
@@ -2477,13 +3146,31 @@ string MkPrice(const double price)
 
 double g_mkGainUsed = 0.0;       // ganho real no alvo com o lote calculado
 
-// Perda e ganho reais de 1 lote, pela calculadora do MT5. Usa o pior lado (compra ou venda).
-bool MkPerLot(const double stopDist, double &lossPerLot, double &gainPerLot)
+// Perda e ganho reais de 1 lote, pela calculadora do MT5 (valor do tick e tamanho do contrato
+// do próprio ativo). dir 1 compra, -1 venda, 0 o pior dos dois lados.
+bool MkPerLot(const int dir, const double stopDist, double &lossPerLot, double &gainPerLot)
   {
    double ask = SymbolInfoDouble(g_mkSym, SYMBOL_ASK), bid = SymbolInfoDouble(g_mkSym, SYMBOL_BID);
    if(ask <= 0 || bid <= 0 || stopDist <= 0)
       return false;
    double tpDist = stopDist * InpMkRR, a = 0, b = 0, c = 0, d = 0;
+   if(dir > 0)
+     {
+      if(!ProfitPerLot(g_mkSym, ORDER_TYPE_BUY, ask, ask - stopDist, a) || !ProfitPerLot(g_mkSym, ORDER_TYPE_BUY, ask, ask + tpDist, c))
+         return false;
+      lossPerLot = -a;
+      gainPerLot = c;
+      return lossPerLot > 0;
+     }
+   if(dir < 0)
+     {
+      if(!ProfitPerLot(g_mkSym, ORDER_TYPE_SELL, bid, bid + stopDist, b) || bid - tpDist <= 0
+         || !ProfitPerLot(g_mkSym, ORDER_TYPE_SELL, bid, bid - tpDist, d))
+         return false;
+      lossPerLot = -b;
+      gainPerLot = d;
+      return lossPerLot > 0;
+     }
    if(!ProfitPerLot(g_mkSym, ORDER_TYPE_BUY, ask, ask - stopDist, a) || !ProfitPerLot(g_mkSym, ORDER_TYPE_SELL, bid, bid + stopDist, b)
       || !ProfitPerLot(g_mkSym, ORDER_TYPE_BUY, ask, ask + tpDist, c))
       return false;
@@ -2495,14 +3182,37 @@ bool MkPerLot(const double stopDist, double &lossPerLot, double &gainPerLot)
    return lossPerLot > 0;
   }
 
-// Lote para o valor que o trader quer arriscar, com o stop de hoje e as regras da mesa.
-double MkLots(const double stopDist, double &riskUsed, string &warn)
+// Stop de cada lado: o técnico (além do order block/FVG do H1 em reteste) quando há confluência
+// nesse lado; senão o de volatilidade (ATR do H1 x InpMkStopAtr). Devolve a distância até o stop
+// a partir do preço de entrada de agora e o preço do stop. dir 0: o de volatilidade, para os dois lados.
+double MkStopFor(const int dir, double &slPrice, bool &technical)
+  {
+   technical = false;
+   double atrDist = g_mkAtr * InpMkStopAtr;
+   double entry = (dir > 0) ? SymbolInfoDouble(_Symbol, SYMBOL_ASK) : SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   // Stop técnico só com o gatilho ativo nesse lado: o painel e o botão usam sempre o mesmo stop.
+   if(dir != 0 && g_mkTrigger == dir && g_smcLiveDir == dir && g_smcLiveStop > 0 && entry > 0)
+     {
+      double dist = (dir > 0) ? entry - g_smcLiveStop : g_smcLiveStop - entry;
+      if(dist > 0)
+        {
+         technical = true;
+         slPrice = g_smcLiveStop;
+         return dist;
+        }
+     }
+   slPrice = (entry > 0 && dir != 0) ? entry - dir * atrDist : 0.0;
+   return atrDist;
+  }
+
+// Lote para o valor que o trader quer arriscar, com o stop do lado escolhido e as regras da mesa.
+double MkLots(const int dir, const double stopDist, double &riskUsed, string &warn)
   {
    warn = "";
    riskUsed = 0;
    g_mkGainUsed = 0;
    double lossPerLot = 0, gainPerLot = 0;
-   if(!MkPerLot(stopDist, lossPerLot, gainPerLot))
+   if(!MkPerLot(dir, stopDist, lossPerLot, gainPerLot))
      {
       warn = "Sem cotação para calcular o valor deste ativo agora.";
       return 0;
@@ -2570,10 +3280,12 @@ void MkPlaceOrder(const int dir)
       return;
      }
    string sideName = (dir > 0) ? "Comprar" : "Vender";
-   double stopDist = g_mkAtr * InpMkStopAtr, tpDist = stopDist * InpMkRR;
+   double slTech = 0;
+   bool technical = false;
+   double stopDist = MkStopFor(dir, slTech, technical), tpDist = stopDist * InpMkRR;
    double riskUsed = 0;
    string warn = "";
-   double lots = MkLots(stopDist, riskUsed, warn);
+   double lots = MkLots(dir, stopDist, riskUsed, warn);
    if(lots <= 0)
      {
       g_notice = (warn != "") ? warn : "Não deu para calcular o lote com esse valor.";
@@ -2612,23 +3324,46 @@ void MkPlaceOrder(const int dir)
      }
 
    // Confirmação com tudo o que vai ser enviado.
+   double slShow = technical ? slTech : entry - dir * stopDist;
    string q = sideName + " " + FormatLots(lots) + " lotes de " + _Symbol + " agora, a mercado?\n\n"
-              + "Stop loss: " + MkPrice(MkTickRound(entry - dir * stopDist)) + "  (-" + MoneyShort(riskUsed) + ")\n"
+              + "Stop loss: " + MkPrice(MkTickRound(slShow)) + "  (-" + MoneyShort(riskUsed) + ")"
+              + (technical ? "  · técnico, além da zona do H1\n" : "  · volatilidade (ATR do H1)\n")
               + "Take profit: " + MkPrice(MkTickRound(entry + dir * tpDist)) + "  (+" + MoneyShort(g_mkGainUsed) + ")\n"
               + "Risco x retorno: 1 : " + DoubleToString(InpMkRR, InpMkRR == MathFloor(InpMkRR) ? 0 : 1);
    if(warn != "")
       q += "\n\n" + warn;
-   if(g_mkSide != 0 && g_mkSide != dir)
-      q += "\n\nAtenção: o Fortify não indica este lado agora.";
+   if(g_mkTrigger != 0 && g_mkTrigger != dir)
+      q += "\n\nAtenção: o gatilho ativo agora é do outro lado.";
    if(MkNewsSoon())
-      q += "\n\nAtenção: notícia forte " + MkNewsWhen() + ": " + g_mkNewsName + ".";
+     {
+      int mins = MkNewsMinutes();
+      q += "\n\nAtenção: Notícia de Alto Impacto " + (mins > 0 ? "em " + IntegerToString(mins) + " minutos" : "agora")
+           + " (" + g_mkNewsName + "). Muitas mesas desclassificam operações durante notícias fortes. Deseja prosseguir?";
+     }
    q += "\n\nStop e alvo podem escorregar com o preço em movimento.";
-   if(MessageBox(q, "Fortify Guard", MB_YESNO | (dir > 0 ? MB_ICONQUESTION : MB_ICONWARNING)) != IDYES)
+   if(MessageBox(q, "Fortify Guard", MB_YESNO | (dir > 0 && !MkNewsSoon() ? MB_ICONQUESTION : MB_ICONWARNING)) != IDYES)
       return;
 
-   // Preço de agora (pode ter mudado durante a confirmação): stop e alvo a partir dele.
+   // Preço de agora (pode ter mudado durante a confirmação).
    entry = (dir > 0) ? SymbolInfoDouble(_Symbol, SYMBOL_ASK) : SymbolInfoDouble(_Symbol, SYMBOL_BID);
-   double sl = MkTickRound(entry - dir * stopDist), tp = MkTickRound(entry + dir * tpDist);
+   double sl, tp;
+   if(technical)
+     {
+      // O stop técnico fica preso ao nível da zona; o alvo segue o R:R do stop real.
+      double dist2 = (dir > 0) ? entry - slTech : slTech - entry;
+      if(dist2 <= 0 || dist2 > stopDist * 1.15 || (stopsLevel > 0 && dist2 < stopsLevel * point))
+        {
+         g_notice = "O preço andou durante a confirmação e o stop técnico não cabe mais no risco escolhido. Confira e tente de novo.";
+         return;
+        }
+      sl = MkTickRound(slTech);
+      tp = MkTickRound(entry + dir * dist2 * InpMkRR);
+     }
+   else
+     {
+      sl = MkTickRound(entry - dir * stopDist);
+      tp = MkTickRound(entry + dir * tpDist);
+     }
    g_trade.SetTypeFillingBySymbol(_Symbol);
    bool ok = (dir > 0) ? g_trade.Buy(lots, _Symbol, 0.0, sl, tp, "Fortify Mercado")
                        : g_trade.Sell(lots, _Symbol, 0.0, sl, tp, "Fortify Mercado");
@@ -2676,91 +3411,181 @@ double RenderMarket(double y)
       return y + 30;
      }
 
-   // Probabilidade de ganho e, só quando houver, a notícia forte com o tempo que falta.
-   uint tone = (g_mkSide > 0) ? P_OK : (g_mkSide < 0) ? P_BREACH : P_MUTED;
+   // Índice de probabilidade: com confluência SMC, a frequência histórica de alvo desse mesmo
+   // setup (mesmo stop técnico e R:R); sem ela, a do contexto do ativo. Abaixo, o gatilho.
+   uint tone = (g_mkTrigger > 0) ? P_OK : (g_mkTrigger < 0) ? P_BREACH : P_MUTED;
    bool news = MkNewsSoon();
-   double ch = news ? 128 : 92;
+   bool smcProb = (g_smcLiveDir != 0 && g_mkSmcLevel >= 0);
+   double ch = news ? 162 : 126;
    RoundRect(PP, y, inner, ch, 14, Mix(P_BG, tone, 0.10));
    RoundRect(PP, y, inner, ch, 14, Argb(tone, 140), 1.2);
-   Text("Probabilidade de ganho", PP + 16, y + 14, 12.5, P_MUTED);
-   bool hasProb = (g_mkLevel >= 0);
-   Text(hasProb ? DoubleToString(g_mkP * 100.0, 0) + "%" : "–", PP + 14, y + 32, 40, P_TEXT, FW_BOLD);
+   Text(smcProb ? "Índice de probabilidade · confluência SMC" : "Probabilidade de ganho", PP + 16, y + 14, 12.5, P_MUTED);
+   bool hasProb = smcProb || (g_mkLevel >= 0);
+   double pShow = smcProb ? g_mkSmcP : g_mkP;
+   string pTxt = hasProb ? DoubleToString(pShow * 100.0, 0) + "%" : "–";
+   Text(pTxt, PP + 14, y + 32, 40, P_TEXT, FW_BOLD);
    if(hasProb)
-      Text(g_mkProbSide > 0 ? "na compra" : "na venda", PP + inner - 16, y + 52, 12, P_MUTED, FW_NORMAL, TA_RIGHT | TA_VCENTER);
-   if(news)
      {
-      double ny = y + 90;
-      RoundRect(PP + 12, ny, inner - 24, 26, 8, Mix(P_BG, P_WARN, 0.16));
-      string nt = "Notícia forte " + MkNewsWhen() + " · " + g_mkNewsName;
-      Text(FitText(nt, inner - 48, 12, FW_SEMIBOLD), PP + inner / 2, ny + 13, 12, P_WARN, FW_SEMIBOLD, TA_CENTER | TA_VCENTER);
+      double px = PP + 14 + TextWidth(pTxt, 40, FW_BOLD) + 10;
+      Text("de probabilidade estatística", px, y + 44, 12, P_TEXT, FW_SEMIBOLD);
+      string sub = smcProb ? (g_smcLiveDir > 0 ? "compra · " : "venda · ") + IntegerToString(g_mkSmcN) + " casos iguais"
+                           : (g_mkProbSide > 0 ? "na compra" : "na venda");
+      Text(sub, px, y + 62, 11, P_MUTED);
      }
-   y += ch + 14;
-
-   // Lote, stop, alvo e risco x retorno.
-   double stopDist = g_mkAtr * InpMkStopAtr, tpDist = stopDist * InpMkRR;
-   double riskUsed = 0;
-   string warn = "";
-   double lots = MkLots(stopDist, riskUsed, warn);
-   double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
-   long stopPts = (point > 0) ? (long)MathRound(stopDist / point) : 0;
-   long tpPts = (point > 0) ? (long)MathRound(tpDist / point) : 0;
-   double rows = 4 * 30 + 8;
-   RoundRect(PP, y, inner, rows, 12, P_CARD);
-   double ry = y + 4;
-   ry = MkRow("Lote", lots > 0 ? FormatLots(lots) : "–", ry, P_TEXT);
-   int dir = (g_mkSide != 0) ? g_mkSide : 1;
-   double entry = (dir > 0) ? SymbolInfoDouble(_Symbol, SYMBOL_ASK) : SymbolInfoDouble(_Symbol, SYMBOL_BID);
-   string slTxt, tpTxt;
-   if(g_mkSide != 0 && entry > 0)
+   // Gatilho de ação.
+   string trig;
+   uint trigC;
+   if(g_mkTrigger > 0)
      {
-      slTxt = MkPrice(entry - dir * stopDist);
-      tpTxt = MkPrice(entry + dir * tpDist);
+      trig = "GATILHO DE COMPRA ATIVO";
+      trigC = P_OK;
+     }
+   else if(g_mkTrigger < 0)
+     {
+      trig = "GATILHO DE VENDA ATIVO";
+      trigC = P_BREACH;
+     }
+   else if(g_smcLiveDir != 0 && news)
+     {
+      trig = "PAUSADO: NOTÍCIA FORTE";
+      trigC = MkNewsColor();
+     }
+   else if(g_smcLiveDir != 0)
+     {
+      trig = "CONFLUÊNCIA SEM VANTAGEM HISTÓRICA";
+      trigC = P_WARN;
      }
    else
      {
-      slTxt = IntegerToString(stopPts) + " pts";
-      tpTxt = IntegerToString(tpPts) + " pts";
+      trig = "AGUARDANDO CONFLUÊNCIA";
+      trigC = P_MUTED;
      }
-   if(lots > 0)
+   double ty = y + 88;
+   RoundRect(PP + 12, ty, inner - 24, 28, 8, (g_mkTrigger != 0) ? trigC : Mix(P_BG, trigC, 0.14));
+   Text(trig, PP + inner / 2, ty + 14, 12.5, (g_mkTrigger != 0) ? P_WHITE : trigC, FW_BOLD, TA_CENTER | TA_VCENTER);
+   if(news)
      {
-      slTxt += "  (-" + MoneyShort(riskUsed) + ")";
-      tpTxt += "  (+" + MoneyShort(g_mkGainUsed) + ")";
+      double ny = y + 124;
+      uint nc = MkNewsColor();
+      RoundRect(PP + 12, ny, inner - 24, 26, 8, Mix(P_BG, nc, 0.18));
+      string nt = "Notícia de alto impacto " + MkNewsWhen() + " · " + g_mkNewsName;
+      Text(FitText(nt, inner - 48, 12, FW_SEMIBOLD), PP + inner / 2, ny + 13, 12, nc, FW_SEMIBOLD, TA_CENTER | TA_VCENTER);
      }
-   ry = MkRow("Stop loss", slTxt, ry, P_BREACH);
-   ry = MkRow("Take profit", tpTxt, ry, P_OK);
-   ry = MkRow("Risco x retorno", "1 : " + DoubleToString(InpMkRR, InpMkRR == MathFloor(InpMkRR) ? 0 : 1), ry, P_TEXT);
-   y += rows + 12;
+   y += ch + 14;
 
-   // Entrada com um clique: o lado indicado fica destacado, o trader escolhe.
-   double bw = (inner - 10) / 2.0, bh = 44;
-   for(int b = 0; b < 2; b++)
+   // Lote, stop, alvo e risco x retorno: do lado do gatilho (stop técnico) ou, sem gatilho,
+   // o stop de volatilidade, que vale para os dois lados.
+   int dSide = g_mkTrigger;
+   double slPrice = 0;
+   bool technical = false;
+   double stopDist = MkStopFor(dSide, slPrice, technical), tpDist = stopDist * InpMkRR;
+   double riskUsed = 0;
+   string warn = "";
+   double lots = MkLots(dSide, stopDist, riskUsed, warn);
+   double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+   long stopPts = (point > 0) ? (long)MathRound(stopDist / point) : 0;
+   long tpPts = (point > 0) ? (long)MathRound(tpDist / point) : 0;
+   // Quatro pílulas que se leem de relance: quanto entra, quanto pode perder, quanto pode ganhar.
+   int dir = (g_mkSide != 0) ? g_mkSide : 1;
+   double entry = (dir > 0) ? SymbolInfoDouble(_Symbol, SYMBOL_ASK) : SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   bool priced = (g_mkSide != 0 && entry > 0);
+   string slSub = priced ? "em " + MkPrice(technical ? slPrice : entry - dir * stopDist) : IntegerToString(stopPts) + " pts";
+   string tpSub = priced ? "em " + MkPrice(entry + dir * tpDist) : IntegerToString(tpPts) + " pts";
+   string rrTxt = "1 : " + DoubleToString(InpMkRR, InpMkRR == MathFloor(InpMkRR) ? 0 : 1);
+   double cw = (inner - 8) / 2.0, chH = g_compact ? 52.0 : 58.0;
+   for(int k = 0; k < 4; k++)
      {
-      int d = (b == 0) ? 1 : -1;
-      double bx = PP + b * (bw + 10);
-      uint c = (d > 0) ? P_OK : P_BREACH;
-      bool can = (lots > 0);
-      bool lead = can && (g_mkSide == d || g_mkSide == 0);
-      if(!can)
+      double cx = PP + (k % 2) * (cw + 8), cy = y + (k / 2) * (chH + 8);
+      string lab, val, sub;
+      uint vc = P_TEXT;
+      if(k == 0)
         {
-         RoundRect(bx, y, bw, bh, 10, P_CARD);
-         RoundRect(bx, y, bw, bh, 10, P_BORDER, 1);
+         lab = "Lote";
+         val = lots > 0 ? FormatLots(lots) : "–";
+         sub = lots > 0 ? "risco " + MoneyShort(riskUsed) : "";
         }
-      else if(g_mkSide == d)
-         RoundRect(bx, y, bw, bh, 10, c);
+      else if(k == 1)
+        {
+         lab = "Risco x retorno";
+         val = rrTxt;
+         sub = lots > 0 ? "ganho " + MoneyShort(g_mkGainUsed) : "";
+        }
+      else if(k == 2)
+        {
+         lab = technical ? "Stop técnico" : "Stop";
+         val = lots > 0 ? "-" + MoneyShort(riskUsed) : IntegerToString(stopPts) + " pts";
+         sub = lots > 0 ? slSub : (priced ? slSub : "");
+         vc = P_BREACH;
+        }
       else
         {
-         RoundRect(bx, y, bw, bh, 10, Mix(P_BG, c, 0.12));
-         RoundRect(bx, y, bw, bh, 10, Argb(c, 170), 1.2);
+         lab = "Alvo";
+         val = lots > 0 ? "+" + MoneyShort(g_mkGainUsed) : IntegerToString(tpPts) + " pts";
+         sub = lots > 0 ? tpSub : (priced ? tpSub : "");
+         vc = P_OK;
         }
-      uint tc = !can ? P_MUTED : (g_mkSide == d) ? P_WHITE : (lead ? P_TEXT : P_MUTED);
-      Text((d > 0) ? "COMPRAR AGORA" : "VENDER AGORA", bx + bw / 2, y + bh / 2, 13, tc, FW_BOLD, TA_CENTER | TA_VCENTER);
-      if(can)
-         AddHit(bx, y, bw, bh, (d > 0) ? "mkbuy" : "mksell");
+      RoundRect(cx, cy, cw, chH, 12, P_FIELD);
+      RoundRect(cx, cy, cw, chH, 12, P_BORDER, 1);
+      Text(lab, cx + 12, cy + 8, 11, P_MUTED);
+      Text(FitText(val, cw - 24, 15, FW_BOLD), cx + 12, cy + (g_compact ? 21 : 23), 15, vc, FW_BOLD);
+      if(sub != "")
+         Text(FitText(sub, cw - 24, 11, FW_NORMAL), cx + 12, cy + chH - (g_compact ? 17 : 19), 11, P_MUTED);
      }
-   y += bh + 8;
-   Text(lots > 0 ? FormatLots(lots) + " lotes com stop e alvo já posicionados · pede confirmação" : "Ajuste o valor para liberar a entrada.",
-        PP + inner / 2, y, 11, P_MUTED, FW_NORMAL, TA_CENTER | TA_TOP);
-   y += 24;
+   y += 2 * chH + 8 + 12;
+
+   // Entrada com um clique. Com gatilho: um botão só, grande, na cor do lado certo; o outro lado
+   // continua possível por um link discreto. Sem gatilho: os dois lados, sem destaque.
+   bool can = (lots > 0);
+   if(can && g_mkTrigger != 0)
+     {
+      int d = g_mkTrigger;
+      uint c = (d > 0) ? P_OK : P_BREACH;
+      double bh = 56;
+      RoundRect(PP, y + 3, inner, bh, 12, Argb(c, 50));
+      RoundRect(PP, y, inner, bh, 12, c);
+      Text((d > 0) ? "COMPRAR AGORA" : "VENDER AGORA", PP + inner / 2, y + 11, 16, P_WHITE, FW_BOLD, TA_CENTER | TA_TOP);
+      Text(FormatLots(lots) + (lots < 2.0 ? " lote" : " lotes") + " · stop e alvo já posicionados",
+           PP + inner / 2, y + 34, 11, Argb(P_WHITE, 225), FW_SEMIBOLD, TA_CENTER | TA_TOP);
+      AddHit(PP, y, inner, bh, (d > 0) ? "mkbuy" : "mksell");
+      y += bh + 8;
+      string other = (d > 0) ? "vender" : "comprar";
+      string pre = "ou ", post = " mesmo assim";
+      double w1 = TextWidth(pre, 11.5, FW_NORMAL), w2 = TextWidth(other, 11.5, FW_SEMIBOLD), w3 = TextWidth(post, 11.5, FW_NORMAL);
+      double lx = PP + inner / 2 - (w1 + w2 + w3) / 2;
+      Text(pre, lx, y, 11.5, P_MUTED);
+      Text(other, lx + w1, y, 11.5, P_MUTED, FW_SEMIBOLD);
+      RoundRect(lx + w1, y + 17, w2, 1, 0, Argb(P_MUTED, 150));
+      Text(post, lx + w1 + w2, y, 11.5, P_MUTED);
+      AddHit(lx + w1 - 6, y - 6, w2 + 12, 28, (d > 0) ? "mksell" : "mkbuy");
+      y += 24;
+     }
+   else
+     {
+      double bw = (inner - 10) / 2.0, bh = 44;
+      for(int b = 0; b < 2; b++)
+        {
+         int d = (b == 0) ? 1 : -1;
+         double bx = PP + b * (bw + 10);
+         uint c = (d > 0) ? P_OK : P_BREACH;
+         if(!can)
+           {
+            RoundRect(bx, y, bw, bh, 10, P_CARD);
+            RoundRect(bx, y, bw, bh, 10, P_BORDER, 1);
+           }
+         else
+           {
+            RoundRect(bx, y, bw, bh, 10, Mix(P_BG, c, 0.12));
+            RoundRect(bx, y, bw, bh, 10, Argb(c, 170), 1.2);
+           }
+         Text((d > 0) ? "COMPRAR AGORA" : "VENDER AGORA", bx + bw / 2, y + bh / 2, 13, can ? P_TEXT : P_MUTED, FW_BOLD, TA_CENTER | TA_VCENTER);
+         if(can)
+            AddHit(bx, y, bw, bh, (d > 0) ? "mkbuy" : "mksell");
+        }
+      y += bh + 8;
+      Text(can ? "Stop e alvo já posicionados · pede confirmação" : "Ajuste o valor para liberar a entrada.",
+           PP + inner / 2, y, 11, P_MUTED, FW_NORMAL, TA_CENTER | TA_TOP);
+      y += 24;
+     }
    // Resultado da última ordem (ou o motivo de não ter enviado), logo abaixo dos botões.
    if(g_notice != "")
      {
@@ -2783,46 +3608,67 @@ double RenderMarket(double y)
       y += n * 17 + 10;
      }
 
-   // O que o EA leu no ativo.
-   Text("O QUE O FORTIFY LEU", PP + 2, y, 10.5, P_MUTED, FW_SEMIBOLD);
-   y += 20;
-   string reads[];
-   ArrayResize(reads, 0);
-   string trendTxt[] = {"Diário e H4 em alta", "Diário e H4 em baixa", "Diário e H4 em direções opostas"};
-   string sweepTxt[] = {"Ainda não rompeu a máxima nem a mínima de ontem", "Já varreu a máxima de ontem",
-                        "Já varreu a mínima de ontem", "Já varreu a máxima e a mínima de ontem"};
-   string sesTxt[] = {"Sessão da Ásia", "Sessão de Londres", "Sessão de Nova York"};
-   int r = 0;
-   ArrayResize(reads, 5);
-   reads[r++] = trendTxt[g_mkTrendNow];
-   reads[r++] = g_mkZone == 1 ? "Preço na metade de cima da faixa de ontem (premium)" : "Preço na metade de baixo da faixa de ontem (desconto)";
-   reads[r++] = sweepTxt[g_mkSweep];
-   reads[r++] = sesTxt[g_mkSession] + " · stop de " + IntegerToString(stopPts) + " pts (1 ATR do H1)";
-   for(int i = 0; i < r; i++)
+   // O que fazer agora, em uma frase simples (serve para quem começa e para quem já opera).
+   string todo;
+   uint todoC = P_TEXT;
+   if(lots <= 0)
+      todo = "Aumente o valor a arriscar para liberar a entrada com stop e alvo.";
+   else if(g_mkTrigger != 0)
      {
-      Circle(PP + 5, y + 8, 2.5, P_MUTED);
-      string lines[];
-      int n = WrapWidth(reads[i], inner - 16, 12, FW_NORMAL, 2, lines);
-      for(int l = 0; l < n; l++)
-         Text(lines[l], PP + 16, y + l * 17, 12, P_TEXT);
-      y += n * 17 + 6;
+      todo = (g_mkTrigger > 0 ? "Hora de comprar: clique no botão verde e confirme."
+                              : "Hora de vender: clique no botão vermelho e confirme.");
+      todoC = (g_mkTrigger > 0) ? P_OK : P_BREACH;
      }
-   y += 6;
-   if(g_mkLevel > 0)
+   else if(news)
      {
-      Text(g_mkLevel == 1 ? "Poucos casos com a mesma sessão: comparado sem ela." : "Poucos casos iguais: comparado só por tendência e zona.",
-           PP, y, 11, P_MUTED);
-      y += 17;
+      todo = "Notícia forte chegando. Espere ela passar antes de abrir uma operação.";
+      todoC = MkNewsColor();
      }
-   double years = (double)(TimeCurrent() - g_mkFrom) / (365.0 * 86400.0);
-   string yearsTxt = DoubleToString(years, 1);
-   StringReplace(yearsTxt, ".", ",");
-   string foot = "Leitura de " + yearsTxt + " anos de histórico do " + _Symbol + ".";
-   string lines[];
-   int n = WrapWidth(foot, inner, 11, FW_NORMAL, 3, lines);
-   for(int l = 0; l < n; l++)
-      Text(lines[l], PP, y + l * 16, 11, P_MUTED);
-   return y + n * 16 + 12;
+   else if(g_smcLiveDir != 0)
+      todo = "Há um sinal no gráfico, mas ele não costuma dar certo neste ativo. Melhor esperar o gatilho.";
+   else
+      todo = "Sem entrada boa agora. Espere o gatilho acender: o Fortify avisa aqui.";
+   string tl[];
+   int tn = WrapWidth(todo, inner - 28, 12.5, FW_SEMIBOLD, 3, tl);
+   double th = 22 + tn * 18;
+   RoundRect(PP, y, inner, th, 12, Mix(P_BG, todoC == P_TEXT ? P_MUTED : todoC, 0.10));
+   for(int l = 0; l < tn; l++)
+      Text(tl[l], PP + 14, y + 11 + l * 18, 12.5, todoC, FW_SEMIBOLD);
+   return y + th + 14;
+  }
+
+// Seção GRÁFICO da aba Configurações: liga e desliga as marcações institucionais.
+// Fica só neste MT5 (não vai para o Fortify nem mexe nas regras da conta).
+double RenderChartConfig(double y)
+  {
+   double inner = PW - 2 * PP;
+   double rowH = g_compact ? 44 : 54;
+   Text("GRÁFICO", PP + 2, y, 10.5, P_MUTED, FW_SEMIBOLD);
+   y += 19;
+   RoundRect(PP, y, inner, rowH, 12, P_CARD);
+   Text(FitText("Marcações institucionais (SMC)", inner - 28 - 54, 13.5, FW_NORMAL), PP + 14, y + (g_compact ? 4 : 9), 13.5,
+        g_smcOn ? P_TEXT : P_MUTED);
+   Text(FitText("Order blocks, FVG, CHoCH/BOS e confluências do H1", inner - 28 - 54, 12, FW_NORMAL), PP + 14,
+        y + (g_compact ? 23 : 29), 12, P_MUTED);
+   double tx = PP + inner - 14 - 42, ty = y + rowH / 2 - 12;
+   RoundRect(tx, ty, 42, 24, 12, g_smcOn ? P_OK : P_TOGGLEOFF);
+   Circle(g_smcOn ? tx + 30 : tx + 12, ty + 12, 9, P_WHITE);
+   AddHit(PP, y, inner, rowH, "smc:toggle");
+   y += rowH + 8;
+   // Posição do painel: arrasta pelo topo; aqui volta para o canto.
+   RoundRect(PP, y, inner, rowH, 12, P_CARD);
+   Text("Posição do painel", PP + 14, y + (g_compact ? 4 : 9), 13.5, P_TEXT);
+   Text(FitText(g_userPos ? "Movido por você." : "Arraste o painel pelo topo.", inner - 28 - (g_userPos ? 96 : 0), 12, FW_NORMAL),
+        PP + 14, y + (g_compact ? 23 : 29), 12, P_MUTED);
+   if(g_userPos)
+     {
+      double bw = 84, bx = PP + inner - 14 - bw, by = y + rowH / 2 - 14;
+      RoundRect(bx, by, bw, 28, 8, P_FIELD);
+      RoundRect(bx, by, bw, 28, 8, P_BORDER, 1);
+      Text("Restaurar", bx + bw / 2, by + 14, 12, P_TEXT, FW_SEMIBOLD, TA_CENTER | TA_VCENTER);
+      AddHit(bx, by, bw, 28, "pos:reset");
+     }
+   return y + rowH + 18;
   }
 
 double RenderConfig(double y)
@@ -2832,6 +3678,7 @@ double RenderConfig(double y)
    y += 21;
    Text(InpPreview ? "Demonstração: a escolha vale só nesta tela." : "Fica salvo no Fortify e vale também no site.", PP, y, 11.5, P_MUTED);
    y += 26;
+   y = RenderChartConfig(y);
    if(ArraySize(g_options) == 0)
      {
       string lines[];
@@ -2889,12 +3736,52 @@ double RenderHeader()
    double inner = PW - 2 * PP;
    double y = PP;
    if(!g_measure)
+     {
       RoundRect(0, 0, PW, g_ch / g_s, 16, P_BG);
+      // Pegador: mostra que o painel arrasta pelo topo.
+      RoundRect(PW / 2 - 18, 6, 36, 4, 2, Argb(P_MUTED, g_drag ? 220 : 110));
+     }
 
-   // Cabeçalho: logo, nome, conta e a bolinha de conexão.
+   // Cabeçalho: logo, nome, selo de status, conta e a bolinha de conexão.
    DrawLogo(PP, y, 38);
    RoundRect(PP, y, 38, 38, 38 * 0.14, Argb(P_WHITE, 50), 1);
    Text("Fortify Guard", PP + 50, y, 16.5, P_TEXT, FW_SEMIBOLD);
+   // Selo de status em uma palavra: o iniciante entende de longe, em qualquer aba.
+   if(g_hasFeed || g_error != "")
+     {
+      string st;
+      uint sc;
+      if(g_error != "")
+        {
+         st = "OFFLINE";
+         sc = P_MUTED;
+        }
+      else if(g_worst >= 3)
+        {
+         st = "ESTOUROU";
+         sc = P_BREACH;
+        }
+      else if(g_worst == 2)
+        {
+         st = "PERIGO";
+         sc = LevelArgb(2);
+        }
+      else if(g_worst == 1)
+        {
+         st = "ATENÇÃO";
+         sc = P_WARN;
+        }
+      else
+        {
+         st = "SEGURO";
+         sc = P_OK;
+        }
+      double sw = TextWidth(st, 9.5, FW_BOLD) + 16;
+      double sx = PP + 50 + TextWidth("Fortify Guard", 16.5, FW_SEMIBOLD) + 8;
+      RoundRect(sx, y + 2, sw, 19, 9.5, Mix(P_BG, sc, 0.16));
+      RoundRect(sx, y + 2, sw, 19, 9.5, Argb(sc, 160), 1);
+      Text(st, sx + sw / 2, y + 11.5, 9.5, sc, FW_BOLD, TA_CENTER | TA_VCENTER);
+     }
    string subtitle = "Conectando...";
    if(g_hasFeed)
      {
@@ -2977,6 +3864,18 @@ double RenderContent(double y)
       y += 36 + 16;
      }
 
+   // Notícia de alto impacto do ativo nos próximos 30 min: aviso em todas as abas (na Mercado
+   // ele aparece dentro do card de probabilidade).
+   if(g_tab != "mercado" && MkNewsSoon())
+     {
+      uint nc = MkNewsColor();
+      string nt = "Notícia de alto impacto " + MkNewsWhen() + " · " + g_mkNewsName;
+      RoundRect(PP, y, inner, 32, 10, Mix(P_BG, nc, 0.18));
+      RoundRect(PP, y, inner, 32, 10, Argb(nc, 170), 1);
+      Text(FitText(nt, inner - 24, 12.5, FW_SEMIBOLD), PP + inner / 2, y + 16, 12.5, nc, FW_SEMIBOLD, TA_CENTER | TA_VCENTER);
+      y += 32 + 12;
+     }
+
    if(g_tab == "config")
       y = RenderConfig(y);
    else if(g_tab == "regras")
@@ -3010,8 +3909,17 @@ void DrawPanel()
    int chartH = (int)ChartGetInteger(0, CHART_HEIGHT_IN_PIXELS);
    int pw = (int)MathCeil(PW * g_s);
    // A largura do grafico inclui a escala de preco a direita (~70px).
-   g_x0 = (InpCorner == GUARD_RIGHT) ? MathMax(8, chartW - pw - 84) : 12;
-   g_y0 = 28;
+   if(g_userPos)
+     {
+      g_x0 = g_posX;
+      g_y0 = g_posY;
+     }
+   else
+     {
+      g_x0 = (InpCorner == GUARD_RIGHT) ? MathMax(8, chartW - pw - 84) : 12;
+      g_y0 = 28;
+     }
+   ClampPanel(chartW, chartH);
    int avail = MathMax(160, chartH - g_y0 - 8);
 
    // 1) Mede: cabeçalho fixo + conteúdo da aba.
@@ -3121,11 +4029,11 @@ void DrawPanel()
    if(!g_collapsed && g_error == "" && g_hasFeed)
       DrawBreakLine(g_hasCanLose, g_canLose, g_slackIdx >= 0 ? g_rules[g_slackIdx].label : "", g_worst);
 
-   // Remove o que não foi usado neste desenho.
+   // Remove o que não foi usado neste desenho. As marcações SMC têm ciclo próprio (SmcDraw).
    for(int i = ObjectsTotal(0, 0, -1) - 1; i >= 0; i--)
      {
       string name = ObjectName(0, i, 0, -1);
-      if(StringFind(name, PFX) != 0)
+      if(StringFind(name, PFX) != 0 || StringFind(name, SMC_PFX) == 0)
          continue;
       bool keep = false;
       for(int j = 0; j < ArraySize(g_used) && !keep; j++)
@@ -3134,6 +4042,56 @@ void DrawPanel()
          ObjectDelete(0, name);
      }
    ChartRedraw(0);
+  }
+
+// O cabeçalho nunca sai do gráfico: sempre dá para pegar o painel de volta.
+void ClampPanel(const int chartW, const int chartH)
+  {
+   int handleH = (int)MathCeil(DRAG_HANDLE_H * g_s);
+   g_x0 = MathMax(0, MathMin(g_x0, chartW - (int)MathCeil(120 * g_s)));
+   g_y0 = MathMax(0, MathMin(g_y0, chartH - handleH));
+  }
+
+// Ponto (em pontos do painel) em cima de um botão ou aba: ali o clique não vira arrasto.
+bool OverHit(const double px, const double py)
+  {
+   for(int i = ArraySize(g_hits) - 1; i >= 0; i--)
+      if(px >= g_hits[i].x1 && px <= g_hits[i].x2 && py >= g_hits[i].y1 && py <= g_hits[i].y2)
+         return true;
+   return false;
+  }
+
+// Arrasto: só move a imagem do painel e os campos de digitação (sem redesenhar a cada pixel).
+void MovePanel(int nx, int ny)
+  {
+   int chartW = (int)ChartGetInteger(0, CHART_WIDTH_IN_PIXELS);
+   int chartH = (int)ChartGetInteger(0, CHART_HEIGHT_IN_PIXELS);
+   int ox = g_x0, oy = g_y0;
+   g_x0 = nx;
+   g_y0 = ny;
+   ClampPanel(chartW, chartH);
+   int dx = g_x0 - ox, dy = g_y0 - oy;
+   if(dx == 0 && dy == 0)
+      return;
+   g_userPos = true;
+   g_posX = g_x0;
+   g_posY = g_y0;
+   string objs[] = {"panel", "sim_stop", "mk_risk"};
+   for(int i = 0; i < ArraySize(objs); i++)
+     {
+      string id = PFX + objs[i];
+      if(ObjectFind(0, id) < 0)
+         continue;
+      ObjectSetInteger(0, id, OBJPROP_XDISTANCE, ObjectGetInteger(0, id, OBJPROP_XDISTANCE) + dx);
+      ObjectSetInteger(0, id, OBJPROP_YDISTANCE, ObjectGetInteger(0, id, OBJPROP_YDISTANCE) + dy);
+     }
+   ChartRedraw(0);
+  }
+
+void SavePanelPos()
+  {
+   GlobalVariableSet("FG_PANEL_X", g_posX);
+   GlobalVariableSet("FG_PANEL_Y", g_posY);
   }
 
 // Mouse em cima do painel: a roda rola a lista e o arrasto não mexe no gráfico.
@@ -3204,6 +4162,20 @@ int OnInit()
      }
    ApplyTheme();
    ObjectsDeleteAll(0, PFX);
+   // Marcações SMC: preferência salva no terminal (ligadas por padrão) e redesenho do zero.
+   g_smcOn = !GlobalVariableCheck("FG_SMC_DRAW") || GlobalVariableGet("FG_SMC_DRAW") > 0.5;
+   // Painel onde o trader deixou da última vez (se ele já arrastou).
+   g_userPos = GlobalVariableCheck("FG_PANEL_X") && GlobalVariableCheck("FG_PANEL_Y");
+   if(g_userPos)
+     {
+      g_posX = (int)GlobalVariableGet("FG_PANEL_X");
+      g_posY = (int)GlobalVariableGet("FG_PANEL_Y");
+     }
+   g_mouseDown = false;
+   g_drag = false;
+   g_dragArmed = false;
+   g_smcDrawn = false;
+   g_smcLiveDrawn = -2;
    // O painel fica por cima do grafico.
    ChartSetInteger(0, CHART_FOREGROUND, false);
    // Roda do mouse rola a lista do painel; o movimento diz quando o mouse está em cima dele.
@@ -3278,6 +4250,11 @@ void OnTimer()
       CheckAlerts();
    if(g_tab == "mercado" && !g_collapsed)
       MkUpdate();
+   // Notícias e marcações institucionais valem em qualquer aba (cada uma só refaz quando muda).
+   MkNews();
+   SmcRefresh();
+   SmcLiveCheck();
+   SmcDraw();
    DrawPanel();
    if(InpPreview && !g_previewShot && g_hasFeed && (g_tab != "mercado" || g_mkReady) && GetTickCount() - g_startTick > 10000)
      {
@@ -3346,6 +4323,21 @@ void HandleAction(const string action)
      }
    else if(action == "close")
       CloseAllPositions();
+   else if(action == "pos:reset")
+     {
+      // Painel de volta ao canto padrão.
+      g_userPos = false;
+      GlobalVariableDel("FG_PANEL_X");
+      GlobalVariableDel("FG_PANEL_Y");
+     }
+   else if(action == "smc:toggle")
+     {
+      // Só deste MT5: não entra nas opções enviadas ao Fortify.
+      g_smcOn = !g_smcOn;
+      GlobalVariableSet("FG_SMC_DRAW", g_smcOn ? 1.0 : 0.0);
+      g_smcDrawn = false;
+      SmcDraw();
+     }
    else if(action == "mkbuy")
       MkPlaceOrder(1);
    else if(action == "mksell")
@@ -3407,7 +4399,38 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
      }
    if(id == CHARTEVENT_MOUSE_MOVE)
      {
-      UpdateHover((int)lparam, (int)dparam);
+      int mx = (int)lparam, my = (int)dparam;
+      bool down = (((int)StringToInteger(sparam)) & 1) != 0;
+      // Apertou o botão: vira arrasto se foi na faixa do cabeçalho e fora de botão ou aba.
+      if(down && !g_mouseDown)
+        {
+         double px = (mx - g_x0) / g_s, py = (my - g_y0) / g_s;
+         g_dragArmed = (px >= 0 && px <= g_cw / g_s && py >= 0 && py <= DRAG_HANDLE_H && !OverHit(px, py));
+         g_dragDX = mx - g_x0;
+         g_dragDY = my - g_y0;
+        }
+      if(down && g_dragArmed)
+        {
+         int nx = mx - g_dragDX, ny = my - g_dragDY;
+         if(!g_drag && MathAbs(nx - g_x0) + MathAbs(ny - g_y0) >= 4)
+            g_drag = true;
+         if(g_drag)
+            MovePanel(nx, ny);
+        }
+      // Soltou: guarda a posição e redesenha tudo no lugar novo.
+      if(!down && g_mouseDown)
+        {
+         if(g_drag)
+           {
+            g_drag = false;
+            g_dragEndTick = GetTickCount();
+            SavePanelPos();
+            DrawPanel();
+           }
+         g_dragArmed = false;
+        }
+      g_mouseDown = down;
+      UpdateHover(mx, my);
       return;
      }
    if(id == CHARTEVENT_MOUSE_WHEEL)
@@ -3424,6 +4447,9 @@ void OnChartEvent(const int id, const long &lparam, const double &dparam, const 
    // Clique no painel: acha a área tocada (a última desenhada vence).
    if(id == CHARTEVENT_OBJECT_CLICK && sparam == PFX + "panel")
      {
+      // O clique que encerra um arrasto não aciona botão.
+      if(g_drag || GetTickCount() - g_dragEndTick < 400)
+         return;
       double px = ((double)lparam - g_x0) / g_s;
       double py = (dparam - g_y0) / g_s;
       for(int i = ArraySize(g_hits) - 1; i >= 0; i--)
