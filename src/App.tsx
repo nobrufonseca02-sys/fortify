@@ -38,6 +38,7 @@ const FaqPage = lazy(() => import("./pages/landing/FaqPage"));
 const QuemSomosPage = lazy(() => import("./pages/landing/QuemSomosPage"));
 const PlanosPage = lazy(() => import("./pages/landing/PlanosPage"));
 const GrupoVipPage = lazy(() => import("./pages/landing/GrupoVipPage"));
+const BlackFridayPage = lazy(() => import("./pages/landing/BlackFridayPage"));
 const BlogIndex = lazy(() => import("./pages/BlogIndex"));
 const BlogPost = lazy(() => import("./pages/BlogPost"));
 const SubscriptionManagementPage = lazy(() => import("./pages/SubscriptionManagementPage"));
@@ -292,7 +293,7 @@ export function AuthGuard() {
  * quem chega pelo anúncio vê a primeira dobra na hora, sem tela de carregamento,
  * e a página continua de pé mesmo se o Supabase estiver fora do ar.
  */
-const ROTAS_DE_CAMPANHA = new Set(["/grupo-vip", "/vip"]);
+const ROTAS_DE_CAMPANHA = new Set(["/grupo-vip", "/vip", "/black-friday", "/bf"]);
 
 function CampaignRoutes() {
   return (
@@ -301,6 +302,8 @@ function CampaignRoutes() {
         <Routes>
           <Route path="/grupo-vip" element={<GrupoVipPage />} />
           <Route path="/vip" element={<Navigate to={{ pathname: "/grupo-vip", search: window.location.search }} replace />} />
+          <Route path="/black-friday" element={<BlackFridayPage />} />
+          <Route path="/bf" element={<Navigate to={{ pathname: "/black-friday", search: window.location.search }} replace />} />
         </Routes>
       </Suspense>
     </BrowserRouter>
@@ -330,6 +333,9 @@ function AppContent() {
               Repetidas aqui para quem chega a elas navegando dentro do app. */}
           <Route path="/grupo-vip" element={<GrupoVipPage />} />
           <Route path="/vip" element={<Navigate to="/grupo-vip" replace />} />
+          {/* /black-friday e /bf: idem, atendidas antes por CampaignRoutes. */}
+          <Route path="/black-friday" element={<BlackFridayPage />} />
+          <Route path="/bf" element={<Navigate to={{ pathname: "/black-friday", search: window.location.search }} replace />} />
           {/* Aliases em inglês: rotas canônicas são as em português (convenção
               já existente em /vendas/*), estas existem só para links externos. */}
           <Route path="/about" element={<Navigate to="/vendas/quem-somos" replace />} />
